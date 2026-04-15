@@ -13,15 +13,15 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {service}-network-policy
+  name: "{service}-network-policy"
   namespace: ml-services
   labels:
-    app: {service}
+    app: "{service}"
     managed-by: kustomize
 spec:
   podSelector:
     matchLabels:
-      app: {service}
+      app: "{service}"
   policyTypes:
     - Ingress
     - Egress

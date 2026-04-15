@@ -12,10 +12,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {service}-role
+  name: "{service}-role"
   namespace: ml-services
   labels:
-    app: {service}
+    app: "{service}"
     managed-by: kustomize
 rules:
   # Read ConfigMaps (e.g., feature flags, config)
@@ -35,16 +35,16 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {service}-rolebinding
+  name: "{service}-rolebinding"
   namespace: ml-services
   labels:
-    app: {service}
+    app: "{service}"
     managed-by: kustomize
 subjects:
   - kind: ServiceAccount
-    name: {service}-sa
+    name: "{service}-sa"
     namespace: ml-services
 roleRef:
   kind: Role
-  name: {service}-role
+  name: "{service}-role"
   apiGroup: rbac.authorization.k8s.io

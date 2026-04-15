@@ -14,8 +14,6 @@ jobs:
   python-quality:
     name: Python Lint + Type Check
     runs-on: ubuntu-latest
-    env:
-      TF_CLI_ARGS_init: "-lockfile=readonly"
     steps:
       - uses: actions/checkout@v4
 
@@ -38,8 +36,6 @@ jobs:
   kubernetes-validate:
     name: Kubernetes Manifests
     runs-on: ubuntu-latest
-    env:
-      TF_CLI_ARGS_init: "-lockfile=readonly"
     steps:
       - uses: actions/checkout@v4
 
@@ -74,8 +70,6 @@ jobs:
   terraform-validate:
     name: Terraform Validate
     runs-on: ubuntu-latest
-    env:
-      TF_CLI_ARGS_init: "-lockfile=readonly"
     steps:
       - uses: actions/checkout@v4
 
@@ -86,13 +80,13 @@ jobs:
       - name: Validate GCP
         run: |
           cd templates/infra/terraform/gcp
-          terraform init -backend=false
+          terraform init -backend=false -upgrade=false
           terraform validate
 
       - name: Validate AWS
         run: |
           cd templates/infra/terraform/aws
-          terraform init -backend=false
+          terraform init -backend=false -upgrade=false
           terraform validate
 
   docker-lint:

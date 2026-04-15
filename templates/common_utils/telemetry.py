@@ -51,8 +51,8 @@ _NOOP_TRACER = None
 
 try:
     from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     _OTEL_AVAILABLE = True
