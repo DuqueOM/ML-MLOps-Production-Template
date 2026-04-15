@@ -13,7 +13,6 @@ TODO: Set realistic thresholds for quality gates and latency SLA.
 """
 
 import time
-from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
