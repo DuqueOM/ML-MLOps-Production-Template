@@ -2,12 +2,14 @@
 
 > Agent-driven framework for building and maintaining production-grade ML systems with multi-cloud deployment, comprehensive observability, and enterprise CI/CD.
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Release](https://img.shields.io/github/v/release/DuqueOM/ML-MLOps-Production-Template.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/releases)
+[![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Terraform >= 1.7](https://img.shields.io/badge/terraform-%3E%3D1.7-blueviolet.svg)](https://www.terraform.io/)
 [![Kubernetes](https://img.shields.io/badge/k8s-GKE%20%2B%20EKS-326CE5.svg)](https://kubernetes.io/)
 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-template/actions/workflows/validate-templates.yml)
+[![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-template/generate)
 [![Anti-Patterns](https://img.shields.io/badge/anti--patterns-12%20encoded-red.svg)](#anti-pattern-detection)
@@ -237,13 +239,14 @@ ML-MLOps-Production-template/
 │
 ├── AGENTS.md                              # Agent architecture, invariants, anti-patterns
 ├── CLAUDE.md                              # Claude Code project context
-├── .cursor/rules/                         # Cursor IDE rules
-│   └── mlops-conventions.mdc             #   Core invariants + anti-patterns
 ├── README.md                              # This file
 ├── SECURITY.md                            # Vulnerability reporting policy
 ├── CONTRIBUTING.md                        # Contribution guidelines
 ├── CODE_OF_CONDUCT.md                     # Contributor Covenant v2.0
 ├── CHANGELOG.md                           # Semantic versioning changelog
+├── Makefile                               # Contributor DX: validate-templates, lint-all, demo-minimal
+├── .pre-commit-config.yaml               # Contributor pre-commit hooks (black, isort, flake8, gitleaks)
+├── .gitleaks.toml                         # Secret detection config (shared root + templates/)
 ├── .gitattributes                         # Git LFS + line ending config
 │
 ├── .github/                               # GitHub community health files
@@ -394,7 +397,7 @@ This template supports **three AI coding assistants** out of the box:
 |-------------|----------------|--------|
 | **Windsurf Cascade** | `.windsurf/rules/`, `.windsurf/skills/`, `.windsurf/workflows/` | Markdown with glob triggers |
 | **Claude Code** | `CLAUDE.md`, `.claude/rules/` | Context-aware rules with `paths:` frontmatter |
-| **Cursor** | `.cursor/rules/mlops-conventions.mdc` | MDC with frontmatter globs |
+| **Cursor** | `.cursor/rules/*.mdc` | 5 MDC rules with frontmatter globs |
 
 All three share the same invariants from `AGENTS.md` (canonical source). The `.windsurf/` directory has the richest configuration (10 rules, 8 skills, 8 workflows).
 

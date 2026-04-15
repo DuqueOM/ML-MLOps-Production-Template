@@ -6,6 +6,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [1.2.0] - 2026-04-15
+
+### Added
+
+#### Developer Experience (root DX files)
+- **`Makefile`** (root) — Contributor entry point with template-specific targets:
+  - `make validate-templates` — lint + K8s validation in one command
+  - `make lint-all` / `make format-all` — operate on all Python across `templates/` and `examples/`
+  - `make demo-minimal` — run fraud detection example end-to-end (install → train → test → drift)
+  - `make test-examples` — regression tests for examples/
+  - `make new-service NAME=X SLUG=y` — scaffold wrapper around `new-service.sh`
+- **`.pre-commit-config.yaml`** (root) — Contributor hooks: black, isort, flake8, `pre-commit-hooks` (yaml, merge conflicts, large files), gitleaks
+- **`.gitleaks.toml`** (root) — Secret detection config shared between root and `templates/`, with allowlists for template placeholder tokens (`{ServiceName}`, `{service}`)
+
+#### Multi-IDE Cursor Parity
+- **`.cursor/rules/02-kubernetes.mdc`** — K8s rules: 1 worker, CPU HPA, init container pattern with code example
+- **`.cursor/rules/03-python-serving.mdc`** — Serving rules: async inference, SHAP KernelExplainer, Prometheus metrics
+- **`.cursor/rules/04-python-training.mdc`** — Training rules: pipeline sequence, quality gate table, required tests
+- **`.cursor/rules/05-docker.mdc`** — Docker rules: multi-stage, non-root USER, HEALTHCHECK, no model artifacts
+
+#### GitHub Releases
+- **v1.0.0** — tag pushed to remote (was created locally, not published)
+- **v1.1.0** — annotated tag created and pushed with full release notes
+
+### Changed
+
+#### CI Template (`templates/cicd/ci.yml`)
+- Added **Python 3.12 matrix** — test job now runs `["3.11", "3.12"]` in parallel
+- Added **Codecov integration** — uploads `coverage.xml` on `3.11` run via `codecov/codecov-action@v4`
+- Coverage report format changed from `term-missing` only → `xml` + `term-missing`
+
+#### README
+- Added **Release badge** with dynamic version from GitHub Releases
+- Updated **Python badge** to `3.11 | 3.12`
+- Added **Codecov badge**
+- Updated `.cursor/rules/` entry to reflect 5 MDC rules (was 1)
+- Updated repo tree with root DX files (`Makefile`, `.pre-commit-config.yaml`, `.gitleaks.toml`)
+
+#### AGENTS.md / CLAUDE.md / .cursor/rules/
+- Updated Multi-IDE Support section in AGENTS.md to show all 5 cursor rules
+
+---
+
 ## [1.1.0] - 2026-04-15
 
 ### Added

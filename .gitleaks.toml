@@ -1,0 +1,31 @@
+# Gitleaks configuration — ML-MLOps Production Template
+# Used by pre-commit and CI to detect hardcoded secrets in template code
+# Full rule reference: https://github.com/gitleaks/gitleaks
+
+title = "ML-MLOps Production Template"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Template placeholders and example values"
+regexes = [
+    # Template placeholder tokens — not real secrets
+    '''YOUR_GCP_PROJECT''',
+    '''YOUR_AWS_ACCOUNT''',
+    '''\{SERVICE[_A-Z]*\}''',
+    '''\{service[_a-z]*\}''',
+    # Example/test values
+    '''example\.com''',
+    '''localhost''',
+    '''127\.0\.0\.1''',
+    # Documentation snippets
+    '''<YOUR_''',
+]
+
+[[allowlists]]
+description = "Allow .env.example files — intentionally shows format, not real values"
+paths = [
+    '''templates/.*\.env\.example''',
+    '''examples/.*\.env\.example''',
+]

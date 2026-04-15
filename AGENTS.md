@@ -197,8 +197,12 @@ When starting a new session in a project derived from this template:
 ├── 04-terraform.md     # paths: **/*.tf
 └── 05-examples.md      # paths: examples/**/*
 
-.cursor/rules/          # Cursor IDE — globs: frontmatter
-└── mlops-conventions.mdc  # globs: **/*
+.cursor/rules/          # Cursor IDE — globs: frontmatter (5 files)
+├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, full D-01→D-12
+├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA, init container
+├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP
+├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, gates
+└── 05-docker.mdc             # globs: **/Dockerfile* — multi-stage, no model
 ```
 
 ## Template System
