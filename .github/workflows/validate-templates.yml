@@ -62,7 +62,7 @@ jobs:
           sudo mv kustomize /usr/local/bin/
 
       - name: Validate Kustomize build (base)
-        run: kustomize build templates/k8s/ > /dev/null
+        run: kustomize build templates/k8s/base/ > /dev/null
 
       - name: Validate Kustomize build (GCP overlay)
         run: kustomize build templates/k8s/overlays/gcp-production/ > /dev/null

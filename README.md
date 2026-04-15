@@ -279,7 +279,7 @@ ML-MLOps-Production-template/
     │   ├── serviceaccount.yaml            #   Workload Identity / IRSA annotations
     │   ├── networkpolicy.yaml             #   Ingress/egress traffic restrictions
     │   ├── rbac.yaml                      #   Role + RoleBinding (least privilege)
-    │   ├── kustomization.yaml             #   Base Kustomize config
+    │   ├── base/kustomization.yaml        #   Base Kustomize config
     │   ├── argo-rollout.yaml              #   Canary deployment + AnalysisTemplate
     │   └── overlays/                      #   Environment-specific patches
     │       ├── gcp-production/            #     GKE: Artifact Registry, Workload Identity

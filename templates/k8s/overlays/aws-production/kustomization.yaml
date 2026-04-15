@@ -18,13 +18,13 @@ kind: Kustomization
 namespace: ml-services
 
 resources:
-  - ../../   # Reference base kustomization
+  - ../../base   # Reference base kustomization
 
 images:
   - name: "{service}-predictor"
     newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{service}-predictor"
     newTag: "v1.0.0"   # Patched by CI/CD pipeline
 
-patchesStrategicMerge:
-  - patch-deployment.yaml
-  - patch-serviceaccount.yaml
+patches:
+  - path: patch-deployment.yaml
+  - path: patch-serviceaccount.yaml
