@@ -22,7 +22,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — install dependencies in an isolated venv
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.13.13-slim-bookworm AS builder
 
 LABEL maintainer="your-team@example.com" \
       version="1.0.0" \
@@ -63,7 +63,7 @@ RUN python -m venv /opt/venv && \
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — minimal final image
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.13.13-slim-bookworm AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
