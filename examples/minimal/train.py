@@ -21,7 +21,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-import pandera.pandas as pa
+import pandera as pa
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import f1_score, roc_auc_score

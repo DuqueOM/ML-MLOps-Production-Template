@@ -8,7 +8,7 @@ Used at three validation points:
 TODO: Replace example fields with your actual features.
 """
 
-import pandera.pandas as pa
+import pandera as pa
 
 
 class ServiceInputSchema(pa.DataFrameModel):
