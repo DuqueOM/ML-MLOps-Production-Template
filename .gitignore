@@ -1,1 +1,102 @@
 description_project.md
+
+# ─── Python ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-wheel-metadata/
+
+# ─── Testing & Coverage ──────────────────────────────
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+junit.xml
+results/
+
+# ─── Type checking ───────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# ─── Virtual environments ────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+!.env.example
+
+# ─── ML artifacts (never commit models or data) ──────
+models/
+*.joblib
+*.pkl
+*.pickle
+*.h5
+*.pt
+*.pth
+*.onnx
+data/raw/
+data/processed/
+data/interim/
+mlruns/
+mlflow.db
+artifacts/
+
+# ─── Jupyter ─────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── Infrastructure state (never commit) ─────────────
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+!terraform.tfvars.example
+
+# ─── Docker ──────────────────────────────────────────
+.docker/
+
+# ─── IDE / OS ─────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Secrets & credentials ───────────────────────────
+*.pem
+*.key
+*.p12
+secrets/
+credentials/
+service-account*.json
+gcp-sa-key.json
+aws-credentials
+
+# ─── Reports & logs ──────────────────────────────────
+logs/
+*.log
+reports/
+*.csv.gz
+
+# ─── DVC ─────────────────────────────────────────────
+/tmp/
