@@ -63,6 +63,8 @@ A **complete, opinionated template** for shipping ML models to production — no
 │                     AGENTIC SYSTEM                                     │
 │                                                                        │
 │  AGENTS.md          → Root-level invariants + anti-pattern rules       │
+│  CLAUDE.md          → Claude Code project context                      │
+│  .cursor/rules/     → Cursor IDE rules                                │
 │  .windsurf/rules/   → 9 context-aware behavioral constraints           │
 │  .windsurf/skills/  → 8 multi-step operational procedures              │
 │  .windsurf/workflows/→ 8 prompt-triggered structured workflows         │
@@ -100,11 +102,8 @@ A **complete, opinionated template** for shipping ML models to production — no
 
 ## Technology Stack
 
-## Canonical Source Note (common_utils)
-
-`templates/common_utils/` in this repository is intended to be the **canonical source**.
-If you also maintain a `common_utils` copy in another repository (e.g., the portfolio),
-reconcile differences before using in production to avoid silent behavior drift.
+> **Note (`common_utils`)**: `templates/common_utils/` in this repository is the **canonical source**.
+> If you maintain a copy in another repo (e.g., the portfolio), reconcile differences before production use.
 
 | Layer | Technology | Notes |
 |-------|-----------|-------|
@@ -478,6 +477,7 @@ A complete, production-ready ML service with:
 - **MLflow integration** for experiment tracking and model registry
 - **Tests** for data leakage, quality gates, API endpoints, SHAP consistency, latency SLA
 - **Load tests** with Locust (100 concurrent users, < 1% error rate)
+- **`pyproject.toml`** for modern Python tooling (alternative to `requirements.txt`)
 
 ### Common Utils (`templates/common_utils/`)
 
@@ -495,6 +495,8 @@ Reusable shared library for all ML services:
 - **CronJob** for daily drift detection with Pushgateway integration
 - **ServiceAccount** with Workload Identity / IRSA annotation placeholders
 - **Kustomize base** with namespace, common labels, and resource list
+- **NetworkPolicy** restricting ingress (nginx + Prometheus) and egress (DNS, MLflow, cloud storage)
+- **RBAC** Role + RoleBinding with least-privilege access (read ConfigMaps/Secrets only)
 - **Kustomize overlays** for GCP (Artifact Registry, Workload Identity) and AWS (ECR, IRSA)
 - **Argo Rollouts** canary deployment with Prometheus-based analysis (error rate, P95 latency)
 
@@ -512,7 +514,7 @@ Reusable shared library for all ML services:
 ### CI/CD Templates (`templates/cicd/`)
 
 - **CI**: flake8 + black + isort + mypy → pytest (90% coverage) → Docker build + Trivy scan
-- **Infrastructure CI**: terraform fmt/init/validate + tfsec + Checkov + kubeval
+- **Infrastructure CI**: terraform fmt/init/validate + tfsec + Checkov + kubeconform
 - **Deploy GCP/AWS**: Tag-triggered deploy with cluster verification and smoke tests
 - **Drift Detection**: Daily scheduled + manual trigger, auto-creates GitHub issue on alert
 - **Retraining**: Manual trigger with data validation, training, quality gates, and artifact upload
@@ -522,11 +524,21 @@ Reusable shared library for all ML services:
 - **ADR template**: Context, Options, Decision, Rationale, Consequences, Revisit When
 - **Runbook template**: P1–P4 severity procedures with `kubectl` commands
 - **Service README**: Measured latency tables, drift thresholds, cost breakdown, resource profile
+- **Model card**: ML transparency document (intended use, metrics, fairness, limitations)
+- **Dependency analysis**: Known conflicts, resolution strategies, CVE tracking
 
 ### Monitoring Templates (`templates/monitoring/`)
 
 - **Prometheus alerts**: Error rate, service down, drift heartbeat, latency, resource usage, pod restarts
 - **Grafana dashboard**: Request rate, error rate, latency percentiles, PSI scores, prediction distribution, HPA replicas, CPU/memory usage
+
+### Developer Experience (`templates/`)
+
+- **`Makefile`** — Standard targets: `make train`, `make test`, `make serve`, `make build`, `make demo-up`, `make lint`, `make clean`
+- **`docker-compose.demo.yml`** — Local demo stack: ML service + MLflow + Pushgateway + Prometheus + Grafana
+- **`.pre-commit-config.yaml`** — Pre-commit hooks: black, isort, flake8, mypy, bandit, gitleaks
+- **`.gitleaks.toml`** — Secret detection config with allowlist for common false positives
+- **`.env.example`** — Documented environment variables (MLflow, logging, API, DVC)
 
 ---
 
@@ -541,15 +553,27 @@ docs site.
 
 ---
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting guidelines, supported versions, and response timelines.
+
+---
+
 ## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines. Quick summary:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+5. Open a Pull Request using the [PR template](.github/pull_request_template.md)
 
 When adding new templates or rules, ensure they follow the **Engineering Calibration Principle** — sized to the actual problem, not the theoretical maximum.
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ---
 
