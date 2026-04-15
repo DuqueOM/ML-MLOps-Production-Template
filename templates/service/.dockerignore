@@ -1,0 +1,17 @@
+models/
+data/raw/
+data/production/
+*.pyc
+__pycache__
+tests/
+.git/
+.github/
+.windsurf/
+docs/
+*.md
+!README.md
+.dvc/
+.env
+*.log
+.mypy_cache/
+.pytest_cache/

@@ -1,0 +1,86 @@
+# {ServiceName}
+
+> {One sentence describing the business problem solved}
+
+## Quick Start
+
+```bash
+pip install -r requirements.txt
+python src/{service}/training/train.py --data data/raw/dataset.csv
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+## Model
+
+- **Architecture**: {Model type — see ADR-NNN}
+- **Primary Metric**: {metric} = {value}
+- **Secondary Metric**: {metric} = {value}
+- **Fairness (DIR)**: {value} per {protected attributes}
+- **Training Date**: {YYYY-MM-DD}
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/predict` | Main prediction endpoint |
+| POST | `/predict?explain=true` | Prediction with SHAP explanation |
+| GET | `/health` | Liveness/readiness probe |
+| GET | `/metrics` | Prometheus metrics |
+
+### Example Request
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "feature_a": 42.0,
+    "feature_b": 50000.0,
+    "feature_c": "category_A"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "prediction_score": 0.7234,
+  "risk_level": "HIGH",
+  "model_version": "v1.0.0"
+}
+```
+
+## Serving Latency (Measured)
+
+| Cloud | Instance | P50 (idle) | P95 (idle) | P50 (100u) |
+|-------|----------|-----------|-----------|-----------|
+| GCP | {type} | {X}ms | {Y}ms | {X}ms |
+| AWS | {type} | {X}ms | {Y}ms | {X}ms |
+
+## Drift Detection
+
+- **Metric**: PSI with quantile-based bins
+- **Schedule**: Daily at 02:00 UTC via K8s CronJob
+- **Thresholds**: See `src/{service}/monitoring/drift_detection.py`
+
+## Deploy
+
+```bash
+# GCP
+kubectl apply -k k8s/overlays/gcp/
+
+# AWS
+kubectl apply -k k8s/overlays/aws/
+```
+
+## Architecture Decisions
+
+- ADR-NNN: {Model selection rationale}
+- ADR-NNN: {Any service-specific decisions}
+
+## Memory Footprint
+
+```
+Model + dependencies: ~{N}Mi
+Pod request: {X}Mi
+Pod limit: {Y}Mi
+```

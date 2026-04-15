@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {service}-predictor
+  labels:
+    app: {service}
+    version: v1.0.0
+    environment: production
+    managed-by: kustomize
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {service}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # Zero downtime
+  template:
+    metadata:
+      labels:
+        app: {service}
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: {service}-sa
+
+      # Init container downloads model from cloud storage
+      initContainers:
+        - name: model-downloader
+          # GCP: google/cloud-sdk:slim | AWS: amazon/aws-cli:latest
+          image: google/cloud-sdk:slim
+          command:
+            - gsutil
+            - cp
+            - gs://{MODEL_BUCKET}/{service}/model.joblib
+            - /models/model.joblib
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+
+      containers:
+        - name: {service}-predictor
+          image: {service}-predictor:latest   # Patched by Kustomize overlay
+          command: ["uvicorn"]
+          args:
+            - "app.main:app"
+            - "--host=0.0.0.0"
+            - "--port=8000"
+            # NO --workers: default = 1 (K8s HPA manages scale)
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: MODEL_PATH
+              value: /models/model.joblib
+            - name: MODEL_VERSION
+              value: "v1.0.0"
+            - name: BACKGROUND_DATA_PATH
+              value: /app/data/reference/background.csv
+          resources:
+            requests:
+              cpu: "500m"       # TODO: Set based on profiling
+              memory: "512Mi"   # TODO: Set based on model size
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+              readOnly: true
+
+      volumes:
+        - name: model-storage
+          emptyDir: {}   # Ephemeral — destroyed with the pod

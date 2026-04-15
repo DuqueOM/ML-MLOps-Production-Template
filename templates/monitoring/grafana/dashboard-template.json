@@ -1,0 +1,171 @@
+{
+  "__comment": "Grafana dashboard template for ML service monitoring. Import via Grafana UI or provisioning.",
+  "dashboard": {
+    "title": "{ServiceName} — ML Service Dashboard",
+    "tags": ["ml-service", "{service}"],
+    "timezone": "utc",
+    "refresh": "30s",
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "constant",
+          "query": "{service}",
+          "hide": 0
+        },
+        {
+          "name": "namespace",
+          "type": "constant",
+          "query": "default",
+          "hide": 0
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "Request Rate",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{service=\"$service\"}[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate (%)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "100 * sum(rate(http_requests_total{service=\"$service\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"$service\"}[5m]))",
+            "legendFormat": "Error %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Prediction Latency (Percentiles)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(${service}_prediction_latency_seconds_bucket[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(${service}_prediction_latency_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(${service}_prediction_latency_seconds_bucket[5m]))",
+            "legendFormat": "P99"
+          }
+        ]
+      },
+      {
+        "title": "Prediction Score Distribution",
+        "type": "histogram",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(${service}_prediction_score_bucket[1h])) by (le)",
+            "legendFormat": "{{le}}"
+          }
+        ]
+      },
+      {
+        "title": "PSI Drift Score (per feature)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "${service}_psi_score",
+            "legendFormat": "{{feature}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 0.10},
+                {"color": "red", "value": 0.20}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Predictions by Risk Level",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(${service}_predictions_total) by (risk_level)",
+            "legendFormat": "{{risk_level}}"
+          }
+        ]
+      },
+      {
+        "title": "Model Version",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 8, "x": 8, "y": 24},
+        "targets": [
+          {
+            "expr": "${service}_model_info",
+            "legendFormat": "{{version}}"
+          }
+        ]
+      },
+      {
+        "title": "Pod CPU Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{pod=~\"${service}-predictor.*\",namespace=\"$namespace\"}[5m])",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      },
+      {
+        "title": "Pod Memory Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 28},
+        "targets": [
+          {
+            "expr": "container_memory_working_set_bytes{pod=~\"${service}-predictor.*\",namespace=\"$namespace\"} / 1024 / 1024",
+            "legendFormat": "{{pod}} (Mi)"
+          }
+        ]
+      },
+      {
+        "title": "HPA Replicas",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
+        "targets": [
+          {
+            "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"${service}-hpa\"}",
+            "legendFormat": "Current"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"${service}-hpa\"}",
+            "legendFormat": "Desired"
+          }
+        ]
+      }
+    ]
+  }
+}

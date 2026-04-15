@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {service}-drift-detection
+  labels:
+    app: {service}-drift
+spec:
+  schedule: "0 2 * * *"   # Daily at 02:00 UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800   # 30 min timeout
+      template:
+        metadata:
+          labels:
+            app: {service}-drift
+        spec:
+          serviceAccountName: {service}-sa
+          restartPolicy: Never
+          containers:
+            - name: drift-detector
+              image: {service}-predictor:latest
+              command:
+                - python
+                - src/{service}/monitoring/drift_detection.py
+                - --reference
+                - data/reference/reference.csv
+                - --current
+                - data/production/latest.csv
+                - --output
+                - /tmp/drift_report.json
+                - --push-metrics
+              env:
+                - name: PUSHGATEWAY_URL
+                  value: "pushgateway:9091"
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"

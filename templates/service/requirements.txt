@@ -1,0 +1,36 @@
+# ML Core
+scikit-learn         ~= 1.5.0
+pandas               ~= 2.2.0
+numpy                ~= 1.26.0    # numpy 2.x silently corrupts joblib models
+scipy                ~= 1.14.0
+optuna               ~= 4.1.0
+joblib               ~= 1.4.0
+
+# Serving
+fastapi              ~= 0.115.0
+uvicorn              ~= 0.32.0
+pydantic             ~= 2.10.0
+
+# Data Validation
+pandera              ~= 0.21.0
+
+# Explainability
+shap                 ~= 0.46.0
+
+# Monitoring
+prometheus-client    ~= 0.21.0
+evidently            ~= 0.5.0
+
+# MLflow
+mlflow               ~= 2.18.0
+
+# Testing
+pytest               ~= 8.3.0
+pytest-cov           ~= 6.0.0
+locust               ~= 2.32.0
+httpx                ~= 0.28.0
+
+# Optional — uncomment if needed:
+# xgboost            ~= 2.1.0
+# lightgbm           ~= 4.5.0
+# pyspark            ~= 3.5.0

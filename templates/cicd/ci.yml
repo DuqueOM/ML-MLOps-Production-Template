@@ -1,0 +1,113 @@
+name: CI — Lint, Test, Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install flake8 black isort mypy
+
+      - name: flake8
+        run: flake8 src/ app/ tests/ --max-line-length=120
+
+      - name: black
+        run: black --check src/ app/ tests/
+
+      - name: isort
+        run: isort --check-only src/ app/ tests/
+
+      - name: mypy
+        run: mypy src/ app/ --ignore-missing-imports
+
+  test:
+    name: Test — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          # TODO: Add your services here
+          - ServiceA
+          # - ServiceB
+          # - ServiceC
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r ${{ matrix.service }}/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        run: |
+          cd ${{ matrix.service }}
+          pytest tests/ \
+            --cov=src --cov=app \
+            --cov-report=term-missing \
+            --cov-fail-under=90 \
+            --junitxml=results/junit.xml
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/results/
+
+  build:
+    name: Build & Scan — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          # TODO: Add your services here
+          - ServiceA
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ matrix.service }}:${{ github.sha }} \
+            ${{ matrix.service }}/
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ matrix.service }}:${{ github.sha }}"
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+
+      # TODO: Push to registry (uncomment and configure)
+      # - name: Push to GCP Artifact Registry
+      #   run: |
+      #     echo "${{ secrets.GCP_SA_KEY }}" | docker login -u _json_key --password-stdin https://${REGION}-docker.pkg.dev
+      #     docker tag ${{ matrix.service }}:${{ github.sha }} ${GCP_REGISTRY}/${{ matrix.service }}:${{ github.sha }}
+      #     docker push ${GCP_REGISTRY}/${{ matrix.service }}:${{ github.sha }}

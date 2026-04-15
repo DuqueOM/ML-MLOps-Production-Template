@@ -1,0 +1,76 @@
+name: CI — Infrastructure
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/**"
+      - "k8s/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "k8s/**"
+
+jobs:
+  terraform-validate:
+    name: Terraform — ${{ matrix.cloud }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cloud: [gcp, aws]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: infra/terraform/${{ matrix.cloud }}
+
+      - name: Terraform init
+        run: terraform init -backend=false
+        working-directory: infra/terraform/${{ matrix.cloud }}
+
+      - name: Terraform validate
+        run: terraform validate
+        working-directory: infra/terraform/${{ matrix.cloud }}
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: infra/terraform/${{ matrix.cloud }}
+          format: json
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infra/terraform/${{ matrix.cloud }}
+          quiet: true
+          framework: terraform
+
+  k8s-validate:
+    name: K8s Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeval
+        run: |
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin/
+
+      - name: Validate base manifests
+        run: kubeval --strict k8s/base/*.yaml
+
+      - name: Validate GCP overlays
+        run: kubectl kustomize k8s/overlays/gcp/ | kubeval --strict
+        continue-on-error: true
+
+      - name: Validate AWS overlays
+        run: kubectl kustomize k8s/overlays/aws/ | kubeval --strict
+        continue-on-error: true

@@ -1,0 +1,68 @@
+name: Deploy — AWS EKS
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy (or 'all')"
+        required: true
+        default: "all"
+
+# Required secrets:
+# AWS_ACCESS_KEY_ID — AWS access key
+# AWS_SECRET_ACCESS_KEY — AWS secret key
+# AWS_ACCOUNT_ID — AWS account ID
+# AWS_REGION — AWS region
+# EKS_CLUSTER — EKS cluster name
+
+env:
+  REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    environment: production-aws
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password | docker login --username AWS --password-stdin ${{ env.REGISTRY }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER }} --region ${{ secrets.AWS_REGION }}
+
+      - name: Verify cluster context
+        run: |
+          echo "Current context: $(kubectl config current-context)"
+          kubectl cluster-info
+
+      - name: Build and push images
+        run: |
+          VERSION=${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}
+          # TODO: Loop over your services
+          for SERVICE in ServiceA; do
+            docker build -t ${{ env.REGISTRY }}/${SERVICE}:${VERSION} ${SERVICE}/
+            docker push ${{ env.REGISTRY }}/${SERVICE}:${VERSION}
+          done
+
+      - name: Apply K8s manifests
+        run: kubectl apply -k k8s/overlays/aws/
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment --all -n default --timeout=300s
+
+      - name: Smoke test
+        run: |
+          sleep 10
+          # TODO: Add service endpoints

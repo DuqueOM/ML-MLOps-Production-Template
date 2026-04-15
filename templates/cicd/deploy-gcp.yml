@@ -1,0 +1,71 @@
+name: Deploy — GCP GKE
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy (or 'all')"
+        required: true
+        default: "all"
+
+# Required secrets:
+# GCP_SA_KEY — GCP service account key (JSON)
+# GCP_PROJECT_ID — GCP project ID
+# GKE_CLUSTER — GKE cluster name
+# GKE_REGION — GKE cluster region
+
+env:
+  REGISTRY: ${{ secrets.GKE_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ml-images
+
+jobs:
+  deploy:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    environment: production-gcp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GKE_REGION }}-docker.pkg.dev
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER }}
+          location: ${{ secrets.GKE_REGION }}
+
+      - name: Verify cluster context
+        run: |
+          echo "Current context: $(kubectl config current-context)"
+          kubectl cluster-info
+
+      - name: Build and push images
+        run: |
+          VERSION=${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}
+          # TODO: Loop over your services
+          for SERVICE in ServiceA; do
+            docker build -t ${{ env.REGISTRY }}/${SERVICE}:${VERSION} ${SERVICE}/
+            docker push ${{ env.REGISTRY }}/${SERVICE}:${VERSION}
+          done
+
+      - name: Apply K8s manifests
+        run: kubectl apply -k k8s/overlays/gcp/
+
+      - name: Wait for rollout
+        run: |
+          # TODO: Add your deployment names
+          kubectl rollout status deployment --all -n default --timeout=300s
+
+      - name: Smoke test
+        run: |
+          sleep 10
+          # TODO: Add service endpoints
+          # kubectl run smoke-test --rm -i --restart=Never --image=curlimages/curl -- curl -sf http://service-a-service/health

@@ -1,0 +1,74 @@
+name: Drift Detection
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # Daily at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to check (or 'all')"
+        required: true
+        default: "all"
+
+# Required secrets:
+# GCP_SA_KEY — For GCS access
+# PUSHGATEWAY_URL — Prometheus Pushgateway URL
+
+jobs:
+  drift:
+    name: Drift — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          # TODO: Add your services here
+          - ServiceA
+          # - ServiceB
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r ${{ matrix.service }}/requirements.txt
+
+      - name: Download production data
+        run: |
+          # TODO: Download latest production data
+          # gsutil cp gs://${DATA_BUCKET}/${{ matrix.service }}/latest.csv data/production/
+          echo "TODO: Configure data download"
+
+      - name: Run drift detection
+        id: drift
+        continue-on-error: true
+        run: |
+          cd ${{ matrix.service }}
+          python src/*/monitoring/drift_detection.py \
+            --reference data/reference/reference.csv \
+            --current data/production/latest.csv \
+            --output drift_report.json \
+            --push-metrics
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-${{ matrix.service }}
+          path: ${{ matrix.service }}/drift_report.json
+
+      - name: Create issue on drift alert
+        if: steps.drift.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Drift alert: ${{ matrix.service }} — ${new Date().toISOString().split('T')[0]}`,
+              body: `Drift detection triggered for **${{ matrix.service }}**.\n\nCheck the drift report artifact for details.\n\nConsider running \`/retrain\` workflow.`,
+              labels: ['drift-alert', 'ml-monitoring']
+            });

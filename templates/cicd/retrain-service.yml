@@ -1,0 +1,108 @@
+name: Retrain — {ServiceName}
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for retraining (e.g., PSI drift, scheduled, manual)"
+        required: true
+      optuna_trials:
+        description: "Number of Optuna trials"
+        required: false
+        default: "50"
+
+# Required secrets:
+# GCP_SA_KEY — GCP service account
+# MLFLOW_TRACKING_URI — MLflow server URL
+# MODEL_BUCKET — GCS bucket for model artifacts
+
+env:
+  SERVICE: "{ServiceName}"
+  SERVICE_SLUG: "{service}"
+
+jobs:
+  retrain:
+    name: Retrain Model
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r ${{ env.SERVICE }}/requirements.txt
+
+      - name: Download fresh data
+        run: |
+          # TODO: Download latest production data
+          echo "Downloading data for retraining..."
+
+      - name: Validate data
+        run: |
+          cd ${{ env.SERVICE }}
+          python -c "
+          from src.${{ env.SERVICE_SLUG }}.schemas import ServiceInputSchema
+          import pandas as pd
+          df = pd.read_csv('data/raw/latest.csv')
+          ServiceInputSchema.validate(df)
+          print(f'Validation passed: {len(df)} rows')
+          "
+
+      - name: Execute training
+        id: train
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          cd ${{ env.SERVICE }}
+          python src/${{ env.SERVICE_SLUG }}/training/train.py \
+            --data data/raw/latest.csv \
+            --experiment "${{ env.SERVICE }}-retrain-$(date +%Y%m%d)" \
+            --optuna-trials ${{ github.event.inputs.optuna_trials }} \
+            | tee training_output.json
+
+      - name: Check quality gates
+        id: gates
+        run: |
+          cd ${{ env.SERVICE }}
+          # Parse training output for quality gate results
+          python -c "
+          import json
+          with open('training_output.json') as f:
+              result = json.load(f)
+          gates = result['quality_gates']
+          if not gates['all_passed']:
+              print(f'FAILED gates: {gates[\"failed\"]}')
+              exit(1)
+          print('All quality gates PASSED')
+          "
+
+      - name: Promote model (if gates pass)
+        if: steps.gates.outcome == 'success'
+        run: |
+          echo "TODO: Upload model to GCS/S3 and promote in MLflow"
+          # gsutil cp models/model.joblib gs://${MODEL_BUCKET}/${SERVICE}/model.joblib
+
+      - name: Create failure issue (if gates fail)
+        if: steps.gates.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Retraining quality gate failure: ${{ env.SERVICE }}`,
+              body: `Retraining triggered by: ${{ github.event.inputs.reason }}\n\nQuality gates failed. Current production model retained.\n\nCheck workflow run for details.`,
+              labels: ['ml-retraining', 'quality-gate-failure']
+            });
+
+      - name: Upload training artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-${{ env.SERVICE }}-${{ github.run_number }}
+          path: |
+            ${{ env.SERVICE }}/training_output.json
+            ${{ env.SERVICE }}/models/model_metadata.json

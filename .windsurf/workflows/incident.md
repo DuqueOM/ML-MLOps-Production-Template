@@ -1,0 +1,109 @@
+---
+description: ML service incident response — diagnose, mitigate, resolve, document
+---
+
+# /incident Workflow
+
+## 1. Identify Severity
+
+| Severity | Symptoms | SLA |
+|----------|----------|-----|
+| **P1** | >5% error rate, service down | 15 min |
+| **P2** | Metric degradation, drift alert | 4 hours |
+| **P3** | High PSI on critical feature | 24 hours |
+| **P4** | Incipient drift, minor anomaly | 1 week |
+
+## 2. P1 — Immediate Rollback
+
+```bash
+# Step 1: Rollback deployment
+kubectl rollout undo deployment/${SERVICE}-predictor -n ${NAMESPACE}
+kubectl rollout status deployment/${SERVICE}-predictor -n ${NAMESPACE}
+
+# Step 2: Verify recovery
+curl -f http://${ENDPOINT}/health
+```
+// turbo
+
+## 3. Diagnose Root Cause
+
+### Check Logs
+```bash
+kubectl logs -l app=${SERVICE} -n ${NAMESPACE} --since=1h | grep -i "error\|exception\|traceback"
+```
+
+### Check Metrics
+```bash
+# Error rate
+curl 'http://prometheus:9090/api/v1/query?query=rate(http_requests_total{service="${SERVICE}",status=~"5.."}[5m])'
+
+# Latency
+curl 'http://prometheus:9090/api/v1/query?query=histogram_quantile(0.95, ${SERVICE}_prediction_latency_seconds)'
+
+# Drift
+curl 'http://prometheus:9090/api/v1/query?query=${SERVICE}_psi_score'
+```
+
+### Check Infrastructure
+```bash
+kubectl top pod -l app=${SERVICE} -n ${NAMESPACE}
+kubectl describe pod -l app=${SERVICE} -n ${NAMESPACE} | grep -A5 "Events\|Conditions"
+```
+
+## 4. Common Root Causes
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| 5xx errors, high latency | Event loop blocking | Wrap in `run_in_executor` |
+| OOM kills | Model too large for limits | Increase memory limit |
+| Pods not starting | Init container failing | Check model download path |
+| Wrong predictions | Stale model, data drift | Retrain or rollback |
+| Schema errors (422) | Upstream data change | Update Pandera schema |
+
+## 5. Mitigate
+
+Based on root cause, apply the appropriate fix:
+- **Code fix**: PR → CI → deploy
+- **Model fix**: Trigger `/retrain` workflow
+- **Infra fix**: Terraform apply → deploy
+- **Data fix**: Coordinate with upstream team
+
+## 6. Verify Resolution
+
+- [ ] Error rate back to normal
+- [ ] Latency within SLA
+- [ ] No new alerts
+- [ ] Health checks passing
+- [ ] Predictions validated
+
+## 7. Document Incident
+
+Create incident report:
+```markdown
+## Incident: ${TITLE}
+**Date**: YYYY-MM-DD HH:MM UTC
+**Severity**: P{N}
+**Duration**: {minutes}
+**Impact**: {description}
+
+### Timeline
+- HH:MM — Alert fired
+- HH:MM — Investigation started
+- HH:MM — Root cause identified
+- HH:MM — Fix deployed
+- HH:MM — Resolution confirmed
+
+### Root Cause
+{description with measured evidence}
+
+### Action Items
+- [ ] {preventive action 1}
+- [ ] {preventive action 2}
+```
+
+## 8. Follow-Up
+
+- Create ADR if the incident reveals a new architectural decision
+- Update runbook with new diagnostic steps
+- Update alerts if thresholds need adjustment
+- Schedule post-mortem if P1/P2
