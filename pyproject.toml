@@ -1,0 +1,21 @@
+[tool.pytest.ini_options]
+# Load tests use Locust (not pytest) — skip during collection
+addopts = "--ignore=templates/service/tests/load_test.py"
+
+[tool.black]
+line-length = 120
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | data
+  | models
+  | mlruns
+  | __pycache__
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
