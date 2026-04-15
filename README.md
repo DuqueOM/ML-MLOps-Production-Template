@@ -19,9 +19,11 @@
 ## Quick Navigation
 
 - **[What This Is](#what-this-is)**
+- **[Try It in 5 Minutes](#try-it-in-5-minutes)**
 - **[Architecture Overview](#architecture-overview)**
 - **[Technology Stack](#technology-stack)**
 - **[Quick Start](#quick-start)**
+- **[What's Different](#whats-different-from-other-templates)**
 - **[Agentic System](#agentic-system)**
 - **[Critical Patterns (Invariants)](#critical-patterns-invariants)**
 - **[Anti-Pattern Detection](#anti-pattern-detection)**
@@ -36,6 +38,41 @@ This template was extracted from:
 - **[ML-MLOps-Portfolio](https://github.com/DuqueOM/ML-MLOps-Portfolio)**
 
 It shows how these patterns look when applied to real production-like ML services.
+
+---
+
+## Try It in 5 Minutes
+
+A working fraud detection service that demonstrates the entire pipeline:
+
+```bash
+cd examples/minimal
+pip install -r requirements.txt
+
+# Train model (generates synthetic data, validates with Pandera, runs quality gates)
+python train.py
+
+# Start the API (async inference + SHAP + Prometheus metrics)
+uvicorn serve:app --host 0.0.0.0 --port 8000
+
+# Predict (in another terminal)
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 150.0, "hour": 2, "is_foreign": true, "merchant_risk": 0.8, "distance_from_home": 45.0}'
+
+# With SHAP explanation
+curl "http://localhost:8000/predict?explain=true" \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"amount": 9500.0, "hour": 3, "is_foreign": true, "merchant_risk": 0.9, "distance_from_home": 200.0}'
+
+# Run regression tests (leakage, SHAP consistency, latency, fairness)
+pytest test_service.py -v
+
+# Run drift detection (simulates production drift)
+python drift_check.py
+```
+
+See [`examples/minimal/`](examples/minimal/) for the full working example.
 
 ---
 
@@ -135,20 +172,18 @@ cd ML-MLOps-Production-template
 
 ### 2. Create a new ML service
 
-Use the `/new-service` workflow (in Windsurf Cascade) or manually scaffold:
+Use the scaffolding script or the `/new-service` workflow (in Windsurf Cascade):
 
 ```bash
-SERVICE_NAME="ChurnPredictor"
-SERVICE_SLUG="churn_predictor"
+# Automated scaffolding (recommended)
+./templates/scripts/new-service.sh FraudDetector fraud_detector
 
-# Copy service template
+# Or manually:
+SERVICE_NAME="FraudDetector"
+SERVICE_SLUG="fraud_detector"
 cp -r templates/service/ ${SERVICE_NAME}/
-
-# Replace placeholders
 find ${SERVICE_NAME}/ -type f -exec sed -i "s/{ServiceName}/${SERVICE_NAME}/g" {} +
 find ${SERVICE_NAME}/ -type f -exec sed -i "s/{service}/${SERVICE_SLUG}/g" {} +
-
-# Rename directories
 mv ${SERVICE_NAME}/src/\{service\} ${SERVICE_NAME}/src/${SERVICE_SLUG}
 ```
 
@@ -307,6 +342,7 @@ ML-MLOps-Production-template/
     │   └── retrain-service.yml            #   Manual/triggered retraining pipeline
     │
     ├── scripts/                           # Operational scripts
+    │   ├── new-service.sh                 #   Scaffold a new ML service from templates
     │   ├── deploy.sh                      #   Build, push, deploy with context verification
     │   ├── promote_model.sh               #   Quality gates → promote or reject
     │   └── health_check.sh                #   Pod status + endpoint health
@@ -319,6 +355,7 @@ ML-MLOps-Production-template/
     │   └── dependency-analysis-template.md#   Dependency conflict documentation
     │
     ├── monitoring/                        # Observability templates
+    │   ├── alertmanager-rules.yaml        #   P1–P4 alerts + drift heartbeat + resources
     │   ├── prometheus/alerts-template.yaml #   P1–P4 alerts, drift heartbeat, resource alerts
     │   ├── prometheus/prometheus-demo.yml  #   Prometheus config for demo stack
     │   └── grafana/dashboard-template.json #   Request rate, latency, PSI, HPA, resources
@@ -328,6 +365,13 @@ ML-MLOps-Production-template/
     ├── .pre-commit-config.yaml            # black, isort, flake8, mypy, bandit, gitleaks
     ├── .gitleaks.toml                     # Secret detection config
     └── .env.example                       # Environment variable documentation
+│
+├── examples/minimal/                      # Working fraud detection demo (5 min)
+│   ├── train.py                           #   Synthetic data + train + quality gates
+│   ├── serve.py                           #   FastAPI + async inference + SHAP + Prometheus
+│   ├── test_service.py                    #   Leakage, SHAP, latency, fairness tests
+│   ├── drift_check.py                     #   PSI drift detection demo
+│   └── requirements.txt                   #   Minimal dependencies
 ```
 
 ---
@@ -541,6 +585,30 @@ Reusable shared library for all ML services:
 - **`.pre-commit-config.yaml`** — Pre-commit hooks: black, isort, flake8, mypy, bandit, gitleaks
 - **`.gitleaks.toml`** — Secret detection config with allowlist for common false positives
 - **`.env.example`** — Documented environment variables (MLflow, logging, API, DVC)
+
+---
+
+## What's Different From Other Templates
+
+| Feature | This Template | cookiecutter-datascience | MLflow Templates | Kubeflow Pipelines |
+|---------|:---:|:---:|:---:|:---:|
+| **Async inference** (ThreadPoolExecutor) | Yes | No | No | No |
+| **SHAP in original feature space** | Yes | No | No | No |
+| **Encoded anti-patterns** (12 detectors) | Yes | No | No | No |
+| **AI agent rules** (Windsurf/Claude/Cursor) | Yes | No | No | No |
+| **Multi-cloud K8s** (GKE + EKS) | Yes | No | No | GKE only |
+| **Init container model loading** | Yes | No | No | Yes |
+| **PSI drift detection** (quantile bins) | Yes | No | No | Partial |
+| **Quality gates** (metric + fairness + leakage) | Yes | No | No | Partial |
+| **Heartbeat alerts** (CronJob health) | Yes | No | No | No |
+| **Working example** (5 min demo) | Yes | No | No | No |
+| **CPU-only HPA** (with reasoning) | Yes | No | No | No |
+| **ADR-driven decisions** | Yes | No | No | No |
+
+**In short**: cookiecutter-datascience stops at project structure. MLflow templates stop at experiment tracking.
+Kubeflow focuses on pipeline orchestration. This template covers the **full production lifecycle** from
+training through deployment, monitoring, drift detection, and retraining — with encoded invariants that
+prevent the most common production failures.
 
 ---
 

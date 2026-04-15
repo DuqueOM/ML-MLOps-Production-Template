@@ -6,6 +6,60 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [1.1.0] - 2026-04-15
+
+### Added
+
+#### Working Example (`examples/minimal/`)
+- **Fraud detection service** — fully functional end-to-end demo (train → serve → predict → test → drift)
+- `train.py` — synthetic data generation, Pandera validation, sklearn pipeline, quality gates
+- `serve.py` — FastAPI with async inference (ThreadPoolExecutor), SHAP KernelExplainer, Prometheus metrics
+- `test_service.py` — regression tests: data leakage, SHAP consistency, latency SLA, fairness DIR
+- `drift_check.py` — PSI drift detection with quantile bins and exit codes (0/1/2)
+
+#### Scaffolding
+- **`new-service.sh`** — automated scaffolding script: copies templates, replaces placeholders ({ServiceName}, {service}, {SERVICE}), creates directory structure
+
+#### Monitoring
+- **`alertmanager-rules.yaml`** — production AlertManager rules with P1–P4 severity:
+  - Service down + error rate spike (P1)
+  - Inference latency degradation (P2)
+  - **Drift heartbeat missing** (P2) — fires if CronJob hasn't run in 48h
+  - PSI drift alert/warning (P3)
+  - CPU approaching limit + pod restarts (P4)
+
+### Changed
+
+#### drift_detection.py — Production CronJob Integration
+- Added **exit codes** (0=ok, 1=warning, 2=alert) for K8s CronJob integration
+- Added **GitHub Issue creation** on alert-level drift via GitHub API
+- Added **reference data update** with timestamped backups
+- Added proper `main()` function with `sys.exit()` for clean process control
+
+#### test_explainer.py — Self-Contained SHAP Tests
+- Replaced stub tests with **runnable, self-contained regression tests**
+- Tests use synthetic data + simple pipeline (no service dependency)
+- Covers: all-zero SHAP detection, consistency property, original feature space, background representativeness, latency SLA
+
+#### Kustomize Structure
+- Moved manifests to `k8s/base/` (standard Kustomize pattern)
+- Fixed `commonLabels` (deprecated) → `labels` with pairs syntax
+- Fixed `patchesStrategicMerge` (deprecated) → `patches` in overlays
+- Replaced `kubeval` (abandoned) with `kubeconform` in CI
+
+#### README
+- Added **"Try It in 5 Minutes"** section with copy-paste commands
+- Added **"What's Different From Other Templates"** comparison table
+- Updated Quick Start to use `new-service.sh` scaffolding script
+- Updated repo structure tree with all new files
+
+### Fixed
+- flake8 F401: removed unused imports across 7 files
+- flake8 E501/F841: fixed long lines and unused variable in cli.py
+- Kustomize cycle error: restructured to standard `base/` + `overlays/` layout
+
+---
+
 ## [1.0.0] - 2026-04-15
 
 ### Added

@@ -16,9 +16,13 @@ Usage:
 import argparse
 import json
 import logging
+import os
+import shutil
+import sys
 import time
 from pathlib import Path
 from typing import Optional
+from urllib.request import Request, urlopen
 
 import numpy as np
 import pandas as pd
@@ -179,24 +183,116 @@ def push_metrics(results: dict) -> None:
     logger.info("Metrics pushed to Pushgateway")
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+def create_github_issue(results: dict, repo: str, token: str) -> None:
+    """Create a GitHub Issue when drift alert fires.
+
+    Called by the CronJob when exit code is 2 (alert).
+    The CI/CD workflow can also call this via drift-detection.yml.
+    """
+    alerts = results["summary"]["alerts"]
+    body_lines = [
+        "## Drift Alert",
+        "",
+        f"**Features with alert-level PSI**: {', '.join(alerts)}",
+        "",
+        "| Feature | PSI | Status | Ref Mean | Cur Mean |",
+        "|---------|-----|--------|----------|----------|",
+    ]
+    for feat, data in results["features"].items():
+        body_lines.append(
+            f"| {feat} | {data['psi']:.4f} | {data['status']} | "
+            f"{data['reference_mean']:.4f} | {data['current_mean']:.4f} |"
+        )
+    body_lines += ["", "**Action required**: Investigate root cause and trigger `/retrain` if confirmed."]
+
+    payload = json.dumps({
+        "title": f"[Drift Alert] {len(alerts)} feature(s) above PSI threshold",
+        "body": "\n".join(body_lines),
+        "labels": ["drift", "automated"],
+    }).encode("utf-8")
+
+    req = Request(
+        f"https://api.github.com/repos/{repo}/issues",
+        data=payload,
+        headers={
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(req) as resp:
+            issue = json.loads(resp.read())
+            logger.info("GitHub Issue created: %s", issue.get("html_url"))
+    except Exception as e:
+        logger.error("Failed to create GitHub Issue: %s", e)
+
+
+def update_reference(current_path: str, reference_path: str) -> None:
+    """Replace reference data with current production data.
+
+    Called after a successful retraining to reset the drift baseline.
+    Keeps a timestamped backup of the old reference.
+    """
+    ref = Path(reference_path)
+    if ref.exists():
+        backup = ref.with_suffix(f".backup_{int(time.time())}.csv")
+        shutil.copy2(ref, backup)
+        logger.info("Backed up old reference to %s", backup)
+
+    shutil.copy2(current_path, reference_path)
+    logger.info("Reference updated from %s", current_path)
+
+
+def main() -> int:
+    """CLI entry point with exit codes for CronJob integration.
+
+    Exit codes:
+        0 — No drift detected (all features OK)
+        1 — Warning-level drift (some features elevated)
+        2 — Alert-level drift (action required, triggers issue creation)
+    """
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
     parser = argparse.ArgumentParser(description="Drift detection for {ServiceName}")
-    parser.add_argument("--reference", help="Path to reference CSV")
-    parser.add_argument("--current", help="Path to current production CSV")
+    parser.add_argument("--reference", required=True, help="Path to reference CSV")
+    parser.add_argument("--current", required=True, help="Path to current production CSV")
     parser.add_argument("--output", help="Path to save JSON report")
     parser.add_argument("--push-metrics", action="store_true", help="Push to Pushgateway")
-    parser.add_argument("--update-reference", action="store_true", help="Update reference data")
+    parser.add_argument("--create-issue", action="store_true", help="Create GitHub Issue on alert")
+    parser.add_argument("--update-reference", action="store_true", help="Replace reference with current")
     args = parser.parse_args()
 
-    if args.reference and args.current:
-        results = detect_drift(args.reference, args.current, args.output)
-        print(json.dumps(results["summary"], indent=2))
+    results = detect_drift(args.reference, args.current, args.output)
+    print(json.dumps(results["summary"], indent=2))
 
-        if args.push_metrics:
-            push_metrics(results)
-    elif args.push_metrics:
-        logger.error("--push-metrics requires --reference and --current")
-    elif args.update_reference:
-        logger.info("TODO: Implement reference data update")
+    if args.push_metrics:
+        push_metrics(results)
+
+    if args.update_reference:
+        update_reference(args.current, args.reference)
+
+    has_alerts = results["summary"]["requires_action"]
+    has_warnings = len(results["summary"]["warnings"]) > 0
+
+    if has_alerts:
+        logger.warning("ALERT: Drift detected in %s", results["summary"]["alerts"])
+        if args.create_issue:
+            repo = os.getenv("GITHUB_REPOSITORY", "")
+            token = os.getenv("GITHUB_TOKEN", "")
+            if repo and token:
+                create_github_issue(results, repo, token)
+            else:
+                logger.warning("GITHUB_REPOSITORY or GITHUB_TOKEN not set — skipping issue")
+        return 2
+    elif has_warnings:
+        logger.info("WARNING: Elevated PSI in %s", results["summary"]["warnings"])
+        return 1
+    else:
+        logger.info("OK: No drift detected")
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
