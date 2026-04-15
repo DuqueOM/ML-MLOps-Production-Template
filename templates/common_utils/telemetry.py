@@ -76,9 +76,7 @@ def _init_tracer_provider() -> None:
         )
 
         service_name = os.environ.get("OTEL_SERVICE_NAME", "ml-service")
-        endpoint = os.environ.get(
-            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
-        )
+        endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
 
         resource = Resource.create({"service.name": service_name})
         provider = TracerProvider(resource=resource)
@@ -88,7 +86,8 @@ def _init_tracer_provider() -> None:
         trace.set_tracer_provider(provider)
         logger.info(
             "OpenTelemetry tracing enabled: service=%s endpoint=%s",
-            service_name, endpoint,
+            service_name,
+            endpoint,
         )
     except Exception as e:
         logger.warning("Failed to initialize OpenTelemetry: %s", e)

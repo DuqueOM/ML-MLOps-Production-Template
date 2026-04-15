@@ -33,9 +33,9 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
-from src.{service}.schemas import ServiceInputSchema
-from src.{service}.training.features import FeatureEngineer
-from src.{service}.training.model import build_pipeline
+from ..schemas import ServiceInputSchema
+from .features import FeatureEngineer
+from .model import build_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +90,7 @@ class Trainer:
 
         # Step 4: Hyperparameter tuning with Optuna
         logger.info("Step 4: Optuna hyperparameter tuning (%d trials)", optuna_trials)
-        best_params = self._tune_hyperparameters(
-            splits["X_train"], splits["y_train"], n_trials=optuna_trials
-        )
+        best_params = self._tune_hyperparameters(splits["X_train"], splits["y_train"], n_trials=optuna_trials)
 
         # Step 5: Train final model + cross-validate
         logger.info("Step 5: Training final model with best params")
@@ -143,9 +141,7 @@ class Trainer:
         logger.info("Data validated: %d rows, %d columns", len(df), len(df.columns))
         return validated
 
-    def _split_data(
-        self, X: pd.DataFrame, y: pd.Series
-    ) -> dict[str, pd.DataFrame | pd.Series]:
+    def _split_data(self, X: pd.DataFrame, y: pd.Series) -> dict[str, pd.DataFrame | pd.Series]:
         """Split into train/test.
 
         TODO: If your data has temporal ordering, use temporal split
@@ -153,9 +149,7 @@ class Trainer:
         """
         from sklearn.model_selection import train_test_split
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y
-        )
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
         return {
             "X_train": X_train,
             "X_test": X_test,
@@ -163,9 +157,7 @@ class Trainer:
             "y_test": y_test,
         }
 
-    def _tune_hyperparameters(
-        self, X_train: pd.DataFrame, y_train: pd.Series, n_trials: int
-    ) -> dict:
+    def _tune_hyperparameters(self, X_train: pd.DataFrame, y_train: pd.Series, n_trials: int) -> dict:
         """Optuna hyperparameter search.
 
         TODO: Define your search space in the objective function.
@@ -192,9 +184,7 @@ class Trainer:
         study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
         return study.best_params
 
-    def _evaluate(
-        self, pipeline: Any, splits: dict
-    ) -> dict[str, float]:
+    def _evaluate(self, pipeline: Any, splits: dict) -> dict[str, float]:
         """Evaluate model on test set with multiple metrics."""
         X_test = splits["X_test"]
         y_test = splits["y_test"]
@@ -216,9 +206,7 @@ class Trainer:
             "test_size": len(y_test),
         }
 
-    def _fairness_check(
-        self, pipeline: Any, splits: dict
-    ) -> dict[str, float]:
+    def _fairness_check(self, pipeline: Any, splits: dict) -> dict[str, float]:
         """Check Disparate Impact Ratio per protected attribute.
 
         DIR = P(positive | unprivileged) / P(positive | privileged)
@@ -308,21 +296,15 @@ class Trainer:
     def _quality_gates(self, metrics: dict) -> dict[str, bool]:
         """Check all quality gates. ALL must pass for promotion."""
         gates = {
-            f"{PRIMARY_METRIC} >= {PRIMARY_THRESHOLD}": metrics.get(PRIMARY_METRIC, 0)
-            >= PRIMARY_THRESHOLD,
-            f"{SECONDARY_METRIC} >= {SECONDARY_THRESHOLD}": metrics.get(
-                SECONDARY_METRIC, 0
-            )
-            >= SECONDARY_THRESHOLD,
+            f"{PRIMARY_METRIC} >= {PRIMARY_THRESHOLD}": metrics.get(PRIMARY_METRIC, 0) >= PRIMARY_THRESHOLD,
+            f"{SECONDARY_METRIC} >= {SECONDARY_THRESHOLD}": metrics.get(SECONDARY_METRIC, 0) >= SECONDARY_THRESHOLD,
         }
 
         # Fairness gates
         for attr in PROTECTED_ATTRIBUTES:
             key = f"dir_{attr}"
             if key in metrics:
-                gates[f"DIR({attr}) >= {FAIRNESS_THRESHOLD}"] = (
-                    metrics[key] >= FAIRNESS_THRESHOLD
-                )
+                gates[f"DIR({attr}) >= {FAIRNESS_THRESHOLD}"] = metrics[key] >= FAIRNESS_THRESHOLD
 
         all_passed = all(gates.values())
         failed = [name for name, passed in gates.items() if not passed]

@@ -14,6 +14,8 @@ jobs:
   python-quality:
     name: Python Lint + Type Check
     runs-on: ubuntu-latest
+    env:
+      TF_CLI_ARGS_init: "-lockfile=readonly"
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +38,8 @@ jobs:
   kubernetes-validate:
     name: Kubernetes Manifests
     runs-on: ubuntu-latest
+    env:
+      TF_CLI_ARGS_init: "-lockfile=readonly"
     steps:
       - uses: actions/checkout@v4
 
@@ -70,6 +74,8 @@ jobs:
   terraform-validate:
     name: Terraform Validate
     runs-on: ubuntu-latest
+    env:
+      TF_CLI_ARGS_init: "-lockfile=readonly"
     steps:
       - uses: actions/checkout@v4
 
@@ -99,3 +105,4 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: templates/service/Dockerfile
+          failure-threshold: error

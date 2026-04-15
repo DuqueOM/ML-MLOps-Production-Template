@@ -108,13 +108,17 @@ def save_model(
     # Try to extract sklearn version
     try:
         import sklearn
+
         metadata["sklearn_version"] = sklearn.__version__
     except ImportError:
         pass
 
     logger.info(
         "Model saved: %s (%.2f MB, SHA256=%s, %.3fs)",
-        path, metadata["file_size_mb"], sha256[:12], elapsed,
+        path,
+        metadata["file_size_mb"],
+        sha256[:12],
+        elapsed,
     )
     return metadata
 
@@ -168,7 +172,9 @@ def load_model(
 
     logger.info(
         "Model loaded: %s (type=%s, %.3fs)",
-        path, type(model).__name__, elapsed,
+        path,
+        type(model).__name__,
+        elapsed,
     )
     return model
 
@@ -188,7 +194,5 @@ def get_model_metadata(path: str | Path) -> dict[str, Any]:
         "sha256": _compute_hash(path),
         "file_size_bytes": stat.st_size,
         "file_size_mb": round(stat.st_size / (1024 * 1024), 2),
-        "last_modified": time.strftime(
-            "%Y-%m-%dT%H:%M:%SZ", time.gmtime(stat.st_mtime)
-        ),
+        "last_modified": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(stat.st_mtime)),
     }

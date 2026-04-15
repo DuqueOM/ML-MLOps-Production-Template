@@ -7,7 +7,6 @@ in the original feature space.
 import numpy as np
 import pytest
 
-
 # TODO: Import your actual explainer and pipeline
 # from app.fastapi_app import _predict_proba_wrapper, _explainer
 

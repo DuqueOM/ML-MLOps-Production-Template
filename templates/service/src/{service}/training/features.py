@@ -56,9 +56,7 @@ class FeatureEngineer:
         columns_to_drop: list[str] = []
         X = X.drop(columns=[c for c in columns_to_drop if c in X.columns])
 
-        logger.info(
-            "Features engineered: %d rows, %d features", len(X), len(X.columns)
-        )
+        logger.info("Features engineered: %d rows, %d features", len(X), len(X.columns))
         return X, y
 
     def transform_inference(self, df: pd.DataFrame) -> pd.DataFrame:

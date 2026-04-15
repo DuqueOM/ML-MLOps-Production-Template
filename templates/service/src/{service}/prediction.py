@@ -98,15 +98,18 @@ class ServicePredictor:
 
         # Risk level classification — TODO: adjust thresholds per domain
         risk_levels = np.where(
-            probabilities >= 0.7, "HIGH",
+            probabilities >= 0.7,
+            "HIGH",
             np.where(probabilities >= 0.4, "MEDIUM", "LOW"),
         )
 
-        result = pd.DataFrame({
-            "prediction": predictions,
-            "probability": np.round(probabilities, 4),
-            "risk_level": risk_levels,
-        })
+        result = pd.DataFrame(
+            {
+                "prediction": predictions,
+                "probability": np.round(probabilities, 4),
+                "risk_level": risk_levels,
+            }
+        )
 
         logger.info(
             "Predictions: %d total — HIGH=%d, MEDIUM=%d, LOW=%d",

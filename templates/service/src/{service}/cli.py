@@ -63,8 +63,9 @@ def train_command(args: argparse.Namespace) -> int:
                 json.dump(result["metrics"], f, indent=2)
             logger.info("Metrics saved to %s", metrics_path)
 
-        logger.info("Training completed — quality gates: %s",
-                     "PASSED" if result["quality_gates"]["all_passed"] else "FAILED")
+        logger.info(
+            "Training completed — quality gates: %s", "PASSED" if result["quality_gates"]["all_passed"] else "FAILED"
+        )
         return 0
     except Exception as e:
         logger.error("Training failed: %s", e, exc_info=True)
@@ -129,7 +130,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--seed", type=int, help="Random seed for reproducibility")
     parser.add_argument(
-        "--log-level", default="INFO",
+        "--log-level",
+        default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
     )
 
@@ -176,6 +178,7 @@ def cli_main(argv: Sequence[str] | None = None) -> int:
     if args.seed is not None:
         try:
             from common_utils.seed import set_seed
+
             set_seed(args.seed)
             logger.info("Random seed set to %d", args.seed)
         except ImportError:

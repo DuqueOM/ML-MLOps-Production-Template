@@ -61,10 +61,27 @@ class JSONFormatter(logging.Formatter):
         if hasattr(record, "__dict__"):
             for key, value in record.__dict__.items():
                 if key not in {
-                    "name", "msg", "args", "levelname", "levelno", "pathname",
-                    "filename", "module", "exc_info", "exc_text", "stack_info",
-                    "lineno", "funcName", "created", "msecs", "relativeCreated",
-                    "thread", "threadName", "processName", "process", "message",
+                    "name",
+                    "msg",
+                    "args",
+                    "levelname",
+                    "levelno",
+                    "pathname",
+                    "filename",
+                    "module",
+                    "exc_info",
+                    "exc_text",
+                    "stack_info",
+                    "lineno",
+                    "funcName",
+                    "created",
+                    "msecs",
+                    "relativeCreated",
+                    "thread",
+                    "threadName",
+                    "processName",
+                    "process",
+                    "message",
                     "taskName",
                 }:
                     log_entry[key] = value
@@ -83,10 +100,10 @@ class HumanFormatter(logging.Formatter):
     """Human-readable colored formatter for local development."""
 
     COLORS = {
-        "DEBUG": "\033[36m",     # Cyan
-        "INFO": "\033[32m",      # Green
-        "WARNING": "\033[33m",   # Yellow
-        "ERROR": "\033[31m",     # Red
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
         "CRITICAL": "\033[41m",  # Red background
     }
     RESET = "\033[0m"
@@ -94,10 +111,7 @@ class HumanFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         color = self.COLORS.get(record.levelname, self.RESET)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return (
-            f"{timestamp} {color}{record.levelname:8s}{self.RESET} "
-            f"[{record.module}] {record.getMessage()}"
-        )
+        return f"{timestamp} {color}{record.levelname:8s}{self.RESET} " f"[{record.module}] {record.getMessage()}"
 
 
 def get_logger(
