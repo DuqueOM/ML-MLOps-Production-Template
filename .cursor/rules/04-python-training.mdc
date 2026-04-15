@@ -1,0 +1,27 @@
+---
+description: Python ML training rules — pipeline, quality gates, fairness, MLflow
+globs: ["**/training/*.py", "**/models/*.py", "**/features/*.py"]
+---
+
+# Python ML Training Rules
+
+## Mandatory Pipeline Sequence
+`load` → `validate (Pandera)` → `features` → `split` → `cross_validate` → `evaluate` → `fairness` → `save` → `mlflow` → `quality_gates`
+
+## Quality Gates (ALL must pass before promotion — D-12)
+| Gate | Threshold |
+|------|-----------|
+| Primary metric | >= defined minimum (e.g., ROC-AUC >= 0.80) |
+| Regression vs prod | < 5% drop |
+| Fairness DIR | >= 0.80 per protected attribute |
+| Leakage check | metric < 0.99 — if >= 0.99, STOP and investigate (D-06) |
+| Latency P95 | <= 1.2x current production |
+
+## Key Rules
+- Feature engineering MUST be fit on train only, transform on val/test
+- `~=` compatible release pinning for all ML packages (D-05)
+- SHAP background data must include both classes (D-07)
+- PSI drift uses quantile-based bins, not uniform (D-08)
+
+## Required Tests
+`test_no_data_leakage`, `test_shap_consistency`, `test_fairness_disparate_impact`, `test_model_meets_quality_gate`, `test_inference_latency`

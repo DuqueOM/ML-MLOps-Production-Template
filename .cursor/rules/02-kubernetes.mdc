@@ -1,0 +1,41 @@
+---
+description: Kubernetes rules for ML pods — enforces invariants on every K8s YAML
+globs: ["k8s/**/*.yaml", "**/k8s/**/*.yaml", "templates/k8s/**/*"]
+---
+
+# Kubernetes Rules for ML
+
+## Critical Invariants
+- NEVER `uvicorn --workers N` in any Deployment — always `--workers 1`, HPA provides horizontal scale (D-01)
+- HPA uses CPU only — NEVER `memory` as a metric for ML pods (fixed RAM footprint prevents scale-down) (D-02)
+- NEVER bake model artifacts into Docker images — use Init Container + `emptyDir` volume (D-11)
+- ALWAYS use Workload Identity (GCP) / IRSA (AWS) — no hardcoded credentials in pods
+- ALWAYS verify `kubectl config current-context` before applying manifests
+- NEVER overwrite existing container image tags — tags are immutable; use `sha`-pinned digests
+
+## HPA Pattern (correct)
+```yaml
+metrics:
+  - type: Resource
+    resource:
+      name: cpu          # CPU only — never memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+```
+
+## Init Container Pattern (correct)
+```yaml
+initContainers:
+  - name: model-downloader
+    image: google/cloud-sdk:slim
+    command: ["gsutil", "cp", "gs://$(MODEL_BUCKET)/$(MODEL_PATH)", "/models/model.joblib"]
+    volumeMounts:
+      - name: model-storage
+        mountPath: /models
+volumes:
+  - name: model-storage
+    emptyDir: {}
+```
+
+See `AGENTS.md` for full invariant table.
