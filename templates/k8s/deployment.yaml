@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {service}-predictor
+  name: "{service}-predictor"
   labels:
-    app: {service}
+    app: "{service}"
     version: v1.0.0
     environment: production
     managed-by: kustomize
@@ -11,7 +11,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {service}
+      app: "{service}"
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,14 +20,14 @@ spec:
   template:
     metadata:
       labels:
-        app: {service}
+        app: "{service}"
         version: v1.0.0
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
-      serviceAccountName: {service}-sa
+      serviceAccountName: "{service}-sa"
 
       # Init container downloads model from cloud storage
       initContainers:
@@ -44,8 +44,8 @@ spec:
               mountPath: /models
 
       containers:
-        - name: {service}-predictor
-          image: {service}-predictor:latest   # Patched by Kustomize overlay
+        - name: "{service}-predictor"
+          image: "{service}-predictor:latest"   # Patched by Kustomize overlay
           command: ["uvicorn"]
           args:
             - "app.main:app"

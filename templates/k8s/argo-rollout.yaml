@@ -106,11 +106,11 @@ spec:
       # Progressive traffic shifting
       steps:
         - setWeight: 10
-        - pause: { duration: 2m }
+        - pause: "{ duration: 2m }"
         - setWeight: 30
-        - pause: { duration: 2m }
+        - pause: "{ duration: 2m }"
         - setWeight: 60
-        - pause: { duration: 2m }
+        - pause: "{ duration: 2m }"
         - setWeight: 100
 
       # Auto-rollback on failure
