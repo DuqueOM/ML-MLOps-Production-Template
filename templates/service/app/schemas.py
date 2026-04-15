@@ -37,15 +37,9 @@ class PredictionRequest(BaseModel):
         ...
     """
 
-    feature_a: float = Field(
-        ..., ge=0, le=150, description="Example numeric feature (e.g., age)"
-    )
-    feature_b: float = Field(
-        ..., ge=0, description="Example numeric feature (e.g., balance)"
-    )
-    feature_c: str = Field(
-        ..., description="Example categorical feature (e.g., category)"
-    )
+    feature_a: float = Field(..., ge=0, le=150, description="Example numeric feature (e.g., age)")
+    feature_b: float = Field(..., ge=0, description="Example numeric feature (e.g., balance)")
+    feature_c: str = Field(..., description="Example categorical feature (e.g., category)")
 
     model_config = {
         "json_schema_extra": {
@@ -96,16 +90,10 @@ class Explanation(BaseModel):
 class PredictionResponse(BaseModel):
     """Output schema for the /predict endpoint."""
 
-    prediction_score: float = Field(
-        ..., ge=0, le=1, description="Model output probability"
-    )
-    risk_level: str = Field(
-        ..., description="Risk classification: LOW, MEDIUM, or HIGH"
-    )
+    prediction_score: float = Field(..., ge=0, le=1, description="Model output probability")
+    risk_level: str = Field(..., description="Risk classification: LOW, MEDIUM, or HIGH")
     model_version: str = Field(..., description="Version of the model in production")
-    explanation: Optional[Explanation] = Field(
-        None, description="SHAP explanation (only when ?explain=true)"
-    )
+    explanation: Optional[Explanation] = Field(None, description="SHAP explanation (only when ?explain=true)")
 
 
 class BatchPredictionRequest(BaseModel):
@@ -122,7 +110,5 @@ class BatchPredictionRequest(BaseModel):
 class BatchPredictionResponse(BaseModel):
     """Output schema for the /predict_batch endpoint."""
 
-    predictions: List[PredictionResponse] = Field(
-        ..., description="List of prediction results"
-    )
+    predictions: List[PredictionResponse] = Field(..., description="List of prediction results")
     total_customers: int = Field(..., description="Total number of predictions made")

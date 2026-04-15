@@ -65,9 +65,7 @@ def compute_group_metrics(
         "recall": float(recall_score(y_true, y_pred, zero_division=0)),
         "f1": float(f1_score(y_true, y_pred, zero_division=0)),
         "true_positive_rate": float(recall_score(y_true, y_pred, zero_division=0)),
-        "false_positive_rate": float(
-            np.sum((y_pred == 1) & (y_true == 0)) / max(np.sum(y_true == 0), 1)
-        ),
+        "false_positive_rate": float(np.sum((y_pred == 1) & (y_true == 0)) / max(np.sum(y_true == 0), 1)),
     }
 
     if y_prob is not None and len(np.unique(y_true)) > 1:
@@ -111,17 +109,12 @@ def compute_fairness_metrics(
             group_metrics[str(group)] = gm
 
         # Cross-group fairness indicators
-        positive_rates = [
-            gm["positive_rate"] for gm in group_metrics.values()
-            if gm.get("positive_rate") is not None
-        ]
+        positive_rates = [gm["positive_rate"] for gm in group_metrics.values() if gm.get("positive_rate") is not None]
         tpr_values = [
-            gm["true_positive_rate"] for gm in group_metrics.values()
-            if gm.get("true_positive_rate") is not None
+            gm["true_positive_rate"] for gm in group_metrics.values() if gm.get("true_positive_rate") is not None
         ]
         fpr_values = [
-            gm["false_positive_rate"] for gm in group_metrics.values()
-            if gm.get("false_positive_rate") is not None
+            gm["false_positive_rate"] for gm in group_metrics.values() if gm.get("false_positive_rate") is not None
         ]
 
         fairness_indicators: Dict[str, Any] = {}
@@ -134,18 +127,14 @@ def compute_fairness_metrics(
         if tpr_values:
             eo_diff = max(tpr_values) - min(tpr_values)
             fairness_indicators["equal_opportunity_difference"] = round(eo_diff, 4)
-            fairness_indicators["equal_opportunity_pass"] = (
-                1.0 - eo_diff >= EQUAL_OPPORTUNITY_THRESHOLD
-            )
+            fairness_indicators["equal_opportunity_pass"] = 1.0 - eo_diff >= EQUAL_OPPORTUNITY_THRESHOLD
 
         if positive_rates:
             dp_diff = max(positive_rates) - min(positive_rates)
             fairness_indicators["demographic_parity_difference"] = round(dp_diff, 4)
 
         if fpr_values:
-            fairness_indicators["equalized_odds_fpr_gap"] = round(
-                max(fpr_values) - min(fpr_values), 4
-            )
+            fairness_indicators["equalized_odds_fpr_gap"] = round(max(fpr_values) - min(fpr_values), 4)
 
         report[attr] = {"groups": group_metrics, "fairness": fairness_indicators}
 
@@ -176,14 +165,10 @@ def run_fairness_audit(
 
         if not di_pass:
             all_pass = False
-            summary.append(
-                f"{attr}: FAIL DI ({fi['disparate_impact_ratio']:.3f} < {DISPARATE_IMPACT_THRESHOLD})"
-            )
+            summary.append(f"{attr}: FAIL DI ({fi['disparate_impact_ratio']:.3f} < {DISPARATE_IMPACT_THRESHOLD})")
         if not eo_pass:
             all_pass = False
-            summary.append(
-                f"{attr}: FAIL equal opportunity (gap={fi['equal_opportunity_difference']:.3f})"
-            )
+            summary.append(f"{attr}: FAIL equal opportunity (gap={fi['equal_opportunity_difference']:.3f})")
 
     report["_summary"] = {
         "overall_pass": all_pass,

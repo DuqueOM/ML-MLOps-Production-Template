@@ -106,17 +106,12 @@ class ModelExplainer:
 
         try:
             bg_values = (
-                self.background_data.values
-                if isinstance(self.background_data, pd.DataFrame)
-                else self.background_data
+                self.background_data.values if isinstance(self.background_data, pd.DataFrame) else self.background_data
             )
             shap_values = self._explainer.shap_values(bg_values, nsamples=n_samples)
             mean_abs = np.abs(shap_values).mean(axis=0)
 
-            importance = {
-                self.feature_names[i]: round(float(mean_abs[i]), 6)
-                for i in range(len(self.feature_names))
-            }
+            importance = {self.feature_names[i]: round(float(mean_abs[i]), 6) for i in range(len(self.feature_names))}
             return dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
         except Exception as e:
             logger.warning("SHAP feature importance failed: %s", e)
@@ -144,17 +139,14 @@ class ModelExplainer:
             base_value = float(self._explainer.expected_value)
 
             contributions = {
-                self.feature_names[i]: round(float(shap_values[0][i]), 6)
-                for i in range(len(self.feature_names))
+                self.feature_names[i]: round(float(shap_values[0][i]), 6) for i in range(len(self.feature_names))
             }
 
             # Consistency check: base + sum(SHAP) should ≈ prediction
             predicted = float(self._predict_proba_wrapper(X_array[:1])[0])
             reconstructed = base_value + sum(contributions.values())
 
-            sorted_contribs = sorted(
-                contributions.items(), key=lambda x: x[1], reverse=True
-            )
+            sorted_contribs = sorted(contributions.items(), key=lambda x: x[1], reverse=True)
             top_risk = [f"{k} (+{v:.4f})" for k, v in sorted_contribs[:3] if v > 0]
             top_protective = [f"{k} ({v:.4f})" for k, v in sorted_contribs[-3:] if v < 0]
 
@@ -186,16 +178,10 @@ class ModelExplainer:
 
             if hasattr(model, "feature_importances_"):
                 importances = model.feature_importances_
-                return {
-                    f"feature_{i}": round(float(v), 6)
-                    for i, v in enumerate(importances)
-                }
+                return {f"feature_{i}": round(float(v), 6) for i, v in enumerate(importances)}
             elif hasattr(model, "coef_"):
                 coefs = np.abs(model.coef_.flatten())
-                return {
-                    f"feature_{i}": round(float(v), 6)
-                    for i, v in enumerate(coefs)
-                }
+                return {f"feature_{i}": round(float(v), 6) for i, v in enumerate(coefs)}
         except Exception:
             pass
         return {"notice": "SHAP not available, no fallback importance"}

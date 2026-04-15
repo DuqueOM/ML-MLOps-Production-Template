@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Sub-configs — one per YAML section
 # ---------------------------------------------------------------------------
 
+
 # TODO: Adjust hyperparameter fields and defaults for your model types.
 class LogisticRegressionConfig(BaseModel):
     """Logistic Regression hyperparameters."""

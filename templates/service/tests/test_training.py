@@ -32,12 +32,12 @@ from sklearn.pipeline import Pipeline
 # ---------------------------------------------------------------------------
 # Configuration — customize per service
 # ---------------------------------------------------------------------------
-PRIMARY_THRESHOLD = 0.80        # Minimum ROC-AUC for promotion
-SECONDARY_THRESHOLD = 0.55      # Minimum F1 score
-FAIRNESS_THRESHOLD = 0.80       # Minimum Disparate Impact Ratio
-LEAKAGE_THRESHOLD = 0.99        # Metric above this → investigate leakage
-LATENCY_SLA_MS = 100.0          # Max single prediction time in ms
-N_EXPECTED_FEATURES = 10        # Expected number of model input features
+PRIMARY_THRESHOLD = 0.80  # Minimum ROC-AUC for promotion
+SECONDARY_THRESHOLD = 0.55  # Minimum F1 score
+FAIRNESS_THRESHOLD = 0.80  # Minimum Disparate Impact Ratio
+LEAKAGE_THRESHOLD = 0.99  # Metric above this → investigate leakage
+LATENCY_SLA_MS = 100.0  # Max single prediction time in ms
+N_EXPECTED_FEATURES = 10  # Expected number of model input features
 
 
 # ---------------------------------------------------------------------------
@@ -86,9 +86,7 @@ class TestDataLeakage:
     it's a strong signal that target information is leaking into features.
     """
 
-    def test_no_data_leakage(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_no_data_leakage(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """Primary metric must not be unrealistically high."""
         X, y = sample_data
         _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -116,34 +114,24 @@ class TestDataLeakage:
 class TestQualityGates:
     """Tests that model meets minimum quality standards for promotion."""
 
-    def test_model_meets_primary_gate(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_model_meets_primary_gate(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """Primary metric (ROC-AUC) must be above production threshold."""
         X, y = sample_data
         _, X_test, _, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         y_prob = trained_pipeline.predict_proba(X_test)[:, 1]
         auc = roc_auc_score(y_test, y_prob)
 
-        assert auc >= PRIMARY_THRESHOLD, (
-            f"Primary metric {auc:.4f} below threshold {PRIMARY_THRESHOLD}"
-        )
+        assert auc >= PRIMARY_THRESHOLD, f"Primary metric {auc:.4f} below threshold {PRIMARY_THRESHOLD}"
 
-    def test_model_predicts_both_classes(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_model_predicts_both_classes(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """Model must predict both classes (not degenerate)."""
         X, y = sample_data
         y_pred = trained_pipeline.predict(X)
         unique_predictions = np.unique(y_pred)
 
-        assert len(unique_predictions) >= 2, (
-            f"Model only predicts {unique_predictions} — degenerate model"
-        )
+        assert len(unique_predictions) >= 2, f"Model only predicts {unique_predictions} — degenerate model"
 
-    def test_probabilities_calibrated(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_probabilities_calibrated(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """Predicted probabilities must span a reasonable range."""
         X, _ = sample_data
         y_prob = trained_pipeline.predict_proba(X)[:, 1]
@@ -161,17 +149,13 @@ class TestFeatureEngineering:
     def test_feature_engineer_output_shape(self, sample_data: tuple) -> None:
         """Feature engineer must produce expected number of columns."""
         X, _ = sample_data
-        assert X.shape[1] == N_EXPECTED_FEATURES, (
-            f"Expected {N_EXPECTED_FEATURES} features, got {X.shape[1]}"
-        )
+        assert X.shape[1] == N_EXPECTED_FEATURES, f"Expected {N_EXPECTED_FEATURES} features, got {X.shape[1]}"
 
     def test_feature_engineer_no_nans(self, sample_data: tuple) -> None:
         """Feature engineer must not produce NaN values."""
         X, _ = sample_data
         nan_counts = X.isna().sum()
-        assert nan_counts.sum() == 0, (
-            f"NaN values found in features: {nan_counts[nan_counts > 0].to_dict()}"
-        )
+        assert nan_counts.sum() == 0, f"NaN values found in features: {nan_counts[nan_counts > 0].to_dict()}"
 
     def test_feature_engineer_no_infinities(self, sample_data: tuple) -> None:
         """Feature engineer must not produce infinite values."""
@@ -197,9 +181,7 @@ class TestFeatureEngineering:
 class TestInferenceLatency:
     """Tests that inference meets latency SLA."""
 
-    def test_single_prediction_latency(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_single_prediction_latency(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """Single prediction must complete within SLA."""
         X, _ = sample_data
         single_row = X.iloc[[0]]
@@ -216,13 +198,9 @@ class TestInferenceLatency:
             latencies.append(elapsed_ms)
 
         p95_latency = np.percentile(latencies, 95)
-        assert p95_latency < LATENCY_SLA_MS, (
-            f"P95 inference latency {p95_latency:.1f}ms exceeds SLA {LATENCY_SLA_MS}ms"
-        )
+        assert p95_latency < LATENCY_SLA_MS, f"P95 inference latency {p95_latency:.1f}ms exceeds SLA {LATENCY_SLA_MS}ms"
 
-    def test_batch_prediction_throughput(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_batch_prediction_throughput(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """Batch of 100 predictions must complete within 10x single SLA."""
         X, _ = sample_data
         batch = X.head(100)
@@ -232,9 +210,7 @@ class TestInferenceLatency:
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         batch_sla = LATENCY_SLA_MS * 10
-        assert elapsed_ms < batch_sla, (
-            f"Batch (100) latency {elapsed_ms:.1f}ms exceeds {batch_sla}ms"
-        )
+        assert elapsed_ms < batch_sla, f"Batch (100) latency {elapsed_ms:.1f}ms exceeds {batch_sla}ms"
 
 
 # ---------------------------------------------------------------------------
@@ -247,9 +223,7 @@ class TestFairness:
     Must be >= FAIRNESS_THRESHOLD (0.80 per four-fifths rule).
     """
 
-    def test_disparate_impact_ratio(
-        self, trained_pipeline: Pipeline, sample_data: tuple
-    ) -> None:
+    def test_disparate_impact_ratio(self, trained_pipeline: Pipeline, sample_data: tuple) -> None:
         """DIR must be >= 0.80 for synthesized protected attribute.
 
         TODO: Replace with actual protected attributes from your data.
@@ -270,6 +244,4 @@ class TestFairness:
         else:
             dir_value = 1.0
 
-        assert dir_value >= FAIRNESS_THRESHOLD, (
-            f"Fairness violation: DIR={dir_value:.3f} < {FAIRNESS_THRESHOLD}"
-        )
+        assert dir_value >= FAIRNESS_THRESHOLD, f"Fairness violation: DIR={dir_value:.3f} < {FAIRNESS_THRESHOLD}"

@@ -66,9 +66,7 @@ class ResampleClassifier(BaseEstimator, ClassifierMixin):
         self.strategy = strategy
         self.random_state = random_state
 
-    def fit(
-        self, X: pd.DataFrame | np.ndarray, y: pd.Series | np.ndarray
-    ) -> ResampleClassifier:
+    def fit(self, X: pd.DataFrame | np.ndarray, y: pd.Series | np.ndarray) -> ResampleClassifier:
         """Fit with optional resampling.
 
         Parameters
@@ -93,8 +91,7 @@ class ResampleClassifier(BaseEstimator, ClassifierMixin):
         self.estimator_.fit(X_resampled, y_resampled)
 
         logger.info(
-            "ResampleClassifier fitted: strategy='%s', "
-            "original=%d samples, resampled=%d samples",
+            "ResampleClassifier fitted: strategy='%s', " "original=%d samples, resampled=%d samples",
             self.strategy,
             len(y),
             len(y_resampled),
@@ -144,9 +141,7 @@ class ResampleClassifier(BaseEstimator, ClassifierMixin):
                 rus = RandomUnderSampler(random_state=self.random_state)
                 return rus.fit_resample(X, y)
             except ImportError:
-                logger.warning(
-                    "imblearn not installed — falling back to no resampling."
-                )
+                logger.warning("imblearn not installed — falling back to no resampling.")
                 return X, y
 
         elif self.strategy == "class_weight":

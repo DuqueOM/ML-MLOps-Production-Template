@@ -120,6 +120,7 @@ def load_model_artifacts() -> None:
             _background_data = bg_df.values[:50]
 
             import shap
+
             _explainer = shap.KernelExplainer(
                 model=_predict_proba_wrapper,
                 data=_background_data,
@@ -188,17 +189,12 @@ def _sync_predict(input_dict: dict, explain: bool) -> dict:
             shap_values = _explainer.shap_values(df.values, nsamples=100)
             base_value = float(_explainer.expected_value)
 
-            contributions = {
-                _feature_names[i]: round(float(shap_values[0][i]), 6)
-                for i in range(len(_feature_names))
-            }
+            contributions = {_feature_names[i]: round(float(shap_values[0][i]), 6) for i in range(len(_feature_names))}
 
             # Consistency check: base_value + sum(SHAP) ≈ prediction
             reconstructed = base_value + sum(contributions.values())
 
-            sorted_contribs = sorted(
-                contributions.items(), key=lambda x: x[1], reverse=True
-            )
+            sorted_contribs = sorted(contributions.items(), key=lambda x: x[1], reverse=True)
             top_risk = [f"{k} (+{v:.4f})" for k, v in sorted_contribs[:3] if v > 0]
             top_protective = [f"{k} ({v:.4f})" for k, v in sorted_contribs[-3:] if v < 0]
 
@@ -240,11 +236,13 @@ def _sync_predict_batch(inputs: List[dict]) -> List[dict]:
         risk_level = "HIGH" if prob >= 0.7 else ("MEDIUM" if prob >= 0.4 else "LOW")
         predictions_total.labels(risk_level=risk_level, model_version=version).inc()
         prediction_score_distribution.observe(prob)
-        results.append({
-            "prediction_score": round(prob, 4),
-            "risk_level": risk_level,
-            "model_version": version,
-        })
+        results.append(
+            {
+                "prediction_score": round(prob, 4),
+                "risk_level": risk_level,
+                "model_version": version,
+            }
+        )
 
     elapsed = time.perf_counter() - start
     request_latency.labels(endpoint="/predict_batch").observe(elapsed)
@@ -255,9 +253,7 @@ def _sync_predict_batch(inputs: List[dict]) -> List[dict]:
 # Endpoints
 # ---------------------------------------------------------------------------
 @router.post("/predict", response_model=PredictionResponse)
-async def predict(
-    input_data: PredictionRequest, explain: bool = False
-) -> PredictionResponse:
+async def predict(input_data: PredictionRequest, explain: bool = False) -> PredictionResponse:
     """Single prediction endpoint.
 
     Runs inference in ThreadPoolExecutor to avoid blocking the event loop.

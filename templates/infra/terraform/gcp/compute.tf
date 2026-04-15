@@ -2,7 +2,6 @@
 resource "google_container_cluster" "gke" {
   name                     = "${var.project_name}-gke-${var.environment}"
   location                 = var.region
-  enable_autopilot         = false
   networking_mode          = "VPC_NATIVE"
   initial_node_count       = 1
   remove_default_node_pool = true
