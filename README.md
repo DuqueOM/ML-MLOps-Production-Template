@@ -7,6 +7,11 @@
 [![Terraform >= 1.7](https://img.shields.io/badge/terraform-%3E%3D1.7-blueviolet.svg)](https://www.terraform.io/)
 [![Kubernetes](https://img.shields.io/badge/k8s-GKE%20%2B%20EKS-326CE5.svg)](https://kubernetes.io/)
 
+[![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-template/generate)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-12%20encoded-red.svg)](#anti-pattern-detection)
+[![Clouds](https://img.shields.io/badge/clouds-GCP%20%2B%20AWS-orange.svg)](#technology-stack)
+[![Windsurf](https://img.shields.io/badge/agentic-Windsurf%20%7C%20Claude%20Code%20%7C%20Cursor-blueviolet.svg)](#agentic-system)
+
 ---
 
 ## What This Is
