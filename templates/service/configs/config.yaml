@@ -1,0 +1,195 @@
+# =============================================================================
+# {ServiceName} — Centralized Configuration
+# =============================================================================
+# This YAML drives the entire ML pipeline: training, serving, monitoring.
+# Customize each section for your specific service.
+#
+# Usage:
+#   config = ServiceConfig.from_yaml("configs/config.yaml")
+#
+# Sections:
+#   data       → Target column, features to keep/drop, types
+#   training   → Split ratios, CV folds, random state, metrics
+#   model      → Model type, hyperparameters, ensemble config
+#   hpo        → Optuna/random search settings
+#   preprocessing → Encoding, scaling, feature engineering flags
+#   evaluation → Metrics, error analysis, confidence intervals
+#   logging    → Level, format (json for prod, human for dev)
+#   paths      → Data, model, artifact directories
+#   api        → Host, port, CORS, rate limiting
+#   deployment → Docker image, monitoring toggles
+#   security   → API key, rate limiting, input validation
+#   mlflow     → Tracking URI, experiment name, enabled flag
+# =============================================================================
+
+# --- Data Configuration ---
+# TODO: Replace with your actual column names and types
+data:
+  target_column: "target"                  # Column name of the label/target
+  drop_columns:                            # Columns to exclude (IDs, row numbers, etc.)
+    - "RowNumber"
+    - "CustomerId"
+    - "Surname"
+  categorical_features:                    # Categorical columns for encoding
+    - "Geography"
+    - "Gender"
+  numerical_features:                      # Numeric columns for scaling
+    - "CreditScore"
+    - "Age"
+    - "Tenure"
+    - "Balance"
+    - "NumOfProducts"
+    - "HasCrCard"
+    - "IsActiveMember"
+    - "EstimatedSalary"
+
+# --- Training Configuration ---
+training:
+  test_size: 0.2                           # Fraction held out for testing
+  validation_size: 0.1                     # Fraction for validation (from train)
+  random_state: 42                         # Reproducibility seed
+  cv_folds: 5                              # StratifiedKFold splits
+  primary_metric: "f1"                     # Main metric for model selection
+  secondary_metrics:                       # Additional tracked metrics
+    - "roc_auc"
+    - "precision"
+    - "recall"
+    - "accuracy"
+
+# --- Model Configuration ---
+# TODO: Choose your model type and tune hyperparameters
+model:
+  type: "ensemble"                         # Options: ensemble, xgboost, lightgbm, neural_network
+  resampling_strategy: "none"              # Options: none, oversample (SMOTE), undersample, class_weight
+
+  # Ensemble: Logistic Regression + Random Forest via VotingClassifier
+  ensemble:
+    voting: "soft"                         # "soft" uses predict_proba, "hard" uses majority vote
+    weights: [0.4, 0.6]                    # Weight per base estimator
+
+  logistic_regression:
+    C: 0.1
+    class_weight: "balanced"
+    solver: "liblinear"
+    max_iter: 1000
+
+  random_forest:
+    n_estimators: 100
+    max_depth: 10
+    min_samples_split: 10
+    min_samples_leaf: 5
+    class_weight: "balanced_subsample"
+    n_jobs: -1
+
+  # Advanced models (uncomment as needed)
+  xgboost:
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    eval_metric: "logloss"
+    use_label_encoder: false
+
+  lightgbm:
+    n_estimators: 200
+    max_depth: -1
+    learning_rate: 0.1
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.8
+
+  # Model comparison: train all listed models and auto-select the best
+  compare_models:
+    - "ensemble"
+    - "xgboost"
+    - "lightgbm"
+
+# --- Hyperparameter Optimization ---
+hpo:
+  method: "optuna"                         # Options: optuna, randomized_search, grid_search
+  n_trials: 50                             # Number of Optuna trials
+  timeout: 600                             # Max seconds for HPO
+  search_space:
+    n_estimators:
+      type: "int"
+      low: 50
+      high: 500
+    max_depth:
+      type: "int"
+      low: 3
+      high: 15
+    learning_rate:
+      type: "float"
+      low: 0.01
+      high: 0.3
+      log: true
+
+# --- Preprocessing ---
+preprocessing:
+  categorical_encoding: "onehot"           # Options: onehot, ordinal, target
+  numerical_scaling: "standard"            # Options: standard, minmax, robust
+  feature_engineering:
+    interactions: true                     # Create feature interaction terms
+    ratios: true                           # Create ratio features
+    bins: true                             # Create binned features
+    risk_scores: true                      # Create composite risk scores
+
+# --- Evaluation ---
+evaluation:
+  classification_metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "roc_auc"
+  error_analysis: true                     # Generate per-group error analysis
+  bootstrap_ci:
+    enabled: true
+    n_iterations: 1000
+    confidence_level: 0.95
+
+# --- Logging ---
+logging:
+  level: "INFO"                            # DEBUG, INFO, WARNING, ERROR
+  format: "human"                          # "json" for production, "human" for dev
+  handlers:
+    - "file"
+    - "console"
+
+# --- Paths ---
+paths:
+  data_dir: "data"
+  models_dir: "models"
+  artifacts_dir: "artifacts"
+
+# --- API Configuration ---
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false                            # Set true only for local dev
+  rate_limit: 100                          # Requests per minute
+  cors_origins:
+    - "*"                                  # Restrict in production
+
+# --- Deployment ---
+deployment:
+  environment: "development"               # development, staging, production
+  docker_image: "{service}-predictor"
+  docker_tag: "latest"
+  monitoring:
+    prometheus_enabled: true
+    drift_detection_enabled: true
+    drift_threshold: 0.20                  # PSI threshold for alert
+
+# --- Security ---
+security:
+  api_key_required: false                  # Enable API key auth in production
+  rate_limiting: true
+  input_validation: true
+
+# --- MLflow ---
+mlflow:
+  tracking_uri: "file:./mlruns"            # Change to MLflow server URI in production
+  experiment_name: "{ServiceName}-Production"
+  enabled: true

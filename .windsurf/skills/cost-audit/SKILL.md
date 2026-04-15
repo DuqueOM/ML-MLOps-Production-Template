@@ -1,6 +1,17 @@
 ---
+name: cost-audit
 description: Review cloud costs against budget and identify optimization opportunities
-whenToUse: When reviewing monthly costs, optimizing spend, or preparing FinOps reports
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(gcloud:*)
+  - Bash(aws:*)
+  - Bash(kubectl:*)
+when_to_use: >
+  Use when reviewing monthly cloud costs, optimizing spend, or preparing FinOps reports.
+  Examples: 'review monthly costs', 'cost optimization', 'FinOps report', 'budget review'
+argument-hint: "[month] [year]"
 ---
 
 # Cost Audit

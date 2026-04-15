@@ -1,6 +1,20 @@
 ---
+name: drift-detection
 description: Run and interpret PSI-based drift detection for an ML service
-whenToUse: When checking data drift, interpreting PSI scores, or configuring drift thresholds
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(python:*)
+  - Bash(kubectl:*)
+  - Bash(curl:*)
+when_to_use: >
+  Use when checking data drift, interpreting PSI scores, or configuring drift thresholds.
+  Examples: 'check drift for bankchurn', 'PSI alert fired', 'configure drift thresholds',
+  'run drift check'
+argument-hint: "<service-name>"
+arguments:
+  - service-name
 ---
 
 # Drift Detection

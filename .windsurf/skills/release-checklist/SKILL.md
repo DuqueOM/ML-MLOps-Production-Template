@@ -1,6 +1,22 @@
 ---
-description: Full release checklist for multi-cloud deployment
-whenToUse: When preparing a version release to production
+name: release-checklist
+description: Full release checklist for multi-cloud deployment (GCP + AWS)
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(git:*)
+  - Bash(docker:*)
+  - Bash(kubectl:*)
+  - Bash(gh:*)
+  - Bash(curl:*)
+when_to_use: >
+  Use when preparing a version release to production across GCP and AWS.
+  Examples: 'release v1.2.0', 'prepare production release', 'deploy new version',
+  'multi-cloud release'
+argument-hint: "<version-tag> [service-name]"
+arguments:
+  - version-tag
 ---
 
 # Release Checklist

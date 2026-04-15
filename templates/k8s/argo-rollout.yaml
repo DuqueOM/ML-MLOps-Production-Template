@@ -1,0 +1,166 @@
+# =============================================================================
+# Argo Rollouts — Canary Deployment for {ServiceName}
+# =============================================================================
+# Progressive delivery: sends traffic to the new model version incrementally
+# while monitoring Prometheus metrics. Automatically rolls back if error rate
+# or latency exceeds thresholds.
+#
+# Canary steps:
+#   1. 10% traffic → pause 2 min (observe metrics)
+#   2. 30% traffic → pause 2 min
+#   3. 60% traffic → pause 2 min
+#   4. 100% traffic → fully promoted
+#
+# Prerequisites:
+#   - Argo Rollouts controller installed: kubectl apply -n argo-rollouts -f https://...
+#   - Prometheus configured as AnalysisTemplate metric provider
+#   - Istio/Nginx TrafficRouting for weighted traffic splitting
+#
+# TODO: Replace {service} with your actual service name.
+# TODO: Adjust canary step weights and pause durations for your SLA.
+# TODO: Configure trafficRouting for your ingress controller.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: "{service}-predictor"
+  labels:
+    app: "{service}"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: "{service}"
+  template:
+    metadata:
+      labels:
+        app: "{service}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: "{service}-sa"
+
+      initContainers:
+        - name: model-downloader
+          image: google/cloud-sdk:slim
+          command: ["gsutil", "cp", "gs://{MODEL_BUCKET}/{service}/model.joblib", "/models/model.joblib"]
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+
+      containers:
+        - name: "{service}-predictor"
+          image: "{service}-predictor:latest"
+          command: ["uvicorn"]
+          args: ["app.main:app", "--host=0.0.0.0", "--port=8000"]
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MODEL_PATH
+              value: /models/model.joblib
+            - name: MODEL_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['version']
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+              readOnly: true
+
+      volumes:
+        - name: model-storage
+          emptyDir: {}
+
+  strategy:
+    canary:
+      # Canary analysis — runs AnalysisTemplate at each step
+      analysis:
+        templates:
+          - templateName: "{service}-canary-analysis"
+        args:
+          - name: service-name
+            value: "{service}"
+
+      # Progressive traffic shifting
+      steps:
+        - setWeight: 10
+        - pause: { duration: 2m }
+        - setWeight: 30
+        - pause: { duration: 2m }
+        - setWeight: 60
+        - pause: { duration: 2m }
+        - setWeight: 100
+
+      # Auto-rollback on failure
+      maxSurge: 1
+      maxUnavailable: 0
+
+---
+# =============================================================================
+# AnalysisTemplate — Prometheus-based canary health checks
+# =============================================================================
+# Checks:
+#   1. Error rate < 5% (HTTP 5xx / total requests)
+#   2. P95 latency < 500ms
+#
+# If either check fails, Argo automatically rolls back the canary.
+#
+# TODO: Adjust thresholds for your service SLA.
+# TODO: Verify Prometheus query matches your metric names.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: "{service}-canary-analysis"
+spec:
+  args:
+    - name: service-name
+  metrics:
+    # Error rate check: < 5% HTTP 5xx
+    - name: error-rate
+      interval: 30s
+      failureLimit: 3
+      successCondition: "result[0] < 0.05"
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            sum(rate({{args.service-name}}_requests_total{status=~"5.."}[2m]))
+            /
+            sum(rate({{args.service-name}}_requests_total[2m]))
+
+    # Latency check: P95 < 500ms
+    - name: p95-latency
+      interval: 30s
+      failureLimit: 3
+      successCondition: "result[0] < 0.5"
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate({{args.service-name}}_request_duration_seconds_bucket[2m]))
+              by (le)
+            )

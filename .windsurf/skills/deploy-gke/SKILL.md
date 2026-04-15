@@ -1,6 +1,23 @@
 ---
+name: deploy-gke
 description: Deploy ML service to GKE with Kustomize overlays and Workload Identity
-whenToUse: When deploying a service to GCP GKE cluster
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(docker:*)
+  - Bash(gcloud:*)
+  - Bash(gsutil:*)
+  - Bash(kubectl:*)
+  - Bash(kustomize:*)
+  - Bash(curl:*)
+when_to_use: >
+  Use when deploying a service to GCP GKE cluster.
+  Examples: 'deploy bankchurn to GKE', 'push to GCP production', 'GKE deployment'
+argument-hint: "<service-name> <version-tag>"
+arguments:
+  - service-name
+  - version-tag
 ---
 
 # Deploy to GKE

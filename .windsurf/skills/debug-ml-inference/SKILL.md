@@ -1,26 +1,52 @@
 ---
+name: debug-ml-inference
 description: Debug ML inference issues — latency spikes, wrong predictions, event loop blocking
-whenToUse: When an ML service has inference errors, high latency, or incorrect predictions
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(kubectl:*)
+  - Bash(grep:*)
+  - Bash(curl:*)
+when_to_use: >
+  Use when an ML service has inference errors, high latency, or incorrect predictions.
+  Examples: 'inference is slow', 'predictions are wrong', '5xx from predict endpoint',
+  'latency spike in Grafana', 'SHAP errors'
+argument-hint: "<service-name> [symptom description]"
+arguments:
+  - service-name
 ---
 
 # Debug ML Inference
 
-## Step 1: Identify the Symptom
+Systematically diagnose and fix ML inference issues in production FastAPI services.
 
-Classify the issue:
+## Inputs
+- `$service-name`: Name of the ML service to debug (e.g., `bankchurn`)
+
+## Goal
+Identify the root cause of the inference issue and either fix it or provide a specific
+remediation plan with commands. Every check must produce evidence (command + output).
+
+## Steps
+
+### 1. Identify the Symptom
+
+Classify the issue into one of:
 - **High latency**: P95 above SLA → likely event loop blocking or resource contention
 - **Wrong predictions**: Output doesn't match expectations → model or data issue
 - **5xx errors**: Service crashes or timeouts → code or infrastructure issue
 - **Score distribution shift**: Model output pattern changed → input drift or model staleness
 
-## Step 2: Check Event Loop Blocking
+**Success criteria**: Symptom classified with supporting evidence (logs, metrics, or user report).
+
+### 2. Check Event Loop Blocking
 
 The #1 cause of ML inference latency in FastAPI is blocking the event loop.
 
 ```bash
-# Check if predict is wrapped in run_in_executor
-grep -r "run_in_executor" {service}/app/
-grep -r "sync_predict\|_sync_predict" {service}/app/
+grep -r "run_in_executor" $service-name/app/
+grep -r "sync_predict\|_sync_predict" $service-name/app/
 ```
 
 If `model.predict()` is called directly in an `async def` endpoint → wrap it:
@@ -29,54 +55,69 @@ loop = asyncio.get_running_loop()
 return await loop.run_in_executor(_inference_executor, partial(_sync_predict, data))
 ```
 
-## Step 3: Check Worker Count
+**Success criteria**: Confirmed predict calls are wrapped in `run_in_executor`, or fix applied.
+
+### 3. Check Worker Count
 
 ```bash
-# In Dockerfile or deployment YAML
-grep -r "workers" {service}/Dockerfile k8s/base/{service}-deployment.yaml
+grep -r "workers" $service-name/Dockerfile k8s/base/$service-name-deployment.yaml
 ```
 
 If `--workers N` where N > 1 under K8s → change to 1 worker. HPA handles scaling.
 
-## Step 4: Check Model Loading
+**Success criteria**: Confirmed single worker (or fix applied).
+
+### 4. Check Model Loading
 
 ```bash
-# Verify model is loaded at startup, not per-request
-grep -r "joblib.load\|pickle.load\|load_model" {service}/app/
+grep -r "joblib.load\|pickle.load\|load_model" $service-name/app/
 ```
 
-Model should be loaded ONCE at module level or in a `@app.on_event("startup")` handler.
+Model should be loaded ONCE at startup (lifespan handler or module level), not per-request.
 
-## Step 5: Check SHAP Performance
+**Success criteria**: Model load is confirmed at startup, not inside endpoint functions.
+
+### 5. Check SHAP Performance
 
 If `/predict?explain=true` is slow:
 - Verify background data is ≤ 50 samples
 - Verify `nsamples` parameter in KernelExplainer (default 2*K+2048 can be excessive)
 - SHAP is expected to be slower (seconds) — verify it's opt-in only
 
-## Step 6: Check Resource Limits
+**Success criteria**: SHAP configuration verified or issue identified with fix.
+
+### 6. Check Resource Limits
 
 ```bash
-kubectl top pod -l app={service} -n {namespace}
-kubectl describe pod {pod-name} -n {namespace} | grep -A5 "Limits\|Requests"
+kubectl top pod -l app=$service-name -n ml-services
+kubectl describe pod -l app=$service-name -n ml-services | grep -A5 "Limits\|Requests"
 ```
 
-If CPU is at limit → HPA should scale. If not scaling → check HPA target and current utilization.
+If CPU is at limit → HPA should scale. If not scaling → check HPA target.
 
-## Step 7: Check Data Validation
+**Success criteria**: Resource usage confirmed within limits or bottleneck identified.
+
+### 7. Check Data Validation
 
 ```bash
-# Look for Pandera SchemaError in logs
-kubectl logs -l app={service} -n {namespace} | grep -i "SchemaError\|validation"
+kubectl logs -l app=$service-name -n ml-services --tail=100 | grep -i "SchemaError\|validation"
 ```
 
-SchemaError means input data violates the expected schema → upstream data change.
+SchemaError means input data violates the Pandera schema → upstream data change.
 
-## Quick Reference: ADR Patterns
+**Success criteria**: No validation errors in logs, or schema mismatch identified.
 
-| Issue | Root Cause | ADR Reference |
-|-------|-----------|--------------|
-| CPU thrashing | Multi-worker uvicorn | ADR: Single-Worker Pod |
-| HPA stuck | Memory-based metric | ADR: CPU-Only HPA |
-| Event loop block | Sync predict in async | ADR: Async ThreadPoolExecutor |
-| SHAP errors | TreeExplainer on ensemble | ADR: SHAP KernelExplainer |
+## Rules
+- Always check event loop blocking first — it's the most common cause
+- Never recommend `--workers N` as a fix; always use ThreadPoolExecutor + HPA
+- Use KernelExplainer, never TreeExplainer for ensemble/pipeline models
+- Document findings in an incident report if the issue is production-impacting
+
+## Quick Reference: Anti-Pattern → Fix
+
+| Issue | Anti-Pattern | Fix | ADR |
+|-------|-------------|-----|-----|
+| CPU thrashing | `uvicorn --workers N` | Single worker + HPA | D-01 |
+| HPA stuck | Memory-based metric | CPU-only HPA | D-02 |
+| Event loop block | `model.predict()` in async | `run_in_executor` | D-03 |
+| SHAP errors | TreeExplainer on ensemble | KernelExplainer | D-04 |

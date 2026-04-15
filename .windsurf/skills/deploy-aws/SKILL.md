@@ -1,6 +1,22 @@
 ---
+name: deploy-aws
 description: Deploy ML service to EKS with Kustomize overlays and IRSA
-whenToUse: When deploying a service to AWS EKS cluster
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(docker:*)
+  - Bash(aws:*)
+  - Bash(kubectl:*)
+  - Bash(kustomize:*)
+  - Bash(curl:*)
+when_to_use: >
+  Use when deploying a service to AWS EKS cluster.
+  Examples: 'deploy to EKS', 'push to AWS production', 'EKS deployment'
+argument-hint: "<service-name> <version-tag>"
+arguments:
+  - service-name
+  - version-tag
 ---
 
 # Deploy to EKS

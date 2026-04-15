@@ -1,6 +1,22 @@
 ---
+name: model-retrain
 description: Execute model retraining with quality gates and safe promotion
-whenToUse: When a model needs retraining due to drift, scheduled maintenance, or metric degradation
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Bash(python:*)
+  - Bash(gsutil:*)
+  - Bash(aws:*)
+  - Bash(kubectl:*)
+  - Bash(gh:*)
+when_to_use: >
+  Use when a model needs retraining due to drift, scheduled maintenance, or metric degradation.
+  Examples: 'retrain bankchurn model', 'drift detected needs retraining', 'scheduled retrain'
+argument-hint: "<service-name> [trigger-reason]"
+arguments:
+  - service-name
 ---
 
 # Model Retraining

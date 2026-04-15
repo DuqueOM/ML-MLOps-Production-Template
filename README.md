@@ -30,38 +30,40 @@ A **complete, opinionated template** for shipping ML models to production — no
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     AGENTIC SYSTEM                                 │
-│                                                                    │
-│  AGENTS.md          → Root-level invariants + anti-pattern rules   │
-│  .windsurf/rules/   → 9 context-aware behavioral constraints      │
-│  .windsurf/skills/  → 8 multi-step operational procedures          │
-│  .windsurf/workflows/→ 8 prompt-triggered structured workflows     │
-│                                                                    │
+│                     AGENTIC SYSTEM                                   │
+│                                                                      │
+│  AGENTS.md          → Root-level invariants + anti-pattern rules     │
+│  .windsurf/rules/   → 9 context-aware behavioral constraints         │
+│  .windsurf/skills/  → 8 multi-step operational procedures            │
+│  .windsurf/workflows/→ 8 prompt-triggered structured workflows       │
+│                                                                      │
 ├──────────────────────────────────────────────────────────────────────┤
-│                     TEMPLATE SYSTEM                                │
-│                                                                    │
-│  templates/service/     → FastAPI + training + monitoring          │
-│  templates/k8s/         → Deployment, HPA, CronJob, ServiceAccount │
-│  templates/infra/       → Terraform GCP + AWS                      │
+│                     TEMPLATE SYSTEM                                  │
+│                                                                      │
+│  templates/service/     → FastAPI + training + monitoring            │
+│  templates/common_utils/→ Shared library (seed, logging, persistence)│
+│  templates/k8s/         → Deployment, HPA, Kustomize, Argo Rollouts  │
+│  templates/infra/       → Terraform GCP + AWS                        │
 │  templates/cicd/        → GitHub Actions (CI, deploy, drift, retrain)│
-│  templates/docs/        → ADR, runbook, service README             │
-│  templates/monitoring/  → Grafana dashboard + Prometheus alerts     │
-│                                                                    │
+│  templates/scripts/     → deploy.sh, promote_model.sh, health_check  │
+│  templates/docs/        → ADR, runbook, service README               │
+│  templates/monitoring/  → Grafana dashboard + Prometheus alerts      │
+│                                                                      │
 ├──────────────────────────────────────────────────────────────────────┤
-│                     TARGET PROJECT                                 │
-│                                                                    │
-│  {ServiceName}/                                                    │
-│  ├── app/           → FastAPI (1 worker, ThreadPoolExecutor)       │
-│  ├── src/{service}/                                                │
-│  │   ├── training/  → train.py, features.py, model.py             │
-│  │   ├── monitoring/→ drift_detection.py, business_kpis.py         │
-│  │   └── schemas.py → Pandera DataFrameModel                      │
-│  ├── tests/         → unit, integration, explainer, load           │
-│  ├── k8s/           → base/ + overlays/gcp/ + overlays/aws/       │
-│  ├── infra/         → terraform/gcp/ + terraform/aws/              │
-│  ├── docs/decisions/→ ADRs with measured trade-offs                │
-│  └── monitoring/    → Grafana + Prometheus per service             │
-└────────────────────────────────────────────────────────────────────┘
+│                     TARGET PROJECT                                   │
+│                                                                      │
+│  {ServiceName}/                                                      │
+│  ├── app/           → FastAPI (1 worker, ThreadPoolExecutor)         │
+│  ├── src/{service}/                                                  │
+│  │   ├── training/  → train.py, features.py, model.py                │
+│  │   ├── monitoring/→ drift_detection.py, business_kpis.py           │
+│  │   └── schemas.py → Pandera DataFrameModel                         │
+│  ├── tests/         → unit, integration, explainer, load             │
+│  ├── k8s/           → base/ + overlays/gcp/ + overlays/aws/          │
+│  ├── infra/         → terraform/gcp/ + terraform/aws/                │
+│  ├── docs/decisions/→ ADRs with measured trade-offs                  │
+│  └── monitoring/    → Grafana + Prometheus per service               │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -213,12 +215,24 @@ ML-MLOps-Production-template/
     │   ├── requirements.txt               #   Pinned with ~= (compatible release)
     │   └── README.md                      #   Service-specific documentation
     │
+    ├── common_utils/                      # Shared utility library
+    │   ├── __init__.py                    #   Package init with public exports
+    │   ├── seed.py                        #   Reproducibility (Python, NumPy, PyTorch, TF)
+    │   ├── logging.py                     #   JSON (prod) + human-readable (dev) logging
+    │   ├── model_persistence.py           #   joblib save/load with SHA256 integrity
+    │   └── telemetry.py                   #   OpenTelemetry tracing (optional)
+    │
     ├── k8s/                               # Kubernetes manifest templates
     │   ├── deployment.yaml                #   1-worker pod + init container for model
     │   ├── hpa.yaml                       #   CPU-only autoscaling (never memory)
     │   ├── service.yaml                   #   ClusterIP service
     │   ├── cronjob-drift.yaml             #   Daily drift detection CronJob
-    │   └── serviceaccount.yaml            #   Workload Identity / IRSA annotations
+    │   ├── serviceaccount.yaml            #   Workload Identity / IRSA annotations
+    │   ├── kustomization.yaml             #   Base Kustomize config
+    │   ├── argo-rollout.yaml              #   Canary deployment + AnalysisTemplate
+    │   └── overlays/                      #   Environment-specific patches
+    │       ├── gcp-production/            #     GKE: Artifact Registry, Workload Identity
+    │       └── aws-production/            #     EKS: ECR, IRSA
     │
     ├── infra/terraform/                   # Multi-cloud infrastructure
     │   ├── gcp/                           #   GKE cluster, GCS buckets, Artifact Registry
@@ -238,6 +252,11 @@ ML-MLOps-Production-template/
     │   ├── deploy-aws.yml                 #   Deploy to EKS on tag push
     │   ├── drift-detection.yml            #   Daily drift check + alert creation
     │   └── retrain-service.yml            #   Manual/triggered retraining pipeline
+    │
+    ├── scripts/                           # Operational scripts
+    │   ├── deploy.sh                      #   Build, push, deploy with context verification
+    │   ├── promote_model.sh               #   Quality gates → promote or reject
+    │   └── health_check.sh                #   Pod status + endpoint health
     │
     ├── docs/                              # Documentation templates
     │   ├── decisions/adr-template.md      #   ADR with Options, Rationale, Revisit When
@@ -273,7 +292,12 @@ Rules activate based on file context. When you edit a Kubernetes YAML, `02-kuber
 
 ### Skills (Operational Procedures)
 
-Skills are step-by-step guides the agent follows when performing complex operations:
+Skills are step-by-step guides the agent follows when performing complex operations. Each skill uses structured frontmatter (inspired by Claude Code's skill architecture) with:
+
+- **`allowed-tools`** — Restricts which tools the agent can use during the skill
+- **`when_to_use`** — Natural language examples that trigger the skill
+- **`argument-hint`** — Template showing expected arguments
+- **Per-step `Success criteria`** — Measurable conditions for each step
 
 | Skill | Purpose |
 |-------|---------|
@@ -383,7 +407,17 @@ A complete, production-ready ML service with:
 - **Optuna hyperparameter tuning** with configurable number of trials
 - **Quality gates** (primary metric, secondary metric, fairness DIR)
 - **MLflow integration** for experiment tracking and model registry
-- **Tests** for data leakage, quality gates, API endpoints, SHAP consistency
+- **Tests** for data leakage, quality gates, API endpoints, SHAP consistency, latency SLA
+- **Load tests** with Locust (100 concurrent users, < 1% error rate)
+
+### Common Utils (`templates/common_utils/`)
+
+Reusable shared library for all ML services:
+
+- **`seed.py`** — Reproducibility across Python, NumPy, PyTorch, TensorFlow with env var override
+- **`logging.py`** — JSON formatter for K8s log aggregation (prod), colored output (dev)
+- **`model_persistence.py`** — Optimized joblib save/load with SHA256 integrity validation
+- **`telemetry.py`** — OpenTelemetry tracing with graceful no-op fallback
 
 ### K8s Templates (`templates/k8s/`)
 
@@ -391,6 +425,15 @@ A complete, production-ready ML service with:
 - **HPA** with CPU-only autoscaling, asymmetric scale-up/down behavior
 - **CronJob** for daily drift detection with Pushgateway integration
 - **ServiceAccount** with Workload Identity / IRSA annotation placeholders
+- **Kustomize base** with namespace, common labels, and resource list
+- **Kustomize overlays** for GCP (Artifact Registry, Workload Identity) and AWS (ECR, IRSA)
+- **Argo Rollouts** canary deployment with Prometheus-based analysis (error rate, P95 latency)
+
+### Scripts (`templates/scripts/`)
+
+- **`deploy.sh`** — Build, push, deploy with kubectl context verification and image tag immutability check
+- **`promote_model.sh`** — Run quality gates (metric threshold, fairness, leakage, integrity) before promotion
+- **`health_check.sh`** — Quick pod status and /health + /model/info endpoint check
 
 ### Terraform Templates (`templates/infra/`)
 

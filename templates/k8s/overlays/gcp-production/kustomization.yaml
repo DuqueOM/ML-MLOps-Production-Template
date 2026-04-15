@@ -1,0 +1,30 @@
+# =============================================================================
+# Kustomize overlay — GCP Production (GKE)
+# =============================================================================
+# Patches:
+#   - Docker image from Artifact Registry
+#   - GCS model bucket for init container
+#   - Workload Identity annotation on ServiceAccount
+#   - Production resource limits
+#
+# Deploy:
+#   kustomize build k8s/overlays/gcp-production/ | kubectl apply -f -
+#
+# TODO: Replace {PROJECT_ID}, {REGION}, {service} with your actual values.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ml-services
+
+resources:
+  - ../../   # Reference base kustomization
+
+images:
+  - name: "{service}-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{service}-predictor"
+    newTag: "v1.0.0"   # Patched by CI/CD pipeline
+
+patchesStrategicMerge:
+  - patch-deployment.yaml
+  - patch-serviceaccount.yaml
