@@ -12,12 +12,10 @@ TODO: Update VALID_PAYLOAD to match your service's Pydantic schema.
 TODO: Ensure a trained model exists at MODEL_PATH before running.
 """
 
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
 
 # TODO: Uncomment when your service is ready
 # os.environ["MODEL_PATH"] = "models/model.joblib"

@@ -16,7 +16,7 @@ TODO: Replace example features (feature_a, feature_b, feature_c) with your
       to enforce input ranges and catch invalid data early.
 """
 
-from typing import Any, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 

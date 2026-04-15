@@ -4,10 +4,9 @@ Validates that SHAP produces meaningful, consistent explanations
 in the original feature space.
 """
 
-import numpy as np
-import pytest
-
 # TODO: Import your actual explainer and pipeline
+# import numpy as np
+# import pytest
 # from app.fastapi_app import _predict_proba_wrapper, _explainer
 
 

@@ -7,8 +7,10 @@ Subcommands:
 
 Usage:
     python -m src.{service}.cli train --config configs/config.yaml --input data/raw/train.csv
-    python -m src.{service}.cli evaluate --config configs/config.yaml --input data/raw/test.csv --model models/model.joblib
-    python -m src.{service}.cli predict --input data/new.csv --output results/predictions.csv --model models/model.joblib
+    python -m src.{service}.cli evaluate \
+        --config configs/config.yaml --input data/raw/test.csv --model models/model.joblib
+    python -m src.{service}.cli predict \
+        --input data/new.csv --output results/predictions.csv --model models/model.joblib
 
 TODO: Rename imports from src.{service} to your actual service package name.
 """
@@ -49,7 +51,7 @@ def train_command(args: argparse.Namespace) -> int:
     Returns 0 on success, 1 on failure.
     """
     try:
-        config = ServiceConfig.from_yaml(args.config)
+        ServiceConfig.from_yaml(args.config)  # Validate config exists and is parseable
         trainer = Trainer(data_path=args.input, output_dir=args.model_dir)
         result = trainer.run(optuna_trials=args.optuna_trials)
 
