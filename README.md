@@ -59,44 +59,44 @@ A **complete, opinionated template** for shipping ML models to production — no
 ## Architecture Overview
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                     AGENTIC SYSTEM                                     │
-│                                                                        │
-│  AGENTS.md          → Root-level invariants + anti-pattern rules       │
-│  CLAUDE.md          → Claude Code project context                      │
-│  .cursor/rules/     → Cursor IDE rules                                │
-│  .windsurf/rules/   → 9 context-aware behavioral constraints           │
-│  .windsurf/skills/  → 8 multi-step operational procedures              │
-│  .windsurf/workflows/→ 8 prompt-triggered structured workflows         │
-│                                                                        │
-├────────────────────────────────────────────────────────────────────────┤
-│                     TEMPLATE SYSTEM                                    │
-│                                                                        │
-│  templates/service/     → FastAPI + training + monitoring              │
-│  templates/common_utils/→ Shared library (seed, logging, persistence)  │
-│  templates/k8s/base/    → Deployment, HPA, Kustomize base, Argo Rollouts│
-│  templates/infra/       → Terraform GCP + AWS                          │
-│  templates/cicd/        → GitHub Actions (CI, deploy, drift, retrain)  │
-│  templates/scripts/     → deploy.sh, promote_model.sh, health_check    │
-│  templates/docs/        → ADR, runbook, service README                 │
-│  templates/monitoring/  → Grafana dashboard + Prometheus alerts        │
-│                                                                        │
-├────────────────────────────────────────────────────────────────────────┤
-│                     TARGET PROJECT                                     │
-│                                                                        │
-│  {ServiceName}/                                                        │
-│  ├── app/           → FastAPI (1 worker, ThreadPoolExecutor)           │
-│  ├── src/{service}/                                                    │
-│  │   ├── training/  → train.py, features.py, model.py                  │
-│  │   ├── monitoring/→ drift_detection.py, business_kpis.py             │
-│  │   └── schemas.py → Pandera DataFrameModel                           │
-│  ├── tests/         → unit, integration, explainer, load               │
-│  ├── k8s/base/      → manifests + kustomize base                       │
-│  ├── k8s/overlays/  → gcp-production/ + aws-production/                │
-│  ├── infra/         → terraform/gcp/ + terraform/aws/                  │
-│  ├── docs/decisions/→ ADRs with measured trade-offs                    │
-│  └── monitoring/    → Grafana + Prometheus per service                 │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     AGENTIC SYSTEM                                       │
+│                                                                          │
+│  AGENTS.md          → Root-level invariants + anti-pattern rules         │
+│  CLAUDE.md          → Claude Code project context                        │
+│  .cursor/rules/     → Cursor IDE rules                                   │
+│  .windsurf/rules/   → 9 context-aware behavioral constraints             │
+│  .windsurf/skills/  → 8 multi-step operational procedures                │
+│  .windsurf/workflows/→ 8 prompt-triggered structured workflows           │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                     TEMPLATE SYSTEM                                      │
+│                                                                          │
+│  templates/service/     → FastAPI + training + monitoring                │
+│  templates/common_utils/→ Shared library (seed, logging, persistence)    │
+│  templates/k8s/base/    → Deployment, HPA, Kustomize base, Argo Rollouts │
+│  templates/infra/       → Terraform GCP + AWS                            │
+│  templates/cicd/        → GitHub Actions (CI, deploy, drift, retrain)    │
+│  templates/scripts/     → deploy.sh, promote_model.sh, health_check      │
+│  templates/docs/        → ADR, runbook, service README                   │
+│  templates/monitoring/  → Grafana dashboard + Prometheus alerts          │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                     TARGET PROJECT                                       │
+│                                                                          │
+│  {ServiceName}/                                                          │
+│  ├── app/           → FastAPI (1 worker, ThreadPoolExecutor)             │
+│  ├── src/{service}/                                                      │
+│  │   ├── training/  → train.py, features.py, model.py                    │
+│  │   ├── monitoring/→ drift_detection.py, business_kpis.py               │
+│  │   └── schemas.py → Pandera DataFrameModel                             │
+│  ├── tests/         → unit, integration, explainer, load                 │
+│  ├── k8s/base/      → manifests + kustomize base                         │
+│  ├── k8s/overlays/  → gcp-production/ + aws-production/                  │
+│  ├── infra/         → terraform/gcp/ + terraform/aws/                    │
+│  ├── docs/decisions/→ ADRs with measured trade-offs                      │
+│  └── monitoring/    → Grafana + Prometheus per service                   │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
