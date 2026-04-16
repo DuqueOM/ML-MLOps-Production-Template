@@ -1,0 +1,32 @@
+# ML-MLOps-Production-Template
+
+> Agent-driven template for production ML systems.
+> Version: v1.3.0 | License: MIT | Author: DuqueOM
+
+## What this is
+A complete, opinionated MLOps template for shipping ML models to production.
+Includes an agentic system for Windsurf, Claude Code, and Cursor, production
+templates for every stack layer, and 12 encoded anti-patterns.
+
+## Key files
+- AGENTS.md: Root agent rules, 12 anti-patterns, invariants
+- CLAUDE.md: Claude Code-specific rules and context
+- QUICK_START.md: 5-minute onboarding guide
+- RUNBOOK.md: Operational runbook
+- CHANGELOG.md: Full version history (v1.0.0 → v1.3.0)
+
+## Structure
+- .claude/rules/ — Claude Code behavioral constraints
+- .cursor/rules/ — Cursor behavioral constraints
+- .windsurf/rules/ — 9 Windsurf context-aware rules
+- .windsurf/skills/ — 8 operational procedures
+- .windsurf/workflows/ — 8 slash-command workflows
+- templates/service/ — FastAPI + training + monitoring boilerplate
+- templates/k8s/ — Deployment, HPA, Kustomize, Argo Rollouts
+- templates/infra/terraform/ — GCP (GKE) + AWS (EKS) Terraform
+- templates/cicd/ — GitHub Actions (CI, deploy, drift, retrain)
+- templates/monitoring/ — Prometheus alerts + Grafana dashboard
+- examples/minimal/ — Minimal working example
+
+## Releases
+v1.3.0 (latest), v1.2.0, v1.1.0, v1.0.0
