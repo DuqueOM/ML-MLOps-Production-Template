@@ -235,6 +235,52 @@ docs/                   # Template-level architectural decisions
     └── ADR-001-template-scope-boundaries.md  # Scope: LLM, multi-tenancy, Vault, compliance
 ```
 
+## MCP Integrations
+
+MCPs (Model Context Protocol servers) extend what agents can **do**, not just what they can read.
+Install only MCPs that change agent capabilities for this stack. Skip MCPs for technologies not in this template.
+
+### Recommended MCPs (high ROI for this template)
+
+| MCP | Install | What the agent gains |
+|-----|---------|----------------------|
+| **`mcp-github`** | `windsurf mcp add github` | Read CI logs, PR status, issues without copy-pasting output into chat. Agents can diagnose CI failures autonomously. |
+| **`mcp-kubernetes`** | `windsurf mcp add kubernetes` | Run `kubectl apply/get/logs/describe` directly. Skills `deploy-gke` and `deploy-aws` execute instead of instruct. |
+| **`mcp-terraform`** | `windsurf mcp add terraform` | Run `terraform plan/validate/apply` directly. Workflow `/release` can verify infra state in real time. |
+| **`mcp-prometheus`** | `windsurf mcp add prometheus` | Query live metrics. Skills `drift-detection` and `/incident` work with real data, not hypothetical. |
+
+### Setup (Windsurf)
+
+```bash
+# Add to ~/.codeium/windsurf/mcp_config.json or via Settings → MCP
+# GitHub (requires GITHUB_TOKEN env var)
+windsurf mcp add github
+
+# Kubernetes (uses current kubectl context — verify before use)
+# ALWAYS run: kubectl config current-context before any apply
+windsurf mcp add kubernetes
+
+# Terraform (run from infra directory)
+windsurf mcp add terraform
+```
+
+### MCPs to skip for this template
+
+| MCP | Why skip |
+|-----|----------|
+| `mcp-playwright` | No frontend — template is API + K8s only |
+| `pinecone-mcp-server` | Vector DB for LLM/RAG — out of scope (ADR-001) |
+| `supabase-mcp-server` | Template uses self-hosted PostgreSQL + MLflow, not Supabase |
+
+### Agent behavior with MCPs installed
+
+When `mcp-github` is active: agents read CI failures directly — no need to paste logs into chat.
+When `mcp-kubernetes` is active: skills `deploy-gke`/`deploy-aws` verify pod status after apply.
+When `mcp-terraform` is active: skill `release-checklist` validates infra before deploying.
+
+Without MCPs: agents generate correct commands and instruct the human to run them (current behavior).
+With MCPs: agents execute those commands directly and verify the results. Same invariants apply.
+
 ## AI Transparency
 
 This template uses AI-assisted coding agents for code generation and boilerplate. All architectural decisions, system design, trade-off analysis, and ADR documentation require human engineering judgment. AI tools accelerate throughput — they don't replace the engineer's responsibility to calibrate solutions to the right scale.

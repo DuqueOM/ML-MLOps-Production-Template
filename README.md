@@ -731,6 +731,25 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting guidelines, supported
 
 ---
 
+## MCP Integrations
+
+MCPs extend what agents can **do** (execute commands, read live data) vs. just generate text.
+
+| MCP | Skill/Workflow enhanced | Agent capability unlocked |
+|-----|------------------------|--------------------------|
+| **`mcp-github`** | All CI workflows | Reads CI logs and PR status directly — no copy-paste into chat |
+| **`mcp-kubernetes`** | `deploy-gke`, `deploy-aws`, `/release` | Executes `kubectl apply/get/logs` and verifies pod status |
+| **`mcp-terraform`** | `/release`, `release-checklist` | Runs `terraform plan/validate` and reads infra state |
+| **`mcp-prometheus`** | `drift-detection`, `/incident` | Queries live metrics instead of hypothetical examples |
+
+MCPs installed = agents **execute**. MCPs absent = agents **instruct**. Same invariants apply either way.
+
+> **Skip**: `mcp-playwright` (no frontend), `pinecone` (LLM scope, ADR-001), `supabase` (self-hosted PostgreSQL).
+>
+> Full setup instructions and rationale: [`AGENTS.md § MCP Integrations`](AGENTS.md#mcp-integrations)
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines. Quick summary:
