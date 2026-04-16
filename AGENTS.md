@@ -229,6 +229,12 @@ templates/
 └── monitoring/         # Grafana dashboard + Prometheus alert templates
 ```
 
+```
+docs/                   # Template-level architectural decisions
+└── decisions/
+    └── ADR-001-template-scope-boundaries.md  # Scope: LLM, multi-tenancy, Vault, compliance
+```
+
 ## AI Transparency
 
 This template uses AI-assisted coding agents for code generation and boilerplate. All architectural decisions, system design, trade-off analysis, and ADR documentation require human engineering judgment. AI tools accelerate throughput — they don't replace the engineer's responsibility to calibrate solutions to the right scale.

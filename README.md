@@ -9,6 +9,7 @@
 [![Kubernetes](https://img.shields.io/badge/k8s-GKE%20%2B%20EKS-326CE5.svg)](https://kubernetes.io/)
 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
+[![Example E2E](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg?label=example-e2e)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
@@ -269,13 +270,18 @@ ML-MLOps-Production-Template/
 ├── releases/                              # GitHub Release notes (copy to Releases page)
 │   ├── v1.0.0.md
 │   ├── v1.1.0.md
-│   └── v1.2.0.md
+│   ├── v1.2.0.md
+│   └── v1.3.0.md
+│
+├── docs/                                  # Template-level decisions
+│   └── decisions/
+│       └── ADR-001-template-scope-boundaries.md  # Why LLM/multi-tenancy/Vault deferred
 │
 ├── .github/                               # GitHub community health files
 │   ├── ISSUE_TEMPLATE/                    #   Bug report + feature request templates
 │   ├── pull_request_template.md           #   PR checklist with anti-pattern verification
 │   ├── dependabot.yml                     #   Automated dependency updates
-│   └── workflows/validate-templates.yml   #   CI: Python lint, K8s validate, TF validate
+│   └── workflows/validate-templates.yml   #   CI: lint, K8s, TF, Dockerfile + e2e example
 │
 ├── .claude/rules/                         # Claude Code context-aware rules (paths: globs)
 │   ├── 01-serving.md                      #   paths: **/app/*.py, **/api/*.py
