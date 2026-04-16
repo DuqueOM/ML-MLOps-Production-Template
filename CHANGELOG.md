@@ -6,6 +6,61 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [1.3.1] - 2026-04-16
+
+### Added
+
+#### CI: End-to-End Example Proof
+- **`validate-templates.yml`** — New `example-e2e` job: install → train → verify artifacts → start server → run tests → drift check → verify quality gates. **Proves the template works in CI**, not just locally.
+
+#### Architecture Decision Records
+- **`docs/decisions/ADR-001-template-scope-boundaries.md`** — Documents why LLM/GenAI, multi-tenancy, Vault, feature store, data contracts, SOC2/GDPR, and audit logs are deferred. Includes revisit triggers and Engineering Calibration rationale.
+
+### Changed
+
+#### Fairness Module Enhancement
+- **`templates/service/src/{service}/fairness.py`** — Added comprehensive domain guidance:
+  - Protected attribute selection by industry (Finance, Healthcare, Employment, Insurance, GDPR)
+  - Threshold customization guidance (US 4/5 rule, EU AI Act, domain-specific)
+  - DIR limitations (group-level, small subgroups, intersectionality)
+  - Proxy detection guidance and fairlearn/AIF360 references
+
+#### common_utils Versioning Strategy
+- **`templates/common_utils/__init__.py`** — Documented the copy-in distribution pattern, trade-offs, and when/how to graduate to a private PyPI package.
+
+#### README: Claude Code & Cursor Rules Documentation
+- **Agentic System section** — Added dedicated subsections for Claude Code (5 rules with `paths:` triggers) and Cursor (5 MDC rules with `globs:` triggers), with per-file tables showing what each rule covers. Previously only Windsurf was detailed.
+
+#### Secret Management
+- **`RUNBOOK.md`** — Added Secret Management section with GCP/AWS Secrets Manager commands and anti-pattern D-10 guidance.
+
+### Notes
+
+#### Enterprise Audit Response (external review)
+Items verified as **already present** (critics didn't find them):
+- ✅ RBAC: `rbac.yaml` with Role + RoleBinding, least-privilege
+- ✅ SHAP: `/predict?explain=true` with KernelExplainer in original feature space
+- ✅ JSON logging: `JSONFormatter` in `common_utils/logging.py`
+- ✅ Prometheus/Grafana: 5 metrics + 9-panel dashboard + alerts + SLO PrometheusRule
+- ✅ Pandera validation at 3 points + Pydantic for API
+- ✅ Makefile at root (136 lines) + service level (167 lines)
+- ✅ MLflow + DVC: full experiment tracking and data versioning
+- ✅ K8s overlays: Kustomize base + GCP/AWS overlays
+- ✅ IRSA/WI + gitleaks + OPA policies for secret/security management
+- ✅ Codecov badge already in README (dynamic, from codecov.io)
+- ✅ `make demo-minimal` runs train → test → drift locally
+- ✅ Fairness module: DIR, Equal Opportunity, Demographic Parity (190 lines)
+- ✅ Claude/Cursor rules in README repo tree and agentic system section
+
+Items **deferred by design** (documented in ADR-001):
+- ⏭️ LLM/GenAI (different serving pattern — separate template)
+- ⏭️ Multi-tenancy (org-level decision, not template-level)
+- ⏭️ HashiCorp Vault (IRSA/WI covers 90% of cases)
+- ⏭️ Feature store (over-engineering for 1–5 model scope)
+- ⏭️ SOC2/GDPR (requires legal review, not code templates)
+
+---
+
 ## [1.3.0] - 2026-04-16
 
 ### Added
