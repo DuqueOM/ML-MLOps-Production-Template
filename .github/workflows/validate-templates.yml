@@ -108,36 +108,39 @@ jobs:
         run: pip install -r examples/minimal/requirements.txt
 
       - name: Train model
-        run: python examples/minimal/train.py
+        working-directory: examples/minimal
+        run: python train.py
 
       - name: Verify artifacts exist
+        working-directory: examples/minimal
         run: |
-          test -f examples/minimal/artifacts/model.joblib
-          test -f examples/minimal/artifacts/metrics.json
-          test -f examples/minimal/artifacts/reference.csv
+          test -f artifacts/model.joblib
+          test -f artifacts/metrics.json
+          test -f artifacts/reference.csv
           echo "✓ All training artifacts generated"
 
       - name: Start API server
+        working-directory: examples/minimal
         run: |
-          cd examples/minimal
           uvicorn serve:app --host 0.0.0.0 --port 8000 &
-          sleep 3
+          sleep 5
           curl -sf http://localhost:8000/health | python -m json.tool
           echo "✓ API server healthy"
 
       - name: Run tests (health + predict + drift check + SHAP)
-        run: |
-          cd examples/minimal
-          pytest test_service.py -v --tb=short
+        working-directory: examples/minimal
+        run: pytest test_service.py -v --tb=short
 
       - name: Run drift detection
-        run: python examples/minimal/drift_check.py
+        working-directory: examples/minimal
+        run: python drift_check.py
 
       - name: Verify quality gates from metrics
+        working-directory: examples/minimal
         run: |
           python -c "
           import json
-          m = json.load(open('examples/minimal/artifacts/metrics.json'))
+          m = json.load(open('artifacts/metrics.json'))
           assert m['roc_auc'] >= 0.75, f'ROC-AUC {m[\"roc_auc\"]} < 0.75'
           assert m['f1'] >= 0.50, f'F1 {m[\"f1\"]} < 0.50'
           print(f'✓ Quality gates passed: ROC-AUC={m[\"roc_auc\"]:.4f}, F1={m[\"f1\"]:.4f}')
