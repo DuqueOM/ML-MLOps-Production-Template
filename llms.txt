@@ -1,32 +1,68 @@
 # ML-MLOps-Production-Template
 
 > Agent-driven template for production ML systems.
-> Version: v1.3.0 | License: MIT | Author: DuqueOM
+> Version: v1.3.1 | License: MIT | Author: DuqueOM
 
 ## What this is
 A complete, opinionated MLOps template for shipping ML models to production.
 Includes an agentic system for Windsurf, Claude Code, and Cursor, production
-templates for every stack layer, and 12 encoded anti-patterns.
+templates for every stack layer, and 12 encoded anti-patterns (D-01 to D-12).
+Scope: classical ML (scikit-learn, XGBoost, LightGBM). Not LLM/GenAI.
 
 ## Key files
-- AGENTS.md: Root agent rules, 12 anti-patterns, invariants
-- CLAUDE.md: Claude Code-specific rules and context
-- QUICK_START.md: 5-minute onboarding guide
-- RUNBOOK.md: Operational runbook
-- CHANGELOG.md: Full version history (v1.0.0 → v1.3.0)
+- AGENTS.md: Root agent rules, 12 anti-patterns D-01→D-12, invariants, skills/workflow index
+- CLAUDE.md: Claude Code project context (stack, invariants, file structure)
+- QUICK_START.md: 10-minute onboarding (example, scaffold, MLflow)
+- RUNBOOK.md: Operations reference (scaffolding, secrets, MLflow, releases)
+- CHANGELOG.md: Full version history (v1.0.0 → v1.3.1)
+- docs/decisions/ADR-001-template-scope-boundaries.md: Why LLM/multi-tenancy/Vault/feature-store deferred
 
-## Structure
-- .claude/rules/ — Claude Code behavioral constraints
-- .cursor/rules/ — Cursor behavioral constraints
-- .windsurf/rules/ — 9 Windsurf context-aware rules
-- .windsurf/skills/ — 8 operational procedures
-- .windsurf/workflows/ — 8 slash-command workflows
-- templates/service/ — FastAPI + training + monitoring boilerplate
-- templates/k8s/ — Deployment, HPA, Kustomize, Argo Rollouts
-- templates/infra/terraform/ — GCP (GKE) + AWS (EKS) Terraform
-- templates/cicd/ — GitHub Actions (CI, deploy, drift, retrain)
-- templates/monitoring/ — Prometheus alerts + Grafana dashboard
-- examples/minimal/ — Minimal working example
+## Agentic system
+- .claude/rules/ — 5 Claude Code rules (paths: frontmatter triggers)
+  - 01-serving.md: async inference, SHAP, Prometheus (paths: **/app/*.py)
+  - 02-training.md: pipeline, quality gates, fairness (paths: **/training/*.py)
+  - 03-kubernetes.md: 1-worker, CPU HPA, init container (paths: k8s/**/*.yaml)
+  - 04-terraform.md: remote state, no secrets (paths: **/*.tf)
+  - 05-examples.md: simplified patterns (paths: examples/**/*) 
+- .cursor/rules/ — 5 Cursor MDC rules (globs: frontmatter triggers)
+  - 01-mlops-conventions.mdc: session protocol, full D-01→D-12 (globs: **/*.*)
+  - 02-kubernetes.mdc: HPA, init container, probes (globs: k8s/**/*.yaml)
+  - 03-python-serving.mdc: async, SHAP, metrics (globs: **/app/*.py)
+  - 04-python-training.mdc: pipeline, gates, fairness (globs: **/training/*.py)
+  - 05-docker.mdc: multi-stage, non-root, no model (globs: **/Dockerfile*)
+- .windsurf/rules/ — 10 context-aware behavioral constraints
+- .windsurf/skills/ — 8 operational procedures (debug, deploy-gke, deploy-aws, drift, retrain, release, new-service, cost-audit)
+- .windsurf/workflows/ — 8 slash-command workflows (/new-service, /retrain, /incident, /drift-check, /release, /cost-review, /load-test, /new-adr)
+
+## Template structure
+- templates/service/ — FastAPI + training + monitoring + fairness + DVC boilerplate
+  - app/fastapi_app.py: async inference, SHAP /predict?explain=true, 5 Prometheus metrics
+  - src/{service}/fairness.py: DIR, Equal Opportunity, Demographic Parity (190 lines)
+  - src/{service}/config.py: Pydantic config with YAML loading
+  - dvc.yaml: DVC pipeline (validate → featurize → train → evaluate)
+  - codecov.yml: coverage configuration template
+- templates/k8s/ — base/ (10 manifests incl. RBAC, NetworkPolicy, SLO PrometheusRule) + overlays/gcp + overlays/aws
+- templates/infra/terraform/ — GCP (GKE + Workload Identity) + AWS (EKS + IRSA)
+- templates/infra/docker-compose.mlflow.yml — MLflow + PostgreSQL + MinIO
+- templates/cicd/ — GitHub Actions (CI, deploy, drift detection, retrain)
+- templates/monitoring/ — Prometheus alerts + Grafana dashboard (9 panels)
+- templates/tests/integration/ — conftest.py + test_service_integration.py
+- templates/tests/infra/policies/kubernetes.rego — OPA/Conftest policies (14 rules, incl. D-01/D-02)
+- templates/docs/ — ADR template, model card, release checklist, mkdocs.yml
+- templates/common_utils/ — seed, logging (JSONFormatter), model_persistence, telemetry
+- examples/minimal/ — Working fraud detection: train → serve → test → drift (proven in CI e2e job)
+
+## CI/CD
+- validate-templates.yml: Python lint, K8s manifests, Terraform, Dockerfile, + example-e2e job
+- example-e2e: train → verify artifacts → start server → pytest → drift check → quality gates
+
+## Key invariants (never violate)
+- uvicorn --workers 1 only (HPA scales horizontally)
+- HPA uses CPU only (never memory for ML pods)
+- CPU-bound inference via run_in_executor(ThreadPoolExecutor)
+- SHAP in original feature space via predict_proba_wrapper
+- No model artifacts in Docker images (init container pattern)
+- DIR >= 0.80 fairness gate before every model promotion
 
 ## Releases
-v1.3.0 (latest), v1.2.0, v1.1.0, v1.0.0
+v1.3.1 (latest), v1.3.0, v1.2.0, v1.1.0, v1.0.0
