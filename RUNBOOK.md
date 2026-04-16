@@ -96,6 +96,31 @@ docker compose -f templates/infra/docker-compose.mlflow.yml down
 docker compose -f templates/infra/docker-compose.mlflow.yml down -v
 ```
 
+## Secret Management
+
+The template enforces **no secrets in code** at multiple levels:
+
+| Layer | Mechanism |
+|-------|-----------|
+| **Pre-commit** | `.gitleaks.toml` scans for API keys, tokens, passwords on every commit |
+| **K8s** | Workload Identity (GCP) / IRSA (AWS) — pods get cloud IAM roles, no static credentials |
+| **CI/CD** | GitHub Actions secrets (`${{ secrets.* }}`) — never stored in repo |
+| **Local dev** | `.env` (gitignored) from `.env.example` — placeholder values only |
+
+**For production secrets (DB passwords, API keys):**
+
+```bash
+# GCP Secret Manager
+gcloud secrets create mlflow-db-password --data-file=-
+# Reference in K8s: use ExternalSecrets Operator or Workload Identity + SDK
+
+# AWS Secrets Manager
+aws secretsmanager create-secret --name mlflow-db-password --secret-string "..."
+# Reference in K8s: use ExternalSecrets Operator or IRSA + SDK
+```
+
+**Anti-pattern D-10**: Never commit `terraform.tfstate` or `.tfvars` with real values. Use remote state (GCS/S3+DynamoDB) configured in `templates/infra/terraform/*/main.tf`.
+
 ## Contributing to the Template
 
 ```bash
