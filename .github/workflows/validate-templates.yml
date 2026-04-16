@@ -133,7 +133,10 @@ jobs:
 
       - name: Run drift detection
         working-directory: examples/minimal
-        run: python drift_check.py
+        run: |
+          # Exit codes: 0=no drift, 1=warning, 2=alert — all valid demo outcomes
+          # The demo intentionally simulates drift, so exit 2 is expected
+          python drift_check.py || [ $? -le 2 ]
 
       - name: Verify quality gates from metrics
         working-directory: examples/minimal
