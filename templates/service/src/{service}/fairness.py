@@ -20,6 +20,34 @@ Usage:
 
 TODO: Set PROTECTED_ATTRIBUTES to your domain-specific sensitive features.
 TODO: Adjust thresholds if your domain requires stricter/looser bounds.
+
+Choosing Protected Attributes:
+    Protected attributes depend on your domain and jurisdiction:
+    - Finance (lending): race, sex, age, national_origin (ECOA/Reg B)
+    - Healthcare: race, sex, age, disability_status (ACA Section 1557)
+    - Employment: race, sex, age, religion, disability (Title VII / ADA)
+    - Insurance: varies by state — some prohibit gender, credit score
+    - General (GDPR Art. 9): racial/ethnic origin, political opinions,
+      religion, trade union, genetic/biometric data, health, sex life
+
+    If you don't have explicit protected attributes in your dataset:
+    1. Check if proxy variables exist (zip code → race, name → gender)
+    2. Document the absence and the reason in your model card
+    3. Consider using fairlearn or AIF360 for proxy detection
+
+Threshold Guidance:
+    - DIR >= 0.80 is the US "4/5 rule" (EEOC). It's a starting point, not universal.
+    - EU AI Act (2024) may require stricter thresholds for high-risk systems.
+    - Some domains need DIR >= 0.90 (healthcare) or accept DIR >= 0.70 (marketing).
+    - Document your chosen threshold and rationale in an ADR.
+
+Limitations of DIR:
+    - DIR is a group-level metric — it can miss individual-level discrimination.
+    - Small subgroups (<30 samples) produce unreliable DIR values.
+    - DIR doesn't capture intersectional fairness (e.g., Black women vs White men).
+    - A passing DIR doesn't guarantee fairness — combine with Equal Opportunity,
+      Calibration, and qualitative review.
+    - Consider using fairlearn.MetricFrame for more comprehensive audits.
 """
 
 from __future__ import annotations

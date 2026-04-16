@@ -436,7 +436,37 @@ This template supports **three AI coding assistants** out of the box:
 | **Claude Code** | `CLAUDE.md`, `.claude/rules/` | Context-aware rules with `paths:` frontmatter |
 | **Cursor** | `.cursor/rules/*.mdc` | 5 MDC rules with frontmatter globs |
 
-All three share the same invariants from `AGENTS.md` (canonical source). The `.windsurf/` directory has the richest configuration (10 rules, 8 skills, 8 workflows).
+All three share the same invariants from `AGENTS.md` (canonical source). The `.windsurf/` directory has the richest configuration (10 rules, 8 skills, 8 workflows). Claude Code and Cursor have full invariant parity but lack skills/workflows (IDE-specific features).
+
+#### Claude Code (`.claude/rules/`)
+
+5 context-aware rules using `paths:` frontmatter. Claude Code activates rules automatically when you open matching files:
+
+| File | Paths Trigger | Covers |
+|------|--------------|--------|
+| `01-serving.md` | `**/app/*.py`, `**/api/*.py` | Async inference, SHAP, Prometheus, D-01/D-03/D-04 |
+| `02-training.md` | `**/training/*.py`, `**/models/*.py` | Pipeline, quality gates, fairness, D-05/D-06/D-07 |
+| `03-kubernetes.md` | `k8s/**/*.yaml` | 1-worker, CPU HPA, init container, D-01/D-02/D-11 |
+| `04-terraform.md` | `**/*.tf` | Remote state, no secrets, lifecycle, D-10 |
+| `05-examples.md` | `examples/**/*` | Simplified patterns, self-contained demos |
+
+Root context: `CLAUDE.md` provides project-wide context (stack, invariants, file structure) loaded at session start.
+
+#### Cursor (`.cursor/rules/`)
+
+5 MDC rules with `globs:` frontmatter. Cursor activates rules based on glob patterns:
+
+| File | Globs Trigger | Covers |
+|------|--------------|--------|
+| `01-mlops-conventions.mdc` | `**/*` (always on) | Session protocol, full D-01→D-12, stack, ADRs |
+| `02-kubernetes.mdc` | `k8s/**/*.yaml`, `helm/**/*.yaml` | HPA, init container, probes, RBAC |
+| `03-python-serving.mdc` | `**/app/*.py` | Async, ThreadPoolExecutor, SHAP, metrics |
+| `04-python-training.mdc` | `**/training/*.py` | Pipeline, gates, fairness, DVC |
+| `05-docker.mdc` | `**/Dockerfile*` | Multi-stage, non-root, no model artifacts |
+
+#### Windsurf Cascade (`.windsurf/`)
+
+10 context-aware rules + 8 skills + 8 workflows. The most comprehensive configuration:
 
 ### Rules (Behavioral Constraints)
 
