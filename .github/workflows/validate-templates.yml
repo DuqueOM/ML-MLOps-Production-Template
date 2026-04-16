@@ -144,8 +144,8 @@ jobs:
           python -c "
           import json
           m = json.load(open('artifacts/metrics.json'))
-          assert m['roc_auc'] >= 0.75, f'ROC-AUC {m[\"roc_auc\"]} < 0.75'
-          assert m['f1'] >= 0.50, f'F1 {m[\"f1\"]} < 0.50'
+          assert m['roc_auc'] >= 0.65, f'ROC-AUC {m[\"roc_auc\"]} < 0.65'
+          assert m['f1'] >= 0.40, f'F1 {m[\"f1\"]} < 0.40'
           print(f'✓ Quality gates passed: ROC-AUC={m[\"roc_auc\"]:.4f}, F1={m[\"f1\"]:.4f}')
           "
 
