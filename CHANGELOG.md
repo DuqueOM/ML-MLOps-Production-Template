@@ -35,11 +35,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **`templates/governance/promote_to_stage.sh`** — CLI for MLflow Model Registry stage transitions with audit trail
 - **`docs/decisions/ADR-002-model-promotion-governance.md`** — Documents why governance is opt-in, why GitHub Environments + MLflow stages over custom infrastructure, and how it respects ADR-001
 
+#### Scaffolder End-to-End Test
+- **`scripts/test_scaffold.sh`** — Runs `new-service.sh` in an isolated temp dir and validates:
+  - Zero remaining `{ServiceName}`/`{service}`/`{SERVICE}` placeholders
+  - All critical files and directories present
+  - `src/{service}/` renamed correctly to `src/<slug>/`
+  - All generated Python files parse (syntax check)
+  - Both Kustomize overlays render (GCP + AWS)
+  - `pytest` can collect scaffolded tests
+- **CI job**: `scaffold-e2e` in `validate-templates.yml` runs on every PR
+- **Makefile target**: `make test-scaffold` (also chained into `make validate-templates`)
+
+#### Feast Integration Pattern
+- **`docs/decisions/ADR-003-feast-integration-pattern.md`** — Documents the pattern for
+  integrating Feast without modifying the core template. Uses external feature repo
+  approach; service becomes a Feast client. Preserves Pandera validation (solves a
+  different problem). Migration checklist (4 phases) and invariants maintained.
+
 ### Changed
 
 #### Makefile (root)
-- `validate-templates` now includes `validate-agentic` step
-- Added `bootstrap`, `bootstrap-check`, `validate-agentic` as first-class targets
+- `validate-templates` now includes `validate-agentic` and `test-scaffold` steps
+- Added `bootstrap`, `bootstrap-check`, `validate-agentic`, `test-scaffold` as first-class targets
 
 ---
 
