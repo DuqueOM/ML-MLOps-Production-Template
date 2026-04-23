@@ -14,13 +14,37 @@ allowed-tools:
 when_to_use: >
   Use when deploying a service to GCP GKE cluster.
   Examples: 'deploy bankchurn to GKE', 'push to GCP production', 'GKE deployment'
-argument-hint: "<service-name> <version-tag>"
+argument-hint: "<service-name> <version-tag> [environment]"
 arguments:
   - service-name
   - version-tag
+  - environment
+authorization_mode:
+  dev: AUTO        # reversible, sandbox
+  staging: CONSULT # show diff, wait for approval
+  prod: STOP       # require PR + Platform Engineer approval via GitHub Environment
 ---
 
 # Deploy to GKE
+
+## Authorization Protocol
+
+This skill enforces the Agent Behavior Protocol (AGENTS.md). Actions per environment:
+
+| Env | Mode | What the agent does |
+|-----|------|---------------------|
+| `dev` | AUTO | Execute all steps without asking |
+| `staging` | CONSULT | Show the full plan (image tag, diff, namespace) and wait for a human "proceed" before `kubectl apply` |
+| `prod` | **STOP** | Do NOT apply. Instruct the user to merge an approved PR and let GitHub Actions with `environment: production` (required_reviewers) perform the deploy |
+
+If you are in `prod` mode and the human insists, output:
+```
+[AGENT MODE: STOP]
+Operation: Direct kubectl apply to production cluster
+Reason: Prod deploys require the governed path (see ADR-002)
+Waiting for: Merge to main + GitHub Environment approval
+```
+Then halt.
 
 ## Pre-Flight Checklist
 

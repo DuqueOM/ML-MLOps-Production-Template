@@ -13,13 +13,36 @@ allowed-tools:
 when_to_use: >
   Use when deploying a service to AWS EKS cluster.
   Examples: 'deploy to EKS', 'push to AWS production', 'EKS deployment'
-argument-hint: "<service-name> <version-tag>"
+argument-hint: "<service-name> <version-tag> [environment]"
 arguments:
   - service-name
   - version-tag
+  - environment
+authorization_mode:
+  dev: AUTO
+  staging: CONSULT
+  prod: STOP
 ---
 
 # Deploy to EKS
+
+## Authorization Protocol
+
+This skill enforces the Agent Behavior Protocol (AGENTS.md).
+
+| Env | Mode | What the agent does |
+|-----|------|---------------------|
+| `dev` | AUTO | Execute all steps |
+| `staging` | CONSULT | Show diff + image tag + namespace, wait for approval before `kubectl apply` |
+| `prod` | **STOP** | Never apply directly. Require merge to `main` + GitHub Environment `production` approval |
+
+On `prod` invocation, emit:
+```
+[AGENT MODE: STOP]
+Operation: Direct kubectl apply to EKS production
+Reason: Prod deploys flow through GitHub Actions with required_reviewers (ADR-002)
+```
+and halt.
 
 ## Pre-Flight Checklist
 
