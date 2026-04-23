@@ -1,0 +1,49 @@
+# =============================================================================
+# Ground-truth source configuration (ADR-006)
+# =============================================================================
+# This file describes where delayed labels come from. The ingester
+# (src/{service}/monitoring/ground_truth.py) reads this and calls
+# fetch_labels_from_source() with the config dict.
+#
+# The stub implementation supports source_type=csv (local testing only).
+# For production, edit ground_truth.py to implement your real source
+# (BigQuery, Postgres, Snowflake, REST API, etc.).
+# =============================================================================
+
+# Output destination for the labels_log
+# Supports local path, gs://bucket/path, s3://bucket/path
+output_base: data/labels_log
+
+# Example: CSV source (default stub, for local dev/tests)
+source_type: csv
+csv_path: data/ground_truth/labels.csv
+entity_id_col: entity_id
+label_ts_col: label_ts
+true_value_col: true_value
+label_source_tag: csv
+
+# ---------------------------------------------------------------------------
+# Example: BigQuery source (uncomment + edit; requires editing ground_truth.py)
+# ---------------------------------------------------------------------------
+# source_type: bigquery
+# project: my-gcp-project
+# dataset: crm
+# table: churn_outcomes
+# query: |
+#   SELECT customer_id as entity_id,
+#          churn_confirmed_at as label_ts,
+#          CAST(did_churn as INT64) as true_value
+#   FROM `{project}.{dataset}.{table}`
+#   WHERE churn_confirmed_at BETWEEN @since AND @until
+# label_source_tag: bigquery-crm
+
+# ---------------------------------------------------------------------------
+# Example: Postgres source
+# ---------------------------------------------------------------------------
+# source_type: postgres
+# dsn_env_var: GROUND_TRUTH_PG_DSN
+# query: |
+#   SELECT entity_id, label_ts, true_value
+#   FROM public.label_events
+#   WHERE label_ts >= %(since)s AND label_ts < %(until)s
+# label_source_tag: postgres-core

@@ -25,6 +25,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import List, Optional
+from uuid import uuid4
 
 import joblib
 import numpy as np
@@ -40,6 +41,19 @@ from app.schemas import (
     PredictionResponse,
 )
 
+try:
+    from common_utils.prediction_logger import (
+        PredictionEvent,
+        PredictionLogger,
+        build_logger,
+        utc_now_iso,
+    )
+
+    _PREDICTION_LOGGING_AVAILABLE = True
+except ImportError:
+    # common_utils is optional; closed-loop monitoring is gracefully degraded
+    _PREDICTION_LOGGING_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -51,6 +65,10 @@ _model_pipeline = None
 _explainer = None  # shap.KernelExplainer (lazy — only if background data exists)
 _feature_names: list[str] = []
 _background_data: Optional[np.ndarray] = None
+
+# Closed-loop prediction logger — lifecycle managed by main.lifespan
+# (see ADR-006 and .windsurf/rules/13-closed-loop-monitoring.md, D-21)
+_prediction_logger: Optional["PredictionLogger"] = None
 
 # ---------------------------------------------------------------------------
 # Thread pool for CPU-bound inference — NEVER block the event loop
@@ -94,6 +112,16 @@ requests_total = Counter(
     "{service}_requests_total",
     "Total HTTP requests by status",
     ["status"],
+)
+
+# Closed-loop monitoring instrumentation (ADR-006)
+prediction_log_total = Counter(
+    "{service}_prediction_log_total",
+    "Prediction events enqueued for closed-loop monitoring",
+)
+prediction_log_errors_total = Counter(
+    "{service}_prediction_log_errors_total",
+    "Prediction-log errors swallowed by D-22 contract",
 )
 
 
@@ -152,6 +180,74 @@ def _predict_proba_wrapper(X_array: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Synchronous prediction — runs in thread pool via run_in_executor
 # ---------------------------------------------------------------------------
+async def _start_prediction_logger() -> None:
+    """Initialize and start the prediction logger. Called from main.lifespan."""
+    global _prediction_logger
+    if not _PREDICTION_LOGGING_AVAILABLE:
+        logger.info("common_utils.prediction_logger not importable — closed-loop monitoring disabled")
+        return
+    if os.getenv("PREDICTION_LOG_ENABLED", "true").lower() == "false":
+        logger.info("PREDICTION_LOG_ENABLED=false — closed-loop monitoring disabled")
+        return
+    try:
+        _prediction_logger = build_logger()
+        await _prediction_logger.start()
+        logger.info(
+            "PredictionLogger started (backend=%s)",
+            type(_prediction_logger.backend).__name__,
+        )
+    except Exception as e:
+        logger.warning("PredictionLogger failed to start (serving continues): %s", e)
+        _prediction_logger = None
+
+
+async def _stop_prediction_logger() -> None:
+    """Drain buffer and shut down. Called from main.lifespan on shutdown."""
+    if _prediction_logger is not None:
+        try:
+            await _prediction_logger.close()
+            logger.info(
+                "PredictionLogger stopped (logged=%d, dropped=%d, errors=%d)",
+                _prediction_logger.logged_count,
+                _prediction_logger.dropped_count,
+                _prediction_logger.error_count,
+            )
+        except Exception as e:
+            logger.warning("PredictionLogger shutdown error: %s", e)
+
+
+async def _fire_and_forget_log(
+    prediction_id: str,
+    entity_id: str,
+    features: dict,
+    slices: dict,
+    score: float,
+    prediction_class: str,
+    model_version: str,
+    latency_ms: float,
+) -> None:
+    """Enqueue a PredictionEvent. NEVER blocks the handler (D-21, D-22)."""
+    if _prediction_logger is None or not _PREDICTION_LOGGING_AVAILABLE:
+        return
+    try:
+        event = PredictionEvent(
+            prediction_id=prediction_id,
+            entity_id=entity_id,
+            timestamp=utc_now_iso(),
+            model_version=model_version,
+            features=features,
+            score=float(score),
+            prediction_class=prediction_class,
+            slices=slices or {},
+            latency_ms=latency_ms,
+        )
+        await _prediction_logger.log_prediction(event)
+        prediction_log_total.inc()
+    except Exception as e:
+        prediction_log_errors_total.inc()
+        logger.debug("prediction_log enqueue swallowed (D-22): %s", e)
+
+
 def _sync_predict(input_dict: dict, explain: bool) -> dict:
     """CPU-bound prediction logic.
 
@@ -258,18 +354,44 @@ async def predict(input_data: PredictionRequest, explain: bool = False) -> Predi
 
     Runs inference in ThreadPoolExecutor to avoid blocking the event loop.
     Add ``?explain=true`` for SHAP feature contributions.
+
+    Closed-loop logging (ADR-006): after computing the prediction we enqueue a
+    PredictionEvent for later JOIN with ground-truth labels. Logging is
+    fire-and-forget — NEVER blocks the client response (D-21/D-22).
     """
     if _model_pipeline is None:
         requests_total.labels(status="503").inc()
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     loop = asyncio.get_running_loop()
+    request_start = time.perf_counter()
     try:
+        # Features for the model = request minus non-feature fields
+        input_dict = input_data.model_dump()
+        entity_id = input_dict.pop("entity_id")
+        slices = input_dict.pop("slice_values", None) or {}
+
         result = await loop.run_in_executor(
             _inference_executor,
-            partial(_sync_predict, input_data.model_dump(), explain),
+            partial(_sync_predict, input_dict, explain),
         )
         requests_total.labels(status="200").inc()
+
+        prediction_id = uuid4().hex
+        result["prediction_id"] = prediction_id
+
+        # Fire-and-forget prediction log (closed-loop monitoring)
+        await _fire_and_forget_log(
+            prediction_id=prediction_id,
+            entity_id=entity_id,
+            features=input_dict,
+            slices=slices,
+            score=result["prediction_score"],
+            prediction_class=result["risk_level"],
+            model_version=result["model_version"],
+            latency_ms=(time.perf_counter() - request_start) * 1000,
+        )
+
         return PredictionResponse(**result)
     except Exception as e:
         requests_total.labels(status="500").inc()
@@ -282,20 +404,49 @@ async def predict_batch(request: BatchPredictionRequest) -> BatchPredictionRespo
     """Batch prediction endpoint for multiple inputs.
 
     Runs all predictions in a single ThreadPoolExecutor call for efficiency.
+    Each prediction gets its own prediction_id and is logged individually
+    (ADR-006) so each row is joinable with ground-truth labels.
     """
     if _model_pipeline is None:
         requests_total.labels(status="503").inc()
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     loop = asyncio.get_running_loop()
+    request_start = time.perf_counter()
     try:
-        inputs = [item.model_dump() for item in request.customers]
+        raw = [item.model_dump() for item in request.customers]
+        # Separate non-feature fields per row
+        entity_ids: list[str] = []
+        slices_list: list[dict] = []
+        feature_inputs: list[dict] = []
+        for row in raw:
+            entity_ids.append(row.pop("entity_id"))
+            slices_list.append(row.pop("slice_values", None) or {})
+            feature_inputs.append(row)
+
         results = await loop.run_in_executor(
             _inference_executor,
-            partial(_sync_predict_batch, inputs),
+            partial(_sync_predict_batch, feature_inputs),
         )
         requests_total.labels(status="200").inc()
-        predictions = [PredictionResponse(**r) for r in results]
+
+        batch_latency_ms = (time.perf_counter() - request_start) * 1000
+        predictions: list[PredictionResponse] = []
+        for features, slices, entity_id, result in zip(feature_inputs, slices_list, entity_ids, results):
+            prediction_id = uuid4().hex
+            result["prediction_id"] = prediction_id
+            await _fire_and_forget_log(
+                prediction_id=prediction_id,
+                entity_id=entity_id,
+                features=features,
+                slices=slices,
+                score=result["prediction_score"],
+                prediction_class=result["risk_level"],
+                model_version=result["model_version"],
+                latency_ms=batch_latency_ms,
+            )
+            predictions.append(PredictionResponse(**result))
+
         return BatchPredictionResponse(
             predictions=predictions,
             total_customers=len(predictions),

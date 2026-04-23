@@ -28,6 +28,12 @@ class PredictionRequest(BaseModel):
     - Type and constraints (ge, le, regex, etc.)
     - Business meaning
 
+    Closed-loop monitoring (ADR-006):
+    - entity_id: MANDATORY stable business key used to join with ground-truth
+      labels. Examples: customer_id, transaction_id, session_id.
+    - slice_values: OPTIONAL low-cardinality dimensions for sliced analysis
+      (see configs/slices.yaml). Examples: country, channel, segment.
+
     TODO: Replace these example features with actual service features.
     Example for BankChurn:
         CreditScore: int = Field(..., ge=300, le=850)
@@ -37,6 +43,12 @@ class PredictionRequest(BaseModel):
         ...
     """
 
+    entity_id: str = Field(..., min_length=1, description="Stable business key to join with ground-truth labels (D-20)")
+    slice_values: Optional[dict[str, str]] = Field(
+        default=None,
+        description="Low-cardinality dimensions for sliced analysis (country, channel, ...). "
+        "Referenced by configs/slices.yaml.",
+    )
     feature_a: float = Field(..., ge=0, le=150, description="Example numeric feature (e.g., age)")
     feature_b: float = Field(..., ge=0, description="Example numeric feature (e.g., balance)")
     feature_c: str = Field(..., description="Example categorical feature (e.g., category)")
@@ -45,6 +57,8 @@ class PredictionRequest(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
+                    "entity_id": "cust_7f3a2",
+                    "slice_values": {"country": "MX", "channel": "mobile"},
                     "feature_a": 42.0,
                     "feature_b": 50000.0,
                     "feature_c": "category_A",
@@ -88,8 +102,14 @@ class Explanation(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    """Output schema for the /predict endpoint."""
+    """Output schema for the /predict endpoint.
 
+    prediction_id: returned to the client so it can be used later to look up
+    the stored prediction when computing performance metrics after the
+    ground-truth label arrives (ADR-006, D-20).
+    """
+
+    prediction_id: str = Field(..., description="UUID correlating this response with the predictions_log entry")
     prediction_score: float = Field(..., ge=0, le=1, description="Model output probability")
     risk_level: str = Field(..., description="Risk classification: LOW, MEDIUM, or HIGH")
     model_version: str = Field(..., description="Version of the model in production")
