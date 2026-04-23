@@ -1,6 +1,6 @@
 # ML-MLOps Production Template
 
-**Ship ML models to production without reinventing the infrastructure.** This template encodes 12 production anti-patterns, multi-cloud K8s deployment (GKE + EKS), and agentic workflows — so your AI assistant builds it right the first time.
+**Ship ML models to production without reinventing the infrastructure.** This template encodes 19 production anti-patterns, multi-cloud K8s deployment (GKE + EKS), an agentic behavior protocol (AUTO/CONSULT/STOP), and supply-chain security (Cosign + SBOM + Kyverno) — so your AI assistant builds it right the first time.
 
 [![Release](https://img.shields.io/github/v/release/DuqueOM/ML-MLOps-Production-Template.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/releases)
 [![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11_%7C_3.12-blue.svg)](https://www.python.org/downloads/)
@@ -12,7 +12,7 @@
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
-[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-12%20encoded-red.svg)](#anti-pattern-detection)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-19%20encoded-red.svg)](#anti-pattern-detection)
 [![Clouds](https://img.shields.io/badge/clouds-GCP%20%2B%20AWS-orange.svg)](#technology-stack)
 [![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Claude_Code_%7C_Cursor-blueviolet.svg)](#agentic-system)
 
@@ -57,9 +57,10 @@ incidents diagnosed, real trade-offs documented, real deployments verified.
 
 A **complete, opinionated template** for shipping ML models to production — not a toy notebook, not a mega-framework. It includes:
 
-- **An agentic system** (rules, skills, workflows) that guides AI coding assistants to build and maintain MLOps projects following enterprise patterns
-- **Production-ready templates** for every layer of the stack: serving, training, infrastructure, CI/CD, monitoring, and documentation
-- **Encoded invariants** that prevent the 12 most common ML production failures (event loop blocking, memory HPA, model baked in images, etc.)
+- **An agentic system** (12 rules, 11 skills, 10 workflows) with a formal **AUTO/CONSULT/STOP behavior protocol** that guides AI coding assistants to build, audit, and maintain MLOps projects
+- **Production-ready templates** for every layer: EDA → training → serving → infrastructure → CI/CD → monitoring → documentation
+- **Encoded invariants** that prevent the 19 most common ML production failures (event loop blocking, memory HPA, model-in-image, data leakage, hardcoded credentials, unsigned images, etc.)
+- **Supply-chain security out of the box** — gitleaks, Trivy, Syft SBOM, Cosign keyless signing (OIDC), Kyverno admission verification
 - **Engineering calibration** — every component is sized to actual requirements, avoiding both under-engineering and over-engineering
 
 ## Who It's For
@@ -134,9 +135,10 @@ See [`examples/minimal/`](examples/minimal/) for the full working example.
 │  CLAUDE.md          → Claude Code project context                        │
 │  .claude/rules/     → Claude Code context-aware rules (paths: globs)     │
 │  .cursor/rules/     → Cursor IDE rules                                   │
-│  .windsurf/rules/   → 10 context-aware behavioral constraints            │
-│  .windsurf/skills/  → 8 multi-step operational procedures                │
-│  .windsurf/workflows/→ 8 prompt-triggered structured workflows           │
+│  .windsurf/rules/   → 12 context-aware behavioral constraints            │
+│  .windsurf/skills/  → 11 multi-step operational procedures               │
+│  .windsurf/workflows/→ 10 prompt-triggered slash commands                │
+│  Agent Behavior Protocol → AUTO / CONSULT / STOP modes per operation     │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                     TEMPLATE SYSTEM                                      │
@@ -302,17 +304,21 @@ ML-MLOps-Production-Template/
 │   ├── 02-training.md                     #   paths: **/training/*.py, **/models/*.py
 │   ├── 03-kubernetes.md                   #   paths: k8s/**/*.yaml
 │   ├── 04-terraform.md                    #   paths: **/*.tf
-│   └── 05-examples.md                     #   paths: examples/**/*
+│   ├── 05-examples.md                     #   paths: examples/**/*
+│   ├── 06-data-eda.md                     #   paths: eda/**/*, **/notebooks/**/*.ipynb
+│   └── 07-security-secrets.md             #   paths: **/* (always-applicable) — D-17/18/19
 │
 ├── .cursor/rules/                         # Cursor IDE rules (globs: frontmatter)
-│   ├── 01-mlops-conventions.mdc           #   Session protocol, full D-01→D-12
+│   ├── 01-mlops-conventions.mdc           #   Session protocol, D-01→D-19, Behavior Protocol
 │   ├── 02-kubernetes.mdc                  #   K8s: 1 worker, CPU HPA, init container
 │   ├── 03-python-serving.mdc              #   Async inference, SHAP, Prometheus
 │   ├── 04-python-training.mdc             #   Pipeline, quality gates, tests
-│   └── 05-docker.mdc                      #   Multi-stage, non-root, no model
+│   ├── 05-docker.mdc                      #   Multi-stage, non-root, no model
+│   ├── 06-data-eda.mdc                    #   globs: eda/**/*, **/notebooks/**/*.ipynb
+│   └── 07-security-secrets.mdc            #   globs: **/* — D-17/D-18/D-19
 │
 ├── .windsurf/                             # Agentic system configuration (Windsurf Cascade)
-│   ├── rules/                             # 10 behavioral constraint files
+│   ├── rules/                             # 12 behavioral constraint files
 │   │   ├── 01-mlops-conventions.md        #   always_on — core stack + skill references
 │   │   ├── 02-kubernetes.md               #   glob: k8s/**/*.yaml
 │   │   ├── 03-terraform.md                #   glob: **/*.tf
@@ -323,25 +329,32 @@ ML-MLOps-Production-Template/
 │   │   ├── 07-docker.md                   #   glob: **/Dockerfile*
 │   │   ├── 08-data-validation.md          #   glob: **/schemas.py
 │   │   ├── 09-monitoring.md               #   glob: monitoring/**/*
-│   │   └── 10-examples.md                 #   glob: examples/**/*
+│   │   ├── 10-examples.md                 #   glob: examples/**/*
+│   │   ├── 11-data-eda.md                 #   glob: eda/**/*, **/notebooks/**/*.ipynb
+│   │   └── 12-security-secrets.md         #   always_on — D-17/D-18/D-19
 │   │
-│   ├── skills/                            # 8 multi-step operational procedures
+│   ├── skills/                            # 11 multi-step operational procedures
 │   │   ├── debug-ml-inference/SKILL.md    #   Diagnose inference issues
-│   │   ├── deploy-gke/SKILL.md            #   Deploy to GCP GKE
-│   │   ├── deploy-aws/SKILL.md            #   Deploy to AWS EKS
+│   │   ├── deploy-gke/SKILL.md            #   Deploy to GCP GKE (dev=AUTO, staging=CONSULT, prod=STOP)
+│   │   ├── deploy-aws/SKILL.md            #   Deploy to AWS EKS (same auth modes)
 │   │   ├── drift-detection/SKILL.md       #   Run PSI drift analysis
-│   │   ├── model-retrain/SKILL.md         #   Retrain with quality gates
+│   │   ├── eda-analysis/SKILL.md          #   6-phase EDA with leakage gate
+│   │   ├── security-audit/SKILL.md        #   Pre-build/deploy: gitleaks + Trivy + Cosign
+│   │   ├── secret-breach-response/SKILL.md#   Incident response for leaked secrets
+│   │   ├── model-retrain/SKILL.md         #   Retrain with quality gates (STOP on Prod)
 │   │   ├── release-checklist/SKILL.md     #   Multi-cloud release
 │   │   ├── new-service/SKILL.md           #   Scaffold a new ML service
 │   │   └── cost-audit/SKILL.md            #   Cloud cost review
 │   │
-│   └── workflows/                         # 8 prompt-triggered workflows
+│   └── workflows/                         # 10 prompt-triggered workflows
 │       ├── release.md                     #   /release
 │       ├── retrain.md                     #   /retrain
 │       ├── load-test.md                   #   /load-test
 │       ├── new-adr.md                     #   /new-adr
 │       ├── incident.md                    #   /incident
 │       ├── drift-check.md                 #   /drift-check
+│       ├── eda.md                         #   /eda
+│       ├── secret-breach.md               #   /secret-breach
 │       ├── new-service.md                 #   /new-service
 │       └── cost-review.md                 #   /cost-review
 │
@@ -454,13 +467,13 @@ This template supports **three AI coding assistants** out of the box:
 |-------------|----------------|--------|
 | **Windsurf Cascade** | `.windsurf/rules/`, `.windsurf/skills/`, `.windsurf/workflows/` | Markdown with glob triggers |
 | **Claude Code** | `CLAUDE.md`, `.claude/rules/` | Context-aware rules with `paths:` frontmatter |
-| **Cursor** | `.cursor/rules/*.mdc` | 5 MDC rules with frontmatter globs |
+| **Cursor** | `.cursor/rules/*.mdc` | 7 MDC rules with frontmatter globs |
 
-All three share the same invariants from `AGENTS.md` (canonical source). The `.windsurf/` directory has the richest configuration (10 rules, 8 skills, 8 workflows). Claude Code and Cursor have full invariant parity but lack skills/workflows (IDE-specific features).
+All three share the same invariants from `AGENTS.md` (canonical source). The `.windsurf/` directory has the richest configuration (12 rules, 11 skills, 10 workflows). Claude Code and Cursor have full invariant parity (D-01→D-19) but lack skills/workflows — those are invoked via conversation in any IDE.
 
 #### Claude Code (`.claude/rules/`)
 
-5 context-aware rules using `paths:` frontmatter. Claude Code activates rules automatically when you open matching files:
+7 context-aware rules using `paths:` frontmatter. Claude Code activates rules automatically when you open matching files:
 
 | File | Paths Trigger | Covers |
 |------|--------------|--------|
@@ -469,24 +482,28 @@ All three share the same invariants from `AGENTS.md` (canonical source). The `.w
 | `03-kubernetes.md` | `k8s/**/*.yaml` | 1-worker, CPU HPA, init container, D-01/D-02/D-11 |
 | `04-terraform.md` | `**/*.tf` | Remote state, no secrets, lifecycle, D-10 |
 | `05-examples.md` | `examples/**/*` | Simplified patterns, self-contained demos |
+| `06-data-eda.md` | `eda/**/*`, `**/notebooks/**/*.ipynb` | 6-phase EDA, baseline distributions, leakage gate, D-13/D-14/D-15/D-16 |
+| `07-security-secrets.md` | `**/*` (always-applicable) | Secrets hygiene, IRSA/WI, supply chain, D-17/D-18/D-19 |
 
 Root context: `CLAUDE.md` provides project-wide context (stack, invariants, file structure) loaded at session start.
 
 #### Cursor (`.cursor/rules/`)
 
-5 MDC rules with `globs:` frontmatter. Cursor activates rules based on glob patterns:
+7 MDC rules with `globs:` frontmatter. Cursor activates rules based on glob patterns:
 
 | File | Globs Trigger | Covers |
 |------|--------------|--------|
-| `01-mlops-conventions.mdc` | `**/*` (always on) | Session protocol, full D-01→D-12, stack, ADRs |
+| `01-mlops-conventions.mdc` | `**/*` (always on) | Session protocol, D-01→D-19, Agent Behavior Protocol, stack, ADRs |
 | `02-kubernetes.mdc` | `k8s/**/*.yaml`, `helm/**/*.yaml` | HPA, init container, probes, RBAC |
 | `03-python-serving.mdc` | `**/app/*.py` | Async, ThreadPoolExecutor, SHAP, metrics |
 | `04-python-training.mdc` | `**/training/*.py` | Pipeline, gates, fairness, DVC |
-| `05-docker.mdc` | `**/Dockerfile*` | Multi-stage, non-root, no model artifacts |
+| `05-docker.mdc` | `**/Dockerfile*` | Multi-stage, non-root, HEALTHCHECK, no model in image |
+| `06-data-eda.mdc` | `eda/**/*`, `**/notebooks/**/*.ipynb` | EDA structure, baseline distributions, leakage gate (D-13→D-16) |
+| `07-security-secrets.mdc` | `**/*` (always-applicable) | Secrets, IRSA/WI, Cosign/SBOM, always-applicable (D-17→D-19) |
 
 #### Windsurf Cascade (`.windsurf/`)
 
-10 context-aware rules + 8 skills + 8 workflows. The most comprehensive configuration:
+12 context-aware rules + 11 skills + 10 workflows, plus a formal **Agent Behavior Protocol (AUTO / CONSULT / STOP)** and typed inter-agent handoffs. Canonical source for the other IDEs:
 
 ### Rules (Behavioral Constraints)
 
@@ -576,7 +593,13 @@ These are **non-negotiable rules** encoded in `AGENTS.md` and enforced across al
 
 ## Anti-Pattern Detection
 
-The agentic system automatically detects and corrects 12 known production failure modes:
+The agentic system automatically detects and corrects 19 known production failure modes grouped by domain:
+
+- **D-01→D-05**: Runtime & serving (FastAPI async, ThreadPoolExecutor, SHAP, pinning)
+- **D-06→D-09**: Training & monitoring (leakage, SHAP bg, PSI bins, heartbeat)
+- **D-10→D-12**: Infrastructure & governance (TF state, init container, quality gates)
+- **D-13→D-16**: EDA & data (sandbox, observed ranges, baseline, feature rationale)
+- **D-17→D-19**: Security & supply chain (secrets, IRSA/WI, signed images + SBOM)
 
 | ID | Anti-Pattern | Corrective Action |
 |----|-------------|-------------------|
@@ -592,6 +615,13 @@ The agentic system automatically detects and corrects 12 known production failur
 | D-10 | `terraform.tfstate` in git | Move to remote state |
 | D-11 | Model baked in Docker image | Implement init container pattern |
 | D-12 | No quality gates | Add all gates before deploy |
+| D-13 | EDA on production data | Sandbox `data/raw/` copy; EDA never writes to prod paths |
+| D-14 | Pandera schema without observed ranges | `Check.in_range(min, max)` from EDA phase 1 |
+| D-15 | Baseline distributions not persisted | Save `02_baseline_distributions.pkl` (drift CronJob input) |
+| D-16 | Feature engineering without rationale | `05_feature_proposals.yaml` with justification |
+| D-17 | Hardcoded credentials / `os.environ` for secrets | Use `common_utils.secrets.get_secret` |
+| D-18 | Static AWS keys or GCP JSON keys in production | IRSA (AWS) / Workload Identity (GCP) |
+| D-19 | Unsigned images or missing SBOM in production | Cosign keyless + Syft SBOM + Kyverno admission |
 
 ---
 
