@@ -79,11 +79,73 @@ jobs:
           print('All quality gates PASSED')
           "
 
-      - name: Promote model (if gates pass)
-        if: steps.gates.outcome == 'success'
+      - name: Download current champion (if any)
+        id: champion
+        continue-on-error: true
+        run: |
+          cd ${{ env.SERVICE }}
+          mkdir -p models/champion
+          # TODO: replace with your model registry / object-store fetch
+          # gsutil cp gs://${MODEL_BUCKET}/${SERVICE}/production/model.joblib models/champion/model.joblib
+          if [ -f models/champion/model.joblib ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Champion vs Challenger statistical comparison
+        id: cvsc
+        if: steps.gates.outcome == 'success' && steps.champion.outputs.found == 'true'
+        run: |
+          cd ${{ env.SERVICE }}
+          python -m src.${{ env.SERVICE_SLUG }}.evaluation.champion_challenger \
+            --champion models/champion/model.joblib \
+            --challenger models/model.joblib \
+            --holdout data/holdout.csv \
+            --target target \
+            --config configs/champion_challenger.yaml \
+            --output reports/champion_challenger.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Post C/C decision as Actions step summary
+        if: always() && steps.cvsc.outcome != 'skipped'
+        run: |
+          cd ${{ env.SERVICE }}
+          python -c "
+          import json, pathlib
+          p = pathlib.Path('reports/champion_challenger.json')
+          if not p.exists():
+              print('No C/C report produced')
+              raise SystemExit
+          r = json.loads(p.read_text())
+          d = r['decision']
+          b = r['bootstrap']
+          print('## Champion/Challenger decision: ', d['decision'])
+          print('Reason:', d['reason'])
+          print('ΔAUC (point):', b.get('delta_auc_point'))
+          print('95% CI:', [b.get('delta_auc_ci_lower'), b.get('delta_auc_ci_upper')])
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Promote model (if gates pass AND C/C == promote OR no champion)
+        id: promote
+        if: steps.gates.outcome == 'success' && (steps.champion.outputs.found == 'false' || steps.cvsc.outputs.exit_code == '0')
         run: |
           echo "TODO: Upload model to GCS/S3 and promote in MLflow"
           # gsutil cp models/model.joblib gs://${MODEL_BUCKET}/${SERVICE}/model.joblib
+
+      - name: Block promotion (C/C blocked or keep)
+        if: steps.cvsc.outputs.exit_code == '2' || steps.cvsc.outputs.exit_code == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const decision = '${{ steps.cvsc.outputs.exit_code }}' === '2' ? 'BLOCKED' : 'KEPT (no promotion)';
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Champion/Challenger: ${decision} — ${{ env.SERVICE }}`,
+              body: `Trigger: ${{ github.event.inputs.reason }}\n\nOutcome: ${decision}\n\nSee workflow artifact reports/champion_challenger.json for full statistical report (McNemar p, ΔAUC CI, decision rationale).`,
+              labels: ['ml-retraining', 'champion-challenger']
+            });
 
       - name: Create failure issue (if gates fail)
         if: steps.gates.outcome == 'failure'
