@@ -152,6 +152,68 @@ Waiting for: Tech Lead approval via PR review
 
 This makes handoffs auditable and reproducible.
 
+## Agent Handoff Schema
+
+When one specialist agent produces an artifact consumed by another, the handoff
+MUST use a typed dataclass from `templates/common_utils/agent_context.py`. This
+replaces ad-hoc dict passing with validated contracts that fail fast.
+
+Canonical handoff chain:
+
+```
+Agent-EDAProfiler     ──[EDAHandoff]──►     Agent-MLTrainer
+Agent-MLTrainer       ──[TrainingArtifact]──► Agent-DockerBuilder
+Agent-DockerBuilder   ──[BuildArtifact]──► Agent-SecurityAuditor
+Agent-SecurityAuditor ──[SecurityAuditResult]──► Agent-K8sBuilder
+Agent-K8sBuilder      ──[DeploymentRequest]──► cluster (via GitHub Actions)
+```
+
+Each dataclass is `frozen=True` (immutable) and validates invariants at construction.
+Example: `DeploymentRequest` refuses to construct if `environment == PRODUCTION` and
+`security_audit.passed == False` — a gate that cannot be bypassed by omission.
+
+## Audit Trail Protocol
+
+Every agentic operation MUST produce an `AuditEntry` (defined in
+`common_utils/agent_context.py`). Entries are append-only JSONL in
+`ops/audit.jsonl` and mirrored to the GitHub Actions step summary in CI.
+
+Minimum fields:
+- `agent`, `operation`, `environment`, `mode`
+- `inputs` (what was requested)
+- `outputs` (what was produced — sha256, image refs, PR URLs)
+- `approver` (populated when mode is CONSULT or STOP)
+- `result` (`success` | `failure` | `halted`)
+- `timestamp` (UTC ISO8601)
+
+Agents MUST NOT open a GitHub issue for every operation (noise). Instead:
+- Routine operations → `ops/audit.jsonl` + GHA step summary
+- Operations that required CONSULT/STOP → additionally open a GitHub issue tagged
+  `audit` with the entry pre-filled
+- Failures → open an issue tagged `audit` + `incident`
+
+## Agent Permissions Matrix
+
+Some operations are intrinsically not permitted for certain agents regardless of
+environment. This matrix codifies capability boundaries.
+
+| Agent | dev | staging | production |
+|-------|-----|---------|------------|
+| Agent-EDAProfiler | read data, write `eda/**` | read data | **blocked** |
+| Agent-MLTrainer | train, log MLflow, transition None→Staging | transition Staging→None | transition to Production **blocked** (via PR only) |
+| Agent-DockerBuilder | build, push to registry | build, push, sign | build, push, sign |
+| Agent-K8sBuilder | `kubectl apply` | `kubectl apply` (CONSULT) | **blocked** (GitHub Actions only) |
+| Agent-TerraformBuilder | `plan`, `apply` | `plan`, `apply` (CONSULT) | `plan` only; `apply` **blocked** |
+| Agent-SecurityAuditor | scan, report | scan, report, block pipeline | scan, report, block pipeline |
+| Agent-DriftMonitor | read metrics | read metrics | read metrics |
+| Agent-RetrainingAgent | trigger retrain | trigger retrain (CONSULT) | trigger retrain **blocked**; propose via PR |
+| Agent-CostAuditor | read billing | read billing | read billing |
+| Agent-DocumentationAI | write `docs/**` | — | — |
+
+"Blocked" means the agent must emit `[AGENT MODE: STOP]` and refuse the operation,
+even if the human insists in conversation. The only path through is the governed
+GitHub Actions flow with required_reviewers.
+
 ## Anti-Patterns That Agents Must Detect and Correct
 
 | ID | Anti-Pattern | Corrective Action |

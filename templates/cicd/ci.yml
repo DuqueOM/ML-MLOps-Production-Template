@@ -87,11 +87,56 @@ jobs:
           name: test-results-${{ matrix.service }}-py${{ matrix.python-version }}
           path: ${{ matrix.service }}/results/
 
-  build:
-    name: Build & Scan — ${{ matrix.service }}
+  security-audit:
+    name: Security Audit — secrets, SAST, IaC
     runs-on: ubuntu-latest
     needs: [test]
     if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for gitleaks
+
+      - name: Gitleaks — scan for secrets (D-17)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Hardcoded credential patterns (D-17)
+        run: |
+          set -euo pipefail
+          if grep -rEI "AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}" \
+               --include="*.py" --include="*.yaml" --include="*.yml" --include="*.tf" .; then
+            echo "::error::Hardcoded credential pattern detected (D-17 violation)"
+            exit 1
+          fi
+          if grep -rE "os\.environ\[.(API_KEY|SECRET|TOKEN|PASSWORD)" --include="*.py" .; then
+            echo "::error::Direct os.environ access to secret-like names — use common_utils.secrets.get_secret instead (D-17)"
+            exit 1
+          fi
+
+      - name: IRSA/Workload Identity enforcement (D-18)
+        run: |
+          # In staging/prod K8s manifests, ServiceAccounts must have IRSA or WI annotation
+          for manifest in k8s/overlays/*-staging/*.yaml k8s/overlays/*-production/*.yaml; do
+            [ -f "$manifest" ] || continue
+            if grep -qE "kind:\s*ServiceAccount" "$manifest"; then
+              if ! grep -qE "(eks.amazonaws.com/role-arn|iam.gke.io/gcp-service-account)" "$manifest"; then
+                echo "::error file=$manifest::ServiceAccount missing IRSA/WI annotation (D-18)"
+                exit 1
+              fi
+            fi
+          done
+
+  build:
+    name: Build, Sign & Attest — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [test, security-audit]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write    # required for cosign keyless (OIDC)
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -102,22 +147,68 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
+        id: build
         run: |
-          docker build \
-            -t ${{ matrix.service }}:${{ github.sha }} \
-            ${{ matrix.service }}/
+          IMAGE="${{ matrix.service }}:${{ github.sha }}"
+          docker build -t "$IMAGE" ${{ matrix.service }}/
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-      - name: Trivy vulnerability scan
+      - name: Trivy vulnerability scan (blocker: HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ matrix.service }}:${{ github.sha }}"
+          image-ref: ${{ steps.build.outputs.image }}
           format: "table"
           exit-code: "1"
           severity: "CRITICAL,HIGH"
 
-      # TODO: Push to registry (uncomment and configure)
+      - name: Install Syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM (CycloneDX JSON) — SLSA L2 component (D-19)
+        run: |
+          syft "${{ steps.build.outputs.image }}" -o cyclonedx-json > sbom.cyclonedx.json
+          syft "${{ steps.build.outputs.image }}" -o spdx-json > sbom.spdx.json
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service }}-${{ github.sha }}
+          path: sbom.*.json
+          retention-days: 90
+
+      # TODO: Push to registry (uncomment and configure per cloud)
       # - name: Push to GCP Artifact Registry
+      #   id: push
       #   run: |
-      #     echo "${{ secrets.GCP_SA_KEY }}" | docker login -u _json_key --password-stdin https://${REGION}-docker.pkg.dev
-      #     docker tag ${{ matrix.service }}:${{ github.sha }} ${GCP_REGISTRY}/${{ matrix.service }}:${{ github.sha }}
-      #     docker push ${GCP_REGISTRY}/${{ matrix.service }}:${{ github.sha }}
+      #     # Use Workload Identity Federation, NOT a JSON key (D-18)
+      #     gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+      #     FULL_REF="${GCP_REGISTRY}/${{ matrix.service }}:${{ github.sha }}"
+      #     docker tag "${{ steps.build.outputs.image }}" "$FULL_REF"
+      #     DIGEST=$(docker push "$FULL_REF" | tee /dev/stderr | grep -oE 'sha256:[a-f0-9]{64}')
+      #     echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      # - name: Sign image with Cosign (keyless, OIDC) — D-19
+      #   run: |
+      #     # Keyless signing: identity proven via GitHub OIDC; no private key management
+      #     cosign sign --yes "${GCP_REGISTRY}/${{ matrix.service }}@${{ steps.push.outputs.digest }}"
+
+      # - name: Attest SBOM — SLSA L2
+      #   run: |
+      #     cosign attest --yes \
+      #       --predicate sbom.cyclonedx.json \
+      #       --type cyclonedx \
+      #       "${GCP_REGISTRY}/${{ matrix.service }}@${{ steps.push.outputs.digest }}"
+
+      - name: Emit build provenance summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Build Summary — ${{ matrix.service }}
+
+          - **Commit**: \`${{ github.sha }}\`
+          - **Image**: \`${{ steps.build.outputs.image }}\`
+          - **SBOM**: CycloneDX + SPDX attached as artifact
+          - **Signatures**: $(cosign verify --certificate-identity-regexp ".*" "${{ steps.build.outputs.image }}" 2>/dev/null && echo "✓ signed" || echo "⚠ dev build (unsigned)")
+          EOF
