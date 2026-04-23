@@ -1,0 +1,129 @@
+# =============================================================================
+# CronJob — Sliced performance monitoring (ADR-006 / ADR-007)
+# =============================================================================
+# Runs daily AFTER the ground-truth ingester so the JOIN window is non-empty.
+# Separate from drift-detection (data drift) — this measures concept drift
+# (performance degradation) using real labels.
+#
+# Exit codes:
+#   0 — ok, 1 — warning, 2 — alert (concept drift detected)
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{service}-performance-monitor"
+  labels:
+    app: "{service}-perf"
+spec:
+  # Run 1h after drift-detection to give ground-truth ingester time to finish
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: "{service}-perf"
+        spec:
+          serviceAccountName: "{service}-sa"
+          restartPolicy: Never
+          containers:
+            - name: performance-monitor
+              image: "{service}-predictor:latest"
+              command:
+                - python
+                - -m
+                - src.{service}.monitoring.performance_monitor
+                - --predictions
+                - /data/predictions_log
+                - --labels
+                - /data/labels_log
+                - --slices
+                - configs/slices.yaml
+                - --window
+                - 24h
+                - --baseline
+                - models/baseline_metrics.json
+                - --output
+                - /tmp/performance.json
+                - --push-metrics
+              env:
+                - name: PUSHGATEWAY_URL
+                  value: "pushgateway:9091"
+                - name: SERVICE_NAME
+                  value: "{service}"
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "1000m"
+                  memory: "2Gi"
+              volumeMounts:
+                - name: data-storage
+                  mountPath: /data
+          volumes:
+            - name: data-storage
+              # For local/on-prem: PVC; for cloud: use a sidecar sync or mount
+              # a CSI driver (gcsfuse, s3-csi). Default here is a PVC placeholder
+              # that the user must provision.
+              persistentVolumeClaim:
+                claimName: "{service}-monitoring-data"
+---
+# =============================================================================
+# CronJob — Ground-truth ingester
+# =============================================================================
+# Runs before performance monitor to pull newly arrived labels.
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{service}-ground-truth-ingester"
+  labels:
+    app: "{service}-gt"
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: "{service}-gt"
+        spec:
+          serviceAccountName: "{service}-sa"
+          restartPolicy: Never
+          containers:
+            - name: ground-truth-ingester
+              image: "{service}-predictor:latest"
+              command:
+                - python
+                - -m
+                - src.{service}.monitoring.ground_truth
+                - --config
+                - configs/ground_truth_source.yaml
+              env:
+                - name: SERVICE_NAME
+                  value: "{service}"
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "1Gi"
+              volumeMounts:
+                - name: data-storage
+                  mountPath: /data
+          volumes:
+            - name: data-storage
+              persistentVolumeClaim:
+                claimName: "{service}-monitoring-data"
