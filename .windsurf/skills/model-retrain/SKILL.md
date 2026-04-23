@@ -17,9 +17,39 @@ when_to_use: >
 argument-hint: "<service-name> [trigger-reason]"
 arguments:
   - service-name
+authorization_mode:
+  train: AUTO        # reversible — new MLflow run, existing model untouched
+  to_staging: CONSULT # human approves Staging transition (affects staging deploys)
+  to_production: STOP # requires governance approval (ADR-002)
 ---
 
 # Model Retraining
+
+## Authorization Protocol
+
+This skill spans three authorization layers, aligned with the Agent Behavior Protocol (AGENTS.md):
+
+| Phase | Mode | What happens |
+|-------|------|--------------|
+| Training (MLflow run) | AUTO | Agent may run training, log to MLflow, produce artifacts |
+| Transition to `Staging` | CONSULT | Agent presents metrics + quality gates + drift diff; human approves via MLflow UI or `/promote-model` PR |
+| Transition to `Production` | **STOP** | Never transitions directly. Opens PR, waits for Tech Lead approval via GitHub Environment `production` |
+
+### Automatic STOP escalation
+
+Even in AUTO phase, escalate to STOP if the new model exhibits any of:
+- Primary metric > 0.99 without explanation (D-06 — investigate leakage)
+- Fairness DIR in `[0.80, 0.85]` (marginal — human judgment required)
+- Metric regression > 5% vs current production
+- Any quality gate fails
+
+Emit structured signal:
+```
+[AGENT MODE: STOP]
+Operation: Model retraining for {service}
+Reason: Fairness DIR = 0.82 (marginal, requires human review)
+Waiting for: Engineer inspection + either ADR documenting decision OR retraining with fairness-aware loss
+```
 
 ## Step 1: Validate Retraining Trigger
 

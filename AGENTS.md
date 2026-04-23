@@ -28,6 +28,7 @@ LAYER 2: SPECIALIST AGENTS (build phase)
   ├── Agent-K8sBuilder        K8s manifests, HPA, Kustomize overlays
   ├── Agent-TerraformBuilder  IaC for GCP + AWS resources
   ├── Agent-CICDBuilder       GitHub Actions workflows
+  ├── Agent-SecurityAuditor   Secret scans, IAM least-privilege, image signing, SBOM
   ├── Agent-MonitoringSetup   Prometheus metrics, Grafana dashboards, alerts
   ├── Agent-DriftSetup        PSI thresholds, CronJob, heartbeat alerts
   ├── Agent-DocumentationAI   ADRs, READMEs, runbooks
@@ -91,6 +92,66 @@ OVER-ENGINEERING: Full orchestrator for 2 models, GE for simple DataFrames
   → Complexity without proportional value
 ```
 
+## Agent Behavior Protocol
+
+Agents operate in one of **three modes** depending on the operation's risk and reversibility.
+This protocol is NOT optional — every skill and workflow must map its operations to a mode.
+
+### The three modes
+
+| Mode | Meaning | Example |
+|------|---------|---------|
+| **AUTO** | Execute without asking. Reversible or low-risk. | Scaffolding a new service, running tests, generating reports |
+| **CONSULT** | Propose the plan + rationale, wait for human approval before executing. | Promoting a model to production, applying Terraform in staging |
+| **STOP** | Do nothing. Block the pipeline. Require explicit human instruction to proceed. | `terraform apply` in prod, rotating a secret, overriding a quality gate failure |
+
+### Operation → Mode mapping (canonical)
+
+| Operation | Mode | Notes |
+|-----------|------|-------|
+| Scaffold new service (`new-service.sh`) | AUTO | Reversible via `rm -rf` |
+| Run EDA pipeline on `data/raw/` | AUTO | No side effects outside `eda/` |
+| Generate ADR, README, runbook | AUTO | Documents are reviewable in PRs |
+| Run tests, lint, validators | AUTO | Read-only or sandboxed |
+| `dvc add` new data artifact | AUTO | Reversible before push |
+| Train model locally + save to MLflow | AUTO | Experiment tracking is append-only |
+| Transition MLflow model to `Staging` | **CONSULT** | Affects staging deploys |
+| Promote model to `Production` | **STOP** | Requires governance approval (see ADR-002) |
+| `terraform plan` any environment | AUTO | Read-only |
+| `terraform apply` dev | AUTO | Reversible, dev is sandbox |
+| `terraform apply` staging | **CONSULT** | Propose diff, wait for approval |
+| `terraform apply` prod | **STOP** | Requires PR + Platform Engineer approval |
+| `kubectl apply` dev cluster | AUTO | — |
+| `kubectl apply` staging cluster | **CONSULT** | Show diff, wait |
+| `kubectl apply` prod cluster | **STOP** | Via GitHub Actions only, with approval |
+| Build + push Docker image | AUTO | Images are content-addressable |
+| Sign image (Cosign) | AUTO | Additive |
+| Rotate a leaked secret | **STOP** | Execute `/secret-breach` workflow; never silent rotation |
+| Delete any cloud resource | **STOP** | Always |
+| Override a failing quality gate | **STOP** | Requires ADR documenting why |
+
+### Escalation triggers (automatic STOP)
+
+The agent **must** escalate to STOP mode even from AUTO/CONSULT when any of:
+- Metric suspiciously high (D-06): primary metric > 0.99 without explanation
+- Fairness DIR in `[0.80, 0.85]` — within margin, human judgment required
+- Drift PSI > 2× the configured threshold (not just > threshold)
+- Cost estimate > 1.2× monthly budget for that environment
+- Any detection of a credential pattern in a commit, log, or artifact
+- A test that previously passed now fails without a code change explanation
+
+### How agents signal mode transitions
+
+When an agent decides to change mode, it must output a structured signal:
+```
+[AGENT MODE: CONSULT]
+Operation: Transition fraud_detector v42 to MLflow Staging
+Rationale: CI passed, tests green, metrics within gates
+Waiting for: Tech Lead approval via PR review
+```
+
+This makes handoffs auditable and reproducible.
+
 ## Anti-Patterns That Agents Must Detect and Correct
 
 | ID | Anti-Pattern | Corrective Action |
@@ -127,7 +188,9 @@ When starting a new session in a project derived from this template:
 **Skills** (multi-step procedures — invoked by the agent when task matches):
 - `new-service` — scaffold a new ML service using `templates/scripts/new-service.sh`
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
-- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-16 checklist)
+- `security-audit` — pre-build/pre-deploy scans: gitleaks, trivy, cosign verify, IAM review
+- `secret-breach-response` — incident playbook when a secret is leaked (detect → rotate → audit → postmortem)
+- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-19 checklist)
 - `drift-detection` — analyze PSI drift and trigger retraining
 - `model-retrain` — execute retraining with quality gates
 - `deploy-gke` / `deploy-aws` — deploy to GKE or EKS with Kustomize overlays
@@ -168,6 +231,8 @@ When starting a new session in a project derived from this template:
 │   ├── deploy-aws/SKILL.md
 │   ├── drift-detection/SKILL.md
 │   ├── eda-analysis/SKILL.md
+│   ├── security-audit/SKILL.md
+│   ├── secret-breach-response/SKILL.md
 │   ├── model-retrain/SKILL.md
 │   ├── release-checklist/SKILL.md
 │   ├── new-service/SKILL.md
@@ -189,6 +254,8 @@ When starting a new session in a project derived from this template:
 | Trigger | Skill Invoked | Workflow Chained |
 |---------|--------------|-----------------|
 | New dataset to explore | `eda-analysis` | `/eda` → `/new-service` (if leakage-free) |
+| Pre-build / pre-deploy | `security-audit` | auto-chain before DockerBuilder/K8sBuilder |
+| Secret leak detected | `secret-breach-response` | `/secret-breach` (STOP pipeline, rotate) |
 | Inference bug | `debug-ml-inference` | `/incident` |
 | Drift alert (PSI ≥ threshold) | `drift-detection` | `/retrain` |
 | Version release | `release-checklist` | `/release` |
