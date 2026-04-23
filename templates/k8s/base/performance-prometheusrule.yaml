@@ -1,0 +1,117 @@
+# =============================================================================
+# PrometheusRule — Concept drift + sliced performance alerts (ADR-006 / ADR-007)
+# =============================================================================
+# Alerts fire based on metrics pushed by performance_monitor.py into
+# Pushgateway. They differentiate GLOBAL degradation from SLICED degradation
+# and carry the slice label so Alertmanager can route to the right team.
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: "{service}-performance-alerts"
+  labels:
+    app: "{service}"
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: "{service}.performance"
+      rules:
+        # ---------------------------------------------------------------
+        # Global concept drift: AUC below hard threshold
+        # ---------------------------------------------------------------
+        - alert: "{ServiceName}GlobalAUCBelowAlert"
+          expr: |
+            {service}_performance_metric{slice_name="__global__", metric="auc"} < 0.65
+          for: 30m
+          labels:
+            severity: critical
+            service: "{service}"
+            category: concept_drift
+          annotations:
+            summary: "Global AUC below alert threshold"
+            description: |
+              Global AUC is {{ $value | printf "%.3f" }} (< 0.65).
+              This indicates concept drift across the whole population.
+              Action: investigate recent data/label quality, consider retraining.
+              Runbook: https://github.com/{owner}/{repo}/blob/main/RUNBOOK.md#concept-drift
+
+        # ---------------------------------------------------------------
+        # Sliced concept drift: a single slice degraded severely
+        # ---------------------------------------------------------------
+        - alert: "{ServiceName}SlicedAUCBelowAlert"
+          expr: |
+            {service}_performance_metric{slice_name!="__global__", metric="auc"} < 0.65
+            and
+            {service}_performance_sample_size >= 50
+          for: 30m
+          labels:
+            severity: critical
+            service: "{service}"
+            category: sliced_concept_drift
+          annotations:
+            summary: "AUC below alert threshold for slice {{ $labels.slice_name }}={{ $labels.slice_value }}"
+            description: |
+              AUC={{ $value | printf "%.3f" }} for slice
+              {{ $labels.slice_name }}={{ $labels.slice_value }} (< 0.65).
+              Sliced degradation often points to a subpopulation-specific issue:
+              data pipeline, feature engineering, or label quality for that group.
+              Runbook: https://github.com/{owner}/{repo}/blob/main/RUNBOOK.md#sliced-drift
+
+        # ---------------------------------------------------------------
+        # F1 collapse — even if AUC is okay
+        # ---------------------------------------------------------------
+        - alert: "{ServiceName}F1BelowAlert"
+          expr: |
+            {service}_performance_metric{metric="f1"} < 0.45
+            and
+            {service}_performance_sample_size >= 50
+          for: 30m
+          labels:
+            severity: warning
+            service: "{service}"
+            category: performance_regression
+          annotations:
+            summary: "F1 below alert for {{ $labels.slice_name }}={{ $labels.slice_value }}"
+            description: |
+              F1={{ $value | printf "%.3f" }}. Check threshold calibration
+              and class balance in window.
+
+        # ---------------------------------------------------------------
+        # Heartbeat: performance monitor stopped reporting
+        # ---------------------------------------------------------------
+        - alert: "{ServiceName}PerformanceMonitorStale"
+          expr: |
+            time() - {service}_performance_last_run_timestamp > 172800
+          for: 1h
+          labels:
+            severity: warning
+            service: "{service}"
+            category: monitoring_health
+          annotations:
+            summary: "Performance monitor has not reported in 48h"
+            description: |
+              The {service}-performance-monitor CronJob has not pushed metrics
+              in > 48h. Verify the CronJob is running and ground-truth
+              ingestion is producing labels.
+
+        # ---------------------------------------------------------------
+        # Prediction log failure rate high
+        # ---------------------------------------------------------------
+        - alert: "{ServiceName}PredictionLogErrorsHigh"
+          expr: |
+            rate({service}_prediction_log_errors_total[15m])
+            /
+            (rate({service}_prediction_log_total[15m]) + 0.001)
+            > 0.05
+          for: 15m
+          labels:
+            severity: warning
+            service: "{service}"
+            category: observability_degraded
+          annotations:
+            summary: "Prediction-log error rate > 5% (closed-loop visibility at risk)"
+            description: |
+              Prediction-log errors per minute exceed 5% of total.
+              D-22 contract swallows these failures — inference is NOT impacted,
+              but performance monitoring will have gaps. Check backend health
+              (gs://, s3://, or BigQuery).

@@ -24,5 +24,7 @@ resources:
   - hpa.yaml
   - serviceaccount.yaml
   - cronjob-drift.yaml
+  - cronjob-performance.yaml
+  - performance-prometheusrule.yaml
   - networkpolicy.yaml
   - rbac.yaml

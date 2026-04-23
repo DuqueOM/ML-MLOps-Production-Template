@@ -1,0 +1,54 @@
+# =============================================================================
+# Slice definitions for sliced performance monitoring (ADR-007)
+# =============================================================================
+# Each slice is a low-cardinality dimension carried in the `slice_values` dict
+# of the /predict request (see app/schemas.py) and flattened into the
+# predictions_log as columns `slice_<name>`.
+#
+# Slicing principle: alerts should not just say "AUC dropped" — they should
+# say "AUC dropped for country=MX". This file enumerates which dimensions we
+# slice by so the monitor refuses unknown slices (bounded cardinality).
+#
+# TODO: Replace the examples below with slices that matter for YOUR service.
+# Good slice candidates (low cardinality, actionable):
+#   - geographic: country, region
+#   - acquisition: channel, campaign_id
+#   - product: segment, tier
+#   - temporal-bucket: is_weekend, hour_bucket
+#   - model version: auto-discovered
+#   - score buckets: risk bands
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Global thresholds (soft = warning, hard = alert)
+# Override per service based on business tolerance
+# ---------------------------------------------------------------------------
+min_samples_per_slice: 50       # below this, slice is 'insufficient_data'
+auc_warning: 0.75
+auc_alert: 0.65
+f1_warning: 0.55
+f1_alert: 0.45
+
+# Concept drift: current metric vs baseline (from training)
+auc_drop_warning: 0.05
+auc_drop_alert: 0.10
+
+# ---------------------------------------------------------------------------
+# Slice definitions
+# ---------------------------------------------------------------------------
+slices:
+  - name: by_country
+    column: country
+    values: [US, MX, ES, UK]
+
+  - name: by_channel
+    column: channel
+    values: [web, mobile, api]
+
+  - name: by_model_version
+    column: model_version   # already stored in predictions_log
+    values: null            # null = auto-discover
+
+  - name: by_score_bucket
+    column: score           # numeric → bucketed
+    bins: [0.0, 0.3, 0.7, 1.0]
