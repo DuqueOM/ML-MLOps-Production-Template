@@ -20,6 +20,8 @@ shap                 ~= 0.46.0
 # Monitoring
 prometheus-client    ~= 0.21.0
 evidently            ~= 0.5.0
+pyarrow              ~= 18.0.0   # parquet backend for prediction_logger (ADR-006)
+pyyaml               ~= 6.0.0    # ground_truth config loader
 
 # MLflow
 mlflow               ~= 2.18.0

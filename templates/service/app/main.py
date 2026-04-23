@@ -26,7 +26,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.fastapi_app import load_model_artifacts, router
+from app.fastapi_app import (
+    _start_prediction_logger,
+    _stop_prediction_logger,
+    load_model_artifacts,
+    router,
+)
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
@@ -40,7 +45,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model artifacts at startup, clean up at shutdown."""
+    """Load model artifacts + start closed-loop logger at startup; drain at shutdown."""
     logger.info("Starting {ServiceName} API — loading model artifacts...")
     try:
         load_model_artifacts()
@@ -48,8 +53,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("Failed to load model artifacts: %s", e)
         # Continue startup — health endpoint will report "degraded"
+
+    # Closed-loop monitoring (ADR-006) — graceful if unconfigured
+    await _start_prediction_logger()
+
     yield
+
     logger.info("Shutting down {ServiceName} API")
+    await _stop_prediction_logger()
 
 
 app = FastAPI(
