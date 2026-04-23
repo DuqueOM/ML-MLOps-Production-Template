@@ -1,0 +1,117 @@
+# Kyverno ClusterPolicy — enforce signed images and SBOM presence in production.
+#
+# Enforces D-19 at admission time: any Pod spawned in a namespace labeled
+# `environment: production` MUST reference an image that was signed with Cosign
+# (keyless, GitHub OIDC identity) and that has a CycloneDX SBOM attestation.
+#
+# Apply order:
+#   1. Install Kyverno: `helm install kyverno kyverno/kyverno -n kyverno --create-namespace`
+#   2. Label production namespaces: `kubectl label ns <name> environment=production`
+#   3. kubectl apply -f kyverno-image-verification.yaml
+#
+# This policy is `enforce` mode. To roll out gradually, change `validationFailureAction`
+# to `audit` first, review PolicyReports, then flip to `enforce`.
+#
+# References:
+#   - D-19 (AGENTS.md): Unsigned images / missing SBOM must not reach prod
+#   - ADR-005: Supply chain security
+#   - Rule: .windsurf/rules/12-security-secrets.md
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures (Cosign keyless, OIDC)
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >
+      Requires all images in production namespaces to be signed by a trusted
+      GitHub Actions workflow and to have a CycloneDX SBOM attestation.
+spec:
+  validationFailureAction: enforce
+  background: false  # signature verification requires network → evaluate only at admission
+  failurePolicy: Fail
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: check-image-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  environment: production
+      verifyImages:
+        - imageReferences:
+            # TODO: replace with your registry glob(s)
+            - "*.pkg.dev/*/*/*"       # GCP Artifact Registry
+            - "*.dkr.ecr.*.amazonaws.com/*"  # AWS ECR
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/{ORG}/{REPO}/.github/workflows/ci.yml@refs/heads/main"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+
+    - name: require-sbom-attestation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  environment: production
+      verifyImages:
+        - imageReferences:
+            - "*.pkg.dev/*/*/*"
+            - "*.dkr.ecr.*.amazonaws.com/*"
+          attestations:
+            - type: https://cyclonedx.org/bom
+              attestors:
+                - entries:
+                    - keyless:
+                        subject: "https://github.com/{ORG}/{REPO}/.github/workflows/ci.yml@refs/heads/main"
+                        issuer: "https://token.actions.githubusercontent.com"
+                        rekor:
+                          url: https://rekor.sigstore.dev
+              conditions:
+                - all:
+                    # Reject if the SBOM is more than 90 days old
+                    - key: "{{ time_since('','{{metadata.timestamp}}','') }}"
+                      operator: LessThan
+                      value: "2160h"  # 90 days
+
+---
+# Companion policy: require image digest pinning in staging/prod (no :latest)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-image-digest
+  annotations:
+    policies.kyverno.io/title: Require Image Digest Pinning
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: enforce
+  background: true
+  rules:
+    - name: disallow-tag-only-references
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchExpressions:
+                  - key: environment
+                    operator: In
+                    values: [staging, production]
+      validate:
+        message: "Images in staging/production must be pinned by digest (@sha256:...), not tags (D-19)."
+        pattern:
+          spec:
+            containers:
+              - image: "*@sha256:*"
