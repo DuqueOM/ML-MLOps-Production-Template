@@ -6,6 +6,138 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [1.6.0] - 2026-04-23
+
+### Added
+
+#### Agent Behavior Protocol + Supply Chain Security
+
+Closes two latent gaps: agents now know **when to pause and ask**, and the supply
+chain has first-class controls (Cosign signing + SBOM + admission policy). See
+**ADR-005** for full rationale.
+
+**Agent Behavior Protocol (3 modes):**
+- `AGENTS.md` — new **Agent Behavior Protocol** section with AUTO / CONSULT / STOP modes
+- **Operation → Mode mapping table** (21 operations, canonical)
+- **Escalation triggers** — automatic STOP even from AUTO/CONSULT (marginal fairness,
+  drift PSI > 2× threshold, cost > 1.2× budget, credential detected, etc.)
+- Structured mode transition signal format for handoffs
+
+**Authorization checkpoints in skills:**
+- `.windsurf/skills/deploy-gke/SKILL.md` — `authorization_mode` frontmatter + protocol section (dev=AUTO, staging=CONSULT, prod=STOP)
+- `.windsurf/skills/deploy-aws/SKILL.md` — same pattern
+- `.windsurf/skills/model-retrain/SKILL.md` — train=AUTO, to_staging=CONSULT, to_production=STOP + automatic STOP on D-06 / marginal fairness / regression > 5%
+
+**New Layer 2 agent: Agent-SecurityAuditor**
+- Runs **before** Agent-DockerBuilder and Agent-K8sBuilder
+- Blocks pipeline on findings (never silent)
+- Chains to `/secret-breach` on secret leaks
+
+**Agent Permissions Matrix** — capability boundaries per agent × environment.
+"Blocked" entries cannot be bypassed by human insistence.
+
+**Agent Handoff Schema** — typed dataclass contracts replacing ad-hoc dicts:
+- `templates/common_utils/agent_context.py` — `AgentMode`, `Environment`,
+  `EDAHandoff`, `TrainingArtifact`, `BuildArtifact`, `SecurityAuditResult`,
+  `DeploymentRequest`, `AuditEntry`
+- All `frozen=True`, validate invariants at construction (fail-fast)
+- `DeploymentRequest` refuses to construct if `env=production` + `audit.passed=False`
+
+**Audit Trail Protocol:**
+- Every agentic operation → `ops/audit.jsonl` (append-only)
+- Mirrored to GitHub Actions step summary
+- CONSULT/STOP operations additionally open a GitHub issue tagged `audit`
+- Failures open an issue tagged `audit` + `incident`
+
+#### Supply Chain Security (SLSA L2 components)
+
+**New anti-patterns D-17 / D-18 / D-19:**
+- D-17: Hardcoded credentials / direct `os.environ` for secrets in prod
+- D-18: Static AWS keys or GCP JSON keys in production
+- D-19: Unsigned images or missing SBOM in production
+
+**`.windsurf/rules/12-security-secrets.md` (NEW, `always_on`):**
+- Non-negotiable invariants D-17/D-18/D-19
+- Pre-commit gitleaks + credential-pattern grep
+- Python module guidance: `common_utils.secrets.get_secret`, never log values
+- K8s: `envFrom.secretRef`, IRSA/WI annotations, image digests in staging/prod
+- Terraform: secret manager data sources, no literals
+- Environment separation table (local / ci / staging / prod)
+- Explicitly documents what it does NOT cover (Vault, SLSA L3+, compliance — per ADR-001)
+
+**`templates/common_utils/secrets.py` (NEW):**
+- Cloud-native secret loader with environment-aware resolution
+- Backends: dotenv (local), `os.environ` (CI), AWS Secrets Manager, GCP Secret Manager
+- **Refuses to fall through to `os.environ` in staging/production** (D-18)
+- Never logs secret values (D-17)
+
+**`templates/cicd/ci.yml` updates:**
+- New `security-audit` job: gitleaks + credential-pattern grep + IRSA/WI enforcement
+- `build` job renamed to "Build, Sign & Attest":
+  - Syft SBOM generation (CycloneDX + SPDX) with 90-day retention
+  - Cosign keyless signing via GitHub OIDC (commented until registry wired)
+  - `cosign attest` for SBOM as CycloneDX attestation
+  - `permissions.id-token: write` for keyless signing
+  - Build provenance summary in GHA step summary
+
+**`templates/k8s/policies/kyverno-image-verification.yaml` (NEW):**
+- ClusterPolicy `verify-image-signatures` — reject unsigned images in
+  `environment=production` namespaces
+- Keyless Cosign: GitHub OIDC identity + Rekor transparency log
+- Requires CycloneDX SBOM attestation (max 90 days old)
+- Companion ClusterPolicy `require-image-digest` — forbids tag-only refs in staging/prod
+
+**Incident response:**
+- `.windsurf/skills/security-audit/SKILL.md` (NEW) — pre-build/pre-deploy scans
+- `.windsurf/skills/secret-breach-response/SKILL.md` (NEW) — 7-phase playbook
+  (halt → classify → revoke → audit → rotate → clean history → notify → post-mortem)
+- `.windsurf/workflows/secret-breach.md` (NEW, `/secret-breach` slash command)
+
+**Documentation:**
+- `docs/decisions/ADR-005-agent-behavior-and-security.md` (NEW)
+  - Why 3 modes (not binary)
+  - Why keyless Cosign (not keypair)
+  - Why Kyverno (not OPA Gatekeeper)
+  - Why refuse `os.environ` in prod
+  - Why not Vault (ADR-001 deferred)
+  - Why JSONL audit log (not GitHub issues per op)
+  - Why dataclasses (not JSON Schema)
+  - 4 alternatives considered + rejected
+  - Revisit triggers
+
+### Changed
+
+- `AGENTS.md`: new sections (Behavior Protocol, Handoff Schema, Audit Trail, Permissions Matrix)
+- Agent list in Layer 2 now includes Agent-SecurityAuditor
+- Skills inventory adds `security-audit`, `secret-breach-response`
+- Workflow inventory adds `/secret-breach`
+- Cross-references table adds: pre-build/pre-deploy, secret-leak-detected
+
+### Smoke tests
+
+- Handoff dataclasses enforce invariants at construction:
+  - `TrainingArtifact.requires_consult()` returns True for marginal fairness (0.80–0.85) or metric > 0.99
+  - `SecurityAuditResult` raises `ValueError` if `passed` flag disagrees with component fields
+  - `DeploymentRequest` raises `ValueError` on production + failed audit
+
+### The consultative gap is now closed
+
+```
+Before:  Agent executes all the way to kubectl apply — human sees only results.
+After:   Agent emits [AGENT MODE: CONSULT] before staging apply, [AGENT MODE: STOP]
+         before production apply, presents plan, waits for explicit approval.
+```
+
+### The supply chain gap is now closed
+
+```
+Before:  Trivy scan → push → deploy (no signature, no SBOM, no admission gate)
+After:   Trivy + Gitleaks → SBOM (CycloneDX + SPDX) → Cosign sign (keyless OIDC)
+         → Cosign attest SBOM → push → Kyverno admission verifies at cluster entry
+```
+
+---
+
 ## [1.5.0] - 2026-04-23
 
 ### Added

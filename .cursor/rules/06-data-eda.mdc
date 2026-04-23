@@ -1,0 +1,37 @@
+---
+description: EDA structure and artifacts feeding drift detection
+globs: eda/**/*, **/notebooks/**/*.ipynb, **/eda_*.py
+---
+
+# EDA Rules
+
+## Invariants (D-13 to D-16)
+- **D-13**: Never EDA on production data. Copy to `data/raw/` first.
+- **D-14**: Pandera `Check.in_range` must use ranges from `eda/artifacts/01_dtypes_map.json`
+- **D-15**: Phase 2 MUST produce `eda/artifacts/02_baseline_distributions.pkl` (drift CronJob input)
+- **D-16**: Every entry in `eda/artifacts/05_feature_proposals.yaml` must have a `rationale` field
+
+## Required structure
+```
+eda/
+├── reports/    (00-04 markdown/html, eda_summary.md)
+├── artifacts/  (01_dtypes_map.json, 02_baseline_distributions.pkl [DVC], 03_ranking.csv, 05_feature_proposals.yaml)
+└── notebooks/  (eda_<dataset>.ipynb)
+```
+
+## 6-phase pipeline
+0. Ingest + snake_case normalization
+1. Structural profile → dtype map
+2. Univariate + baseline distributions (**quantile bins**, for PSI)
+3. Multivariate correlations + VIF + feature ranking
+4. **Leakage HARD GATE** — exit 1 if BLOCKED_FEATURES non-empty
+5. Feature proposals with rationale
+6. Consolidation → schema_proposal.py (for human review, do NOT overwrite schemas.py)
+
+## Hard gate
+If `eda/reports/04_leakage_audit.md` shows `BLOCKED_FEATURES` non-empty:
+chain to `/incident` (severity P2). Do NOT dismiss.
+
+## References
+- AGENTS.md (D-13 to D-16), ADR-004, `.windsurf/skills/eda-analysis/SKILL.md`
+- Workflow: `/eda`
