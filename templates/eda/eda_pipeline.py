@@ -41,7 +41,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yaml
-from scipy import stats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eda")
@@ -68,8 +67,7 @@ def phase0_ingest(input_path: Path, output_dir: Path) -> pd.DataFrame:
     logger.info("Phase 0 — Ingest & normalization")
 
     if "production" in str(input_path) or "live" in str(input_path):
-        raise ValueError(f"D-13 violation: EDA on production path {input_path}. "
-                         "Copy to data/raw/ first.")
+        raise ValueError(f"D-13 violation: EDA on production path {input_path}. " "Copy to data/raw/ first.")
 
     if input_path.suffix == ".csv":
         df = pd.read_csv(input_path)
@@ -81,10 +79,7 @@ def phase0_ingest(input_path: Path, output_dir: Path) -> pd.DataFrame:
     original_cols = list(df.columns)
 
     # snake_case: lowercase, replace non-alphanumeric with _, collapse multiple _
-    df.columns = [
-        re.sub(r"_+", "_", re.sub(r"\W+", "_", c.strip().lower())).strip("_")
-        for c in df.columns
-    ]
+    df.columns = [re.sub(r"_+", "_", re.sub(r"\W+", "_", c.strip().lower())).strip("_") for c in df.columns]
 
     # Drop fully-null columns
     null_cols = [c for c in df.columns if df[c].isnull().all()]
@@ -192,9 +187,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
     """
     logger.info("Phase 2 — Univariate + baseline distributions")
 
-    baseline: dict[str, Any] = {
-        "_meta": {"target": target, "n_rows": len(df), "schema_version": 1}
-    }
+    baseline: dict[str, Any] = {"_meta": {"target": target, "n_rows": len(df), "schema_version": 1}}
     univariate_summary: list[str] = []
 
     for col in df.columns:
@@ -219,8 +212,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
                 "kurtosis": float(series.kurtosis()),
             }
             univariate_summary.append(
-                f"- **{col}**: mean={series.mean():.3f}, std={series.std():.3f}, "
-                f"skew={series.skew():.3f}"
+                f"- **{col}**: mean={series.mean():.3f}, std={series.std():.3f}, " f"skew={series.skew():.3f}"
             )
         elif col != target:
             # Categorical: value_counts as the baseline distribution
@@ -233,8 +225,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
                 "cardinality": int(series.nunique()),
             }
             univariate_summary.append(
-                f"- **{col}** (categorical): {series.nunique()} unique, "
-                f"{len(rare)} rare labels"
+                f"- **{col}** (categorical): {series.nunique()} unique, " f"{len(rare)} rare labels"
             )
 
     # Target distribution
@@ -293,11 +284,13 @@ def phase3_correlations(df: pd.DataFrame, target: str, output_dir: Path) -> pd.D
         ranking = pd.DataFrame(columns=["feature", "corr_with_target", "abs_corr"])
     else:
         corr = numeric_df.corr()[target].drop(target, errors="ignore")
-        ranking = pd.DataFrame({
-            "feature": corr.index,
-            "corr_with_target": corr.values,
-            "abs_corr": corr.abs().values,
-        }).sort_values("abs_corr", ascending=False)
+        ranking = pd.DataFrame(
+            {
+                "feature": corr.index,
+                "corr_with_target": corr.values,
+                "abs_corr": corr.abs().values,
+            }
+        ).sort_values("abs_corr", ascending=False)
 
     artifacts_dir = output_dir / "artifacts"
     ranking.to_csv(artifacts_dir / "03_feature_ranking_initial.csv", index=False)
@@ -318,9 +311,17 @@ def phase3_correlations(df: pd.DataFrame, target: str, output_dir: Path) -> pd.D
 # ═══════════════════════════════════════════════════════════════════
 
 
-def phase4_leakage_gate(
-    df: pd.DataFrame, target: str, ranking: pd.DataFrame, output_dir: Path
-) -> list[str]:
+def _resolution_text(blocked: list[dict]) -> str:
+    if not blocked:
+        return "Proceed to phase 5."
+    return (
+        "For each blocked feature: (1) investigate source, "
+        "(2) document decision (exclude / transform / justify with ADR), "
+        "(3) re-run phase 4."
+    )
+
+
+def phase4_leakage_gate(df: pd.DataFrame, target: str, ranking: pd.DataFrame, output_dir: Path) -> list[str]:
     """HARD GATE — return non-empty list blocks the pipeline.
 
     Invariant D-06 extended: reject features with suspicious correlation or MI.
@@ -333,11 +334,13 @@ def phase4_leakage_gate(
     if not ranking.empty:
         suspicious = ranking[ranking["abs_corr"] > LEAKAGE_CORR_THRESHOLD]
         for _, row in suspicious.iterrows():
-            blocked.append({
-                "feature": row["feature"],
-                "reason": f"correlation={row['corr_with_target']:.4f} > {LEAKAGE_CORR_THRESHOLD}",
-                "severity": "P2",
-            })
+            blocked.append(
+                {
+                    "feature": row["feature"],
+                    "reason": f"correlation={row['corr_with_target']:.4f} > {LEAKAGE_CORR_THRESHOLD}",
+                    "severity": "P2",
+                }
+            )
 
     # Check 2: features that are deterministic function of target
     if target in df.columns:
@@ -352,11 +355,13 @@ def phase4_leakage_gate(
                 if pd.api.types.is_numeric_dtype(series[target]):
                     corr = series[col].corr(series[target])
                     if abs(corr) > 0.9999:
-                        blocked.append({
-                            "feature": col,
-                            "reason": f"near-perfect correlation ({corr:.6f}) — likely derived from target",
-                            "severity": "P1",
-                        })
+                        blocked.append(
+                            {
+                                "feature": col,
+                                "reason": f"near-perfect correlation ({corr:.6f}) — likely derived from target",
+                                "severity": "P1",
+                            }
+                        )
             except Exception:
                 continue
 
@@ -365,8 +370,7 @@ def phase4_leakage_gate(
     # Leakage audit report
     report = output_dir / "reports" / "04_leakage_audit.md"
     if blocked:
-        lines = [f"- **{b['feature']}**: {b['reason']} (severity: {b['severity']})"
-                 for b in blocked]
+        lines = [f"- **{b['feature']}**: {b['reason']} (severity: {b['severity']})" for b in blocked]
         status = "HALT — resolve before training"
         block_yaml = "- " + "\n- ".join(f'"{f}"' for f in blocked_features)
     else:
@@ -392,8 +396,7 @@ BLOCKED_FEATURES:
 ```
 
 ## Resolution
-{('Proceed to phase 5.' if not blocked else
-  'For each blocked feature: (1) investigate source, (2) document decision (exclude / transform / justify with ADR), (3) re-run phase 4.')}
+{_resolution_text(blocked)}
 """)
 
     if blocked_features:
@@ -408,9 +411,7 @@ BLOCKED_FEATURES:
 # ═══════════════════════════════════════════════════════════════════
 
 
-def phase5_proposals(
-    df: pd.DataFrame, target: str, baseline: dict, output_dir: Path
-) -> dict:
+def phase5_proposals(df: pd.DataFrame, target: str, baseline: dict, output_dir: Path) -> dict:
     """Generate feature transformation proposals with rationale (D-16).
 
     Each proposal cites a specific EDA finding as rationale.
@@ -423,31 +424,41 @@ def phase5_proposals(
         if col.startswith("_"):
             continue
         if meta.get("type") == "numeric" and abs(meta.get("skew", 0)) > HIGH_SKEW_THRESHOLD:
-            transforms.append({
-                "name": f"log1p_{col}",
-                "source": col,
-                "transform": "log1p",
-                "rationale": (f"|skew|={abs(meta['skew']):.2f} > {HIGH_SKEW_THRESHOLD} "
-                              f"(phase 2 univariate). log1p stabilizes variance."),
-            })
+            transforms.append(
+                {
+                    "name": f"log1p_{col}",
+                    "source": col,
+                    "transform": "log1p",
+                    "rationale": (
+                        f"|skew|={abs(meta['skew']):.2f} > {HIGH_SKEW_THRESHOLD} "
+                        f"(phase 2 univariate). log1p stabilizes variance."
+                    ),
+                }
+            )
         elif meta.get("type") == "categorical" and meta.get("cardinality", 0) > HIGH_CARDINALITY_THRESHOLD:
-            transforms.append({
-                "name": f"target_encode_{col}",
-                "source": col,
-                "transform": "target_encoding",
-                "rationale": (f"cardinality={meta['cardinality']} > {HIGH_CARDINALITY_THRESHOLD} "
-                              f"(phase 1 profile). One-hot would explode dimensionality."),
-            })
+            transforms.append(
+                {
+                    "name": f"target_encode_{col}",
+                    "source": col,
+                    "transform": "target_encoding",
+                    "rationale": (
+                        f"cardinality={meta['cardinality']} > {HIGH_CARDINALITY_THRESHOLD} "
+                        f"(phase 1 profile). One-hot would explode dimensionality."
+                    ),
+                }
+            )
 
     # Time-based features if datetime detected
     for col in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[col]):
-            transforms.append({
-                "name": f"{col}_hour",
-                "source": col,
-                "transform": "extract_hour",
-                "rationale": f"{col} is datetime (phase 1 profile). Hour-of-day often predictive.",
-            })
+            transforms.append(
+                {
+                    "name": f"{col}_hour",
+                    "source": col,
+                    "transform": "extract_hour",
+                    "rationale": f"{col} is datetime (phase 1 profile). Hour-of-day often predictive.",
+                }
+            )
 
     proposals = {
         "metadata": {
@@ -505,13 +516,9 @@ def phase6_consolidate(
                     f"nullable={bool(meta['nulls'])}),"
                 )
             else:
-                schema_lines.append(
-                    f'    "{col}": Column({pa_type}, nullable={bool(meta["nulls"])}),'
-                )
+                schema_lines.append(f'    "{col}": Column({pa_type}, nullable={bool(meta["nulls"])}),')
         else:
-            schema_lines.append(
-                f'    "{col}": Column(str, nullable={bool(meta["nulls"])}),'
-            )
+            schema_lines.append(f'    "{col}": Column(str, nullable={bool(meta["nulls"])}),')
     schema_lines.append("})")
 
     if service_slug:
@@ -524,6 +531,8 @@ def phase6_consolidate(
 
     # EDA summary markdown
     target_dist = baseline.get("_target", {})
+    _n_features = len([c for c in dtypes_map if not c.startswith("_")])
+    _n_numeric = len([c for c, m in dtypes_map.items() if "float" in m.get("dtype", "") or "int" in m.get("dtype", "")])
     summary = output_dir / "reports" / "eda_summary.md"
     summary.write_text(f"""# EDA Summary
 
@@ -534,8 +543,8 @@ def phase6_consolidate(
 - **Target type**: {target_dist.get("type", "unknown")}
 
 ## Key findings
-- Features profiled: {len([c for c in dtypes_map if not c.startswith('_')])}
-- Numeric features: {len([c for c, m in dtypes_map.items() if 'float' in m.get('dtype', '') or 'int' in m.get('dtype', '')])}
+- Features profiled: {_n_features}
+- Numeric features: {_n_numeric}
 - Feature transforms proposed: {len(proposals.get("transforms", []))}
 
 ## Artifacts produced
@@ -567,10 +576,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="6-phase EDA pipeline")
     parser.add_argument("--input", type=Path, required=True, help="Path to raw dataset")
     parser.add_argument("--target", type=str, required=True, help="Target column name")
-    parser.add_argument("--output-dir", type=Path, default=Path("eda"),
-                        help="EDA output directory (default: eda/)")
-    parser.add_argument("--service-slug", type=str, default=None,
-                        help="Service slug (for schema_proposal.py placement)")
+    parser.add_argument("--output-dir", type=Path, default=Path("eda"), help="EDA output directory (default: eda/)")
+    parser.add_argument(
+        "--service-slug", type=str, default=None, help="Service slug (for schema_proposal.py placement)"
+    )
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -590,8 +599,7 @@ def main() -> int:
             return 1
 
         proposals = phase5_proposals(df, args.target, baseline, args.output_dir)
-        phase6_consolidate(df, args.target, dtypes_map, baseline, proposals,
-                           args.output_dir, args.service_slug)
+        phase6_consolidate(df, args.target, dtypes_map, baseline, proposals, args.output_dir, args.service_slug)
 
         logger.info("━━━ EDA PIPELINE COMPLETE ━━━")
         logger.info(f"Review: {args.output_dir / 'reports' / 'eda_summary.md'}")
