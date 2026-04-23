@@ -20,6 +20,7 @@ LAYER 1: ORCHESTRATOR
   → Calibrates engineering level to project scale (no under/over-engineering)
 
 LAYER 2: SPECIALIST AGENTS (build phase)
+  ├── Agent-EDAProfiler       Dataset exploration, baseline distributions, leakage pre-audit
   ├── Agent-DataValidator     Pandera schemas, DVC versioning, leakage checks
   ├── Agent-MLTrainer         Training pipeline, model selection, Optuna tuning
   ├── Agent-APIBuilder        FastAPI app, async inference, SHAP integration
@@ -106,6 +107,10 @@ OVER-ENGINEERING: Full orchestrator for 2 models, GE for simple DataFrames
 | D-10 | `terraform.tfstate` in git repository | Move to remote state, rotate exposed secrets |
 | D-11 | Models included in Docker image | Remove, implement init container pattern |
 | D-12 | No quality gates before model promotion | Add all gates before deploy |
+| D-13 | EDA performed directly on production data without sandbox | Move to isolated `data/raw/` copy; EDA never writes to prod paths |
+| D-14 | Pandera schema without observed ranges from EDA | Add `Check.in_range(min, max)` derived from EDA distribution analysis |
+| D-15 | Baseline distributions not persisted for drift detection | Save `baseline_distributions.pkl` during EDA; consume in drift CronJob |
+| D-16 | Feature engineering without documented rationale | Add `feature_proposals.yaml` with justification tied to EDA evidence |
 
 ## Session Initialization Protocol
 
@@ -121,7 +126,8 @@ When starting a new session in a project derived from this template:
 
 **Skills** (multi-step procedures — invoked by the agent when task matches):
 - `new-service` — scaffold a new ML service using `templates/scripts/new-service.sh`
-- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-12 checklist)
+- `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
+- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-16 checklist)
 - `drift-detection` — analyze PSI drift and trigger retraining
 - `model-retrain` — execute retraining with quality gates
 - `deploy-gke` / `deploy-aws` — deploy to GKE or EKS with Kustomize overlays
@@ -137,6 +143,7 @@ When starting a new session in a project derived from this template:
 - `/cost-review` — monthly FinOps analysis
 - `/load-test` — Locust load tests against ML services
 - `/new-adr` — create Architecture Decision Record
+- `/eda` — run 6-phase exploratory data analysis on a new dataset
 
 ## Agentic Configuration
 
@@ -153,12 +160,14 @@ When starting a new session in a project derived from this template:
 │   ├── 07-docker.md                    # glob: **/Dockerfile*, docker-compose*.yml
 │   ├── 08-data-validation.md           # glob: **/schemas.py, **/validate*.py
 │   ├── 09-monitoring.md               # glob: monitoring/**/*
-│   └── 10-examples.md                 # glob: examples/**/*
+│   ├── 10-examples.md                 # glob: examples/**/*
+│   └── 11-data-eda.md                 # glob: **/eda/**, **/notebooks/**/*.ipynb
 ├── skills/                             # Multi-step operational procedures
 │   ├── debug-ml-inference/SKILL.md
 │   ├── deploy-gke/SKILL.md
 │   ├── deploy-aws/SKILL.md
 │   ├── drift-detection/SKILL.md
+│   ├── eda-analysis/SKILL.md
 │   ├── model-retrain/SKILL.md
 │   ├── release-checklist/SKILL.md
 │   ├── new-service/SKILL.md
@@ -170,6 +179,7 @@ When starting a new session in a project derived from this template:
     ├── new-adr.md                      # /new-adr
     ├── incident.md                     # /incident
     ├── drift-check.md                  # /drift-check
+    ├── eda.md                          # /eda
     ├── new-service.md                  # /new-service
     └── cost-review.md                  # /cost-review
 ```
@@ -178,6 +188,7 @@ When starting a new session in a project derived from this template:
 
 | Trigger | Skill Invoked | Workflow Chained |
 |---------|--------------|-----------------|
+| New dataset to explore | `eda-analysis` | `/eda` → `/new-service` (if leakage-free) |
 | Inference bug | `debug-ml-inference` | `/incident` |
 | Drift alert (PSI ≥ threshold) | `drift-detection` | `/retrain` |
 | Version release | `release-checklist` | `/release` |
