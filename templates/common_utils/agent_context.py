@@ -93,13 +93,9 @@ class EDAHandoff:
 
     def __post_init__(self) -> None:
         if not self.leakage_gate_passed and not self.blocked_features:
-            raise ValueError(
-                "EDAHandoff: leakage_gate_passed=False requires at least one blocked feature"
-            )
+            raise ValueError("EDAHandoff: leakage_gate_passed=False requires at least one blocked feature")
         if self.leakage_gate_passed and self.blocked_features:
-            raise ValueError(
-                "EDAHandoff: leakage_gate_passed=True conflicts with non-empty blocked_features"
-            )
+            raise ValueError("EDAHandoff: leakage_gate_passed=True conflicts with non-empty blocked_features")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -128,10 +124,9 @@ class TrainingArtifact:
 
     def requires_consult(self) -> bool:
         """Does this artifact require CONSULT mode before downstream processing?"""
-        return (
-            0.80 <= self.fairness_dir < 0.85  # marginal fairness
-            or any(v > 0.99 for v in self.metrics.values())  # D-06 suspicion
-        )
+        return 0.80 <= self.fairness_dir < 0.85 or any(  # marginal fairness
+            v > 0.99 for v in self.metrics.values()
+        )  # D-06 suspicion
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -182,9 +177,7 @@ class SecurityAuditResult:
             and self.iam_least_privilege_verified
         )
         if self.passed != computed:
-            raise ValueError(
-                f"SecurityAuditResult.passed ({self.passed}) inconsistent with components ({computed})"
-            )
+            raise ValueError(f"SecurityAuditResult.passed ({self.passed}) inconsistent with components ({computed})")
 
 
 @dataclass(frozen=True)
@@ -201,9 +194,7 @@ class DeploymentRequest:
 
     def __post_init__(self) -> None:
         if self.environment == Environment.PRODUCTION and self.required_mode != AgentMode.STOP:
-            raise ValueError(
-                f"Production deployments must require STOP mode (got {self.required_mode})"
-            )
+            raise ValueError(f"Production deployments must require STOP mode (got {self.required_mode})")
         if self.environment == Environment.PRODUCTION and not self.security_audit.passed:
             raise ValueError("Production deploy blocked: security audit did not pass")
 
