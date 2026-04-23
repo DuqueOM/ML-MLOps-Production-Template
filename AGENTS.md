@@ -335,21 +335,49 @@ When starting a new session in a project derived from this template:
 
 ## Multi-IDE Support
 
+The template supports **3 IDEs** with equivalent invariant coverage. Windsurf is
+the canonical source (full rules + skills + workflows); Cursor and Claude Code
+receive the rules condensed for their native formats (they don't natively support
+skills/workflows — those are invoked via conversation in any IDE).
+
 ```
-.claude/rules/          # Claude Code — paths: frontmatter for context-aware rules
+.claude/rules/          # Claude Code — paths: frontmatter
 ├── 01-serving.md       # paths: **/app/*.py, **/api/*.py
 ├── 02-training.md      # paths: **/training/*.py, **/models/*.py
 ├── 03-kubernetes.md    # paths: k8s/**/*.yaml
 ├── 04-terraform.md     # paths: **/*.tf
-└── 05-examples.md      # paths: examples/**/*
+├── 05-examples.md      # paths: examples/**/*
+├── 06-data-eda.md      # paths: eda/**/*, **/notebooks/**/*.ipynb, **/eda_*.py
+└── 07-security-secrets.md  # paths: **/* (always-applicable)
 
-.cursor/rules/          # Cursor IDE — globs: frontmatter (5 files)
-├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, full D-01→D-12
+.cursor/rules/          # Cursor IDE — globs: frontmatter
+├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, D-01→D-19, Behavior Protocol
 ├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA, init container
 ├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP
 ├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, gates
-└── 05-docker.mdc             # globs: **/Dockerfile* — multi-stage, no model
+├── 05-docker.mdc             # globs: **/Dockerfile* — multi-stage, no model
+├── 06-data-eda.mdc           # globs: eda/**/*, **/notebooks/**/*.ipynb
+└── 07-security-secrets.mdc   # globs: **/* — D-17/D-18/D-19
 ```
+
+### IDE Parity Matrix (invariant coverage)
+
+| Invariant group | Windsurf | Cursor | Claude |
+|-----------------|----------|--------|--------|
+| Core + D-01→D-12 | `01-mlops-conventions.md` (always_on) | `01-mlops-conventions.mdc` | `01-serving.md` + `02-training.md` |
+| Kubernetes (D-02) | `02-kubernetes.md` | `02-kubernetes.mdc` | `03-kubernetes.md` |
+| Terraform | `03-terraform.md` | — (covered in 01) | `04-terraform.md` |
+| Serving (D-01/03/04) | `04a-python-serving.md` | `03-python-serving.mdc` | `01-serving.md` |
+| Training (D-05/06/12) | `04b-python-training.md` | `04-python-training.mdc` | `02-training.md` |
+| Docker (D-11) | `07-docker.md` | `05-docker.mdc` | (in training/serving) |
+| Data validation (D-14) | `08-data-validation.md` | — | — |
+| EDA (D-13→D-16) | `11-data-eda.md` | `06-data-eda.mdc` | `06-data-eda.md` |
+| Security (D-17→D-19) | `12-security-secrets.md` (always_on) | `07-security-secrets.mdc` (always) | `07-security-secrets.md` (always) |
+| Skills (procedures) | `skills/**/SKILL.md` (11 skills) | *(invoked in conversation)* | *(invoked in conversation)* |
+| Workflows (slash cmds) | `workflows/*.md` (10 workflows) | *(invoked in conversation)* | *(invoked in conversation)* |
+
+All three IDEs enforce the same **Agent Behavior Protocol** (AUTO/CONSULT/STOP) —
+it is referenced from `AGENTS.md` which all IDEs read first per the session protocol.
 
 ## Template System
 

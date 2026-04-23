@@ -21,7 +21,7 @@ globs: **/*
 4. SHAP always in original feature space via `predict_proba_wrapper`
 5. No model artifacts in Docker images — init container pattern only
 
-## Anti-Patterns (D-01 to D-12) — detect and correct
+## Anti-Patterns (D-01 to D-19) — detect and correct
 
 | ID | Anti-Pattern | Fix |
 |----|-------------|-----|
@@ -37,6 +37,22 @@ globs: **/*
 | D-10 | tfstate in git | Remote state + rotate |
 | D-11 | Model in Docker | Init Container pattern |
 | D-12 | No quality gates | All gates before deploy |
+| D-13 | EDA on production data | Sandbox `data/raw/` copy only |
+| D-14 | Pandera without observed ranges | Derive `Check.in_range` from EDA |
+| D-15 | Baseline distributions not persisted | Save `02_baseline_distributions.pkl` for drift |
+| D-16 | Features without rationale | `05_feature_proposals.yaml` with justifications |
+| D-17 | Hardcoded credentials / os.environ for secrets in prod | `common_utils.secrets.get_secret` |
+| D-18 | Static AWS keys or GCP JSON keys in production | IRSA (AWS) / Workload Identity (GCP) |
+| D-19 | Unsigned images or missing SBOM in prod | Cosign sign + Syft SBOM + Kyverno admission |
+
+## Agent Behavior Protocol (AUTO / CONSULT / STOP)
+Before executing destructive operations, check the mode per AGENTS.md "Agent Behavior Protocol":
+- `terraform apply prod`, model → Production, secret rotation → **STOP** (refuse; require governed path)
+- `kubectl apply staging`, model → Staging → **CONSULT** (propose + wait)
+- Scaffolding, tests, reports, dev deploys → **AUTO**
+
+Escalation to STOP forces from: metric > 0.99 (D-06), fairness DIR in [0.80,0.85],
+drift PSI > 2× threshold, cost > 1.2× budget, credential detected.
 
 ## Quality Gates (ALL must pass)
 - Primary metric >= threshold (e.g., ROC-AUC >= 0.80)

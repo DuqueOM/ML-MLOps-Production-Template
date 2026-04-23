@@ -20,4 +20,4 @@ paths:
 - `/health` — liveness + readiness, `/metrics` — Prometheus
 - Mandatory metrics: `{service}_predictions_total`, `{service}_request_duration_seconds`
 
-See `AGENTS.md` for anti-pattern table D-01 to D-12.
+See `AGENTS.md` for anti-pattern table D-01 to D-19 and the Agent Behavior Protocol (AUTO/CONSULT/STOP).
