@@ -1,0 +1,34 @@
+# =============================================================================
+# Champion/Challenger statistical comparison config (ADR-008)
+# =============================================================================
+# Parameters here decide whether a newly trained model (challenger) is allowed
+# to replace the current production model (champion). This is a governed
+# STOP-class operation: CI runs the comparison on a fixed holdout and exits
+# with a decision that gates promotion.
+#
+# Decision logic:
+#   promote  = superiority (ΔAUC > superiority_margin) AND McNemar p < alpha
+#   keep     = improvement too small or not statistically significant
+#   block    = challenger lower CI bound < -non_inferiority_margin
+#              (challenger is worse, not just equivalent)
+#
+# Exit codes: 0 = promote, 1 = keep, 2 = block
+# =============================================================================
+
+# Significance level for McNemar exact test
+alpha: 0.05
+
+# Bootstrap iterations for ΔAUC confidence interval
+# 1000 is enough for most sample sizes; raise to 5000 for high-stakes promotions
+n_bootstrap: 1000
+
+# Tolerance: challenger may be up to this much WORSE in AUC and still pass
+# non-inferiority. Too large → silent regressions. Too small → never promote.
+non_inferiority_margin: 0.005
+
+# Required improvement (point estimate) to call it superiority
+# Domain-dependent: fraud detection may require 0.01+ given business impact
+superiority_margin: 0.005
+
+# RNG seed for reproducible bootstrap
+random_state: 42
