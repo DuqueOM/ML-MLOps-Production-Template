@@ -116,7 +116,44 @@ gates = {
 failed = [name for name, passed in gates.items() if not passed]
 ```
 
-## Step 6a: ALL PASS → Promote
+## Step 5.5: Champion/Challenger Statistical Gate (ADR-008)
+
+Before promoting a challenger that passed quality gates, prove it is
+statistically superior (or at least non-inferior) to the current champion
+on the same holdout:
+
+```bash
+python -m src.{service}.evaluation.champion_challenger \
+  --champion    models/champion/model.joblib \
+  --challenger  models/model.joblib \
+  --holdout     data/holdout.csv --target {target} \
+  --config      configs/champion_challenger.yaml \
+  --output      reports/champion_challenger.json
+echo "exit_code=$?"
+```
+
+Three possible exit codes and their meanings:
+
+| Exit | Decision | Action |
+|------|----------|--------|
+| 0 | promote | McNemar p < alpha AND ΔAUC > superiority margin → proceed to Step 6a |
+| 1 | keep    | ΔAUC not statistically significant → keep champion, document in CHANGELOG |
+| 2 | block   | Challenger CI lower bound < -non_inferiority margin → open incident issue |
+
+Read `reports/champion_challenger.json` fields:
+- `mcnemar.p_value`                    — H0: equal error rates
+- `bootstrap.delta_auc_point`          — point estimate of ΔAUC
+- `bootstrap.delta_auc_ci_lower/upper` — 95% CI (the ACTUAL decision driver)
+- `decision.reason`                    — human-readable rationale
+
+Exit 1 is common and NOT a failure — it means you re-trained but the new
+model is not measurably better. This saves you from deploying models that
+add risk without benefit.
+
+Exit 2 is a regression — pause the workflow, investigate, and consider the
+possibility of data leakage in the champion's holdout (D-06).
+
+## Step 6a: ALL PASS (quality gates + C/C promote) → Promote
 
 ```bash
 # Promote in MLflow Registry

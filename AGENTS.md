@@ -237,6 +237,9 @@ GitHub Actions flow with required_reviewers.
 | D-17 | Hardcoded credentials in code, configs, or `os.environ[...]` for secrets | Use `common_utils/secrets.py` — delegates to AWS Secrets Manager / GCP Secret Manager |
 | D-18 | Static AWS access keys or GCP JSON service-account keys in production | Migrate to IRSA (AWS) or Workload Identity (GCP) — remove all static creds |
 | D-19 | Unsigned images reaching production or missing SBOM | Sign with Cosign, generate SBOM with Syft, enforce via Kyverno admission controller |
+| D-20 | Prediction log events missing `prediction_id` or `entity_id` | Both are required at construction of `PredictionEvent`; `entity_id` is the JOIN key with ground truth |
+| D-21 | Prediction logging blocking the async inference event loop | `log_prediction()` MUST buffer + flush in background task via `run_in_executor(None, ...)` |
+| D-22 | Logging backend failure propagating to the HTTP response | `log_prediction()` MUST swallow exceptions and increment `prediction_log_errors_total` — observability failures NEVER break serving |
 
 ## Session Initialization Protocol
 
@@ -255,9 +258,10 @@ When starting a new session in a project derived from this template:
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
 - `security-audit` — pre-build/pre-deploy scans: gitleaks, trivy, cosign verify, IAM review
 - `secret-breach-response` — incident playbook when a secret is leaked (detect → rotate → audit → postmortem)
-- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-19 checklist)
-- `drift-detection` — analyze PSI drift and trigger retraining
-- `model-retrain` — execute retraining with quality gates
+- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-22 checklist)
+- `drift-detection` — analyze PSI drift + concept drift (sliced performance)
+- `concept-drift-analysis` — root-cause sliced performance regressions with ground truth
+- `model-retrain` — execute retraining with quality gates + Champion/Challenger
 - `deploy-gke` / `deploy-aws` — deploy to GKE or EKS with Kustomize overlays
 - `release-checklist` — full multi-cloud release process
 - `cost-audit` — monthly cloud cost review
@@ -291,7 +295,8 @@ When starting a new session in a project derived from this template:
 │   ├── 09-monitoring.md               # glob: monitoring/**/*
 │   ├── 10-examples.md                 # glob: examples/**/*
 │   ├── 11-data-eda.md                 # glob: **/eda/**, **/notebooks/**/*.ipynb
-│   └── 12-security-secrets.md         # always_on — D-17/D-18/D-19
+│   ├── 12-security-secrets.md         # always_on — D-17/D-18/D-19
+│   └── 13-closed-loop-monitoring.md   # glob: prediction_logger/ground_truth/performance_monitor — D-20/D-21/D-22
 ├── skills/                             # Multi-step operational procedures
 │   ├── debug-ml-inference/SKILL.md
 │   ├── deploy-gke/SKILL.md
@@ -351,7 +356,7 @@ skills/workflows — those are invoked via conversation in any IDE).
 └── 07-security-secrets.md  # paths: **/* (always-applicable)
 
 .cursor/rules/          # Cursor IDE — globs: frontmatter
-├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, D-01→D-19, Behavior Protocol
+├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, D-01→D-22, Behavior Protocol
 ├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA, init container
 ├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP
 ├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, gates
@@ -365,6 +370,7 @@ skills/workflows — those are invoked via conversation in any IDE).
 | Invariant group | Windsurf | Cursor | Claude |
 |-----------------|----------|--------|--------|
 | Core + D-01→D-12 | `01-mlops-conventions.md` (always_on) | `01-mlops-conventions.mdc` | `01-serving.md` + `02-training.md` |
+| Closed-loop (D-20→D-22) | `13-closed-loop-monitoring.md` | `08-closed-loop.mdc` | `08-closed-loop.md` |
 | Kubernetes (D-02) | `02-kubernetes.md` | `02-kubernetes.mdc` | `03-kubernetes.md` |
 | Terraform | `03-terraform.md` | — (covered in 01) | `04-terraform.md` |
 | Serving (D-01/03/04) | `04a-python-serving.md` | `03-python-serving.mdc` | `01-serving.md` |
@@ -373,8 +379,8 @@ skills/workflows — those are invoked via conversation in any IDE).
 | Data validation (D-14) | `08-data-validation.md` | — | — |
 | EDA (D-13→D-16) | `11-data-eda.md` | `06-data-eda.mdc` | `06-data-eda.md` |
 | Security (D-17→D-19) | `12-security-secrets.md` (always_on) | `07-security-secrets.mdc` (always) | `07-security-secrets.md` (always) |
-| Skills (procedures) | `skills/**/SKILL.md` (11 skills) | *(invoked in conversation)* | *(invoked in conversation)* |
-| Workflows (slash cmds) | `workflows/*.md` (10 workflows) | *(invoked in conversation)* | *(invoked in conversation)* |
+| Skills (procedures) | `skills/**/SKILL.md` (12 skills) | *(invoked in conversation)* | *(invoked in conversation)* |
+| Workflows (slash cmds) | `workflows/*.md` (11 workflows) | *(invoked in conversation)* | *(invoked in conversation)* |
 
 All three IDEs enforce the same **Agent Behavior Protocol** (AUTO/CONSULT/STOP) —
 it is referenced from `AGENTS.md` which all IDEs read first per the session protocol.
