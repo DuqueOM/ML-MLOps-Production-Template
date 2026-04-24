@@ -61,13 +61,77 @@ ALWAYS verify the consistency property:
 base_value + sum(shap_values) ≈ predict_proba(input)  (tolerance < 0.01)
 ```
 
+## Model Warm-up (MANDATORY — D-23)
+
+The first call to `model.predict()` and `explainer.shap_values()` pays
+JIT/cache-warming costs that often push the first real request past the
+P95 SLO. ALWAYS execute a throwaway inference in the FastAPI `lifespan`
+after loading artifacts:
+
+```python
+@asynccontextmanager
+async def lifespan(app):
+    load_model_artifacts()
+    warm_up_model()      # dummy predict + dummy SHAP
+    _warmed_up = True    # gate /ready on this flag
+    yield
+    _warmed_up = False   # drain traffic during shutdown
+```
+
+The warm-up MUST be best-effort — it catches exceptions and reports them
+but never raises. A failed warm-up leaves `_warmed_up = False` so the
+readiness probe keeps the pod out of the load balancer until an operator
+acts.
+
+## SHAP explainer caching (MANDATORY — D-24)
+
+Build the `KernelExplainer` ONCE at startup and reuse it across requests.
+Recomputing `shap.KernelExplainer(...)` per-request (a) rebuilds the
+background summary and (b) re-samples — typically adds 100-500 ms to each
+request for no value:
+
+```python
+# In load_model_artifacts() — at startup, not in the endpoint
+_explainer = shap.KernelExplainer(
+    model=predict_proba_wrapper,
+    data=X_background.values[:50],
+)
+```
+
+## ThreadPoolExecutor sizing (MANDATORY)
+
+Size the inference executor to match K8s CPU limits:
+
+```python
+import os
+_CPU_LIMIT = int(os.getenv("INFERENCE_CPU_LIMIT", str(os.cpu_count() or 1)))
+_inference_executor = ThreadPoolExecutor(
+    max_workers=min(_CPU_LIMIT, os.cpu_count() or 1),
+    thread_name_prefix="ml-infer",
+)
+```
+
+Over-sizing `max_workers` when K8s limits are tight produces context-
+switching overhead; under-sizing limits concurrency unnecessarily. The
+service README MUST document the chosen value with the profiling data
+that justifies it.
+
 ## FastAPI Conventions
 
 - `/predict` — main inference endpoint
 - `/predict?explain=true` — SHAP explanation (opt-in)
-- `/health` — liveness + readiness
+- `/health` — **liveness** only (always 200 if event loop is alive)
+- `/ready` — **readiness** (503 until model loaded AND warmed up; D-23)
 - `/metrics` — Prometheus metrics
 - Model loaded ONCE at startup (lifespan handler), never per-request
+- Warm-up runs ONCE in lifespan before `_warmed_up` flips true
+
+## Graceful shutdown (MANDATORY — D-25)
+
+`uvicorn` MUST run with `--timeout-graceful-shutdown=20` (or less) so
+in-flight requests complete on SIGTERM. Coordinate with K8s
+`terminationGracePeriodSeconds: 30` (must be strictly greater than
+uvicorn's timeout to leave SIGKILL headroom).
 
 ## Prometheus Metrics (MANDATORY per service)
 

@@ -43,6 +43,10 @@ spec:
             - name: model-storage
               mountPath: /models
 
+      # Graceful shutdown (D-25): allow in-flight requests to complete.
+      # Coordinated with uvicorn's --timeout-graceful-shutdown (see args below).
+      terminationGracePeriodSeconds: 30
+
       containers:
         - name: "{service}-predictor"
           image: "{service}-predictor:latest"   # Patched by Kustomize overlay
@@ -51,7 +55,12 @@ spec:
             - "app.main:app"
             - "--host=0.0.0.0"
             - "--port=8000"
-            # NO --workers: default = 1 (K8s HPA manages scale)
+            # NO --workers: default = 1 (K8s HPA manages scale, D-01)
+            # Graceful shutdown (D-25): uvicorn waits up to 20s for in-flight
+            # requests to finish before forcing exit. Must be LESS than the
+            # pod's terminationGracePeriodSeconds (30s) to leave headroom for
+            # SIGKILL-handling path.
+            - "--timeout-graceful-shutdown=20"
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -69,13 +78,27 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1024Mi"
-          readinessProbe:
+          # --- Probes (D-23) ---
+          # startupProbe: absorbs the slow-start window (model download +
+          # warm-up). Prevents the livenessProbe from restarting a pod that
+          # is simply still warming up. Once startupProbe succeeds, K8s
+          # stops running it and starts using liveness/readiness.
+          startupProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 24   # up to 120s total for cold start + warm-up
+          # readinessProbe → /ready (503 until warm-up done → traffic gated)
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 5
             failureThreshold: 3
+          # livenessProbe → /health (always 200 if event loop is alive)
           livenessProbe:
             httpGet:
               path: /health

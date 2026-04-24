@@ -166,6 +166,46 @@ def load_model_artifacts() -> None:
     logger.info("Model loaded from %s (version=%s)", model_path, version)
 
 
+def warm_up_model() -> dict:
+    """Execute a dummy prediction + SHAP computation to absorb first-request latency.
+
+    The first call to ``model.predict`` and ``explainer.shap_values`` incurs
+    JIT, branch-prediction, and cache-warming costs that can easily push the
+    first real request past the P95 SLO (D-23). By running a throwaway
+    inference during startup, the event loop serves its first client request
+    with all caches hot.
+
+    Returns a small report so the lifespan can log measured times.
+    Safe to call multiple times; safe to call before or after SHAP is ready.
+    """
+    if _model_pipeline is None or _background_data is None:
+        return {"status": "skipped", "reason": "model or background data missing"}
+
+    report: dict = {"status": "ok"}
+
+    # Dummy predict — one sample from background data (same shape as prod input)
+    start = time.perf_counter()
+    sample_df = pd.DataFrame(_background_data[:1], columns=_feature_names)
+    try:
+        _ = _model_pipeline.predict_proba(sample_df)[:, 1]
+        report["predict_warmup_ms"] = round((time.perf_counter() - start) * 1000, 2)
+    except Exception as e:
+        logger.warning("Warm-up predict failed: %s", e)
+        report["predict_warmup_error"] = str(e)
+
+    # Dummy SHAP — only if explainer is ready (D-24: cached, reused per request)
+    if _explainer is not None:
+        start = time.perf_counter()
+        try:
+            _ = _explainer.shap_values(sample_df.values, nsamples=50, silent=True)
+            report["shap_warmup_ms"] = round((time.perf_counter() - start) * 1000, 2)
+        except Exception as e:
+            logger.warning("Warm-up SHAP failed: %s", e)
+            report["shap_warmup_error"] = str(e)
+
+    return report
+
+
 def _predict_proba_wrapper(X_array: np.ndarray) -> np.ndarray:
     """SHAP wrapper: numpy → DataFrame (with column names) → predict_proba.
 

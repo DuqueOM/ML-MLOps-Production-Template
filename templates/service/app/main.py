@@ -31,7 +31,12 @@ from app.fastapi_app import (
     _stop_prediction_logger,
     load_model_artifacts,
     router,
+    warm_up_model,
 )
+
+# Warm-up completion flag — /health returns "degraded" until warm-up completes
+# so the K8s readiness probe gates traffic correctly (D-23).
+_warmed_up: bool = False
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
@@ -45,7 +50,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model artifacts + start closed-loop logger at startup; drain at shutdown."""
+    """Load model artifacts + warm up + start closed-loop logger at startup; drain at shutdown."""
+    global _warmed_up
+
     logger.info("Starting {ServiceName} API — loading model artifacts...")
     try:
         load_model_artifacts()
@@ -54,12 +61,24 @@ async def lifespan(app: FastAPI):
         logger.error("Failed to load model artifacts: %s", e)
         # Continue startup — health endpoint will report "degraded"
 
+    # --- Warm-up (D-23/D-24) ---
+    # Execute a dummy predict + dummy SHAP computation so the first REAL
+    # request is served with hot caches. Readiness probe MUST wait for this
+    # to complete: we gate _warmed_up=True only after it finishes.
+    try:
+        report = warm_up_model()
+        logger.info("Warm-up complete: %s", report)
+    except Exception as e:
+        logger.warning("Warm-up raised unexpectedly (continuing): %s", e)
+    _warmed_up = True
+
     # Closed-loop monitoring (ADR-006) — graceful if unconfigured
     await _start_prediction_logger()
 
     yield
 
     logger.info("Shutting down {ServiceName} API")
+    _warmed_up = False  # K8s will stop sending traffic via readiness
     await _stop_prediction_logger()
 
 
@@ -90,22 +109,45 @@ app.include_router(router)
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health() -> dict:
-    """Health check endpoint for K8s liveness/readiness probes.
+    """Liveness probe — is the process alive and responsive?
 
-    Returns:
-        {"status": "healthy"|"degraded", "version": "...", "model_loaded": bool}
-
-    healthy  = model loaded and serving predictions
-    degraded = app running but model not available (still starting or load failed)
+    K8s livenessProbe should use THIS endpoint. It returns 'healthy' as long
+    as the event loop is serving. A crashed process will not respond at all.
+    Never returns 503 so K8s does not restart a pod that is merely still
+    warming up.
     """
+    return {
+        "status": "healthy",
+        "version": os.getenv("MODEL_VERSION", "0.1.0"),
+    }
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe — is the service ready to accept traffic?
+
+    K8s readinessProbe should use THIS endpoint. Returns 503 until BOTH:
+      - model artifacts are loaded
+      - warm-up (dummy predict + dummy SHAP) has completed (D-23)
+
+    This prevents the first request from paying cold-cache latency and
+    violating the P95 SLO. During graceful shutdown we set _warmed_up=False
+    so K8s stops routing new traffic while the pod drains.
+    """
+    from fastapi.responses import JSONResponse
+
     from app.fastapi_app import _model_pipeline
 
     model_loaded = _model_pipeline is not None
-    return {
-        "status": "healthy" if model_loaded else "degraded",
-        "version": os.getenv("MODEL_VERSION", "0.1.0"),
+    is_ready = model_loaded and _warmed_up
+
+    body = {
+        "status": "ready" if is_ready else "not_ready",
         "model_loaded": model_loaded,
+        "warmed_up": _warmed_up,
+        "version": os.getenv("MODEL_VERSION", "0.1.0"),
     }
+    return JSONResponse(content=body, status_code=200 if is_ready else 503)
 
 
 # ---------------------------------------------------------------------------
@@ -128,13 +170,26 @@ async def model_info() -> dict:
 async def model_reload() -> dict:
     """Hot-reload model artifacts without pod restart.
 
-    Useful when init container downloads a new model version.
+    Toggles /ready to not_ready during the reload + warm-up window so K8s
+    stops routing new traffic. Consumers with a canary strategy (Argo
+    Rollouts) will see the pod drain naturally.
     """
+    global _warmed_up
+
+    _warmed_up = False
     try:
         load_model_artifacts()
-        return {"status": "reloaded", "version": os.getenv("MODEL_VERSION", "0.1.0")}
+        report = warm_up_model()
+        logger.info("Reload warm-up complete: %s", report)
+        _warmed_up = True
+        return {
+            "status": "reloaded",
+            "version": os.getenv("MODEL_VERSION", "0.1.0"),
+            "warmup": report,
+        }
     except Exception as e:
         logger.error("Model reload failed: %s", e)
+        # Leave _warmed_up False — /ready keeps returning 503 until operator fixes
         return {"status": "error", "detail": str(e)}
 
 

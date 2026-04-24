@@ -51,11 +51,18 @@ spec:
             - name: model-storage
               mountPath: /models
 
+      # Graceful shutdown (D-25)
+      terminationGracePeriodSeconds: 30
+
       containers:
         - name: "{service}-predictor"
           image: "{service}-predictor:latest"
           command: ["uvicorn"]
-          args: ["app.main:app", "--host=0.0.0.0", "--port=8000"]
+          args:
+            - "app.main:app"
+            - "--host=0.0.0.0"
+            - "--port=8000"
+            - "--timeout-graceful-shutdown=20"
           ports:
             - containerPort: 8000
           env:
@@ -72,12 +79,20 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1024Mi"
-          readinessProbe:
+          # Probe split (D-23): see deployment.yaml for full explanation
+          startupProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            periodSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health
