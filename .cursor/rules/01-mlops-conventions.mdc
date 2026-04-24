@@ -14,14 +14,17 @@ globs: **/*
 - Python 3.11+, scikit-learn/XGBoost/LightGBM, FastAPI, Kubernetes, Terraform
 - GCP (primary) + AWS (secondary) | MLflow | Prometheus + Grafana + Evidently | Pandera
 
-## 5 Critical Invariants
+## 6 Critical Invariants
 1. `uvicorn --workers 1` only — HPA provides horizontal scale
 2. HPA uses CPU only — never memory for ML pods
 3. CPU-bound inference always via `run_in_executor(ThreadPoolExecutor)`
-4. SHAP always in original feature space via `predict_proba_wrapper`
+4. SHAP always in original feature space via `predict_proba_wrapper`; explainer cached at startup (D-24)
 5. No model artifacts in Docker images — init container pattern only
+6. Model warm-up runs in lifespan BEFORE `_warmed_up=True`; `/ready` gates traffic (D-23)
 
-## Anti-Patterns (D-01 to D-19) — detect and correct
+## Anti-Patterns (D-01 to D-30) — detect and correct
+
+Abbreviated fix column; see AGENTS.md for full corrective actions.
 
 | ID | Anti-Pattern | Fix |
 |----|-------------|-----|
@@ -44,6 +47,17 @@ globs: **/*
 | D-17 | Hardcoded credentials / os.environ for secrets in prod | `common_utils.secrets.get_secret` |
 | D-18 | Static AWS keys or GCP JSON keys in production | IRSA (AWS) / Workload Identity (GCP) |
 | D-19 | Unsigned images or missing SBOM in prod | Cosign sign + Syft SBOM + Kyverno admission |
+| D-20 | PredictionEvent missing `entity_id` / `prediction_id` | Required at construction |
+| D-21 | `log_prediction` blocking async loop | `run_in_executor` + buffer |
+| D-22 | Logging failure leaks to HTTP | Swallow + `prediction_log_errors_total` |
+| D-23 | Same path for liveness + readiness | `/health` vs `/ready` split + `startupProbe` |
+| D-24 | SHAP explainer rebuilt per request | Build in warm-up, cache on app state |
+| D-25 | Pod killed mid-request | `terminationGracePeriodSeconds > uvicorn --timeout-graceful-shutdown` |
+| D-26 | Deploys bypass staging | 4-job chain + GitHub Environment Protection (ADR-011) |
+| D-27 | Deployment without PodDisruptionBudget | `minAvailable: 1` + HPA `minReplicas: 2` |
+| D-28 | Breaking API change without snapshot + version bump | `scripts/refresh_contract.py` + bump `app.version` |
+| D-29 | Namespace without PSS labels | prod `enforce: restricted`; dev/staging `enforce: baseline, warn: restricted` |
+| D-30 | Production image without SBOM attestation | `cosign attest --type cyclonedx` after sign |
 
 ## Agent Behavior Protocol (AUTO / CONSULT / STOP)
 Before executing destructive operations, check the mode per AGENTS.md "Agent Behavior Protocol":
@@ -51,7 +65,18 @@ Before executing destructive operations, check the mode per AGENTS.md "Agent Beh
 - `kubectl apply staging`, model → Staging → **CONSULT** (propose + wait)
 - Scaffolding, tests, reports, dev deploys → **AUTO**
 
-Escalation to STOP forces from: metric > 0.99 (D-06), fairness DIR in [0.80,0.85],
+## Dynamic Behavior Protocol (ADR-010)
+Before AUTO/CONSULT operations, load `common_utils/risk_context.py` and apply:
+- `AUTO` + ≥1 signal  → **CONSULT**
+- `CONSULT` + ≥1 signal → **STOP**
+- `STOP` is sticky
+
+Signals: `incident_active`, `drift_severe` (PSI > 2× threshold),
+`error_budget_exhausted`, `off_hours` (weekend or 18–08 UTC),
+`recent_rollback` (< 6h). Without `mcp-prometheus`, fall back to static
+table and emit `risk_signals: UNAVAILABLE` in the audit entry.
+
+Escalation to STOP also forces from: metric > 0.99 (D-06), fairness DIR in [0.80,0.85],
 drift PSI > 2× threshold, cost > 1.2× budget, credential detected.
 
 ## Quality Gates (ALL must pass)
