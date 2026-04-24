@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "ML-MLOps Production Template",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "version": "latest" },
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "version": "latest" },
+    "ghcr.io/devcontainers/features/terraform:1": { "version": "latest" },
+    "ghcr.io/devcontainers/features/github-cli:1": { "version": "latest" },
+    "ghcr.io/sigstore/cosign/cosign:1": {}
+  },
+
+  "containerEnv": {
+    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+    "PIP_NO_CACHE_DIR": "off",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "hashicorp.terraform",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "GitHub.vscode-pull-request-github",
+        "GitHub.vscode-github-actions",
+        "tamasfe.even-better-toml",
+        "bierner.markdown-mermaid"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "editor.formatOnSave": true,
+        "[python]": { "editor.defaultFormatter": "ms-python.black-formatter" },
+        "[yaml]": { "editor.defaultFormatter": "redhat.vscode-yaml" },
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "remoteUser": "vscode",
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/.kube,target=/home/vscode/.kube,type=bind,consistency=cached",
+    "source=mlops-pip-cache,target=/home/vscode/.cache/pip,type=volume"
+  ]
+}
