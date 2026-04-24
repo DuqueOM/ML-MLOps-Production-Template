@@ -245,6 +245,7 @@ GitHub Actions flow with required_reviewers.
 | D-25 | Pod killed mid-request on deploy / scale-down | Set `terminationGracePeriodSeconds` (default 30s) STRICTLY GREATER than uvicorn's `--timeout-graceful-shutdown` (default 20s) |
 | D-26 | Deploys go directly to prod without staging validation | Four-job chain (build → dev → staging → prod) with GitHub Environment Protection: 1 reviewer at staging, 2 reviewers + wait_timer + tag-only at prod (ADR-011) |
 | D-27 | Deployment without PodDisruptionBudget | Every Deployment ships with `PodDisruptionBudget` (`minAvailable: 1`). HPA `minReplicas >= 2`. `minAvailable: 0` requires `mlops.template/pdb-zero-acknowledged` annotation referencing an ADR |
+| D-28 | Breaking API change without version bump + snapshot update | Update `tests/contract/openapi.snapshot.json` via `scripts/refresh_contract.py`, bump `app.version` in `main.py` (semver: additive=minor, renames/narrows=major), announce in `CHANGELOG.md ### API Contract`. CI rejects snapshot changes without matching version bump |
 
 ## Session Initialization Protocol
 
