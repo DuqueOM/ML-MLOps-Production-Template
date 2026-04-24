@@ -10,12 +10,37 @@ description: Core MLOps conventions — concise reference, full detail in AGENTS
 - Clouds: GCP (primary) + AWS (secondary)
 - Tracking: MLflow | Monitoring: Prometheus + Grafana | Validation: Pandera
 
-## 5 Invariants (NEVER violate)
+## 6 Invariants (NEVER violate)
 1. `uvicorn --workers 1` only — HPA provides horizontal scale
 2. HPA uses CPU only — never memory for ML pods
 3. CPU-bound inference always via `run_in_executor(ThreadPoolExecutor)`
-4. SHAP always in original feature space via predict_proba_wrapper
+4. SHAP always in original feature space via predict_proba_wrapper; explainer cached at startup (D-24)
 5. No model artifacts in Docker images — init container pattern only
+6. Model warm-up runs in lifespan BEFORE `_warmed_up=True`; `/ready` gates traffic (D-23)
+
+## Dynamic Behavior Protocol (ADR-010)
+
+Before executing a CONSULT or AUTO operation, load the risk context
+(`common_utils/risk_context.py`) and apply the escalation table:
+
+| base_mode | signals | final_mode |
+|-----------|---------|-----------|
+| AUTO      | 0       | AUTO      |
+| AUTO      | ≥ 1     | **CONSULT** |
+| CONSULT   | 0       | CONSULT   |
+| CONSULT   | ≥ 1     | **STOP**  |
+| STOP      | any     | STOP (sticky) |
+
+Signals (each counts as 1):
+- `incident_active` — P1/P2 alert firing
+- `drift_severe` — any PSI > 2× per-feature alert threshold
+- `error_budget_exhausted` — 30-day SLO burn >= 100%
+- `off_hours` — weekends or 18:00–08:00 UTC (override via `MLOPS_ON_HOURS_UTC`)
+- `recent_rollback` — rollback audit entry in the last 6 h
+
+When mcp-prometheus is unavailable, the agent falls back to the static
+AGENTS.md mapping and MUST emit `risk_signals: UNAVAILABLE` in its
+audit entry. Dynamic scoring can ONLY escalate — never relax.
 
 ## Dependency Pinning
 Always `~=` for ML packages. Never `==` (conflicts) or bare `>=` (breaks).

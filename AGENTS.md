@@ -240,6 +240,11 @@ GitHub Actions flow with required_reviewers.
 | D-20 | Prediction log events missing `prediction_id` or `entity_id` | Both are required at construction of `PredictionEvent`; `entity_id` is the JOIN key with ground truth |
 | D-21 | Prediction logging blocking the async inference event loop | `log_prediction()` MUST buffer + flush in background task via `run_in_executor(None, ...)` |
 | D-22 | Logging backend failure propagating to the HTTP response | `log_prediction()` MUST swallow exceptions and increment `prediction_log_errors_total` — observability failures NEVER break serving |
+| D-23 | Liveness and readiness probes share a path | Split: `/health` (liveness, always 200 while process alive) and `/ready` (readiness, 503 until warm-up done). Add `startupProbe` on `/health` with `failureThreshold: 24` |
+| D-24 | SHAP explainer rebuilt per request | Build `KernelExplainer` once in warm-up (`fastapi_app.py::warm_up_model`), cache on app state, reuse for every `/explain` call |
+| D-25 | Pod killed mid-request on deploy / scale-down | Set `terminationGracePeriodSeconds` (default 30s) STRICTLY GREATER than uvicorn's `--timeout-graceful-shutdown` (default 20s) |
+| D-26 | Deploys go directly to prod without staging validation | Four-job chain (build → dev → staging → prod) with GitHub Environment Protection: 1 reviewer at staging, 2 reviewers + wait_timer + tag-only at prod (ADR-011) |
+| D-27 | Deployment without PodDisruptionBudget | Every Deployment ships with `PodDisruptionBudget` (`minAvailable: 1`). HPA `minReplicas >= 2`. `minAvailable: 0` requires `mlops.template/pdb-zero-acknowledged` annotation referencing an ADR |
 
 ## Session Initialization Protocol
 
@@ -258,12 +263,13 @@ When starting a new session in a project derived from this template:
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
 - `security-audit` — pre-build/pre-deploy scans: gitleaks, trivy, cosign verify, IAM review
 - `secret-breach-response` — incident playbook when a secret is leaked (detect → rotate → audit → postmortem)
-- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-22 checklist)
+- `debug-ml-inference` — diagnose serving issues (starts with D-01→D-27 checklist)
 - `drift-detection` — analyze PSI drift + concept drift (sliced performance)
 - `concept-drift-analysis` — root-cause sliced performance regressions with ground truth
 - `model-retrain` — execute retraining with quality gates + Champion/Challenger
 - `deploy-gke` / `deploy-aws` — deploy to GKE or EKS with Kustomize overlays
 - `release-checklist` — full multi-cloud release process
+- `rollback` — STOP-class emergency revert (Argo Rollouts abort + undo, MLflow revert, alert silencing)
 - `cost-audit` — monthly cloud cost review
 
 **Workflows** (user-triggered via slash commands):
@@ -356,7 +362,7 @@ skills/workflows — those are invoked via conversation in any IDE).
 └── 07-security-secrets.md  # paths: **/* (always-applicable)
 
 .cursor/rules/          # Cursor IDE — globs: frontmatter
-├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, D-01→D-22, Behavior Protocol
+├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, D-01→D-27, Behavior Protocol
 ├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA, init container
 ├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP
 ├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, gates
@@ -449,6 +455,13 @@ Install only MCPs that change agent capabilities for this stack. Skip MCPs for t
       "command": "docker",
       "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:latest"],
       "env": {}
+    },
+    "mcp-prometheus": {
+      "command": "uvx",
+      "args": ["mcp-prometheus"],
+      "env": {
+        "PROMETHEUS_URL": "http://prometheus.monitoring:9090"
+      }
     }
   }
 }
@@ -460,11 +473,20 @@ Create at: https://github.com/settings/personal-access-tokens/new
 **Note**: `kubectl-mcp-server` uses your current `kubectl` context.
 **Always run** `kubectl config current-context` before any cluster operation.
 
+**`mcp-prometheus` is required for the Dynamic Behavior Protocol (ADR-010).**
+Without it, the agent falls back to the static AGENTS.md mapping — which is
+safe but less precise. The template's `common_utils/risk_context.py` helper
+reads this server when available and transparently degrades to local-file
+signals otherwise.
+
 ### Agent behavior with MCPs installed
 
 When `mcp-github` is active: agents read CI failures directly — no need to paste logs into chat.
 When `mcp-kubernetes` is active: skills `deploy-gke`/`deploy-aws` verify pod status after apply.
 When `mcp-terraform` is active: skill `release-checklist` validates infra before deploying.
+When `mcp-prometheus` is active: the Dynamic Behavior Protocol escalates
+AUTO → CONSULT or CONSULT → STOP based on live risk signals (incident,
+drift, off-hours, error budget) — see `common_utils/risk_context.py`.
 
 Without MCPs: agents generate correct commands and instruct the human to run them (current behavior).
 With MCPs: agents execute those commands directly and verify the results. Same invariants apply.
