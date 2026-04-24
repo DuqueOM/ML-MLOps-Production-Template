@@ -1,0 +1,170 @@
+{
+  "__comment": "Closed-loop monitoring dashboard (v1.8.1). Companion to dashboard-template.json. Panels cover: sliced performance (ADR-007), Champion/Challenger runtime (ADR-008), SLO burn (rule 09), prediction logger health (D-22), and input-quality flags (C4).",
+  "dashboard": {
+    "title": "{ServiceName} — Closed-Loop & SLO Dashboard",
+    "tags": ["ml-service", "{service}", "closed-loop", "slo"],
+    "timezone": "utc",
+    "refresh": "1m",
+    "templating": {
+      "list": [
+        {"name": "service", "type": "constant", "query": "{service}", "hide": 0},
+        {"name": "namespace", "type": "constant", "query": "default", "hide": 0},
+        {
+          "name": "model_version",
+          "type": "query",
+          "query": "label_values(${service}_requests_total, model_version)",
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "SLO — Availability (30-day)",
+        "type": "stat",
+        "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+        "description": "1 - (5xx / total). Target >= 99.5%. Drives the error_budget_exhausted signal (ADR-010).",
+        "targets": [
+          {
+            "expr": "1 - (sum(rate(${service}_requests_total{status=~\"5..\"}[30d])) / clamp_min(sum(rate(${service}_requests_total[30d])), 0.001))",
+            "legendFormat": "availability"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 0.99},
+                {"color": "green", "value": 0.995}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "SLO Error Budget Burn (14d)",
+        "type": "timeseries",
+        "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+        "description": "Burn >1 means we are spending budget faster than we have it for the window.",
+        "targets": [
+          {
+            "expr": "((sum(rate(${service}_requests_total{status=~\"5..\"}[14d])) / clamp_min(sum(rate(${service}_requests_total[14d])), 0.001)) / 0.005)",
+            "legendFormat": "burn_rate_14d"
+          }
+        ]
+      },
+      {
+        "title": "Global AUC (per model_version)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "description": "performance_monitor (ADR-007) pushes sliced metrics with slice_name=by_model_version. Compare challenger vs stable over time.",
+        "targets": [
+          {
+            "expr": "${service}_performance_metric{slice_name=\"by_model_version\",metric=\"auc\",slice_value=~\"$model_version\"}",
+            "legendFormat": "v={{slice_value}}"
+          }
+        ]
+      },
+      {
+        "title": "Sliced AUC heatmap (worst slices)",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "description": "Lower AUC = more saturated colour. Identifies which slice dominates a regression (R3 in performance-degradation-rca).",
+        "targets": [
+          {
+            "expr": "bottomk(10, ${service}_performance_metric{metric=\"auc\"})",
+            "legendFormat": "{{slice_name}}={{slice_value}}"
+          }
+        ]
+      },
+      {
+        "title": "Champion vs Challenger — error rate",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "description": "Used by Argo Rollouts AnalysisTemplate '{service}-cc-online' (v1.7.1). Challenger should not exceed 1.5x stable.",
+        "targets": [
+          {
+            "expr": "sum by (model_version) (rate(${service}_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum by (model_version) (rate(${service}_requests_total[5m])), 0.001)",
+            "legendFormat": "v={{model_version}}"
+          }
+        ]
+      },
+      {
+        "title": "Score distribution — p50 per version",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "description": "Shift between versions is the 'score-distribution shift' check during canary.",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum by (le, model_version) (rate(${service}_prediction_score_bucket[5m])))",
+            "legendFormat": "p50 v={{model_version}}"
+          }
+        ]
+      },
+      {
+        "title": "Prediction logger — error rate (D-22)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "description": "If this > 5% during canary, performance metrics will be biased. Online C/C fails the canary.",
+        "targets": [
+          {
+            "expr": "sum(rate(prediction_log_errors_total[5m])) / clamp_min(sum(rate(prediction_log_total[5m])), 0.001)",
+            "legendFormat": "logger_error_rate"
+          }
+        ]
+      },
+      {
+        "title": "Input quality flags (C4)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "description": "Counts features whose values fell outside training [p01, p99]. Above baseline → extrapolation risk; consider retraining.",
+        "targets": [
+          {
+            "expr": "sum by (feature, direction) (rate(${service}_input_out_of_range_total[5m]))",
+            "legendFormat": "{{feature}} {{direction}}"
+          }
+        ]
+      },
+      {
+        "title": "performance_monitor heartbeat",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 24},
+        "description": "Seconds since last successful CronJob push. > 48h blocks post-deploy C/C analysis.",
+        "targets": [
+          {
+            "expr": "time() - max(${service}_performance_last_run_timestamp)",
+            "legendFormat": "secs since last run"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 90000},
+                {"color": "red", "value": 172800}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "PSI per feature (drift)",
+        "type": "bargauge",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 24},
+        "description": "ADR-006 feature-level PSI. Red bars > 2x alert threshold drive drift_severe signal (ADR-010).",
+        "targets": [
+          {
+            "expr": "topk(10, ${service}_psi_score)",
+            "legendFormat": "{{feature}}"
+          }
+        ]
+      }
+    ]
+  }
+}

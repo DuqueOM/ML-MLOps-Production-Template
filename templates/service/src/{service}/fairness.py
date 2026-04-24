@@ -169,24 +169,117 @@ def compute_fairness_metrics(
     return report
 
 
+def compute_intersectional_fairness(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sensitive_features: pd.DataFrame,
+    y_prob: Optional[np.ndarray] = None,
+    min_samples_per_cell: int = 30,
+) -> Dict[str, Any]:
+    """Compute DIR across all 2-way combinations of protected attributes (C6).
+
+    Per-attribute DIR can pass while specific COMBINATIONS (e.g., Black
+    women) fail — a well-documented blind spot of univariate fairness
+    audits. This function enumerates every unordered pair of protected
+    attribute columns and computes a DIR for the joint distribution.
+
+    Args:
+        min_samples_per_cell: groups with fewer samples are marked
+            ``insufficient_data`` rather than reported (avoids noisy DIRs
+            from tiny cells, per the module's Limitations note).
+
+    Returns a nested dict:
+        {
+          "(attr_a, attr_b)": {
+            "groups": { "(value_a, value_b)": { "positive_rate": ..., "n_samples": ... } },
+            "fairness": { "disparate_impact_ratio": ..., "disparate_impact_pass": True/False }
+          }
+        }
+    """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    if y_prob is not None:
+        y_prob = np.asarray(y_prob)
+
+    columns = list(sensitive_features.columns)
+    report: Dict[str, Any] = {}
+
+    for i, attr_a in enumerate(columns):
+        for attr_b in columns[i + 1 :]:
+            key = f"({attr_a}, {attr_b})"
+            group_metrics: Dict[str, Any] = {}
+
+            joint = sensitive_features[[attr_a, attr_b]].astype(str).agg(" | ".join, axis=1)
+            for group in sorted(joint.unique()):
+                mask = joint.values == group
+                if mask.sum() < min_samples_per_cell:
+                    group_metrics[str(group)] = {
+                        "n_samples": int(mask.sum()),
+                        "status": "insufficient_data",
+                    }
+                    continue
+                gm = compute_group_metrics(
+                    y_true[mask],
+                    y_pred[mask],
+                    y_prob[mask] if y_prob is not None else None,
+                )
+                group_metrics[str(group)] = gm
+
+            positive_rates = [
+                gm["positive_rate"]
+                for gm in group_metrics.values()
+                if isinstance(gm, dict) and gm.get("positive_rate") is not None
+            ]
+            fairness_indicators: Dict[str, Any] = {}
+            if positive_rates and max(positive_rates) > 0:
+                di_ratio = min(positive_rates) / max(positive_rates)
+                fairness_indicators["disparate_impact_ratio"] = round(di_ratio, 4)
+                fairness_indicators["disparate_impact_pass"] = di_ratio >= DISPARATE_IMPACT_THRESHOLD
+                fairness_indicators["n_groups_evaluated"] = len(positive_rates)
+
+            report[key] = {"groups": group_metrics, "fairness": fairness_indicators}
+
+    return report
+
+
 def run_fairness_audit(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     sensitive_features: pd.DataFrame,
     y_prob: Optional[np.ndarray] = None,
     output_path: Optional[str | Path] = None,
+    intersectional: bool = False,
+    min_intersectional_samples: int = 30,
 ) -> Dict[str, Any]:
     """Run a complete fairness audit and optionally save JSON report.
+
+    Args:
+        intersectional: if True, also evaluate every 2-way combination
+            of protected attributes (C6 — catches subgroup-only bias).
+        min_intersectional_samples: cells smaller than this are reported
+            as insufficient_data; prevents noisy DIRs from tiny groups.
 
     Returns the full report including a _summary with overall_pass flag.
     """
     report = compute_fairness_metrics(y_true, y_pred, sensitive_features, y_prob)
+    intersectional_report: Dict[str, Any] = {}
+    if intersectional and len(sensitive_features.columns) >= 2:
+        intersectional_report = compute_intersectional_fairness(
+            y_true,
+            y_pred,
+            sensitive_features,
+            y_prob,
+            min_samples_per_cell=min_intersectional_samples,
+        )
+        report["_intersectional"] = intersectional_report
 
     # Summary: check all fairness gates
     all_pass = True
     summary: List[str] = []
 
     for attr, data in report.items():
+        if attr.startswith("_"):
+            continue
         fi = data.get("fairness", {})
         di_pass = fi.get("disparate_impact_pass", True)
         eo_pass = fi.get("equal_opportunity_pass", True)
@@ -198,9 +291,17 @@ def run_fairness_audit(
             all_pass = False
             summary.append(f"{attr}: FAIL equal opportunity (gap={fi['equal_opportunity_difference']:.3f})")
 
+    # Intersectional issues — separate summary so operators see the delta
+    for combo, data in intersectional_report.items():
+        fi = data.get("fairness", {})
+        if fi.get("disparate_impact_pass") is False:
+            all_pass = False
+            summary.append(f"intersectional {combo}: FAIL DI ({fi['disparate_impact_ratio']:.3f})")
+
     report["_summary"] = {
         "overall_pass": all_pass,
         "issues": summary if summary else ["No fairness violations detected"],
+        "intersectional_evaluated": bool(intersectional_report),
         "thresholds": {
             "disparate_impact": DISPARATE_IMPACT_THRESHOLD,
             "equal_opportunity": EQUAL_OPPORTUNITY_THRESHOLD,
