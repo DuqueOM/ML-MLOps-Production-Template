@@ -6,6 +6,55 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [1.8.1] - 2026-04-24
+
+### Added
+
+- **Pod Security Standards** (D-29) — `templates/k8s/policies/pod-security-standards.yaml`
+  with Namespace definitions per environment; base `deployment.yaml`
+  now ships pod + container `securityContext` compatible with PSS
+  `restricted` (`runAsNonRoot`, `capabilities.drop: [ALL]`,
+  `seccompProfile: RuntimeDefault`). Rule 02 §Pod Security Standards
+- **SBOM attestation** (D-30) — `deploy-gcp.yml` + `deploy-aws.yml`
+  generate a CycloneDX SBOM via Syft and attach it as a Cosign
+  attestation. Full SLSA L3 provenance via `slsa-github-generator`
+  documented as ROADMAP template block
+- **ThreadPoolExecutor sizing** — `docs/threadpool-sizing.md` operator
+  guide + `templates/service/scripts/benchmark_executor.py` executable
+  sweep script (writes `ops/benchmarks/{ts}-executor.json`)
+- **Input quality** — `common_utils/input_quality.py` opt-in checker
+  against training-time `[p01, p99]` quantiles. Emits
+  `{service}_input_out_of_range_total` labels without blocking the
+  request. 14 unit tests
+- **Closed-loop Grafana dashboard** —
+  `templates/monitoring/grafana/dashboard-closed-loop.json` (10 panels:
+  SLO availability + burn, per-version AUC, sliced-AUC heatmap, C/C
+  error rate, score-distribution p50, logger errors, input-quality
+  flags, monitor heartbeat, PSI top 10)
+- **Intersectional fairness** — `fairness.py::compute_intersectional_fairness()`
+  evaluates all 2-way combinations of protected attributes. New
+  parameters on `run_fairness_audit(intersectional=False,
+  min_intersectional_samples=30)`. 4 unit tests
+- **Anti-patterns D-29, D-30** in AGENTS.md
+
+### Changed
+
+- `templates/k8s/base/deployment.yaml` — pod/container securityContext;
+  init container resource requests/limits
+- `templates/cicd/deploy-gcp.yml` + `deploy-aws.yml` — SBOM generation
+  and attestation steps
+- `templates/service/src/{service}/fairness.py` —
+  `run_fairness_audit(intersectional=..., min_intersectional_samples=...)`
+  parameters; `_summary.intersectional_evaluated` flag; `_intersectional`
+  report block
+- `.windsurf/rules/02-kubernetes.md` — new Pod Security Standards section
+
+### Total test count
+
+- Unit tests: **118 passing** (was 100 in v1.8.0)
+
+---
+
 ## [1.8.0] - 2026-04-24
 
 ### Added
