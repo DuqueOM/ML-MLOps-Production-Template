@@ -1,0 +1,97 @@
+# Closed-Loop Monitoring v2 Expansion — Multi-Session Plan
+
+Started: 2026-04-24
+Target: v1.7.1 → v1.8.0 → v1.8.1 → v1.9.0 (feature release train)
+
+## User decisions locked in
+- EXECUTE ALL PHASES across multiple sessions
+- MCP-prometheus becomes a CORE MCP installation alongside github/kubectl/terraform/supabase (NOT a stub) → ADR-010 can be real, not aspirational
+- GitOps demoted to Fase D with ADR-013 documenting triggers
+- DORA metrics self-contained via ops/dora_metrics.jsonl
+- Update /home/duque_om/projects/template_MLOps/releases/ (add v1.4/v1.5/v1.6/v1.7 retroactively + v1.7.1)
+- Update external READMEs: DuqueOM, ML-MLOps-Portfolio, related-projects
+
+## FASE A — v1.7.1 (this session)
+- [ ] 1. Model warm-up + SHAP KernelExplainer cached (D-23, D-24)
+      * app/main.py startup_event with dummy predict
+      * Explainer cached at startup, reused per-request
+      * Rule update 04a-python-serving.md
+- [ ] 2. Graceful shutdown + PodDisruptionBudget (D-25, D-27)
+      * K8s deployment terminationGracePeriodSeconds: 30
+      * uvicorn CMD --timeout-graceful-shutdown 20
+      * PDB with minAvailable: 1 in base
+      * Rego policy enforces PDB existence
+      * Rule updates 02-kubernetes.md, 07-docker.md
+- [ ] 3. C/C with Argo Rollouts AnalysisTemplate (G-02b)
+      * argo-rollouts-analysis.yaml reading performance_monitor metrics
+      * Canary strategy in rollout.yaml
+      * Document business-metric queries (sliced AUC threshold)
+- [ ] 4. Rollback skill (G-05)
+      * .windsurf/skills/rollback/SKILL.md
+      * Steps: Argo Rollouts abort → kubectl rollout undo → MLflow model revert → silence alerts
+      * authorization_mode: STOP (always)
+      * Workflow /rollback
+- [ ] 5. Environment promotion gates (G-03, D-26)
+      * Docs for GitHub Environment Protection Rules setup
+      * Updated cicd templates with environment: { name: staging/production }
+      * required_reviewers pattern
+      * Rule in 05-github-actions.md
+- [ ] 6. ADR-010 Behavior Protocol dynamic risk scoring
+      * Real via mcp-prometheus (not stub)
+      * Table of conditions: incident_active | psi_2x_threshold | prod_hours | error_budget_exhausted
+      * Rule 01-mlops-conventions update
+- [ ] 7. ADR-011 Environment promotion gates
+- [ ] 8. CHANGELOG v1.7.1 + releases/v1.7.1.md
+- [ ] 9. Update AGENTS.md with D-23/24/25/26/27
+
+## FASE B — v1.8.0 (session 2)
+- [ ] rule-effectiveness-audit skill (monthly rule telemetry)
+- [ ] performance-degradation skill (RCA: sliced + C/C + SHAP features)
+- [ ] Rule 14 api-contracts (OpenAPI backward compat, /v1 vs /v2)
+- [ ] Extended typed handoffs (outputs of ALL specialist agents)
+- [ ] MCP-prometheus added to mcp_config.json docs everywhere
+- [ ] ADR-011 (typed handoffs extended)
+- [ ] CHANGELOG v1.8.0 + releases/v1.8.0.md
+
+## FASE C — v1.8.1 (session 3)
+- [ ] D-28 PSS namespace enforcement
+- [ ] ADR-014 SLSA compliance level (target L3)
+- [ ] ThreadPool max_workers formula in rule 04a
+- [ ] Data-quality prod (null/outlier rates vs EDA baseline)
+- [ ] Grafana SLO error budget panel
+- [ ] Grafana sliced performance panel
+- [ ] Fairness multidimensional (Fairlearn EOD + calibration)
+- [ ] CHANGELOG v1.8.1 + releases/v1.8.1.md
+
+## FASE D — v1.9.0 (session 4)
+- [ ] Batch scoring template (K8s Job, BigQuery output)
+- [ ] ADR-012 GPU serving + optional overlay
+- [ ] ADR-013 CD strategy (GitOps/Flux triggers)
+- [ ] DORA metrics via ops/dora_metrics.jsonl
+- [ ] Reusable GHA workflow_call (deploy-common.yml)
+- [ ] Terraform native tests (*.tftest.hcl)
+- [ ] devcontainer.json
+- [ ] common_utils publish pipeline (make target)
+- [ ] Secret rotation preventive workflow
+- [ ] ADR-015 Service mesh (when to add)
+- [ ] VPA recommendation note
+- [ ] CHANGELOG v1.9.0 + releases/v1.9.0.md
+
+## FASE E — IDE parity audit + external READMEs (session 5)
+- [ ] Functional diff audit: .windsurf vs .cursor vs .claude
+- [ ] Update /home/duque_om/projects/DuqueOM/README.md
+- [ ] Update /home/duque_om/projects/ML-MLOps-Portfolio/README.md
+- [ ] Update /home/duque_om/projects/ML-MLOps-Portfolio/docs/related-projects/
+
+## FASE F — Retroactive releases/ backfill (within session that closes)
+- [ ] releases/v1.4.0.md, v1.5.0.md, v1.6.0.md, v1.7.0.md (reconstruct from CHANGELOG)
+- [ ] Ensure releases/ README index
+
+## Invariants to preserve across all sessions
+- D-01 → D-22 never regress
+- Engineering Calibration: justify every new component
+- Tests pass at each commit (>=50 baseline from v1.7.0)
+- black + flake8 clean
+- YAML parses for all new K8s manifests
+- No new secrets, no hardcoded creds
+- Every ADR has revisit triggers
