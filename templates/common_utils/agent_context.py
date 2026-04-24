@@ -216,14 +216,130 @@ class AuditEntry:
     outputs: dict[str, Any]
     approver: str | None = None  # populated when mode in {CONSULT, STOP}
     result: str = "success"  # success | failure | halted
+    risk_signals: list[str] = field(default_factory=list)  # ADR-010 signals present at op time
+    base_mode: AgentMode | None = None  # mode before dynamic escalation; None if same as `mode`
     timestamp: str = field(default_factory=_utc_now)
+
+    def __post_init__(self) -> None:
+        if self.result not in {"success", "failure", "halted"}:
+            raise ValueError(f"result must be success|failure|halted, got {self.result!r}")
+        if self.mode in {AgentMode.CONSULT, AgentMode.STOP} and self.result == "success" and not self.approver:
+            # Non-AUTO success requires a recorded approver — human accountability.
+            raise ValueError(f"mode={self.mode.value} success entry must record an approver")
 
     def to_jsonl(self) -> str:
         """Append-safe JSON lines representation for ops log."""
         d = asdict(self)
         d["environment"] = self.environment.value
         d["mode"] = self.mode.value
+        if self.base_mode is not None:
+            d["base_mode"] = self.base_mode.value
+        else:
+            d.pop("base_mode", None)
         return json.dumps(d, sort_keys=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Append-only audit log writer (ops/audit.jsonl)
+# ═══════════════════════════════════════════════════════════════════
+class AuditLog:
+    """Append-only JSONL writer for `ops/audit.jsonl`.
+
+    Thread-safety: uses per-instance lock + open/append/close on each write.
+    Safe for CI step summaries (which mirror this file) and for concurrent
+    agents running in the same workspace.
+
+    Usage:
+        log = AuditLog()  # defaults to ops/audit.jsonl
+        log.append(AuditEntry(...))
+
+        # Or from a risk-scored operation:
+        from common_utils.risk_context import get_risk_context
+        ctx = get_risk_context()
+        final_mode = ctx.escalate(AgentMode.AUTO)
+        log.record_operation(
+            agent="Agent-MLTrainer",
+            operation="train_model",
+            environment=Environment.STAGING,
+            base_mode=AgentMode.AUTO,
+            final_mode=final_mode,
+            risk_context=ctx,
+            inputs={"dataset_sha": "..."},
+            outputs={"run_id": "..."},
+        )
+    """
+
+    def __init__(self, path: str = "ops/audit.jsonl") -> None:
+        self.path = path
+        import threading
+
+        self._lock = threading.Lock()
+
+    def append(self, entry: AuditEntry) -> None:
+        """Append a single AuditEntry to the log. Parent dir auto-created."""
+        import os
+
+        os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
+        with self._lock:
+            with open(self.path, "a", encoding="utf-8") as fh:
+                fh.write(entry.to_jsonl() + "\n")
+
+    def record_operation(
+        self,
+        *,
+        agent: str,
+        operation: str,
+        environment: Environment,
+        base_mode: AgentMode,
+        final_mode: AgentMode,
+        inputs: dict[str, Any],
+        outputs: dict[str, Any],
+        risk_context: Any = None,  # common_utils.risk_context.RiskContext or None
+        approver: str | None = None,
+        result: str = "success",
+    ) -> AuditEntry:
+        """Record an operation and return the persisted entry.
+
+        Extracts active signals from `risk_context` if provided. Keeps
+        `base_mode` only if it differs from `final_mode` (reduces noise).
+        """
+        signals: list[str] = []
+        if risk_context is not None:
+            for name in (
+                "incident_active",
+                "drift_severe",
+                "error_budget_exhausted",
+                "off_hours",
+                "recent_rollback",
+            ):
+                if getattr(risk_context, name, False):
+                    signals.append(name)
+            if getattr(risk_context, "available", True) is False:
+                signals.append("risk_signals:UNAVAILABLE")
+
+        entry = AuditEntry(
+            agent=agent,
+            operation=operation,
+            environment=environment,
+            mode=final_mode,
+            inputs=inputs,
+            outputs=outputs,
+            approver=approver,
+            result=result,
+            risk_signals=signals,
+            base_mode=base_mode if base_mode != final_mode else None,
+        )
+        self.append(entry)
+        return entry
+
+    def read_all(self) -> list[dict[str, Any]]:
+        """Load all entries (for audits/reports). Returns [] if no file."""
+        import os
+
+        if not os.path.exists(self.path):
+            return []
+        with open(self.path, encoding="utf-8") as fh:
+            return [json.loads(line) for line in fh if line.strip()]
 
 
 __all__ = [
@@ -235,4 +351,5 @@ __all__ = [
     "SecurityAuditResult",
     "DeploymentRequest",
     "AuditEntry",
+    "AuditLog",
 ]
