@@ -69,10 +69,16 @@ jobs:
       - name: Validate base manifests
         run: kubeval --strict k8s/base/*.yaml
 
-      - name: Validate GCP overlays
-        run: kubectl kustomize k8s/overlays/gcp/ | kubeval --strict
+      - name: Validate GCP overlays (per environment)
+        run: |
+          for overlay in k8s/overlays/gcp-*; do
+            [ -d "$overlay" ] && kubectl kustomize "$overlay" | kubeval --strict
+          done
         continue-on-error: true
 
-      - name: Validate AWS overlays
-        run: kubectl kustomize k8s/overlays/aws/ | kubeval --strict
+      - name: Validate AWS overlays (per environment)
+        run: |
+          for overlay in k8s/overlays/aws-*; do
+            [ -d "$overlay" ] && kubectl kustomize "$overlay" | kubeval --strict
+          done
         continue-on-error: true

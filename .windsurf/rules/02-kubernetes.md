@@ -200,13 +200,18 @@ Dev/staging use `enforce=baseline, warn=restricted` to surface
 violations early without blocking builds. See
 `templates/k8s/policies/pod-security-standards.yaml`.
 
-## Kustomize Multi-Cloud
+## Kustomize Multi-Cloud (per-environment overlays — ADR-011)
 
 - `k8s/base/` — shared manifests (deployments, HPAs, services)
-- `k8s/overlays/gcp/` — Artifact Registry image patches
-- `k8s/overlays/aws/` — ECR image patches
+- `k8s/overlays/gcp-{dev,staging,production}/` — Artifact Registry image patches + env-specific replicas/resources
+- `k8s/overlays/aws-{dev,staging,production}/` — ECR image patches + env-specific replicas/resources
 
-Always use Kustomize for image patching, never hardcode registry URLs in base manifests.
+The per-environment split exists because each environment has
+different replica counts, resource requests, and (for production)
+stricter PodDisruptionBudget / NetworkPolicy. The deploy chain in
+`deploy-{gcp,aws}.yml` applies the matching overlay per stage.
+
+Always use Kustomize for image patching; never hardcode registry URLs in base manifests.
 
 ## Labels (MANDATORY on every resource)
 

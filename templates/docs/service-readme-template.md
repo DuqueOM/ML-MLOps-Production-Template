@@ -68,11 +68,18 @@ curl -X POST http://localhost:8000/predict \
 ## Deploy
 
 ```bash
-# GCP GKE
-kubectl apply -k k8s/overlays/gcp/
+# Manual deploy is for emergency use only. Production deploys go via
+# the dev → staging → prod chain in deploy-{gcp,aws}.yml (ADR-011).
+
+# GCP GKE — pick the environment you target
+kubectl apply -k k8s/overlays/gcp-dev/
+kubectl apply -k k8s/overlays/gcp-staging/
+kubectl apply -k k8s/overlays/gcp-production/
 
 # AWS EKS
-kubectl apply -k k8s/overlays/aws/
+kubectl apply -k k8s/overlays/aws-dev/
+kubectl apply -k k8s/overlays/aws-staging/
+kubectl apply -k k8s/overlays/aws-production/
 ```
 
 ## Resource Profile

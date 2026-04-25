@@ -75,18 +75,18 @@ done
 ## Deploy to GCP
 
 ```bash
-# Update overlays
-# k8s/overlays/gcp/kustomization.yaml → newTag: ${VERSION}
-kubectl apply -k k8s/overlays/gcp/
+# Update overlays (production environment for release)
+# k8s/overlays/gcp-production/kustomization.yaml → newTag: ${VERSION}
+kubectl apply -k k8s/overlays/gcp-production/
 kubectl rollout status deployment --all -n {namespace} --timeout=300s
 ```
 
 ## Deploy to AWS
 
 ```bash
-# Update overlays
-# k8s/overlays/aws/kustomization.yaml → newTag: ${VERSION}
-kubectl apply -k k8s/overlays/aws/
+# Update overlays (production environment for release)
+# k8s/overlays/aws-production/kustomization.yaml → newTag: ${VERSION}
+kubectl apply -k k8s/overlays/aws-production/
 kubectl rollout status deployment --all -n {namespace} --timeout=300s
 ```
 
