@@ -27,7 +27,7 @@
 
 ### Code Quality
 - [ ] Follows project conventions (`AGENTS.md` invariants respected)
-- [ ] No anti-patterns (D-01 through D-12)
+- [ ] No anti-patterns (D-01 through D-30 — see `AGENTS.md` Anti-Pattern Table)
 - [ ] Compatible release pinning (`~=`) for ML packages
 - [ ] Type hints on all public functions
 
