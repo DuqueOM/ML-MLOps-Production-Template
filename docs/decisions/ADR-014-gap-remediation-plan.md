@@ -174,7 +174,7 @@ agentic semantic regression; release history is consistent.
 
 | Phase | Status | Commit range | Completed |
 |-------|--------|--------------|-----------|
-| Phase 1 — Quick wins | **In progress** (5/12 sub-commits) | `6601c54` → `29da043` | §1.1, §1.2, §1.3, §1.4, §1.5, §1.6, §1.8, §1.9, §1.10, §1.11; §1.12 closed (false positive); pending §1.7 (overlay paths sweep — needs concrete affected files first) |
+| Phase 1 — Quick wins | **Done** | `6601c54` → `b31f424` (7 commits) | All 12 sub-commits effective: §1.1–§1.11 landed; §1.12 closed by §52 correction; deliverable `scripts/validate_doc_drift.sh` deferred to Phase 5 §5.2 alongside markdown-link-check (consolidated CI doc-quality gate). |
 | Phase 2 — Template correctness | Pending | — | — |
 | Phase 3 — Supply chain + governance ops | Pending | — | — |
 | Phase 4 — Dynamic behavior + validator | Pending | — | — |
