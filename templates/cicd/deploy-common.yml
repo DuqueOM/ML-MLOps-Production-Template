@@ -132,3 +132,34 @@ jobs:
               | grep -q 200 \
               || { echo "::error::Smoke test failed for ${svc}"; exit 1; }
           done
+
+      # ---------------------------------------------------------------------
+      # Emit audit entry (ADR-014 §3.5, AGENTS.md §Audit Trail Protocol)
+      # Writes to ops/audit.jsonl AND mirrors to the GitHub Actions step
+      # summary so the audit shows up directly in the PR/run UI.
+      # Runs on success AND failure (if: always) so we capture aborts too.
+      # ---------------------------------------------------------------------
+      - name: Emit audit entry
+        if: always()
+        env:
+          BASE_MODE: ${{ inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO') }}
+        run: |
+          python scripts/audit_record.py \
+            --agent "Agent-K8sBuilder" \
+            --operation "${{ inputs.cloud }}-${{ inputs.environment }}-deploy" \
+            --environment "${{ inputs.environment }}" \
+            --base-mode "${BASE_MODE}" \
+            --final-mode "${BASE_MODE}" \
+            --result "${{ job.status }}" \
+            --inputs '{"cloud":"${{ inputs.cloud }}","cluster":"${{ inputs.cluster_name }}","region":"${{ inputs.region }}","version":"${{ inputs.version }}","services":${{ inputs.services }}}' \
+            --outputs '{"overlay":"${{ inputs.overlay_path }}","run_id":"${{ github.run_id }}","sha":"${{ github.sha }}"}' \
+            --approver "${{ github.actor }}"
+
+      - name: Upload audit log (kept locally also)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ inputs.cloud }}-${{ inputs.environment }}-${{ github.run_id }}
+          path: ops/audit.jsonl
+          if-no-files-found: warn
+          retention-days: 90
