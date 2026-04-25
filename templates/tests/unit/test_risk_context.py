@@ -151,3 +151,147 @@ class TestCaching:
         (tmp_path / "incident_state.json").write_text(json.dumps({"active": True}))
         ctx2 = get_risk_context(ops_dir=tmp_path, cache_key="b")
         assert ctx2.incident_active is True
+
+
+# ---------------------------------------------------------------------------
+# Prometheus integration (ADR-014 §4.1)
+# ---------------------------------------------------------------------------
+class _FakeResponse:
+    """Minimal file-like stand-in for urllib.request.urlopen responses."""
+
+    def __init__(self, payload: dict):
+        self._body = json.dumps(payload).encode("utf-8")
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_a):
+        return False
+
+
+def _vector_payload(non_empty: bool) -> dict:
+    """Shape of a successful /api/v1/query response with a vector result."""
+    return {
+        "status": "success",
+        "data": {
+            "resultType": "vector",
+            "result": [{"metric": {}, "value": [1700000000, "1"]}] if non_empty else [],
+        },
+    }
+
+
+class TestPrometheusSignals:
+    """Mock urllib.request.urlopen to cover the new Prometheus path."""
+
+    def _patch_urlopen(self, monkeypatch, responses: list):
+        """Install a fake urlopen that returns successive responses."""
+        from common_utils import risk_context as rc
+
+        it = iter(responses)
+
+        def fake_urlopen(_url, timeout=None):
+            r = next(it)
+            if isinstance(r, Exception):
+                raise r
+            return _FakeResponse(r)
+
+        # Patch inside the module's late-imported urllib reference.
+        import urllib.request
+
+        monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+        return rc
+
+    def test_all_queries_succeed_all_false(self, monkeypatch, tmp_path):
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [_vector_payload(False), _vector_payload(False), _vector_payload(False)],
+        )
+        ctx = rc._load_prometheus_signals("http://prom.local:9090")
+        assert ctx.available is True
+        assert ctx.source == "prometheus"
+        assert ctx.incident_active is False
+        assert ctx.drift_severe is False
+        assert ctx.error_budget_exhausted is False
+
+    def test_one_query_positive(self, monkeypatch):
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [_vector_payload(True), _vector_payload(False), _vector_payload(False)],
+        )
+        ctx = rc._load_prometheus_signals("http://prom.local:9090")
+        assert ctx.available is True
+        assert ctx.incident_active is True
+        assert ctx.signal_count >= 1  # off_hours may add more
+
+    def test_http_error_degrades_to_unavailable(self, monkeypatch):
+        import urllib.error
+
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [
+                _vector_payload(False),
+                urllib.error.URLError("connection refused"),
+                _vector_payload(False),
+            ],
+        )
+        ctx = rc._load_prometheus_signals("http://prom.local:9090")
+        assert ctx.available is False
+        assert ctx.source == "unavailable"
+
+    def test_non_success_status_degrades(self, monkeypatch):
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [{"status": "error", "error": "query failed", "data": {}}],
+        )
+        ctx = rc._load_prometheus_signals("http://prom.local:9090")
+        assert ctx.available is False
+
+    def test_get_risk_context_uses_prometheus_when_url_set(self, monkeypatch, tmp_path):
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [_vector_payload(True), _vector_payload(False), _vector_payload(False)],
+        )
+        monkeypatch.setenv("PROMETHEUS_URL", "http://prom.local:9090")
+        ctx = rc.get_risk_context(ops_dir=tmp_path, cache_key="prom-test")
+        assert ctx.source == "prometheus"
+        assert ctx.incident_active is True
+
+    def test_get_risk_context_falls_back_when_prom_fails(self, monkeypatch, tmp_path):
+        import urllib.error
+
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [urllib.error.URLError("down"), urllib.error.URLError("down"), urllib.error.URLError("down")],
+        )
+        # Seed file-side signal so fallback is distinguishable from empty.
+        (tmp_path / "incident_state.json").write_text(json.dumps({"active": True}))
+        monkeypatch.setenv("PROMETHEUS_URL", "http://prom.local:9090")
+        ctx = rc.get_risk_context(ops_dir=tmp_path, cache_key="prom-fail")
+        assert ctx.source == "file"
+        assert ctx.incident_active is True
+
+    def test_recent_rollback_folded_in_when_prom_up(self, monkeypatch, tmp_path):
+        rc = self._patch_urlopen(
+            monkeypatch,
+            [_vector_payload(False), _vector_payload(False), _vector_payload(False)],
+        )
+        # Simulate a recent rollback entry in the audit log.
+        audit = tmp_path / "audit.jsonl"
+        recent = datetime.now(timezone.utc).isoformat()
+        audit.write_text(
+            json.dumps(
+                {
+                    "timestamp": recent,
+                    "operation": "rollback",
+                    "result": "success",
+                }
+            )
+            + "\n"
+        )
+        monkeypatch.setenv("PROMETHEUS_URL", "http://prom.local:9090")
+        ctx = rc.get_risk_context(ops_dir=tmp_path, cache_key="prom-rollback")
+        assert ctx.source == "prometheus"
+        assert ctx.recent_rollback is True
