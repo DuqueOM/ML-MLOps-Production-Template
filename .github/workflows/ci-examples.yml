@@ -1,4 +1,4 @@
-name: CI — Examples & Coverage
+name: CI — Examples, Unit Tests & Coverage
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test-examples:
-    name: Test Examples / Python ${{ matrix.python-version }}
+  test-and-coverage:
+    name: Tests & Coverage / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,17 +22,40 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -r examples/minimal/requirements.txt pytest pytest-cov
+        # examples/minimal pins the heavier deps (sklearn, fastapi, shap);
+        # templates/tests/unit/ only need pytest + light helpers from
+        # common_utils. One install covers both.
+        run: |
+          pip install -r examples/minimal/requirements.txt
+          pip install pytest pytest-cov
+          # common_utils imports — pulled by templates/tests/unit/
+          pip install pandas numpy pyyaml jsonschema
 
-      - name: Train model (required before running tests)
+      - name: Train model (prerequisite for examples tests)
         run: python examples/minimal/train.py
         working-directory: ${{ github.workspace }}
 
-      - name: Run tests with coverage
+      - name: Run full test + coverage matrix
+        # Coverage now measures the actual surface area shipped to users:
+        #   - examples/minimal: the smallest demo
+        #   - templates/common_utils: the helper library reused by services
+        #   - templates/service: the canonical service template
+        # Tests run against:
+        #   - examples/minimal/test_service.py (E2E demo)
+        #   - templates/service/tests/test_explainer.py (SHAP wrapper)
+        #   - templates/tests/unit/* (10 unit tests for helpers)
+        # Excludes templates/service/tests/{test_api,test_training,contract}/*
+        # because those exercise the *scaffolded* service (uvicorn lifespan,
+        # mocked model) and live in a different import context. They are
+        # validated end-to-end by validate-templates.yml::scaffold-e2e.
         run: |
-          pytest examples/minimal/test_service.py \
+          pytest \
+            examples/minimal/test_service.py \
             templates/service/tests/test_explainer.py \
+            templates/tests/unit/ \
             --cov=examples/minimal \
+            --cov=templates/common_utils \
+            --cov=templates/service/app \
             --cov-config=pyproject.toml \
             --cov-report=xml \
             --cov-report=term-missing \
@@ -44,8 +67,8 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           files: coverage.xml
-          flags: examples
-          name: examples-py${{ matrix.python-version }}
+          flags: full-suite
+          name: full-suite-py${{ matrix.python-version }}
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -175,7 +175,7 @@ agentic semantic regression; release history is consistent.
 | Phase | Status | Commit range | Completed |
 |-------|--------|--------------|-----------|
 | Phase 1 — Quick wins | **Done** | `6601c54` → `b31f424` (7 commits) | All 12 sub-commits effective: §1.1–§1.11 landed; §1.12 closed by §52 correction; deliverable `scripts/validate_doc_drift.sh` deferred to Phase 5 §5.2 alongside markdown-link-check (consolidated CI doc-quality gate). |
-| Phase 2 — Template correctness | Pending | — | — |
+| Phase 2 — Template correctness | **Done** | `05c7d19` → `a07e527` (+ ci-examples.yml in this commit) | All 6 sub-commits effective: §2.1 ServiceA→{ServiceName} parametrization; §2.2 test_api.py real suite (8 classes / 26 tests, conftest fixtures); §2.3 test_training.py stubs→pytest.skip + new determinism gate; §2.4 test_schema_evolution.py + CI pair-change guard; §2.5 scaffold-e2e smoke chain (install + snapshot + pytest); §2.6 coverage badge wired to common_utils + service/app + templates/tests/unit/. |
 | Phase 3 — Supply chain + governance ops | Pending | — | — |
 | Phase 4 — Dynamic behavior + validator | Pending | — | — |
 | Phase 5 — Post-launch hardening | Pending | — | — |
