@@ -83,7 +83,7 @@ docker push ${REGISTRY}/{service}:sha-${SHA}
 ## Step 3: Update Kustomize Overlay
 
 ```bash
-# k8s/overlays/gcp/kustomization.yaml
+# k8s/overlays/gcp-{env}/kustomization.yaml  (env = dev | staging | production)
 images:
   - name: {service}-predictor
     newName: {REGION}-docker.pkg.dev/{PROJECT_ID}/{REPO}/{service}
@@ -93,7 +93,10 @@ images:
 ## Step 4: Apply Manifests
 
 ```bash
-kubectl apply -k k8s/overlays/gcp/
+# Apply the overlay matching the target environment.
+# Production deploys are gated by the dev → staging → prod chain (ADR-011);
+# manual application here is for dev iteration or emergency only.
+kubectl apply -k k8s/overlays/gcp-{env}/    # env = dev | staging | production
 kubectl rollout status deployment/{service}-predictor -n {namespace} --timeout=300s
 ```
 

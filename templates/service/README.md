@@ -69,11 +69,14 @@ curl -X POST http://localhost:8000/predict \
 ## Deploy
 
 ```bash
-# GCP
-kubectl apply -k k8s/overlays/gcp/
+# Manual application is for dev iteration / emergency only.
+# Production deploys go via the dev → staging → prod chain in CI (ADR-011).
 
-# AWS
-kubectl apply -k k8s/overlays/aws/
+# GCP — substitute env: dev | staging | production
+kubectl apply -k k8s/overlays/gcp-dev/
+
+# AWS — substitute env: dev | staging | production
+kubectl apply -k k8s/overlays/aws-dev/
 ```
 
 ## Architecture Decisions
