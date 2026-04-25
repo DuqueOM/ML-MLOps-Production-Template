@@ -28,14 +28,20 @@ cd ML-MLOps-Production-Template
 
 ---
 
-## Quick Navigation
+## Quick Navigation — pick your role
 
-| Getting Started | Architecture | Development |
-|----------------|-------------|-------------|
-| [Try It in 5 Minutes](#try-it-in-5-minutes) | [Architecture Overview](#architecture-overview) | [Agentic System](#agentic-system) |
-| [Quick Start](#quick-start) | [Technology Stack](#technology-stack) | [Critical Patterns](#critical-patterns-invariants) |
-| [QUICK_START.md](QUICK_START.md) | [What's Different](#whats-different-from-other-templates) | [Anti-Pattern Detection](#anti-pattern-detection) |
-| [RUNBOOK.md](RUNBOOK.md) | [Templates Detail](#templates-detail) | [Contributing](#contributing) |
+Different readers want different things. Find your row, jump to the
+section that matches.
+
+| If you want to... | Read first | Then |
+|-------------------|------------|------|
+| **See the demo work** (5 min, no commit) | [Try It in 5 Minutes](#try-it-in-5-minutes) | [QUICK_START.md](QUICK_START.md) |
+| **Scaffold a new ML service** for your domain | [Quick Start](#quick-start) | [Templates Detail](#templates-detail) → run `./templates/scripts/new-service.sh` |
+| **Understand the architecture** before adopting | [Template Maturity Levels](#template-maturity-levels) | [Architecture Overview](#architecture-overview) → [Repository Structure](#repository-structure) |
+| **Operate a service in production** | [RUNBOOK.md](RUNBOOK.md) | [Critical Patterns (Invariants)](#critical-patterns-invariants) → [Anti-Pattern Detection](#anti-pattern-detection) |
+| **Decide whether this beats other templates** | [What's Different](#whats-different-from-other-templates) | [Real-World Example](#real-world-example) |
+| **Contribute or extend** the agentic system | [Agentic System](#agentic-system) | [CONTRIBUTING.md](CONTRIBUTING.md) → `AGENTS.md` |
+| **Customize for your stack** (auth, secrets, IaC) | [docs/runbooks/](docs/runbooks/) (gcp-wif-setup, mcp-config-hygiene) | `templates/infra/terraform/` |
 
 ## Real-World Example
 

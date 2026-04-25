@@ -74,12 +74,17 @@ jobs:
       # SBOM + attestation (SLSA L1). Full L3 provenance via
       # slsa-github-generator is documented as ROADMAP in deploy-gcp.yml
       # (same approach applies to AWS once Dockerfile is reproducible).
-      - name: Generate SBOM (Syft)
-        uses: anchore/sbom-action@v0
-        with:
-          image: "${{ env.REGISTRY }}/{ServiceName}:${{ steps.version.outputs.v }}"
-          format: cyclonedx-json
-          output-file: sbom-{ServiceName}.cyclonedx.json
+      # Generate one SBOM per service (multi-service safe — ADR-014 §5.7).
+      - name: Install Syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM per service (Syft / CycloneDX)
+        run: |
+          for SERVICE in {ServiceName}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}:${{ steps.version.outputs.v }}"
+            syft "$IMG" -o cyclonedx-json > "sbom-${SERVICE}.cyclonedx.json"
+            echo "✓ SBOM generated: sbom-${SERVICE}.cyclonedx.json"
+          done
 
       - name: Attach SBOM as attestation
         env:
