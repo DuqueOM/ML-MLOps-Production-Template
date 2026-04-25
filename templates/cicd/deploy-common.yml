@@ -107,6 +107,46 @@ jobs:
           fi
 
       # -------------------------------------------------------------------
+      # Dynamic Behavior Protocol pre-check (ADR-010, ADR-014 §4.2).
+      # Query risk_context. If live signals would escalate the static mode
+      # to STOP, abort the deploy. Graceful degradation: if Prometheus
+      # and file signals are both unavailable, we keep the static mode
+      # and continue (ADR-010 fallback contract).
+      # -------------------------------------------------------------------
+      - name: Compute dynamic risk mode
+        id: risk
+        env:
+          PROMETHEUS_URL: ${{ vars.PROMETHEUS_URL }}
+          STATIC_MODE: ${{ inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO') }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, sys
+          sys.path.insert(0, "templates")
+          from common_utils.risk_context import get_risk_context, render_audit_line
+          base = os.environ["STATIC_MODE"]
+          ctx = get_risk_context(ops_dir="ops", cache_key="deploy-${{ inputs.cloud }}-${{ inputs.environment }}")
+          final = ctx.escalate(base)
+          line = render_audit_line(base, final, ctx)
+          print(line)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"final_mode={final}\n")
+              fh.write(f"base_mode={base}\n")
+              fh.write(f"source={ctx.source}\n")
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a") as fh:
+                  fh.write(f"### Dynamic risk mode\n- {line}\n")
+          PY
+
+      - name: Enforce STOP mode
+        if: steps.risk.outputs.final_mode == 'STOP' && steps.risk.outputs.base_mode != 'STOP'
+        run: |
+          echo "::error::Dynamic Behavior Protocol escalated base_mode=${{ steps.risk.outputs.base_mode }} → STOP."
+          echo "Signals source: ${{ steps.risk.outputs.source }}. Resolve the signal(s) or override with a human-approved workflow_dispatch."
+          exit 1
+
+      # -------------------------------------------------------------------
       # Build + push (only for callers with CI-built images; otherwise
       # image is already pushed by the CI workflow, and we just apply)
       # -------------------------------------------------------------------
@@ -142,16 +182,19 @@ jobs:
       - name: Emit audit entry
         if: always()
         env:
-          BASE_MODE: ${{ inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO') }}
+          # Use dynamic mode if the risk step ran; otherwise derive static.
+          BASE_MODE: ${{ steps.risk.outputs.base_mode || (inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO')) }}
+          FINAL_MODE: ${{ steps.risk.outputs.final_mode || (inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO')) }}
+          SIGNAL_SOURCE: ${{ steps.risk.outputs.source || 'unavailable' }}
         run: |
           python scripts/audit_record.py \
             --agent "Agent-K8sBuilder" \
             --operation "${{ inputs.cloud }}-${{ inputs.environment }}-deploy" \
             --environment "${{ inputs.environment }}" \
             --base-mode "${BASE_MODE}" \
-            --final-mode "${BASE_MODE}" \
+            --final-mode "${FINAL_MODE}" \
             --result "${{ job.status }}" \
-            --inputs '{"cloud":"${{ inputs.cloud }}","cluster":"${{ inputs.cluster_name }}","region":"${{ inputs.region }}","version":"${{ inputs.version }}","services":${{ inputs.services }}}' \
+            --inputs '{"cloud":"${{ inputs.cloud }}","cluster":"${{ inputs.cluster_name }}","region":"${{ inputs.region }}","version":"${{ inputs.version }}","services":${{ inputs.services }},"risk_source":"'"${SIGNAL_SOURCE}"'"}' \
             --outputs '{"overlay":"${{ inputs.overlay_path }}","run_id":"${{ github.run_id }}","sha":"${{ github.sha }}"}' \
             --approver "${{ github.actor }}"
 
