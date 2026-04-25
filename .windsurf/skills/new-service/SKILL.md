@@ -100,8 +100,9 @@ grep -r "{ServiceName}\|{service}\|{SERVICE}" $service-name/ --include="*.py" --
 2. Implement FastAPI app in `app/main.py`:
    - `/predict` with ThreadPoolExecutor (NEVER sync predict in async)
    - `/predict?explain=true` with SHAP KernelExplainer
-   - `/predict/batch` for batch predictions
-   - `/health` with model status
+   - `/predict_batch` for batch predictions (note: underscore, not slash)
+   - `/health` for liveness probe (200 while process alive)
+   - `/ready` for readiness probe (503 until warm-up complete — D-23)
    - `/metrics` for Prometheus
 3. Define `predict_proba_wrapper` for SHAP
 4. Write API tests with TestClient

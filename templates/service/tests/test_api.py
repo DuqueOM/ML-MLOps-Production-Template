@@ -144,24 +144,24 @@ class TestPredictEndpoint:
 # Batch Predict Endpoint Tests
 # ---------------------------------------------------------------------------
 class TestBatchPredictEndpoint:
-    """Tests for /predict/batch endpoint."""
+    """Tests for /predict_batch endpoint."""
 
     def test_batch_returns_200(self, mock_client) -> None:
         """Valid batch request should return 200."""
-        # response = mock_client.post("/predict/batch", json=BATCH_PAYLOAD)
+        # response = mock_client.post("/predict_batch", json=BATCH_PAYLOAD)
         # assert response.status_code == 200
         pass
 
     def test_batch_returns_correct_count(self, mock_client) -> None:
         """Batch should return same number of predictions as inputs."""
-        # response = mock_client.post("/predict/batch", json=BATCH_PAYLOAD)
+        # response = mock_client.post("/predict_batch", json=BATCH_PAYLOAD)
         # data = response.json()
-        # assert len(data["predictions"]) == len(BATCH_PAYLOAD["instances"])
+        # assert len(data["predictions"]) == len(BATCH_PAYLOAD["customers"])
         pass
 
     def test_batch_empty_returns_error(self, mock_client) -> None:
         """Empty batch should return 422."""
-        # response = mock_client.post("/predict/batch", json={"instances": []})
+        # response = mock_client.post("/predict_batch", json={"customers": []})
         # assert response.status_code == 422
         pass
 
