@@ -309,45 +309,53 @@ When starting a new session in a project derived from this template:
 ## Agentic Configuration
 
 ```
-.windsurf/
+.windsurf/                              # Canonical agentic source — 15 rules, 16 skills, 12 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
-│   ├── 01-mlops-conventions.md         # always_on — core stack + ADR patterns
-│   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml
-│   ├── 03-terraform.md                 # glob: **/*.tf
-│   ├── 04a-python-serving.md           # glob: **/app/*.py, **/api/*.py
-│   ├── 04b-python-training.md          # glob: **/training/*.py, **/models/*.py
-│   ├── 05-github-actions.md            # glob: .github/workflows/*.yml
-│   ├── 06-documentation.md             # glob: docs/**/*.md
-│   ├── 07-docker.md                    # glob: **/Dockerfile*, docker-compose*.yml
-│   ├── 08-data-validation.md           # glob: **/schemas.py, **/validate*.py
-│   ├── 09-monitoring.md               # glob: monitoring/**/*
-│   ├── 10-examples.md                 # glob: examples/**/*
-│   ├── 11-data-eda.md                 # glob: **/eda/**, **/notebooks/**/*.ipynb
-│   ├── 12-security-secrets.md         # always_on — D-17/D-18/D-19
-│   └── 13-closed-loop-monitoring.md   # glob: prediction_logger/ground_truth/performance_monitor — D-20/D-21/D-22
-├── skills/                             # Multi-step operational procedures
+│   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
+│   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
+│   ├── 03-terraform.md                 # glob: **/*.tf — remote state, no secrets
+│   ├── 04a-python-serving.md           # glob: **/app/*.py, **/api/*.py — D-01/03/04/24
+│   ├── 04b-python-training.md          # glob: **/training/*.py, **/models/*.py — D-05/06/12
+│   ├── 05-github-actions.md            # glob: .github/workflows/*.yml — D-26/30, OIDC, no static creds
+│   ├── 06-documentation.md             # glob: docs/**/*.md — ADR + measured numbers
+│   ├── 07-docker.md                    # glob: **/Dockerfile*, docker-compose*.yml — D-11/19
+│   ├── 08-data-validation.md           # glob: **/schemas.py, **/validate*.py — D-14/15
+│   ├── 09-monitoring.md                # glob: monitoring/**/* — metrics catalog, alerts, dashboards
+│   ├── 10-examples.md                  # glob: examples/**/* — demo scope, no prod patterns
+│   ├── 11-data-eda.md                  # glob: eda/**/*, **/notebooks/**/*.ipynb — D-13/16, leakage gate
+│   ├── 12-security-secrets.md          # always_on — D-17/D-18/D-19, no hardcoded creds
+│   ├── 13-closed-loop-monitoring.md    # glob: prediction_logger/ground_truth/performance_monitor — D-20/21/22
+│   └── 14-api-contracts.md             # glob: **/app/schemas.py, **/tests/contract/** — D-28, OpenAPI snapshot + semver
+├── skills/                             # 16 multi-step operational procedures
+│   ├── batch-inference/SKILL.md
+│   ├── concept-drift-analysis/SKILL.md
+│   ├── cost-audit/SKILL.md
 │   ├── debug-ml-inference/SKILL.md
-│   ├── deploy-gke/SKILL.md
 │   ├── deploy-aws/SKILL.md
+│   ├── deploy-gke/SKILL.md
 │   ├── drift-detection/SKILL.md
 │   ├── eda-analysis/SKILL.md
-│   ├── security-audit/SKILL.md
-│   ├── secret-breach-response/SKILL.md
 │   ├── model-retrain/SKILL.md
-│   ├── release-checklist/SKILL.md
 │   ├── new-service/SKILL.md
-│   └── cost-audit/SKILL.md
-└── workflows/                          # Prompt-triggered structured workflows
-    ├── release.md                      # /release
-    ├── retrain.md                      # /retrain
-    ├── load-test.md                    # /load-test
-    ├── new-adr.md                      # /new-adr
-    ├── incident.md                     # /incident
+│   ├── performance-degradation-rca/SKILL.md
+│   ├── release-checklist/SKILL.md
+│   ├── rollback/SKILL.md
+│   ├── rule-audit/SKILL.md
+│   ├── secret-breach-response/SKILL.md
+│   └── security-audit/SKILL.md
+└── workflows/                          # 12 slash-command workflows
+    ├── cost-review.md                  # /cost-review
     ├── drift-check.md                  # /drift-check
     ├── eda.md                          # /eda
-    ├── secret-breach.md                # /secret-breach
+    ├── incident.md                     # /incident
+    ├── load-test.md                    # /load-test
+    ├── new-adr.md                      # /new-adr
     ├── new-service.md                  # /new-service
-    └── cost-review.md                  # /cost-review
+    ├── performance-review.md           # /performance-review
+    ├── release.md                      # /release
+    ├── retrain.md                      # /retrain
+    ├── rollback.md                     # /rollback (STOP-class)
+    └── secret-breach.md                # /secret-breach (STOP-class)
 ```
 
 ### Skills → Workflow Cross-References
@@ -374,24 +382,41 @@ receive the rules condensed for their native formats (they don't natively suppor
 skills/workflows — those are invoked via conversation in any IDE).
 
 ```
-.claude/rules/          # Claude Code — paths: frontmatter
-├── 01-serving.md       # paths: **/app/*.py, **/api/*.py
-├── 02-training.md      # paths: **/training/*.py, **/models/*.py
-├── 03-kubernetes.md    # paths: k8s/**/*.yaml
-├── 04-terraform.md     # paths: **/*.tf
-├── 05-examples.md      # paths: examples/**/*
-├── 06-data-eda.md      # paths: eda/**/*, **/notebooks/**/*.ipynb, **/eda_*.py
-└── 07-security-secrets.md  # paths: **/* (always-applicable)
+.claude/rules/          # Claude Code — 14 path-scoped rules
+├── 01-serving.md            # paths: **/app/*.py, **/api/*.py — D-01/03/04/24
+├── 02-training.md           # paths: **/training/*.py, **/models/*.py — D-05/06/12
+├── 03-kubernetes.md         # paths: k8s/**/*.yaml — D-02/11/23/25/26/27/29/30
+├── 04-terraform.md          # paths: **/*.tf — D-10
+├── 05-examples.md           # paths: examples/**/* — demo scope only
+├── 06-data-eda.md           # paths: eda/**/*, **/notebooks/**/*.ipynb — D-13/16
+├── 07-security-secrets.md   # paths: **/* (always) — D-17/D-18/D-19
+├── 08-closed-loop.md        # paths: prediction_logger/ground_truth/perf monitor — D-20/21/22
+├── 09-mlops-conventions.md  # paths: **/* (always) — stack + Behavior Protocol
+├── 10-docker.md             # paths: **/Dockerfile* — D-11/19
+├── 11-monitoring.md         # paths: monitoring/**/* — metrics catalog
+├── 12-data-validation.md    # paths: **/schemas.py, **/dvc*.yaml — D-14/15
+├── 13-api-contracts.md      # paths: **/app/*.py, **/tests/contract/** — D-28
+└── 14-github-actions.md     # paths: .github/workflows/*.yml — D-26/30, OIDC
 
-.cursor/rules/          # Cursor IDE — globs: frontmatter
-├── 01-mlops-conventions.mdc  # globs: **/* — session protocol, D-01..D-30, Behavior Protocol (static + dynamic per ADR-010)
-├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA, init container
-├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP
-├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, gates
-├── 05-docker.mdc             # globs: **/Dockerfile* — multi-stage, no model
-├── 06-data-eda.mdc           # globs: eda/**/*, **/notebooks/**/*.ipynb
-└── 07-security-secrets.mdc   # globs: **/* — D-17/D-18/D-19
+.cursor/rules/          # Cursor IDE — 12 glob-scoped .mdc rules
+├── 01-mlops-conventions.mdc  # globs: **/* (always) — D-01..D-30 + Behavior Protocol (static + dynamic ADR-010)
+├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA CPU-only, init container, probes split, PDB
+├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP KernelExplainer, /health vs /ready
+├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, quality gates, fairness
+├── 05-docker.mdc             # globs: **/Dockerfile* — multi-stage, non-root, init container, signed
+├── 06-data-eda.mdc           # globs: eda/**/*, **/notebooks/**/*.ipynb — leakage gate, baseline
+├── 07-security-secrets.mdc   # globs: **/* (always) — D-17/D-18/D-19, no static cloud creds
+├── 08-closed-loop.mdc        # globs: prediction_logger/ground_truth/perf monitor — D-20/21/22
+├── 09-monitoring.mdc         # globs: monitoring/**/*, **/grafana/** — alerts, dashboards
+├── 10-data-validation.mdc    # globs: **/schemas.py, **/dvc*.yaml — Pandera schemas, DVC
+├── 11-api-contracts.mdc      # globs: **/app/*.py, **/tests/contract/** — OpenAPI snapshot + semver
+└── 12-github-actions.mdc     # globs: .github/workflows/*.yml — env promotion + signing
 ```
+
+**Slash commands and skills indices** (multi-IDE parity):
+- `.cursor/commands/*.md` (12 files) and `.claude/commands/*.md` (12 files): pointers to canonical workflows
+- `.cursor/skills/INDEX.md` and `.claude/skills/INDEX.md`: pointers to canonical `.windsurf/skills/<name>/SKILL.md`
+- The IDE Parity Matrix below confirms invariant coverage across all three IDEs.
 
 ### IDE Parity Matrix (invariant coverage)
 
