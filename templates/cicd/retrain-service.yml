@@ -11,10 +11,11 @@ on:
         required: false
         default: "50"
 
-# Required secrets:
-# GCP_SA_KEY — GCP service account
-# MLFLOW_TRACKING_URI — MLflow server URL
-# MODEL_BUCKET — GCS bucket for model artifacts
+# Required GitHub Variables (no static cloud creds — D-18):
+#   GCP_WIF_PROVIDER     — Workload Identity Federation provider resource path
+#   GCP_SERVICE_ACCOUNT  — SA email used by GCS reads/writes
+#   MLFLOW_TRACKING_URI  — MLflow server URL
+#   MODEL_BUCKET         — GCS bucket for model artifacts
 
 env:
   SERVICE: "{ServiceName}"
