@@ -64,6 +64,31 @@ A **complete, opinionated template** for shipping ML models to production — no
 - **Closed-loop monitoring** — prediction logger + delayed ground truth ingestion + sliced performance monitor + Champion/Challenger statistical gate (McNemar + bootstrap ΔAUC) + Grafana closed-loop dashboard (10 panels)
 - **Engineering calibration** — every component is sized to actual requirements; avoids both under-engineering and over-engineering (CronJob not Airflow, Pandera not Great Expectations, kubectl-apply not ArgoCD until ADR-013 triggers fire)
 
+## Template Maturity Levels
+
+Not every component ships at the same readiness. This table tells you
+what works **today**, what works **after scaffolding** your service,
+and what requires **production hardening before customer traffic**.
+Read it before adopting — it sets expectations and prevents surprises.
+
+| Component | Maturity | What that means |
+|-----------|:--------:|------------------|
+| `examples/minimal/` (E2E demo) | 🟢 demo-ready | `git clone && python train.py && uvicorn serve:app` works in <2 min. CI proves it on every PR (`example-e2e` job). |
+| Anti-pattern catalog (D-01..D-30) | 🟢 demo-ready | Encoded in agent rules across all 3 IDEs. Detection on every code-touching session. |
+| `validate_agentic.py` + CI gate | 🟢 demo-ready | `--strict` is required for green CI; broken cross-references fail the PR. |
+| FastAPI service template (`templates/service/`) | 🟡 scaffold-ready | Real Python, Pydantic schemas, ThreadPoolExecutor, SHAP. Customize `app/schemas.py` + `src/<svc>/training/` per your domain. `pytest tests/` passes after scaffolding. |
+| Kustomize base + production overlays (`templates/k8s/`) | 🟡 scaffold-ready | `gcp-production/` and `aws-production/` exist. Dev/staging overlays are scaffold-time generated; verify replica counts + resource requests against your traffic profile. |
+| Terraform IaC (`templates/infra/terraform/{gcp,aws}`) | 🟡 scaffold-ready | Valid plans for both clouds. Replace placeholders (project IDs, regions, bucket names). Run `terraform plan` against your env before `apply`. |
+| CI/CD chain dev→staging→prod (`templates/cicd/`) | 🟡 scaffold-ready | Reusable `deploy-common.yml`. Requires GitHub Environment Protection Rules configured (see `docs/environment-promotion.md`). |
+| Closed-loop monitoring (prediction logger + ground truth + sliced perf) | 🟡 scaffold-ready | Code is canonical; you provide the ground-truth source config (`configs/ground_truth_source.yaml`) and slice definitions (`configs/slices.yaml`). |
+| Drift detection CronJob (`drift-detection.yml`) | 🟡 scaffold-ready | PSI computation works on synthetic data. Calibrate per-feature thresholds with at least 30 days of production data before flipping alerts to enforce. |
+| Cosign keyless signing + SBOM attestation | 🔴 prod-hardening | The wiring is complete and Kyverno trust regexp is set. Production adoption requires: GCP Workload Identity Federation setup (see `docs/runbooks/gcp-wif-setup.md`), AWS IAM Identity Provider, and a one-time Kyverno install on each cluster. |
+| Dynamic Behavior Protocol (live Prometheus signals, ADR-010) | 🔴 prod-hardening | `_load_prometheus_signals` is implemented and tested. Production adoption requires Prometheus reachable from CI runners, plus the metrics from `templates/monitoring/prometheus/rules/*.yaml` shipped to your scrape targets. |
+| MLflow tracking server | 🔴 prod-hardening | Service code logs runs and registers models. Self-host or use Databricks/Sagemaker MLflow; the template does not provision the server. |
+| Multi-region failover, blue/green, canary | ⚫ not in scope | Out of template scope. Use Argo Rollouts (mentioned in `rollback` skill) once you outgrow the rolling-update default. |
+
+**Reading the table**: 🟢 = works as shipped. 🟡 = works after `new-service.sh` + your domain wiring. 🔴 = template provides the contract; you provision the external infra. ⚫ = explicitly excluded by ADR-001 boundaries.
+
 ## Who It's For
 
 - ML engineers shipping models to production for the first time

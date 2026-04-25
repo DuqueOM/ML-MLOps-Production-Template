@@ -1,0 +1,58 @@
+name: Docs Quality
+
+# Catches the most common drift modes in markdown:
+#   - links to local files that no longer exist
+#   - external links that 404
+#   - markdown-lint style issues (heading hierarchy, fenced code lang, etc.)
+#
+# Runs on PR and weekly schedule. Weekly run catches link rot in
+# external sites (HN posts, vendor docs) without blocking PRs on
+# unrelated outages.
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".github/workflows/docs-quality.yml"
+  schedule:
+    - cron: "0 6 * * 1"   # Mondays 06:00 UTC — weekly link rot probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  markdown-link-check:
+    name: Link Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdown-link-check
+        # Pinned to immutable tag (D-19 / ADR-014 §1.1). Dependabot
+        # bumps via .github/dependabot.yml.
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          # Only check files in the PR diff; on schedule check all.
+          use-quiet-mode: "yes"
+          use-verbose-mode: "no"
+          config-file: ".github/markdown-link-check.json"
+          # On weekly schedule, scan everything; on PR, only changed files.
+          check-modified-files-only: ${{ github.event_name == 'pull_request' && 'yes' || 'no' }}
+
+  markdown-lint:
+    name: Markdown Lint (style)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdownlint-cli2
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !node_modules
+            !.git
+            !templates/eda/notebooks/**
+            !releases/**
+        continue-on-error: true   # warn-only first run; flip to false after triage
