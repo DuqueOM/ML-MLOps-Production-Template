@@ -22,9 +22,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/predict` | Main prediction endpoint |
-| POST | `/predict?explain=true` | Prediction with SHAP explanation |
-| GET | `/health` | Liveness/readiness probe |
+| POST | `/predict` | Main prediction endpoint (async, ThreadPoolExecutor) |
+| POST | `/predict?explain=true` | Prediction with SHAP explanation (D-04) |
+| POST | `/predict_batch` | Batch prediction for multiple inputs |
+| GET | `/health` | Liveness probe — 200 while process alive (D-23) |
+| GET | `/ready` | Readiness probe — 503 until warm-up complete (D-23) |
+| GET | `/model/info` | Model metadata (version, SHA256, loaded_at) |
+| POST | `/model/reload` | Hot-reload model without pod restart |
 | GET | `/metrics` | Prometheus metrics |
 
 ### Example Request

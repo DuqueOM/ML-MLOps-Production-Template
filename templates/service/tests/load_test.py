@@ -80,9 +80,9 @@ class MLServiceUser(HttpUser):
     def predict_batch(self) -> None:
         """Batch prediction (weight=1)."""
         self.client.post(
-            "/predict/batch",
+            "/predict_batch",
             json=BATCH_PAYLOAD,
-            name=f"/predict/batch [{BATCH_SIZE}]",
+            name=f"/predict_batch [{BATCH_SIZE}]",
         )
 
     @task(1)

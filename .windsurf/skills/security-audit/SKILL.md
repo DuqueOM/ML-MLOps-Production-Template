@@ -59,10 +59,19 @@ pipeline if any critical finding is detected.
   `annotations.eks.amazonaws.com/role-arn` (AWS)
 - IAM policy must have `Resource` specified (not `"*"`) and `Condition` where applicable
 
-### 5. Image signing (required for prod)
-- `cosign verify --key <pub-key> <image-tag>` must succeed
+### 5. Image signing (required for prod) — keyless OIDC (D-19)
+- The template uses **keyless Cosign** (no static public key). Verify via:
+  ```bash
+  cosign verify <image-ref> \
+    --certificate-identity-regexp 'https://github.com/ORG/REPO/.github/workflows/ci.yml@.*' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  ```
 - Unsigned images are blocked by Kyverno admission controller in prod namespace
-- Missing signature → block deploy, chain to CI `sign_image` step
+  (see `templates/k8s/policies/kyverno-image-verification.yaml`).
+- Missing signature → block deploy, chain to CI `sign_image` step.
+- Do NOT use `cosign verify --key <pub-key>` — that pattern requires
+  long-lived key material (D-17/D-18 violation) and is not what the
+  Kyverno ClusterPolicy in this template expects.
 
 ### 6. SBOM generation (required for prod)
 - `syft <image-tag> -o cyclonedx-json > sbom.json`
