@@ -46,10 +46,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
+      # Workload Identity Federation — NO static credentials (D-18, ADR-014 §3.1).
+      # GitHub mints a short-lived OIDC token; GCP exchanges it for a SA via WIF.
+      # Setup: docs/runbooks/gcp-wif-setup.md.
+      # Required GitHub Variables (Settings → Variables):
+      #   GCP_WIF_PROVIDER  e.g. projects/123/locations/global/workloadIdentityPools/gh/providers/gh
+      #   GCP_SERVICE_ACCOUNT  e.g. ci-deployer@<project>.iam.gserviceaccount.com
+      - name: Authenticate to GCP via Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
@@ -122,8 +129,9 @@ jobs:
   #     with:
   #       image: "<registry>/<image>"
   #       digest: "${{ needs.build.outputs.image_digest }}"
-  #     secrets:
-  #       registry-password: "${{ secrets.GCP_SA_KEY }}"
+  #     # No secrets block needed — WIF used at the build step authenticates
+  #     # the registry push too. The slsa-github-generator inherits identity
+  #     # via OIDC.
   #
   # Requires `build` to emit `image_digest` via
   #   docker inspect --format '{{ index .RepoDigests 0 }}' "$IMG" | cut -d@ -f2
@@ -147,9 +155,8 @@ jobs:
       overlay_path: k8s/overlays/gcp-dev
       version: ${{ needs.build.outputs.version }}
       services: '["{ServiceName}"]'
-    secrets:
-      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      # WIF identity propagates via permissions.id-token at the reusable
+      # workflow level — no secrets passthrough required.
 
   # ---------------------------------------------------------------------
   # 3. Deploy to staging (CONSULT — 1 reviewer via Environment Protection)
@@ -167,9 +174,6 @@ jobs:
       overlay_path: k8s/overlays/gcp-staging
       version: ${{ needs.build.outputs.version }}
       services: '["{ServiceName}"]'
-    secrets:
-      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
 
   # ---------------------------------------------------------------------
   # 4. Deploy to production (STOP — 2 reviewers + wait timer + branch gate)
@@ -187,6 +191,3 @@ jobs:
       overlay_path: k8s/overlays/gcp-prod
       version: ${{ needs.build.outputs.version }}
       services: '["{ServiceName}"]'
-    secrets:
-      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
