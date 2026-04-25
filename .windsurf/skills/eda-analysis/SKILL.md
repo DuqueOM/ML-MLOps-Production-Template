@@ -18,6 +18,17 @@ argument-hint: "<dataset-path> [service-slug]"
 arguments:
   - dataset-path
   - service-slug
+authorization_mode:
+  ingest_profile: AUTO           # read CSV/Parquet, compute stats, no side effects outside eda/
+  univariate_correlations: AUTO  # local plots + summary tables
+  leakage_gate: AUTO             # boolean check; result drives next mode
+  propose_features: AUTO         # writes 05_feature_proposals.yaml only
+  propose_schema: AUTO           # writes schema_proposal.py only
+  escalation_triggers:
+    - leakage_detected: STOP            # ANY blocked feature → halt; ADR-014 / D-13
+    - target_metric_over_99: STOP       # suspicious — investigate before training
+    - missing_target_column: CONSULT    # human decides label strategy
+    - data_outside_data_raw: STOP       # never read from arbitrary paths
 ---
 
 # EDA Analysis Skill

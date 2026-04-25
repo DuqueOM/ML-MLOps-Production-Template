@@ -12,6 +12,14 @@ when_to_use: >
   Use when reviewing monthly cloud costs, optimizing spend, or preparing FinOps reports.
   Examples: 'review monthly costs', 'cost optimization', 'FinOps report', 'budget review'
 argument-hint: "[month] [year]"
+authorization_mode:
+  collect_billing: AUTO       # read-only billing API queries
+  analyze_spend: AUTO         # local computation
+  propose_optimizations: AUTO # produces report only, no cluster changes
+  apply_optimizations: STOP   # any rightsizing / scale-down requires human approval
+  escalation_triggers:
+    - cost_over_budget_120: STOP   # spend > 120% of budget → freeze auto-actions
+    - new_resource_type: CONSULT   # unknown resource → require human classification
 ---
 
 # Cost Audit

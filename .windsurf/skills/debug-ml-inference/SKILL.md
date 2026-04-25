@@ -15,6 +15,17 @@ when_to_use: >
 argument-hint: "<service-name> [symptom description]"
 arguments:
   - service-name
+authorization_mode:
+  collect_traces: AUTO           # logs, metrics, kubectl describe
+  diagnose: AUTO                 # apply heuristics from D-01..D-30 table
+  propose_fix: AUTO              # produce a diff or runbook step in chat
+  apply_fix_dev: AUTO            # reversible — dev cluster only
+  apply_fix_staging: CONSULT     # staging change requires reviewer
+  apply_fix_prod: STOP           # production patch is rollback-class
+  escalation_triggers:
+    - p1_alert_active: STOP             # drop tools, read rollback skill first
+    - error_budget_exhausted: CONSULT   # do not change behavior without approval
+    - root_cause_unclear: CONSULT       # avoid "fix-and-pray" in prod
 ---
 
 # Debug ML Inference

@@ -17,6 +17,18 @@ when_to_use: >
 argument-hint: "<version-tag> [service-name]"
 arguments:
   - version-tag
+authorization_mode:
+  pre_flight_checks: AUTO        # all checks read-only
+  build_images: AUTO             # CI-driven; reversible via tag deletion
+  deploy_dev: AUTO               # GitHub Environment dev has no Protection Rules
+  deploy_staging: CONSULT        # 1 reviewer per ADR-011
+  deploy_production: STOP        # 2 reviewers + wait_timer + protected_tags
+  rollback_invocation: STOP      # chains to rollback skill (also STOP)
+  escalation_triggers:
+    - quality_gate_fail: STOP          # any failing gate halts the chain
+    - sbom_missing: STOP               # D-30 — no unsigned/un-attested image
+    - kyverno_policy_fail: STOP        # admission-time failure
+    - disagreement_in_metrics: CONSULT # primary up, secondary down → human reads
 ---
 
 # Release Checklist
