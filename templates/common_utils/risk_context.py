@@ -180,20 +180,97 @@ def _is_off_hours(now: datetime | None = None) -> bool:
     return not (start <= now.hour < end)
 
 
-def _load_prometheus_signals(_prom_url: str) -> RiskContext:
-    """Placeholder for mcp-prometheus-driven signals.
+_PROMETHEUS_TIMEOUT_SECONDS = 5.0
+_PROMETHEUS_QUERIES = {
+    # incident_active: any P1/P2 alert currently firing
+    "incident_active": 'sum(ALERTS{severity=~"P1|P2",alertstate="firing"})',
+    # drift_severe: any feature with PSI exceeding 2x its alert threshold
+    "drift_severe": 'max((feature_psi_score / on(feature) feature_psi_alert_threshold)) > 2',
+    # error_budget_exhausted: SLO burn rate over 100% on the 30-day window
+    "error_budget_exhausted": '(1 - slo_availability_ratio_rate30d) > slo_error_budget_target',
+}
 
-    When mcp-prometheus is wired in the agent's runtime, this function
-    should query:
-      * `sum(ALERTS{severity=~"P1|P2", alertstate="firing"})`
-      * `max(...psi_score / ...psi_alert_threshold) > 2`
-      * `1 - slo:availability:ratio_rate30d > 1`
-      * `max({service}_performance_last_run_timestamp)` vs now (heartbeat)
 
-    Until then, return UNAVAILABLE so the caller falls back to file signals
-    or static mapping (ADR-010 graceful degradation).
+def _query_prometheus_scalar(prom_url: str, query: str, timeout: float) -> bool | None:
+    """Run a single PromQL query and return True/False/None.
+
+    Return contract:
+        True  — query returned a non-empty `vector` or `scalar` with a value
+                that is truthy (interpreted as "the condition is active").
+        False — query succeeded but returned an empty vector or value 0.
+        None  — HTTP, parsing, or auth failure. Caller treats as UNAVAILABLE.
+
+    Uses stdlib `urllib` only — no new template dependency. Timeout is a
+    hard cap; all signal sources combined must fit within
+    ``_CACHE_TTL_SECONDS`` (60s) so the agent never blocks on signals.
     """
-    return RiskContext(available=False, source="unavailable")
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    base = prom_url.rstrip("/")
+    qs = urllib.parse.urlencode({"query": query})
+    url = f"{base}/api/v1/query?{qs}"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310 — internal URL
+            payload = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError) as exc:
+        logger.debug("Prometheus query failed (%s): %s", query, exc)
+        return None
+
+    if payload.get("status") != "success":
+        logger.debug("Prometheus returned non-success: %s", payload.get("status"))
+        return None
+
+    data = payload.get("data") or {}
+    result_type = data.get("resultType")
+    result = data.get("result") or []
+
+    # `vector` queries return [{ "value": [ts, "1"] }, ...] — empty = condition off.
+    if result_type == "vector":
+        return len(result) > 0
+    # `scalar` queries return [ts, "value"] — value > 0 means condition is active.
+    if result_type == "scalar":
+        try:
+            return float(result[1]) > 0
+        except (IndexError, ValueError, TypeError):
+            return None
+    # Unknown result type — be conservative.
+    return None
+
+
+def _load_prometheus_signals(prom_url: str) -> RiskContext:
+    """Query Prometheus for the three signals that have a metric source.
+
+    Returns a :class:`RiskContext` with source=``"prometheus"`` when ALL
+    three queries succeed (regardless of outcome); ``available=False`` and
+    source=``"unavailable"`` when ANY query fails so the caller can chain
+    to :func:`_load_file_signals` (ADR-010 graceful degradation).
+
+    Two signals are NOT in Prometheus and are populated separately:
+        * ``off_hours``    — computed locally via :func:`_is_off_hours`
+        * ``recent_rollback`` — read from the file-backed audit log when
+          available (best-effort; ``False`` if log missing).
+    """
+    raw_results: dict[str, bool | None] = {
+        name: _query_prometheus_scalar(prom_url, query, _PROMETHEUS_TIMEOUT_SECONDS)
+        for name, query in _PROMETHEUS_QUERIES.items()
+    }
+
+    # If ANY signal query failed, the source is degraded → fall back.
+    if any(v is None for v in raw_results.values()):
+        return RiskContext(available=False, source="unavailable")
+
+    return RiskContext(
+        incident_active=bool(raw_results["incident_active"]),
+        drift_severe=bool(raw_results["drift_severe"]),
+        error_budget_exhausted=bool(raw_results["error_budget_exhausted"]),
+        off_hours=_is_off_hours(),
+        recent_rollback=False,  # populated by file path when invoked through get_risk_context
+        available=True,
+        source="prometheus",
+        raw={"prometheus_queries": _PROMETHEUS_QUERIES, "results": raw_results},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +299,14 @@ def get_risk_context(
         ctx = _load_prometheus_signals(prom_url)
         if not ctx.available:
             ctx = _load_file_signals(Path(ops_dir))
+        else:
+            # Prometheus has no `recent_rollback` metric — that signal is
+            # backed by the local audit log. Fold it in so the dynamic
+            # protocol does not silently lose it when Prometheus is up.
+            file_ctx = _load_file_signals(Path(ops_dir))
+            if file_ctx.recent_rollback and not ctx.recent_rollback:
+                from dataclasses import replace
+                ctx = replace(ctx, recent_rollback=True)
     else:
         ctx = _load_file_signals(Path(ops_dir))
 
