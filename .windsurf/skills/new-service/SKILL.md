@@ -22,6 +22,16 @@ argument-hint: "<service-name> <business-problem>"
 arguments:
   - service-name
   - business-problem
+authorization_mode:
+  scaffold_files: AUTO           # reversible by `rm -rf <ServiceName>/`
+  init_dvc: AUTO                 # creates dvc.yaml — reversible
+  create_mlflow_experiment: AUTO # creates an experiment in MLflow; harmless
+  wire_cicd: AUTO                # populates .github/workflows/ — git-tracked
+  push_initial_commit: CONSULT   # the first git push of the new service
+  escalation_triggers:
+    - target_dir_exists: STOP            # never overwrite existing service
+    - eda_artifacts_missing: STOP        # require eda/ phase done first (ADR-004)
+    - service_name_collides: STOP        # name clash with another service in repo
 ---
 
 # Create New ML Service

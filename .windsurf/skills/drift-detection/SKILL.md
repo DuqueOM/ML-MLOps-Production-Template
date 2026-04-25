@@ -16,6 +16,16 @@ when_to_use: >
 argument-hint: "<service-name>"
 arguments:
   - service-name
+authorization_mode:
+  run_psi_check: AUTO            # CronJob equivalent — read-only Pandera validation
+  run_sliced_metrics: AUTO       # closed-loop performance computation
+  interpret_thresholds: AUTO     # apply ADR-008 rules to numbers
+  trigger_retrain: CONSULT       # chains to model-retrain skill — requires sign-off
+  silence_alert: STOP            # never silence drift alerts without human approval
+  escalation_triggers:
+    - psi_over_2x_threshold: STOP        # severe drift → human classifies blast radius
+    - sliced_auc_drop_over_5pp: CONSULT  # significant performance regression
+    - heartbeat_missing: CONSULT         # CronJob has not run in 48h
 ---
 
 # Drift Detection
