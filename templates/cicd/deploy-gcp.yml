@@ -94,12 +94,19 @@ jobs:
       # and attached as a Cosign attestation so admission controllers can
       # verify the image was built by THIS repo at THIS commit.
       # -------------------------------------------------------------------
-      - name: Generate SBOM (Syft)
-        uses: anchore/sbom-action@v0
-        with:
-          image: "${{ env.REGISTRY }}/{ServiceName}:${{ steps.version.outputs.v }}"
-          format: cyclonedx-json
-          output-file: sbom-{ServiceName}.cyclonedx.json
+      # Generate one SBOM per service (multi-service safe — ADR-014 §5.7).
+      # anchore/sbom-action does not loop, so we install Syft and call it
+      # ourselves. Output filename is parametrized by SERVICE.
+      - name: Install Syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM per service (Syft / CycloneDX)
+        run: |
+          for SERVICE in {ServiceName}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}:${{ steps.version.outputs.v }}"
+            syft "$IMG" -o cyclonedx-json > "sbom-${SERVICE}.cyclonedx.json"
+            echo "✓ SBOM generated: sbom-${SERVICE}.cyclonedx.json"
+          done
 
       - name: Attach SBOM as attestation
         env:
