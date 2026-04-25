@@ -32,8 +32,9 @@ Thank you for considering contributing! This template aims to be the canonical r
 #### Template Code
 - All template files must have thorough comments explaining customization points
 - Use `{service}`, `{ServiceName}`, `{namespace}` as placeholders — never hardcoded names
-- Follow the invariants in `AGENTS.md` — PRs violating anti-patterns D-01 through D-12 will be rejected
+- Follow the invariants in `AGENTS.md` — PRs violating any anti-pattern **D-01 through D-30** will be rejected (the full table is in `AGENTS.md §Anti-Patterns`)
 - Use compatible release pinning (`~=`) for Python ML packages
+- New invariants are documented in an ADR before being added to the table
 
 #### Agentic System (`.windsurf/`)
 - Rules must specify correct glob patterns for context activation
