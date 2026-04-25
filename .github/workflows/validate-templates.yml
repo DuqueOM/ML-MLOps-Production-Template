@@ -11,6 +11,113 @@ on:
     branches: [main]
 
 jobs:
+  # ---------------------------------------------------------------------
+  # Self-audit (ADR-014 §3.3, gap #16)
+  # The template prescribes gitleaks/tfsec/checkov/trivy for downstream
+  # services. Apply the same tooling to the template repo itself — a
+  # template that does not pass its own gates is not credible.
+  # ---------------------------------------------------------------------
+  self-audit:
+    name: Self-audit (gitleaks + tfsec + checkov + trivy fs)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # for sarif upload
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gitleaks needs history
+
+      # 1. gitleaks — secret scanning over committed files + git history.
+      #    Failure means a credential pattern was committed; D-17 violation.
+      - name: gitleaks (D-17)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Hardcoded credential patterns the template specifically warns
+      #    about. Mirror of the security-audit job inside the service CI
+      #    (templates/cicd/ci.yml) — applied to the template's own files.
+      - name: Hardcoded credential patterns (D-17 redux)
+        run: |
+          set -euo pipefail
+          # Exclude this workflow file (matches its own greps as strings) and
+          # the rule files that DOCUMENT the patterns to refuse.
+          EXCLUDE='--exclude-dir=.git --exclude-dir=node_modules
+                   --exclude=*.lock --exclude=*.png --exclude=*.gif'
+          if grep -rEI $EXCLUDE \
+                 "AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}" \
+                 --include="*.py" --include="*.yaml" --include="*.yml" \
+                 --include="*.tf" --include="*.json" --include="*.md" \
+                 --include="*.sh" .; then
+            echo "::error::Hardcoded credential pattern detected in the template repo (D-17)."
+            exit 1
+          fi
+          # Direct os.environ access for secret-shaped names — production code only.
+          # Excludes: tests, docs, ADRs, runbooks (documenting the anti-pattern).
+          if grep -rEI \
+                 "os\.environ\[.(API_KEY|SECRET|TOKEN|PASSWORD)" \
+                 --include="*.py" \
+                 --exclude-dir=tests --exclude-dir=docs \
+                 templates/ scripts/; then
+            echo "::error::Direct os.environ on secret-named keys (D-17). Use common_utils.secrets.get_secret."
+            exit 1
+          fi
+
+      # 3. tfsec — Terraform security checks against the template's own IaC.
+      - name: tfsec (Terraform IaC — GCP)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: templates/infra/terraform/gcp
+          soft_fail: true   # warn-only on first run; flip to false after triage
+          format: lovely
+
+      - name: tfsec (Terraform IaC — AWS)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: templates/infra/terraform/aws
+          soft_fail: true
+          format: lovely
+
+      # 4. Checkov — broader IaC checks (Terraform + K8s + Dockerfile).
+      - name: Checkov (IaC + K8s + Dockerfile)
+        uses: bridgecrewio/checkov-action@v12.2752.0
+        with:
+          directory: templates/
+          framework: terraform,kubernetes,dockerfile
+          quiet: true
+          soft_fail: true   # warn-only initially; remove after first clean run
+
+      # 5. Trivy filesystem scan — catches CVEs in committed manifests
+      #    (e.g. base images referenced in Dockerfile, requirements.txt).
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: templates/
+          severity: CRITICAL,HIGH
+          exit-code: "0"   # warn-only initially; flip to "1" after first clean run
+          format: table
+
+      # 6. Markdown link-check (lightweight; full link-check moves to
+      #    Phase 5 §5.2 alongside markdown-link-check + spell).
+      - name: Quick check that AGENTS.md cites no broken local files
+        run: |
+          set -euo pipefail
+          # Extract markdown links pointing at local files (not http/https).
+          # Fail if any cited path does not exist.
+          missing=0
+          while read -r path; do
+            [ -z "$path" ] && continue
+            if [ ! -e "$path" ] && [ ! -e "$(dirname AGENTS.md)/$path" ]; then
+              echo "::error file=AGENTS.md::referenced path not found: $path"
+              missing=$((missing + 1))
+            fi
+          done < <(grep -oE '\]\([^)]+\.(md|py|yaml|yml|sh|json|toml|tf)\)' AGENTS.md \
+                     | sed -E 's/^\]\(//;s/\)$//' | grep -v '^http')
+          [ "$missing" -eq 0 ] || exit 1
+
+
   python-quality:
     name: Python Lint + Type Check
     runs-on: ubuntu-latest
