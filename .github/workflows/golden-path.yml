@@ -225,21 +225,40 @@ jobs:
           name: built-image
           path: /tmp/
 
-      - name: Install kind + kubectl + kustomize + helm
+      # Canonical actions instead of `curl | bash` from GitHub raw URLs.
+      # Reason (run 24953193994 failure): the kustomize install script
+      # calls the GitHub releases API unauthenticated, which on shared
+      # runners trips the per-IP rate limiter:
+      #   "Github rate-limiter failed the request. Either authenticate
+      #    or wait a couple of minutes."
+      # All four installs below pin to specific releases via either
+      # actions or direct tarball URLs (no API).
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Install kustomize (direct release tarball, no GH API)
         run: |
           set -euo pipefail
-          curl -sLo kind https://kind.sigs.k8s.io/dl/${{ env.KIND_VERSION }}/kind-linux-amd64
-          chmod +x kind && sudo mv kind /usr/local/bin/
-          curl -sLo kubectl https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
-          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          KVER=v5.4.3
+          curl -sSL -o /tmp/kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KVER}/kustomize_${KVER}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/
+          kustomize version
 
       - name: Create kind cluster
-        run: |
-          kind create cluster --image ${{ env.KIND_IMAGE }} --name golden-path --wait 60s
-          kubectl cluster-info --context kind-golden-path
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: golden-path
+          node_image: ${{ env.KIND_IMAGE }}
+          wait: 120s
 
       - name: Load image into kind
         run: |
