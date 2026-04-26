@@ -46,7 +46,11 @@ env:
   SERVICE_SLUG: golden_path
   KIND_VERSION: v0.24.0
   KIND_IMAGE: kindest/node:v1.30.0
-  KYVERNO_VERSION: v1.13.0
+  # Kyverno chart version (NOT app version). Chart 3.x maps to app 1.x;
+  # use the latest chart available rather than pinning to keep the
+  # admission gate's policy syntax current. If a regression on the
+  # template's policies appears we can pin chart 3.3.x here.
+  KYVERNO_CHART_VERSION: ""
   COSIGN_VERSION: v2.4.0
 
 jobs:
@@ -272,12 +276,18 @@ jobs:
           set -euo pipefail
           helm repo add kyverno https://kyverno.github.io/kyverno/
           helm repo update
+          # Don't pin chart version: chart numbering (3.x) is independent
+          # from Kyverno app version (1.x), and the test must work with
+          # whatever the current chart is. See run 24953286815 failure:
+          #   chart "kyverno" matching v1.13.0 not found in kyverno index
           helm install kyverno kyverno/kyverno \
             -n kyverno --create-namespace \
-            --version ${{ env.KYVERNO_VERSION }} \
             --wait --timeout 5m
+          # The chart's pod label is app.kubernetes.io/part-of=kyverno;
+          # use that to wait for ALL kyverno components ready, not just
+          # one instance.
           kubectl wait --for=condition=Ready pod \
-            -l app.kubernetes.io/instance=kyverno \
+            -l app.kubernetes.io/part-of=kyverno \
             -n kyverno --timeout=180s
 
       - name: Apply Kyverno image-verification policy
