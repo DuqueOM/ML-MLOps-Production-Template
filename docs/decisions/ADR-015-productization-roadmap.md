@@ -128,9 +128,26 @@ The template is "productized" when ALL of:
 
 | Phase | Status | Commits |
 |-------|--------|---------|
-| A — Operable product | **Started** in this commit + PR-A5 workflow file | this commit + golden-path.yml |
+| A — Operable product | **In progress** | see sub-table below |
 | B — ML quality contract | Pending | — |
 | C — Observational loops | Pending | — |
+
+### Phase A sub-tracking
+
+| PR | Status | Commits / notes |
+|----|--------|------------------|
+| A5 | **In progress** — landed; golden-path workflow brought up; surfaced PR-A5b | `78accae` (initial), `e28151c` (path), `20142f6` (k8s tooling actions), `cc621e2` (kyverno chart ver), `3f3a867` (inline policy), this commit |
+| A5b | **Discovered** — latent placeholder bug | Found by golden-path run `24953521843`. Snake-case slugs produce invalid K8s names (`golden_path-dev` violates RFC 1123). Fix: introduce `{service-name}` placeholder for kebab-case contexts; keep `{service}` for snake-case contexts (Python, Prometheus metric names). Touches ~50 files in `templates/k8s/**` and `templates/monitoring/**`. Surface too wide for inline fix during A5 bring-up. Tracked separately. |
+| A1 | Pending | After A5 + A5b green |
+| A2 | Pending | After A1 |
+| A3 | Pending | After A2 |
+| A4 | Pending | Independent, last |
+
+The sub-table is the canonical Phase A status. The 5-commit
+sequence on A5 reflects the run-by-run debugging the workflow
+itself produced — each fix narrows the failure surface by one
+step further into the chain. This is the intended operating
+shape of an E2E bring-up: each green step proves a contract.
 
 Updates to this table land alongside each PR commit so the ADR
 reflects reality, not intent.
