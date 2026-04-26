@@ -74,11 +74,13 @@ validate-k8s: ## Validate K8s manifests with kustomize
 	kustomize build templates/k8s/base/ > /dev/null
 	@echo "$(GREEN)✓ K8s valid$(NC)"
 
-validate-tf: ## Validate Terraform syntax
-	@echo "$(GREEN)Validating Terraform (GCP)...$(NC)"
+validate-tf: ## Validate Terraform syntax (no init — backends are partial config per env)
+	@echo "$(GREEN)Validating Terraform (GCP + AWS)...$(NC)"
 	@if command -v terraform >/dev/null 2>&1; then \
-		terraform -chdir=templates/infra/gcp validate; \
-		terraform -chdir=templates/infra/aws validate; \
+		terraform -chdir=templates/infra/terraform/gcp init -backend=false -input=false >/dev/null && \
+		terraform -chdir=templates/infra/terraform/gcp validate && \
+		terraform -chdir=templates/infra/terraform/aws init -backend=false -input=false >/dev/null && \
+		terraform -chdir=templates/infra/terraform/aws validate && \
 		echo "$(GREEN)✓ Terraform valid$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠ terraform not installed, skipping$(NC)"; \

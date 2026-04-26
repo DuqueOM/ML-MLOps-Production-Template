@@ -56,20 +56,45 @@ environments manually once per repo (or via `gh api`).
 
 ## Secrets/vars layout
 
-Rather than per-workflow secrets, use **Environment secrets** so the
-credential for `gcp-prod` is DIFFERENT from `gcp-dev` (segmentation).
+Per ADR-014 §3.1 and invariant D-18, **no static cloud credentials**
+live in this repo or in GitHub Secrets. Both clouds federate identity
+from GitHub OIDC tokens at workflow runtime.
 
-### Environment secrets (per env)
+### GCP — Workload Identity Federation (NO static service account keys)
 
-- `GCP_SA_KEY` (gcp-*) or `AWS_ROLE_ARN` (aws-*) — scoped to that env only
-- `GCP_PROJECT_ID` — the cloud project ID for this env
+- Setup: `docs/runbooks/gcp-wif-setup.md`
+- The deploy chain authenticates via `google-github-actions/auth@v2`
+  exchanging the GitHub OIDC token for a federated SA. NO `GCP_SA_KEY`
+  secret is used or required.
+- If you find `GCP_SA_KEY` referenced anywhere in this repo, it is a
+  bug — open an issue. The previous template iteration leaked this
+  pattern; it has been removed.
 
-### Repository-level vars (shared)
+### AWS — IAM Identity Provider + IRSA (per-env federated role)
 
-- `GCP_REGION`, `AWS_REGION`
-- `GKE_DEV_CLUSTER`, `GKE_STAGING_CLUSTER`, `GKE_PROD_CLUSTER`
-- `EKS_DEV_CLUSTER`, `EKS_STAGING_CLUSTER`, `EKS_PROD_CLUSTER`
+- Setup: `docs/runbooks/aws-irsa-setup.md`
+- One IAM role per env (`github-actions-ci-deployer-{dev,staging,prod}`)
+  trusts the GitHub OIDC provider with a `sub:` condition restricting
+  to this repo and (for prod) only main + version tags.
+- The role ARN IS sensitive (it controls deploy access to that env)
+  and lives in **Environment Secrets**:
+  `Settings → Environments → {aws-dev,aws-staging,aws-production}` →
+  add secret `AWS_ROLE_ARN`. Each env's role has the smallest IAM
+  policy needed for its scope.
+
+### Environment vars (per env, in `Settings → Environments → <env>`)
+
+- `GCP_PROJECT_ID` — the cloud project ID for this env (GCP only)
+- `GKE_DEV_CLUSTER` / `GKE_STAGING_CLUSTER` / `GKE_PROD_CLUSTER`
+- `EKS_DEV_CLUSTER` / `EKS_STAGING_CLUSTER` / `EKS_PROD_CLUSTER`
+
+### Repository-level vars (shared, in `Settings → Variables`)
+
+- `GCP_REGION`, `AWS_REGION`, `AWS_ACCOUNT_ID`
+- `GCP_WIF_PROVIDER`, `GCP_SERVICE_ACCOUNT` (federation targets)
 - `AWS_REGISTRY_ID` (ECR account ID)
+- `PROMETHEUS_URL` (used by the Dynamic Behavior Protocol pre-deploy
+  check — see ADR-010, ADR-014 §4.2)
 
 ## Branch-based guards (defense in depth)
 
