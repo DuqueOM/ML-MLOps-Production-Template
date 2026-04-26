@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{service}-predictor"
+spec:
+  replicas: 1
+  template:
+    spec:
+      initContainers:
+        - name: model-downloader
+          image: amazon/aws-cli:latest
+          command:
+            - aws
+            - s3
+            - cp
+            - "s3://{MODEL_BUCKET}/{service}/model.joblib"
+            - /models/model.joblib
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+      containers:
+        - name: "{service}-predictor"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          env:
+            - name: MODEL_PATH
+              value: /models/model.joblib
+            - name: LOG_FORMAT
+              value: "json"
+            - name: LOG_LEVEL
+              value: "DEBUG"
+            - name: AWS_DEFAULT_REGION
+              value: "{REGION}"
+            - name: ENVIRONMENT
+              value: "dev"

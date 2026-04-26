@@ -45,7 +45,7 @@ docker push ${AWS_REGISTRY}/${SERVICE}:v{VERSION}
 
 ```bash
 kubectl config use-context ${GKE_CONTEXT}
-kubectl apply -k k8s/overlays/gcp-production/
+kubectl apply -k k8s/overlays/gcp-prod/
 kubectl rollout status deployment --all -n ${NAMESPACE} --timeout=300s
 ```
 
@@ -60,7 +60,7 @@ curl -X POST http://${GCP_ENDPOINT}/predict -H "Content-Type: application/json" 
 
 ```bash
 kubectl config use-context ${EKS_CONTEXT}
-kubectl apply -k k8s/overlays/aws-production/
+kubectl apply -k k8s/overlays/aws-prod/
 kubectl rollout status deployment --all -n ${NAMESPACE} --timeout=300s
 ```
 

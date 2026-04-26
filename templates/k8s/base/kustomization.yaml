@@ -3,8 +3,8 @@
 # =============================================================================
 # Usage:
 #   kustomize build k8s/base/                     # Render base
-#   kustomize build k8s/overlays/gcp-production/   # Render GCP overlay
-#   kustomize build k8s/overlays/aws-production/   # Render AWS overlay
+#   kustomize build k8s/overlays/gcp-{dev,staging,prod}/  # Render GCP overlay
+#   kustomize build k8s/overlays/aws-{dev,staging,prod}/  # Render AWS overlay
 #
 # TODO: Replace {service} with your actual service name.
 # =============================================================================

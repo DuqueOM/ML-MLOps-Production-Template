@@ -88,8 +88,8 @@ done
 
 ```bash
 # Update overlays (production environment for release)
-# k8s/overlays/gcp-production/kustomization.yaml → newTag: ${VERSION}
-kubectl apply -k k8s/overlays/gcp-production/
+# k8s/overlays/gcp-prod/kustomization.yaml → newTag: ${VERSION} (CI replaces with @sha256 digest)
+kubectl apply -k k8s/overlays/gcp-prod/
 kubectl rollout status deployment --all -n {namespace} --timeout=300s
 ```
 
@@ -97,8 +97,8 @@ kubectl rollout status deployment --all -n {namespace} --timeout=300s
 
 ```bash
 # Update overlays (production environment for release)
-# k8s/overlays/aws-production/kustomization.yaml → newTag: ${VERSION}
-kubectl apply -k k8s/overlays/aws-production/
+# k8s/overlays/aws-prod/kustomization.yaml → newTag: ${VERSION} (CI replaces with @sha256 digest)
+kubectl apply -k k8s/overlays/aws-prod/
 kubectl rollout status deployment --all -n {namespace} --timeout=300s
 ```
 

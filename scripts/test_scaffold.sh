@@ -192,8 +192,9 @@ fi
 # Validation 6 — Kustomize overlays render
 # ════════════════════════════════════════════════
 info "Validating Kustomize overlays..."
+OVERLAYS=(gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod)
 if command -v kustomize >/dev/null 2>&1; then
-  for overlay in gcp-production aws-production; do
+  for overlay in "${OVERLAYS[@]}"; do
     overlay_dir="$SERVICE_DIR/k8s/overlays/$overlay"
     if [[ -d "$overlay_dir" ]]; then
       if kustomize build "$overlay_dir" > /dev/null 2>&1; then
@@ -201,10 +202,12 @@ if command -v kustomize >/dev/null 2>&1; then
       else
         fail "Overlay fails to render: $overlay"
       fi
+    else
+      fail "Overlay missing after scaffold: $overlay"
     fi
   done
 elif command -v kubectl >/dev/null 2>&1; then
-  for overlay in gcp-production aws-production; do
+  for overlay in "${OVERLAYS[@]}"; do
     overlay_dir="$SERVICE_DIR/k8s/overlays/$overlay"
     if [[ -d "$overlay_dir" ]]; then
       if kubectl kustomize "$overlay_dir" > /dev/null 2>&1; then
@@ -212,6 +215,8 @@ elif command -v kubectl >/dev/null 2>&1; then
       else
         fail "Overlay fails to render: $overlay"
       fi
+    else
+      fail "Overlay missing after scaffold: $overlay"
     fi
   done
 else

@@ -74,12 +74,12 @@ curl -X POST http://localhost:8000/predict \
 # GCP GKE — pick the environment you target
 kubectl apply -k k8s/overlays/gcp-dev/
 kubectl apply -k k8s/overlays/gcp-staging/
-kubectl apply -k k8s/overlays/gcp-production/
+kubectl apply -k k8s/overlays/gcp-prod/
 
 # AWS EKS
 kubectl apply -k k8s/overlays/aws-dev/
 kubectl apply -k k8s/overlays/aws-staging/
-kubectl apply -k k8s/overlays/aws-production/
+kubectl apply -k k8s/overlays/aws-prod/
 ```
 
 ## Resource Profile

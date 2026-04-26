@@ -2,28 +2,29 @@
 # Kustomize overlay — AWS Production (EKS)
 # =============================================================================
 # Patches:
-#   - Docker image from ECR
+#   - Docker image from ECR (digest-pinned in CI — D-19)
 #   - S3 model bucket for init container (aws-cli)
-#   - IRSA annotation on ServiceAccount
+#   - IRSA annotation on ServiceAccount (D-18)
 #   - Production resource limits
+#   - Namespace with PSS enforce=restricted (D-29)
 #
-# Deploy:
-#   kustomize build k8s/overlays/aws-production/ | kubectl apply -f -
+# Deploy: kustomize build k8s/overlays/aws-prod/ | kubectl apply -f -
 #
 # TODO: Replace {AWS_ACCOUNT_ID}, {REGION}, {service} with your values.
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: ml-services
+namespace: "{service}-prod"
 
 resources:
-  - ../../base   # Reference base kustomization
+  - ../../base
+  - namespace.yaml
 
 images:
   - name: "{service}-predictor"
     newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{service}-predictor"
-    newTag: "v1.0.0"   # Patched by CI/CD pipeline
+    newTag: "v1.0.0"
 
 patches:
   - path: patch-deployment.yaml

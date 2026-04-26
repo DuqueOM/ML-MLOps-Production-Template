@@ -1,0 +1,19 @@
+# =============================================================================
+# Namespace — STAGING with PSS enforce=baseline + warn/audit=restricted
+# =============================================================================
+# Shift-left: violators of 'restricted' get logged here BEFORE prod blocks
+# them. Operators see the alert in staging rollout and fix before merging.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: "{service}-staging"
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    app.kubernetes.io/managed-by: kustomize
+    environment: staging

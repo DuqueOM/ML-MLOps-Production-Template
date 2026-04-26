@@ -1,0 +1,49 @@
+# =============================================================================
+# AWS Production — Deployment patches
+# =============================================================================
+# - Init container uses amazon/aws-cli for S3 model download
+# - IRSA provides S3 access (no hardcoded AWS credentials, D-18)
+# - 2 replicas (D-27 PDB minimum)
+#
+# TODO: Replace {MODEL_BUCKET}, {service}, {REGION} with your actual values.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{service}-predictor"
+spec:
+  replicas: 2
+  template:
+    spec:
+      initContainers:
+        - name: model-downloader
+          image: amazon/aws-cli:latest
+          command:
+            - aws
+            - s3
+            - cp
+            - "s3://{MODEL_BUCKET}/{service}/model.joblib"
+            - /models/model.joblib
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+      containers:
+        - name: "{service}-predictor"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+          env:
+            - name: MODEL_PATH
+              value: /models/model.joblib
+            - name: LOG_FORMAT
+              value: "json"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: AWS_DEFAULT_REGION
+              value: "{REGION}"
+            - name: ENVIRONMENT
+              value: "production"

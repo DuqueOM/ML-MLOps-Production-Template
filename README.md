@@ -83,7 +83,7 @@ Read it before adopting — it sets expectations and prevents surprises.
 | Anti-pattern catalog (D-01..D-30) | 🟢 demo-ready | Encoded in agent rules across all 3 IDEs. Detection on every code-touching session. |
 | `validate_agentic.py` + CI gate | 🟢 demo-ready | `--strict` is required for green CI; broken cross-references fail the PR. |
 | FastAPI service template (`templates/service/`) | 🟡 scaffold-ready | Real Python, Pydantic schemas, ThreadPoolExecutor, SHAP. Customize `app/schemas.py` + `src/<svc>/training/` per your domain. `pytest tests/` passes after scaffolding. |
-| Kustomize base + production overlays (`templates/k8s/`) | 🟡 scaffold-ready | `gcp-production/` and `aws-production/` exist. Dev/staging overlays are scaffold-time generated; verify replica counts + resource requests against your traffic profile. |
+| Kustomize base + 6 overlays (`templates/k8s/`) | 🟡 scaffold-ready | All 6 overlays ship: `gcp-{dev,staging,prod}` and `aws-{dev,staging,prod}`. Each carries env-specific resources + `namespace.yaml` with PSS labels (D-29: dev/staging baseline+restricted-warn, prod restricted enforce). Verify replica counts + resource requests against your traffic profile. |
 | Terraform IaC (`templates/infra/terraform/{gcp,aws}`) | 🟡 scaffold-ready | Valid plans for both clouds. Replace placeholders (project IDs, regions, bucket names). Run `terraform plan` against your env before `apply`. |
 | CI/CD chain dev→staging→prod (`templates/cicd/`) | 🟡 scaffold-ready | Reusable `deploy-common.yml`. Requires GitHub Environment Protection Rules configured (see `docs/environment-promotion.md`). |
 | Closed-loop monitoring (prediction logger + ground truth + sliced perf) | 🟡 scaffold-ready | Code is canonical; you provide the ground-truth source config (`configs/ground_truth_source.yaml`) and slice definitions (`configs/slices.yaml`). |
@@ -200,7 +200,7 @@ See [`examples/minimal/`](examples/minimal/) for the full working example.
 │  │   └── schemas.py → Pandera DataFrameModel                             │
 │  ├── tests/         → unit, integration, explainer, load                 │
 │  ├── k8s/base/      → manifests + kustomize base                         │
-│  ├── k8s/overlays/  → gcp-production/ + aws-production/                  │
+│  ├── k8s/overlays/  → gcp-{dev,staging,prod}/ + aws-{dev,staging,prod}/      │
 │  ├── infra/         → terraform/gcp/ + terraform/aws/                    │
 │  ├── docs/decisions/→ ADRs with measured trade-offs                      │
 │  └── monitoring/    → Grafana + Prometheus per service                   │
@@ -287,11 +287,11 @@ curl -X POST http://localhost:8000/predict \
 # Build and push Docker image
 docker build -t churn_predictor:v1.0.0 .
 
-# Deploy to GKE
-kubectl apply -k k8s/overlays/gcp-production/
+# Deploy to GKE (pick env: dev / staging / prod)
+kubectl apply -k k8s/overlays/gcp-prod/
 
 # Deploy to EKS
-kubectl apply -k k8s/overlays/aws-production/
+kubectl apply -k k8s/overlays/aws-prod/
 ```
 
 See the [Release Checklist](templates/docs/CHECKLIST_RELEASE.md) for the full pre-deployment checklist.
@@ -464,9 +464,9 @@ ML-MLOps-Production-Template/
     │   │   ├── rbac.yaml                  #     Role + RoleBinding (least privilege)
     │   │   ├── slo-prometheusrule.yaml    #     SLO/SLA definitions (availability, latency, error budget)
     │   │   └── argo-rollout.yaml          #     Canary deployment + AnalysisTemplate
-    │   └── overlays/                      #   Environment-specific patches
-    │       ├── gcp-production/            #     GKE: Artifact Registry, Workload Identity
-    │       └── aws-production/            #     EKS: ECR, IRSA
+    │   └── overlays/                      #   Environment-specific patches (6 overlays)
+    │       ├── gcp-{dev,staging,prod}/    #     GKE: Artifact Registry + WI + PSS-labeled namespace
+    │       └── aws-{dev,staging,prod}/    #     EKS: ECR + IRSA + PSS-labeled namespace
     │
     ├── infra/                             # Infrastructure templates
     │   ├── terraform/gcp/                 #   GKE cluster, GCS buckets, Artifact Registry
