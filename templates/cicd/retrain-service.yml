@@ -25,6 +25,10 @@ jobs:
   retrain:
     name: Retrain Model
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC for GCP WIF / AWS IAM role assumption
+      contents: read
+      issues: write     # for gate-failure / C/C decision issues
     steps:
       - uses: actions/checkout@v4
 
@@ -36,10 +40,45 @@ jobs:
       - name: Install dependencies
         run: pip install -r ${{ env.SERVICE }}/requirements.txt
 
-      - name: Download fresh data
+      # Cloud auth (parametrized by MODEL_BUCKET_KIND var — audit High-7).
+      - name: Authenticate to GCP (WIF)
+        if: vars.MODEL_BUCKET_KIND == 'gcs'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Authenticate to AWS (OIDC)
+        if: vars.MODEL_BUCKET_KIND == 's3'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Download fresh training data
+        env:
+          KIND: ${{ vars.DATA_BUCKET_KIND }}
+          BUCKET: ${{ vars.DATA_BUCKET }}
+          SERVICE: ${{ env.SERVICE }}
         run: |
-          # TODO: Download latest production data
-          echo "Downloading data for retraining..."
+          set -euo pipefail
+          if [ -z "${KIND:-}" ] || [ -z "${BUCKET:-}" ]; then
+            echo "::error::DATA_BUCKET_KIND and DATA_BUCKET vars are required for retraining."
+            exit 1
+          fi
+          mkdir -p "${SERVICE}/data"
+          case "$KIND" in
+            gcs) gcloud storage cp "gs://${BUCKET}/${SERVICE}/training/latest.csv" "${SERVICE}/data/training.csv" ;;
+            s3)  aws s3 cp "s3://${BUCKET}/${SERVICE}/training/latest.csv" "${SERVICE}/data/training.csv" ;;
+            *)   echo "::error::Unsupported DATA_BUCKET_KIND=$KIND"; exit 1 ;;
+          esac
+          # Holdout for Champion/Challenger evaluation
+          case "$KIND" in
+            gcs) gcloud storage cp "gs://${BUCKET}/${SERVICE}/holdout/latest.csv" "${SERVICE}/data/holdout.csv" ;;
+            s3)  aws s3 cp "s3://${BUCKET}/${SERVICE}/holdout/latest.csv" "${SERVICE}/data/holdout.csv" ;;
+          esac
+          echo "✓ training rows: $(wc -l < ${SERVICE}/data/training.csv)"
+          echo "✓ holdout rows:  $(wc -l < ${SERVICE}/data/holdout.csv)"
 
       - name: Validate data
         run: |
@@ -83,14 +122,32 @@ jobs:
       - name: Download current champion (if any)
         id: champion
         continue-on-error: true
+        env:
+          KIND: ${{ vars.MODEL_BUCKET_KIND }}
+          BUCKET: ${{ vars.MODEL_BUCKET }}
+          SERVICE: ${{ env.SERVICE }}
         run: |
-          cd ${{ env.SERVICE }}
+          set -euo pipefail
+          cd "${SERVICE}"
           mkdir -p models/champion
-          # TODO: replace with your model registry / object-store fetch
-          # gsutil cp gs://${MODEL_BUCKET}/${SERVICE}/production/model.joblib models/champion/model.joblib
-          if [ -f models/champion/model.joblib ]; then
+          if [ -z "${KIND:-}" ] || [ -z "${BUCKET:-}" ]; then
+            echo "::warning::MODEL_BUCKET_KIND/MODEL_BUCKET unset — treating as no-champion bootstrap"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          OBJECT="${SERVICE}/production/model.joblib"
+          DEST="models/champion/model.joblib"
+          # Don't fail the workflow if the champion is absent (first run);
+          # downstream Champion/Challenger step gates on `found`.
+          case "$KIND" in
+            gcs) gcloud storage cp "gs://${BUCKET}/${OBJECT}" "$DEST" 2>/dev/null || true ;;
+            s3)  aws s3 cp     "s3://${BUCKET}/${OBJECT}"  "$DEST" 2>/dev/null || true ;;
+          esac
+          if [ -f "$DEST" ]; then
+            echo "✓ Champion downloaded from ${KIND}://${BUCKET}/${OBJECT}"
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
+            echo "→ No champion at ${KIND}://${BUCKET}/${OBJECT} (cold start)"
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -130,9 +187,40 @@ jobs:
       - name: Promote model (if gates pass AND C/C == promote OR no champion)
         id: promote
         if: steps.gates.outcome == 'success' && (steps.champion.outputs.found == 'false' || steps.cvsc.outputs.exit_code == '0')
+        env:
+          KIND: ${{ vars.MODEL_BUCKET_KIND }}
+          BUCKET: ${{ vars.MODEL_BUCKET }}
+          SERVICE: ${{ env.SERVICE }}
         run: |
-          echo "TODO: Upload model to GCS/S3 and promote in MLflow"
-          # gsutil cp models/model.joblib gs://${MODEL_BUCKET}/${SERVICE}/model.joblib
+          set -euo pipefail
+          if [ -z "${KIND:-}" ] || [ -z "${BUCKET:-}" ]; then
+            echo "::error::MODEL_BUCKET_KIND/MODEL_BUCKET vars must be set to promote."
+            exit 1
+          fi
+          cd "${SERVICE}"
+          SHA=$(sha256sum models/model.joblib | awk '{print $1}')
+          echo "Promoting models/model.joblib (sha256:${SHA:0:16}…) to ${KIND}://${BUCKET}/${SERVICE}/production/"
+          # Upload TWO copies: timestamped (audit trail) + current (for next champion fetch)
+          STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          case "$KIND" in
+            gcs)
+              gcloud storage cp models/model.joblib "gs://${BUCKET}/${SERVICE}/production/model.joblib"
+              gcloud storage cp models/model.joblib "gs://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib"
+              ;;
+            s3)
+              aws s3 cp models/model.joblib "s3://${BUCKET}/${SERVICE}/production/model.joblib"
+              aws s3 cp models/model.joblib "s3://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib"
+              ;;
+          esac
+          # MLflow registry transition (if MLFLOW_TRACKING_URI is set).
+          # The `--alias production` mark is the contract the deploy chain
+          # reads when fetching the model on next pod startup.
+          if [ -n "${MLFLOW_TRACKING_URI:-}" ]; then
+            python -m src.${{ env.SERVICE_SLUG }}.training.promote_to_mlflow \
+              --model-path models/model.joblib \
+              --service "${SERVICE}" \
+              --alias production || echo "::warning::MLflow promotion failed (non-fatal)"
+          fi
 
       - name: Block promotion (C/C blocked or keep)
         if: steps.cvsc.outputs.exit_code == '2' || steps.cvsc.outputs.exit_code == '1'

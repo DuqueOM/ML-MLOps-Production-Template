@@ -14,12 +14,26 @@ on:
 #   GCP_WIF_PROVIDER     — Workload Identity Federation provider for GCS access
 #   GCP_SERVICE_ACCOUNT  — SA email with `roles/storage.objectViewer` on the
 #                          reference data bucket
+#   AWS_ROLE_ARN         — IAM role ARN with s3:GetObject on the data bucket
+#                          (set ONLY if DATA_BUCKET_KIND=s3)
+#   DATA_BUCKET_KIND     — "gcs" | "s3" — picks the cloud-fetch branch below
+#   DATA_BUCKET          — bucket name (no protocol)
 #   PUSHGATEWAY_URL      — Prometheus Pushgateway URL
+#
+# Audit High-7: this workflow ships scaffold-ready, NOT prod-ready. The
+# data-fetch step now FAILS LOUDLY when DATA_BUCKET_KIND/DATA_BUCKET are
+# unset. Previous behavior was a silent `echo TODO` which made the
+# workflow look successful even though no data was downloaded — PSI
+# computation then ran on stale committed data, defeating the gate.
 
 jobs:
   drift:
     name: Drift — ${{ matrix.service }}
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OIDC for GCP WIF / AWS IAM role assumption
+      contents: read
+      issues: write     # for the alert step below
     strategy:
       fail-fast: false
       matrix:
@@ -38,11 +52,49 @@ jobs:
       - name: Install dependencies
         run: pip install -r ${{ matrix.service }}/requirements.txt
 
+      # Cloud auth — picks the right path based on DATA_BUCKET_KIND var.
+      - name: Authenticate to GCP (WIF)
+        if: vars.DATA_BUCKET_KIND == 'gcs'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Authenticate to AWS (OIDC)
+        if: vars.DATA_BUCKET_KIND == 's3'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Download production data
+        env:
+          KIND: ${{ vars.DATA_BUCKET_KIND }}
+          BUCKET: ${{ vars.DATA_BUCKET }}
+          SERVICE: ${{ matrix.service }}
         run: |
-          # TODO: Download latest production data
-          # gsutil cp gs://${DATA_BUCKET}/${{ matrix.service }}/latest.csv data/production/
-          echo "TODO: Configure data download"
+          set -euo pipefail
+          if [ -z "${KIND:-}" ] || [ -z "${BUCKET:-}" ]; then
+            echo "::error::DATA_BUCKET_KIND and DATA_BUCKET vars are required."
+            echo "  Configure in repo Settings → Variables. See deploy chain runbooks."
+            exit 1
+          fi
+          mkdir -p "${SERVICE}/data/production"
+          OBJECT="${SERVICE}/latest.csv"
+          DEST="${SERVICE}/data/production/latest.csv"
+          case "$KIND" in
+            gcs)
+              gcloud storage cp "gs://${BUCKET}/${OBJECT}" "$DEST"
+              ;;
+            s3)
+              aws s3 cp "s3://${BUCKET}/${OBJECT}" "$DEST"
+              ;;
+            *)
+              echo "::error::Unsupported DATA_BUCKET_KIND=$KIND (expected: gcs | s3)"
+              exit 1
+              ;;
+          esac
+          echo "✓ Downloaded $(wc -l < "$DEST") rows from ${KIND}://${BUCKET}/${OBJECT}"
 
       - name: Run drift detection
         id: drift
