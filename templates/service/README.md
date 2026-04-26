@@ -72,10 +72,10 @@ curl -X POST http://localhost:8000/predict \
 # Manual application is for dev iteration / emergency only.
 # Production deploys go via the dev → staging → prod chain in CI (ADR-011).
 
-# GCP — substitute env: dev | staging | production
+# GCP — substitute env: dev | staging | prod
 kubectl apply -k k8s/overlays/gcp-dev/
 
-# AWS — substitute env: dev | staging | production
+# AWS — substitute env: dev | staging | prod
 kubectl apply -k k8s/overlays/aws-dev/
 ```
 

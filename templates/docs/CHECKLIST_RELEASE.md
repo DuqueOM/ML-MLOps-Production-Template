@@ -90,11 +90,11 @@ Use this checklist before every production release. Copy to an issue or PR descr
 - [ ] Artifact Registry image pushed
 - [ ] Workload Identity binding verified
 - [ ] GCS model bucket accessible from pod
-- [ ] `kubectl apply -k k8s/overlays/gcp-production/`
+- [ ] `kubectl apply -k k8s/overlays/gcp-prod/` (CI digest-pin step replaces newTag with @sha256)
 
 ### AWS (EKS)
 
 - [ ] ECR image pushed
 - [ ] IRSA role binding verified
 - [ ] S3 model bucket accessible from pod
-- [ ] `kubectl apply -k k8s/overlays/aws-production/`
+- [ ] `kubectl apply -k k8s/overlays/aws-prod/` (CI digest-pin step replaces newTag with @sha256)

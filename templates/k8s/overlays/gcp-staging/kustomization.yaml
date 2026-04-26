@@ -1,0 +1,30 @@
+# =============================================================================
+# Kustomize overlay — GCP Staging (GKE)
+# =============================================================================
+# Mirror of gcp-prod with reduced resources + baseline PSS enforce. Used by
+# the dev → staging → prod chain in templates/cicd/deploy-gcp.yml.
+#
+# Differences vs gcp-prod:
+#   - 1 replica (vs 2)
+#   - PSS enforce=baseline + warn/audit=restricted (shift-left)
+#   - smaller resource requests
+#
+# Deploy: kustomize build k8s/overlays/gcp-staging/ | kubectl apply -f -
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: "{service}-staging"
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: "{service}-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{service}-predictor"
+    newTag: "v1.0.0"
+
+patches:
+  - path: patch-deployment.yaml
+  - path: patch-serviceaccount.yaml

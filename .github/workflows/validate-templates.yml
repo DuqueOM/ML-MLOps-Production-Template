@@ -171,11 +171,17 @@ jobs:
       - name: Validate Kustomize build (base)
         run: kustomize build templates/k8s/base/ > /dev/null
 
-      - name: Validate Kustomize build (GCP overlay)
-        run: kustomize build templates/k8s/overlays/gcp-production/ > /dev/null
-
-      - name: Validate Kustomize build (AWS overlay)
-        run: kustomize build templates/k8s/overlays/aws-production/ > /dev/null
+      - name: Validate Kustomize builds (all 6 overlays)
+        # Each env (dev/staging/prod) for each cloud (gcp/aws) MUST render
+        # cleanly. Catches: missing patches, broken namespace.yaml, image
+        # name typos. Aligned with deploy-{gcp,aws}.yml overlay_path values.
+        run: |
+          set -e
+          for overlay in gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod; do
+            echo "→ Validating templates/k8s/overlays/$overlay"
+            kustomize build "templates/k8s/overlays/$overlay" > /dev/null
+          done
+          echo "✓ All 6 overlays render cleanly"
 
   terraform-validate:
     name: Terraform Validate

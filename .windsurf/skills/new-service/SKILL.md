@@ -140,7 +140,7 @@ grep -r "{ServiceName}\|{service}\|{SERVICE}" $service-name/ --include="*.py" --
 4. Create Kustomize overlays for GCP and AWS
 5. Init container configured for model download
 
-**Success criteria**: `kustomize build k8s/overlays/gcp-production/` renders valid YAML.
+**Success criteria**: `for o in gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod; do kustomize build k8s/overlays/$o; done` renders valid YAML for all 6 overlays.
 
 ### 8. Infrastructure (Agent-TerraformBuilder)
 

@@ -1,0 +1,35 @@
+# =============================================================================
+# Kustomize overlay — GCP Production (GKE)
+# =============================================================================
+# Patches:
+#   - Docker image from Artifact Registry (digest-pinned in CI — D-19)
+#   - GCS model bucket for init container
+#   - Workload Identity annotation on ServiceAccount (D-18)
+#   - Production resource limits
+#   - Namespace with PSS enforce=restricted (D-29)
+#
+# Deploy:
+#   kustomize build k8s/overlays/gcp-prod/ | kubectl apply -f -
+#
+# TODO: Replace {PROJECT_ID}, {REGION}, {service} with your actual values.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: "{service}-prod"
+
+resources:
+  - ../../base
+  - namespace.yaml          # PSS labels: enforce=restricted (D-29)
+
+images:
+  - name: "{service}-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{service}-predictor"
+    # Tag is replaced by digest in CI via deploy-common.yml's
+    # `Pin image to digest` step (D-19, ADR-014 §B2). Keep a placeholder
+    # tag here only so `kustomize build` works locally before CI runs.
+    newTag: "v1.0.0"
+
+patches:
+  - path: patch-deployment.yaml
+  - path: patch-serviceaccount.yaml

@@ -1,10 +1,13 @@
 # =============================================================================
-# AWS Production — Deployment patches
+# GCP Production — Deployment patches
 # =============================================================================
-# - Init container uses amazon/aws-cli for S3 model download
-# - IRSA provides S3 access (no hardcoded AWS credentials)
+# - Init container uses google/cloud-sdk:slim for gsutil
+# - Production resource limits (set from profiling)
+# - Workload Identity for GCS access (no hardcoded credentials)
+# - 2 replicas minimum (D-27 PDB allows minAvailable=1 only with replicas>=2)
 #
 # TODO: Replace {MODEL_BUCKET}, {service} with your actual values.
+# TODO: Adjust resource requests/limits from profiling data.
 # =============================================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -16,12 +19,11 @@ spec:
     spec:
       initContainers:
         - name: model-downloader
-          image: amazon/aws-cli:latest
+          image: google/cloud-sdk:slim
           command:
-            - aws
-            - s3
+            - gsutil
             - cp
-            - "s3://{MODEL_BUCKET}/{service}/model.joblib"
+            - "gs://{MODEL_BUCKET}/{service}/model.joblib"
             - /models/model.joblib
           volumeMounts:
             - name: model-storage
@@ -42,5 +44,5 @@ spec:
               value: "json"
             - name: LOG_LEVEL
               value: "INFO"
-            - name: AWS_DEFAULT_REGION
-              value: "{REGION}"
+            - name: ENVIRONMENT
+              value: "production"
