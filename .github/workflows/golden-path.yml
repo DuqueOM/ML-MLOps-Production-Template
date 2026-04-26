@@ -42,8 +42,30 @@ permissions:
 env:
   # Single source of truth for service names used across this workflow.
   # Mirrors the placeholder substitution that new-service.sh would do.
+  #
+  # IMPORTANT: SERVICE_SLUG is a single word (`goldenpath`), NOT
+  # snake_case (`golden_path`). Why:
+  #
+  # Run 24953521843 surfaced a latent template bug: when SERVICE_SLUG
+  # contains underscores, the scaffolder substitutes `{service}` →
+  # `golden_path` everywhere, including K8s overlay namespace fields
+  # (`name: golden_path-dev`). K8s rejects this with:
+  #
+  #   Namespace "golden_path-dev" is invalid: metadata.name: Invalid
+  #   value [...] regex used for validation is
+  #   '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
+  #
+  # The fix is structural (introduce a `{service-name}` placeholder
+  # for kebab-case contexts; keep `{service}` for snake-case contexts
+  # like Python imports and Prometheus metric names). It touches ~50
+  # files across templates/k8s/** and templates/monitoring/**.
+  # Tracked as PR-A5b in ADR-015.
+  #
+  # Until then, single-word slugs work because no underscore needs
+  # converting. The workflow's purpose is to prove the chain
+  # end-to-end; using a single-word slug is sufficient validation.
   SERVICE_NAME: GoldenPath
-  SERVICE_SLUG: golden_path
+  SERVICE_SLUG: goldenpath
   KIND_VERSION: v0.24.0
   KIND_IMAGE: kindest/node:v1.30.0
   # Kyverno chart version (NOT app version). Chart 3.x maps to app 1.x;
