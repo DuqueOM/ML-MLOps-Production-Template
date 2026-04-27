@@ -18,6 +18,8 @@ run in milliseconds in CI.
 
 from __future__ import annotations
 
+import importlib
+import sys
 import textwrap
 from pathlib import Path
 
@@ -25,13 +27,27 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-# Direct import so the test file works regardless of how scaffolding
-# substitutes `{service}` (the test file is processed by the same
-# placeholder substitution as the rest of the package).
-from {service}.config import (  # type: ignore[import-not-found]
-    DEMOGRAPHIC_TARGET_TOKENS,
-    QualityGatesConfig,
-)
+# Put the scaffolded `src/` directory on sys.path. The scaffold test
+# runs pytest with `PYTHONPATH=.` from the service root, and the
+# pyproject.toml `name = "{service}"` does not currently declare a
+# setuptools `package-dir` pointing at `src/`, so `pip install -e .`
+# in the scaffold smoke does not make `{service}` directly importable.
+# Re-anchoring sys.path here makes the test independent of that
+# packaging detail.
+_SRC = Path(__file__).resolve().parent.parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+# We import dynamically via importlib because the template ships with
+# `{service}` as a literal placeholder — the scaffolder (new-service.sh)
+# substitutes it into a real package name (e.g. `myservice`). A direct
+# `from {service}.config import ...` would be a syntax error before
+# substitution and would break `black` on the template itself.
+# `"{service}"` is a valid Python string literal, so this file parses
+# cleanly pre- AND post-substitution.
+_cfg_module = importlib.import_module("{service}.config")
+QualityGatesConfig = _cfg_module.QualityGatesConfig
+DEMOGRAPHIC_TARGET_TOKENS = _cfg_module.DEMOGRAPHIC_TARGET_TOKENS
 
 
 # ---------------------------------------------------------------------------
@@ -123,11 +139,11 @@ def test_optional_fields_take_defaults(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "field,bad_value",
     [
-        ("primary_threshold", 1.5),    # > 1.0 nonsensical for a probability metric
-        ("primary_threshold", -0.1),   # negative
+        ("primary_threshold", 1.5),  # > 1.0 nonsensical for a probability metric
+        ("primary_threshold", -0.1),  # negative
         ("secondary_threshold", 2.0),  # > 1.0
         ("fairness_threshold", -0.1),
-        ("latency_sla_ms", 0.0),       # gt=0.0 — must be strictly positive
+        ("latency_sla_ms", 0.0),  # gt=0.0 — must be strictly positive
         ("latency_sla_ms", -10.0),
         ("promotion_threshold", 1.5),
     ],

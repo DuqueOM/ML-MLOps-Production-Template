@@ -320,19 +320,16 @@ class Trainer:
         primary = self.gates.primary_metric
         secondary = self.gates.secondary_metric
         gates = {
-            f"{primary} >= {self.gates.primary_threshold}":
-                metrics.get(primary, 0) >= self.gates.primary_threshold,
-            f"{secondary} >= {self.gates.secondary_threshold}":
-                metrics.get(secondary, 0) >= self.gates.secondary_threshold,
+            f"{primary} >= {self.gates.primary_threshold}": metrics.get(primary, 0) >= self.gates.primary_threshold,
+            f"{secondary} >= {self.gates.secondary_threshold}": metrics.get(secondary, 0)
+            >= self.gates.secondary_threshold,
         }
 
         # Fairness gates
         for attr in self.gates.protected_attributes:
             key = f"dir_{attr}"
             if key in metrics:
-                gates[f"DIR({attr}) >= {self.gates.fairness_threshold}"] = (
-                    metrics[key] >= self.gates.fairness_threshold
-                )
+                gates[f"DIR({attr}) >= {self.gates.fairness_threshold}"] = metrics[key] >= self.gates.fairness_threshold
 
         all_passed = all(gates.values())
         failed = [name for name, passed in gates.items() if not passed]
