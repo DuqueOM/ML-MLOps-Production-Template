@@ -1,0 +1,86 @@
+# =============================================================================
+# {ServiceName} — Quality Gates Configuration
+# =============================================================================
+# Promotion thresholds + fairness requirements for this service. Loaded by:
+#   * src/{service}/training/train.py        — enforced before MLflow promotion
+#   * tests/test_quality_gates_config.py     — schema regression tests
+#   * scripts/validate_quality_gates.py      — pre-commit / CI gate
+#
+# Why is this a separate file from configs/config.yaml?
+#   The model hyperparameters in config.yaml change frequently as Optuna
+#   suggests new search spaces. The governance bar in this file should
+#   change RARELY, and every change should be a deliberate PR review.
+#   Splitting them keeps the audit trail clean and lets governance
+#   reviewers approve a quality-gate change without re-reading the
+#   model-hyperparameter diff.
+#
+# Editing this file:
+#   * Every field is enforced by a Pydantic schema in src/{service}/config.py
+#     (class QualityGatesConfig). A typo or missing required field fails
+#     fast on `train.py --validate-config-only` BEFORE the training run.
+#   * Loosening a threshold requires an ADR (see docs/decisions/).
+#
+# Required fields (no defaults, fail-loudly):
+#   * primary_metric, primary_threshold
+#   * secondary_metric, secondary_threshold
+#   * protected_attributes  (use [] to declare "fairness was considered
+#                            and no attribute applies" — the demographic-
+#                            target heuristic still rejects [] when the
+#                            target column itself is demographic.)
+#
+# Optional fields (defaults shown):
+#   * fairness_threshold      (0.80 — Equal Opportunity Commission "four-fifths" rule)
+#   * latency_sla_ms          (100.0)
+#   * promotion_threshold     (0.0 — disables baseline-comparison auto-promote)
+# =============================================================================
+
+# --- Primary metric ----------------------------------------------------------
+# The metric the model is optimised against. Choose one whose business
+# meaning maps cleanly to your service's failure mode.
+#   * roc_auc  → ranking quality (recommended for fraud / risk scoring)
+#   * f1       → balance of precision & recall (good for moderate-imbalance)
+#   * average_precision → robust under heavy class imbalance (PR-AUC)
+primary_metric: "roc_auc"
+primary_threshold: 0.80
+
+# --- Secondary metric --------------------------------------------------------
+# Sanity check; a model that hits primary but tanks secondary is usually
+# overfitting on a tiny positive class. Both must pass.
+secondary_metric: "f1"
+secondary_threshold: 0.55
+
+# --- Fairness ---------------------------------------------------------------
+# Disparate Impact Ratio floor. Defaults to 0.80 (the Equal Opportunity
+# Commission "four-fifths" rule). Models below this MUST NOT promote
+# without an explicit ADR documenting the trade-off.
+fairness_threshold: 0.80
+
+# --- Protected attributes ---------------------------------------------------
+# Feature names whose DIR will be checked at training time. REQUIRED field
+# with NO default — adopters must explicitly declare either:
+#   * a non-empty list (the standard case for any service that handles PII), OR
+#   * an empty list `[]` (a deliberate statement that none apply, e.g. a
+#     pure technical-anomaly classifier with no demographic features).
+#
+# Set `[]` cautiously. The demographic-target heuristic in the Pydantic
+# config will REJECT an empty list when `data.target_column` itself looks
+# demographic (gender / race / age_group / …).
+#
+# Example for a customer-churn model with demographic features:
+#   protected_attributes:
+#     - "Geography"
+#     - "Gender"
+#     - "AgeGroup"
+protected_attributes: []
+
+# --- Latency SLA ------------------------------------------------------------
+# P95 inference latency the load test targets. Tighten this for
+# user-facing real-time services; relax for batch.
+latency_sla_ms: 100.0
+
+# --- Auto-promotion ---------------------------------------------------------
+# Minimum delta over the current production baseline required for
+# auto-promotion to MLflow Production stage. 0.0 disables auto-promote
+# (every promotion requires a human review, the safer default for
+# brand-new services).
+promotion_threshold: 0.0

@@ -294,12 +294,15 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
 fi
 
 if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
-  # 8c. Run the real test suite (test_api.py + test_training.py +
-  # contract/*.py). Validates that the scaffolded service is testable
-  # AND its tests pass against a freshly-generated snapshot.
-  info "Running pytest (test_api.py + test_training.py + contract/)..."
+  # 8c. Run the real test suite. Validates that the scaffolded service
+  # is testable AND its tests pass against a freshly-generated snapshot.
+  # `test_quality_gates_config.py` was added by PR-R2-7 (audit R2 §4.2)
+  # to gate every change to configs/quality_gates.yaml — it runs in
+  # milliseconds (no sklearn imports) so it's cheap to include here.
+  info "Running pytest (test_api.py + test_training.py + test_quality_gates_config.py + contract/)..."
   if (cd "$SERVICE_DIR" && PYTHONPATH=. timeout 180 pytest \
-        tests/test_api.py tests/test_training.py tests/contract/ \
+        tests/test_api.py tests/test_training.py \
+        tests/test_quality_gates_config.py tests/contract/ \
         -q --tb=short --no-cov) > "$TEMP_ROOT/pytest.log" 2>&1; then
     pass "pytest passed on freshly-scaffolded service"
   else

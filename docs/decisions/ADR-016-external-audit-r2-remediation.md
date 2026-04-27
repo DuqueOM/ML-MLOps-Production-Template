@@ -275,24 +275,67 @@ turned out unnecessary: every asymmetry is now an in-file comment
 in the relevant `.tf` (e.g. why access_logs uses AES256 not KMS).
 Adoption-boundary doc for parity tiers stays as PR-R2-12 scope.
 
-### PR-R2-7 — Quality-gate config externalized per service
+### PR-R2-7 — Quality-gate config externalized per service ✅
 
 Severity: **Medium**. Affected: `templates/service/src/{service}/training/train.py:145,215,221`.
 
-- Move quality-gate thresholds (split strategy, protected attributes,
-  promotion threshold, fairness DIR floor) from defaults inside
-  `train.py` to `configs/quality_gates.yaml` per service.
-- The schema is enforced by Pydantic; missing required keys (e.g.
-  `protected_attributes`) refuse to load.
-- `train.py` rejects models that pass with `protected_attributes:
-  []` AND `target` looks demographic — heuristic warning escalates
-  to STOP per ADR-005.
-- Document the migration: existing services keep their current
-  thresholds via a generated `configs/quality_gates.yaml` from
-  per-service ADRs.
+**Status:** Closed by commit (this PR).
 
-Exit: `python -m src.<svc>.training.train --validate-config-only`
-fails on any service whose config is incomplete.
+Quality-gate thresholds (primary/secondary metric + threshold,
+fairness DIR floor, latency SLA, protected attributes, promotion
+threshold) used to live as module-level constants in
+`templates/service/src/{service}/training/train.py`. They now live
+in `templates/service/configs/quality_gates.yaml`, parsed by a
+`QualityGatesConfig` Pydantic model in `config.py`.
+
+What landed:
+
+- ✅ `QualityGatesConfig` (Pydantic): every threshold has range
+  validation (`ge=0.0, le=1.0` on probabilities, `gt=0.0` on the
+  latency SLA), metric names reject leading/trailing whitespace,
+  and `protected_attributes` rejects duplicates.
+- ✅ Required-no-default fields: `primary_metric`,
+  `primary_threshold`, `secondary_metric`, `secondary_threshold`,
+  `protected_attributes`. Missing any one fails Pydantic at load
+  time with a clear ValidationError naming the missing field.
+  Optional fields (`fairness_threshold`, `latency_sla_ms`,
+  `promotion_threshold`) keep sensible defaults so a minimal YAML
+  still validates.
+- ✅ Demographic-target heuristic: `validate_against_data()` rejects
+  any config where `target_column` substring-matches one of
+  `DEMOGRAPHIC_TARGET_TOKENS` (gender, race, ethnicity, religion,
+  age_group, …) AND `protected_attributes == []`. Match is
+  case-insensitive. Operators must either populate
+  `protected_attributes` or document an explicit ADR explaining
+  why DIR enforcement does not apply (escalates to STOP per
+  ADR-005).
+- ✅ `train.py` no longer holds module-level threshold constants.
+  `Trainer.__init__` loads the gates BEFORE any data work —
+  config typos fail in milliseconds, not after a 30-minute Optuna
+  run. The fairness check, the cross_val_score scoring metric,
+  and the final `_quality_gates` evaluator all read from the
+  loaded `QualityGatesConfig`.
+- ✅ `--validate-config-only` CLI flag: cheap CI gate that loads
+  the YAML and runs the demographic-target heuristic without
+  importing sklearn/MLflow, exits 0 / 2 with a stderr message.
+- ✅ `tests/test_quality_gates_config.py`: 37 tests covering
+  schema integrity, range validation, the demographic heuristic
+  (parametrised over every token), case-insensitivity, substring
+  match (`customer_gender_v2`), and round-trip dump/reload.
+- ✅ `scripts/test_scaffold.sh` extended to run the new test
+  file in the SCAFFOLD_SMOKE pass — every PR that touches the
+  config schema is gated through CI.
+
+Migration note: a fresh scaffold ships
+`configs/quality_gates.yaml` with `protected_attributes: []` (the
+explicit "fairness considered, none apply" stance) and a comment
+showing how to populate it. Existing services in user repos that
+did NOT regenerate from this template need to add the YAML
+manually — `python -m src.<svc>.training.train --validate-config-only`
+prints the missing-field error in the same form Pydantic uses.
+
+Exit criteria all met. Local validation: 37/37 tests pass on a
+freshly-substituted scaffold.
 
 ### PR-R2-8 — EDA artifacts as machine-readable contracts
 
