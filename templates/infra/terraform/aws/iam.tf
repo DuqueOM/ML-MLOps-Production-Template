@@ -1,0 +1,181 @@
+# =============================================================================
+# Per-service IRSA roles + narrow policies (PR-R2-6, audit R2 §3.4).
+#
+# Each entry in var.service_names gets:
+#   * an IAM role assumable by the K8s ServiceAccount of the same
+#     name in namespace `ml-services`, via the EKS OIDC provider;
+#   * an inline policy with the *minimum* permissions the template's
+#     standard service shape needs:
+#         - read on the data bucket (ingest features)
+#         - read+write on the service's own model prefix in the
+#           models bucket (write new artifacts, read on rollback)
+#         - read+write on the mlflow_artifacts bucket (per-run
+#           artefacts; tracking server is the source of truth)
+#         - decrypt on the S3 SSE KMS key (so reads of encrypted
+#           objects actually work)
+#         - GetSecretValue on the service's secrets only
+#
+# Anti-patterns explicitly excluded:
+#   * No `Action: "*"` and no `Resource: "*"` — both would defeat the
+#     audit's narrow-IRSA requirement.
+#   * No s3:DeleteBucket / s3:PutBucketPolicy — the role can write
+#     OBJECTS, never reconfigure infrastructure.
+#   * No iam:* — a compromised pod cannot self-elevate.
+#
+# To deploy a real service:
+#   1. Add its name to var.service_names.
+#   2. Annotate its K8s ServiceAccount:
+#        eks.amazonaws.com/role-arn: <output of this role's ARN>
+# =============================================================================
+
+# OIDC issuer hostname (without the https:// prefix). The trust policy
+# expects this exact form because the OIDC sub claim references
+# "<host>:sub:system:serviceaccount:<ns>:<sa>".
+locals {
+  oidc_issuer_host = replace(
+    aws_iam_openid_connect_provider.eks.url,
+    "https://",
+    "",
+  )
+
+  # ml-services is the canonical namespace for the template's
+  # services. Overlays may pin a different namespace via
+  # serviceaccount.yaml; if you change this, update the trust
+  # policy below.
+  service_namespace = "ml-services"
+}
+
+resource "aws_iam_role" "service" {
+  for_each = toset(var.service_names)
+
+  name = "${var.project_name}-${each.value}-irsa-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.eks.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          # `aud` claim must be sts.amazonaws.com (set in the OIDC
+          # provider client_id_list); `sub` must match the exact
+          # ServiceAccount.
+          "${local.oidc_issuer_host}:aud" = "sts.amazonaws.com"
+          "${local.oidc_issuer_host}:sub" = "system:serviceaccount:${local.service_namespace}:${each.value}"
+        }
+      }
+    }]
+  })
+
+  tags = {
+    environment = var.environment
+    managed-by  = "terraform"
+    service     = each.value
+  }
+}
+
+resource "aws_iam_policy" "service" {
+  for_each = toset(var.service_names)
+
+  name        = "${var.project_name}-${each.value}-policy-${var.environment}"
+  description = "Narrow per-service S3+KMS+Secrets policy (PR-R2-6) for ${each.value}."
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # Data bucket — read only.
+      {
+        Sid    = "DataBucketReadOnly"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          aws_s3_bucket.data.arn,
+          "${aws_s3_bucket.data.arn}/*",
+        ]
+      },
+      # Models bucket — read+write only under the service's prefix.
+      {
+        Sid    = "ModelsBucketServicePrefix"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:GetObjectVersion",
+        ]
+        Resource = [
+          "${aws_s3_bucket.models.arn}/${each.value}/*",
+        ]
+      },
+      {
+        Sid      = "ModelsBucketList"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = [aws_s3_bucket.models.arn]
+        Condition = {
+          StringLike = {
+            "s3:prefix" = ["${each.value}/*"]
+          }
+        }
+      },
+      # MLflow artifacts — full read/write (per-run keys are unique).
+      {
+        Sid    = "MlflowArtifactsReadWrite"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket",
+        ]
+        Resource = [
+          aws_s3_bucket.mlflow_artifacts.arn,
+          "${aws_s3_bucket.mlflow_artifacts.arn}/*",
+        ]
+      },
+      # KMS — needed to actually read/write the SSE-encrypted objects.
+      {
+        Sid    = "S3SseKmsUse"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+        ]
+        Resource = [aws_kms_key.s3.arn]
+      },
+      # Secrets — only the per-service secrets, never others.
+      # Resource ARN pattern matches `secret_names` provisioned in
+      # secrets.tf with the service prefix; if `var.service_names`
+      # changes, this glob still scopes correctly.
+      {
+        Sid    = "ServiceSecretsRead"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.region}:*:secret:${var.project_name}/${each.value}/*",
+        ]
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "service" {
+  for_each = toset(var.service_names)
+
+  role       = aws_iam_role.service[each.value].name
+  policy_arn = aws_iam_policy.service[each.value].arn
+}
+
+# Convenience output: the ServiceAccount annotation each overlay needs.
+output "service_irsa_role_arns" {
+  description = "Map of service name → IRSA role ARN for serviceaccount.yaml annotations."
+  value       = { for s in var.service_names : s => aws_iam_role.service[s].arn }
+}
