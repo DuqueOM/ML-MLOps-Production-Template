@@ -31,6 +31,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
+from ..config import QualityGatesConfig
 from ..schemas import ServiceInputSchema
 from .features import FeatureEngineer
 from .model import build_pipeline
@@ -40,19 +41,20 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Configuration — customize per service
 # ---------------------------------------------------------------------------
+# PR-R2-7: every quality-gate threshold (primary/secondary metric,
+# fairness floor, protected attributes) was previously a module-level
+# constant. They now live in `configs/quality_gates.yaml`, validated
+# by Pydantic at load time, so:
+#   * raising a fairness floor is a one-file PR not a code change
+#   * a typo fails the run with a clear error, not silently
+#   * `--validate-config-only` lets CI verify the file before any
+#     expensive training step
+# Hyperparameters that DO NOT belong in the governance contract
+# (Optuna trials, CV folds, RNG seed) stay here.
 EXPERIMENT_NAME = "{ServiceName}-Production"
 MODEL_REGISTRY_NAME = "{ServiceName}Classifier"
 
-# Quality gates — set real thresholds for your service
-PRIMARY_METRIC = "roc_auc"
-PRIMARY_THRESHOLD = 0.80
-SECONDARY_METRIC = "f1"
-SECONDARY_THRESHOLD = 0.55
-FAIRNESS_THRESHOLD = 0.80  # Disparate Impact Ratio
-LATENCY_SLA_MS = 100.0
-
-# Protected attributes for fairness checks
-PROTECTED_ATTRIBUTES: list[str] = []  # e.g., ["gender", "age_group"]
+DEFAULT_QUALITY_GATES_PATH = "configs/quality_gates.yaml"
 
 OPTUNA_TRIALS = 50
 CV_FOLDS = 5
@@ -62,11 +64,28 @@ RANDOM_STATE = 42
 class Trainer:
     """Orchestrates the full training pipeline."""
 
-    def __init__(self, data_path: str, output_dir: str = "models") -> None:
+    def __init__(
+        self,
+        data_path: str,
+        output_dir: str = "models",
+        quality_gates: QualityGatesConfig | None = None,
+        quality_gates_path: str = DEFAULT_QUALITY_GATES_PATH,
+        target_column: str = "target",
+    ) -> None:
         self.data_path = data_path
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.feature_engineer = FeatureEngineer()
+        self.target_column = target_column
+
+        # Load + validate quality gates BEFORE any data work. A typo
+        # in quality_gates.yaml should fail in milliseconds, not after
+        # a 30-minute Optuna run.
+        if quality_gates is None:
+            quality_gates = QualityGatesConfig.from_yaml(quality_gates_path)
+        # Cross-config sanity: target_column vs protected_attributes.
+        quality_gates.validate_against_data(target_column)
+        self.gates = quality_gates
 
     def run(self, optuna_trials: int = OPTUNA_TRIALS) -> dict[str, Any]:
         """Execute the complete training pipeline.
@@ -98,7 +117,7 @@ class Trainer:
             splits["X_train"],
             splits["y_train"],
             cv=StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE),
-            scoring=PRIMARY_METRIC,
+            scoring=self.gates.primary_metric,
         )
         pipeline.fit(splits["X_train"], splits["y_train"])
 
@@ -174,7 +193,7 @@ class Trainer:
                 X_train,
                 y_train,
                 cv=StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE),
-                scoring=PRIMARY_METRIC,
+                scoring=self.gates.primary_metric,
             ).mean()
             return score
 
@@ -208,19 +227,24 @@ class Trainer:
         """Check Disparate Impact Ratio per protected attribute.
 
         DIR = P(positive | unprivileged) / P(positive | privileged)
-        Must be >= 0.80 for each protected attribute.
+        Must be >= ``self.gates.fairness_threshold`` (default 0.80,
+        the EOC four-fifths rule) for each protected attribute.
         """
         metrics: dict[str, float] = {}
 
-        if not PROTECTED_ATTRIBUTES:
-            logger.warning("No protected attributes defined — skipping fairness check")
+        if not self.gates.protected_attributes:
+            # An EMPTY list is a deliberate, audited choice the operator
+            # made in quality_gates.yaml (and validate_against_data has
+            # already rejected the demographic-target × empty-list case
+            # at config-load time). Skip cleanly without warning spam.
+            logger.info("No protected attributes configured — fairness check skipped by design")
             return metrics
 
         X_test = splits["X_test"]
         y_prob = pipeline.predict_proba(X_test)[:, 1]
         threshold = 0.5  # TODO: Use optimal threshold
 
-        for attr in PROTECTED_ATTRIBUTES:
+        for attr in self.gates.protected_attributes:
             if attr not in X_test.columns:
                 logger.warning("Protected attribute '%s' not in test data", attr)
                 continue
@@ -241,12 +265,12 @@ class Trainer:
             dir_value = min_rate / max_rate if max_rate > 0 else 0.0
             metrics[f"dir_{attr}"] = dir_value
 
-            if dir_value < FAIRNESS_THRESHOLD:
+            if dir_value < self.gates.fairness_threshold:
                 logger.warning(
                     "Fairness violation: DIR for %s = %.3f (threshold: %.2f)",
                     attr,
                     dir_value,
-                    FAIRNESS_THRESHOLD,
+                    self.gates.fairness_threshold,
                 )
 
         return metrics
@@ -293,16 +317,22 @@ class Trainer:
 
     def _quality_gates(self, metrics: dict) -> dict[str, bool]:
         """Check all quality gates. ALL must pass for promotion."""
+        primary = self.gates.primary_metric
+        secondary = self.gates.secondary_metric
         gates = {
-            f"{PRIMARY_METRIC} >= {PRIMARY_THRESHOLD}": metrics.get(PRIMARY_METRIC, 0) >= PRIMARY_THRESHOLD,
-            f"{SECONDARY_METRIC} >= {SECONDARY_THRESHOLD}": metrics.get(SECONDARY_METRIC, 0) >= SECONDARY_THRESHOLD,
+            f"{primary} >= {self.gates.primary_threshold}":
+                metrics.get(primary, 0) >= self.gates.primary_threshold,
+            f"{secondary} >= {self.gates.secondary_threshold}":
+                metrics.get(secondary, 0) >= self.gates.secondary_threshold,
         }
 
         # Fairness gates
-        for attr in PROTECTED_ATTRIBUTES:
+        for attr in self.gates.protected_attributes:
             key = f"dir_{attr}"
             if key in metrics:
-                gates[f"DIR({attr}) >= {FAIRNESS_THRESHOLD}"] = metrics[key] >= FAIRNESS_THRESHOLD
+                gates[f"DIR({attr}) >= {self.gates.fairness_threshold}"] = (
+                    metrics[key] >= self.gates.fairness_threshold
+                )
 
         all_passed = all(gates.values())
         failed = [name for name, passed in gates.items() if not passed]
@@ -317,15 +347,51 @@ class Trainer:
 
 if __name__ == "__main__":
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="Train {ServiceName} model")
-    parser.add_argument("--data", required=True, help="Path to training CSV")
+    parser.add_argument("--data", help="Path to training CSV (required unless --validate-config-only)")
     parser.add_argument("--experiment", default=EXPERIMENT_NAME, help="MLflow experiment name")
     parser.add_argument("--optuna-trials", type=int, default=OPTUNA_TRIALS, help="Optuna trials")
+    parser.add_argument(
+        "--quality-gates",
+        default=DEFAULT_QUALITY_GATES_PATH,
+        help="Path to quality_gates.yaml (default: configs/quality_gates.yaml)",
+    )
+    parser.add_argument(
+        "--target-column",
+        default="target",
+        help="Target column name; cross-checked vs protected_attributes (PR-R2-7).",
+    )
+    parser.add_argument(
+        "--validate-config-only",
+        action="store_true",
+        help="Load + validate configs/quality_gates.yaml and exit. CI gate (PR-R2-7).",
+    )
     args = parser.parse_args()
 
+    # PR-R2-7: cheap CI-time validation that quality_gates.yaml parses
+    # AND survives the demographic-target heuristic. Run BEFORE any
+    # expensive setup (no MLflow connection, no data load).
+    if args.validate_config_only:
+        try:
+            gates = QualityGatesConfig.from_yaml(args.quality_gates)
+            gates.validate_against_data(args.target_column)
+        except Exception as exc:  # noqa: BLE001 — surface every config error
+            print(f"quality_gates config invalid: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(f"quality_gates config OK: {args.quality_gates}")
+        sys.exit(0)
+
+    if not args.data:
+        parser.error("--data is required unless --validate-config-only is set")
+
     EXPERIMENT_NAME = args.experiment
-    trainer = Trainer(data_path=args.data)
+    trainer = Trainer(
+        data_path=args.data,
+        quality_gates_path=args.quality_gates,
+        target_column=args.target_column,
+    )
     result = trainer.run(optuna_trials=args.optuna_trials)
 
     print(json.dumps(result, indent=2, default=str))
