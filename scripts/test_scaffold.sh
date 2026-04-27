@@ -142,8 +142,16 @@ done
 info "Checking for unreplaced placeholders..."
 # grep exits 1 when no matches — swallow with `|| true` before counting,
 # otherwise `set -o pipefail` would kill the script.
+# PR-A5b added the `{service-name}` (kebab) placeholder. The leak check
+# MUST include it in the regex; otherwise a regression in the scaffolder
+# that stops substituting `{service-name}` would silently pass this gate.
+# `{service-name}` MUST appear BEFORE `{service}` in the regex so the
+# longer alternative is tried first (POSIX EREs left-to-right). Note
+# that the literal forms differ at the closing brace (`-name}` vs `}`)
+# so the leftmost-match wouldn't actually swallow the kebab placeholder
+# either way; the order is purely code hygiene.
 PLACEHOLDER_HITS=$({
-  grep -rE "\{ServiceName\}|\{service\}|\{SERVICE\}" \
+  grep -rE "\{ServiceName\}|\{service-name\}|\{service\}|\{SERVICE\}" \
     "$SERVICE_DIR" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="*.json" \
@@ -152,10 +160,10 @@ PLACEHOLDER_HITS=$({
 } | wc -l)
 
 if [[ "$PLACEHOLDER_HITS" -eq 0 ]]; then
-  pass "Zero unreplaced placeholders"
+  pass "Zero unreplaced placeholders ({ServiceName}, {service-name}, {service}, {SERVICE})"
 else
   fail "$PLACEHOLDER_HITS lines still contain placeholders:"
-  grep -rEn "\{ServiceName\}|\{service\}|\{SERVICE\}" \
+  grep -rEn "\{ServiceName\}|\{service-name\}|\{service\}|\{SERVICE\}" \
     "$SERVICE_DIR" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="Dockerfile" \

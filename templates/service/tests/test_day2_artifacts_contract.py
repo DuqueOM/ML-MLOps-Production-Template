@@ -251,3 +251,103 @@ def test_workflow_records_audit_entry() -> None:
         "`scripts/audit_record.py`. Without this, the per-day drift "
         "verdict never reaches `ops/audit.jsonl` (ADR-014 §3.5)."
     )
+
+
+def test_audit_record_cli_actually_works_with_workflow_args(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    """Smoke test: invoke `audit_record.py` with the EXACT argument
+    shape the new workflow uses, against a tmp ``ops/audit.jsonl``,
+    and assert (a) exit 0, (b) one new JSONL line, (c) it parses with
+    the expected fields.
+
+    This closes a loop the structural test
+    ``test_workflow_records_audit_entry`` deliberately does NOT close
+    — that one only asserts the YAML CONTAINS the invocation. If the
+    CLI's argument grammar regressed (e.g. ``--final-mode`` renamed
+    to ``--effective-mode``), the structural test would still pass
+    while the workflow would fail every night until a human noticed.
+    """
+    import subprocess
+    import sys
+
+    # Locate audit_record.py. Same dual-layout convention as elsewhere:
+    # in scaffolded service it lives at scripts/audit_record.py
+    # (copied by new-service.sh); in template repo it lives at
+    # /repo-root/scripts/audit_record.py.
+    here = Path(__file__).resolve()
+    candidates = [
+        here.parents[1] / "scripts" / "audit_record.py",
+        here.parents[2] / "scripts" / "audit_record.py",
+        here.parents[3] / "scripts" / "audit_record.py",
+    ]
+    cli = next((p for p in candidates if p.is_file()), None)
+    if cli is None:
+        pytest.skip(
+            "audit_record.py not present in any candidate path; "
+            "skipping smoke test"
+        )
+
+    # Find common_utils so audit_record can import it. Same dual-layout
+    # logic as the drills test.
+    extra_path = None
+    for prefix in (here.parents[1], here.parents[2], here.parents[3]):
+        if (prefix / "common_utils").is_dir():
+            extra_path = str(prefix)
+            break
+        if (prefix / "templates" / "common_utils").is_dir():
+            extra_path = str(prefix / "templates")
+            break
+
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "PYTHONPATH": extra_path or "",
+        "HOME": str(tmp_path),
+    }
+
+    # Mirror the workflow's invocation verbatim — same agent name,
+    # same operation slug, same JSON shape on inputs/outputs.
+    audit_dir = tmp_path / "ops"
+    audit_dir.mkdir()
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(cli),
+            "--agent", "terraform-plan-nightly",
+            "--operation", "infra_drift_check",
+            "--environment", "dev",
+            "--base-mode", "AUTO",
+            "--final-mode", "AUTO",
+            "--result", "success",
+            "--inputs", '{"trigger":"schedule","cloud":"both"}',
+            "--outputs", '{"gcp":"success","aws":"success","run_url":"https://example/run/1"}',
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert proc.returncode == 0, (
+        f"audit_record.py exited {proc.returncode} with workflow args. "
+        f"stderr:\n{proc.stderr}\nstdout:\n{proc.stdout}"
+    )
+
+    audit_log = audit_dir / "audit.jsonl"
+    assert audit_log.is_file(), (
+        f"audit_record.py exited 0 but ops/audit.jsonl was not created. "
+        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
+    lines = [ln for ln in audit_log.read_text().splitlines() if ln.strip()]
+    assert len(lines) == 1, f"expected 1 audit line, got {len(lines)}"
+
+    import json
+
+    entry = json.loads(lines[0])
+    # Field names the workflow's --outputs depends on existing on the
+    # downstream side of the ledger. If `agent` becomes `agent_name`
+    # one day, the workflow's audit step will silently misroute.
+    assert entry.get("agent") == "terraform-plan-nightly"
+    assert entry.get("operation") == "infra_drift_check"
+    assert entry.get("environment") == "dev"
+    assert entry.get("result") == "success"
