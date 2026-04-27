@@ -207,9 +207,7 @@ def main() -> int:
         # gates without re-reading the manifest.
         "evidence_gate.passed": "true" if (verdict and verdict.passed) else "skipped",
         "evidence_gate.skip_reason": args.skip_reason or "",
-        "evidence_gate.warnings": (
-            "; ".join(verdict.warnings) if verdict and verdict.warnings else ""
-        ),
+        "evidence_gate.warnings": ("; ".join(verdict.warnings) if verdict and verdict.warnings else ""),
     }
 
     experiment_name = f"{args.service}-promotions"

@@ -174,8 +174,7 @@ class Trainer:
         artifacts_dir = Path(self.eda_artifacts_dir)
         if not artifacts_dir.exists():
             logger.warning(
-                "EDA gate skipped: %s does not exist. Run "
-                "`python -m eda.eda_pipeline` to enable the leakage gate.",
+                "EDA gate skipped: %s does not exist. Run " "`python -m eda.eda_pipeline` to enable the leakage gate.",
                 artifacts_dir,
             )
             return
@@ -184,8 +183,7 @@ class Trainer:
             report = load_leakage_report(artifacts_dir)
         except EDAArtifactNotFoundError:
             logger.warning(
-                "EDA gate: leakage_report.json missing under %s — "
-                "treat as PR-B2-not-yet-adopted and continue.",
+                "EDA gate: leakage_report.json missing under %s — " "treat as PR-B2-not-yet-adopted and continue.",
                 artifacts_dir,
             )
         else:
@@ -205,7 +203,9 @@ class Trainer:
         except EDAArtifactNotFoundError:
             return
         n_transforms = len(catalog.get("transforms", []))
-        logger.info("EDA feature catalog: %d transform(s) approved (D-16 rationale enforced at load time)", n_transforms)
+        logger.info(
+            "EDA feature catalog: %d transform(s) approved (D-16 rationale enforced at load time)", n_transforms
+        )
 
     def run(self, optuna_trials: int = OPTUNA_TRIALS) -> dict[str, Any]:
         """Execute the complete training pipeline.

@@ -32,7 +32,6 @@ from common_utils import eda_artifacts as ea  # noqa: E402
 from common_utils import evidence_bundle as eb  # noqa: E402
 from common_utils import training_manifest as tm  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Fixture builder — synthesise a fully-passing evidence bundle on disk
 # ---------------------------------------------------------------------------
@@ -103,8 +102,7 @@ def _build_passing_bundle(
         "target_column": "y",
         "n_rows": 100,
         "n_columns": 3,
-        "split": ({"strategy": split_strategy, "n_train": 80, "n_test": 20}
-                  if split_strategy is not None else {}),
+        "split": ({"strategy": split_strategy, "n_train": 80, "n_test": 20} if split_strategy is not None else {}),
         "optuna_trials": 10,
         "cv_folds": 5,
         "eda_artifacts_dir": str(eda_dir) if eda_dir else None,

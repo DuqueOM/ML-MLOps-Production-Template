@@ -201,8 +201,7 @@ def _check_version(payload: dict, where: Path) -> None:
     found = payload.get("eda_artifact_version")
     if found is None:
         raise EDAArtifactSchemaError(
-            f"{where}: missing required key 'eda_artifact_version' "
-            f"(this loader expects version {ARTIFACT_VERSION})"
+            f"{where}: missing required key 'eda_artifact_version' " f"(this loader expects version {ARTIFACT_VERSION})"
         )
     if found != ARTIFACT_VERSION:
         raise EDAArtifactVersionError(
@@ -297,8 +296,7 @@ def load_baseline_distributions(base_dir: Path | str | None = None):
     versions = set(df["eda_artifact_version"].unique())
     if versions != {ARTIFACT_VERSION}:
         raise EDAArtifactVersionError(
-            f"{path}: artifact version(s) {versions} do not match "
-            f"loader version {ARTIFACT_VERSION}"
+            f"{path}: artifact version(s) {versions} do not match " f"loader version {ARTIFACT_VERSION}"
         )
     required_cols = {"feature", "kind", "key", "value", "eda_artifact_version"}
     missing = required_cols - set(df.columns)

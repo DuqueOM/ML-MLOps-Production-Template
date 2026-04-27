@@ -56,9 +56,7 @@ def _load_drill(module_filename: str):
         pytest.skip(f"{module_filename} not present at {path}")
     if str(drills_dir) not in sys.path:
         sys.path.insert(0, str(drills_dir))
-    spec = importlib.util.spec_from_file_location(
-        f"_drill_{path.stem}", path
-    )
+    spec = importlib.util.spec_from_file_location(f"_drill_{path.stem}", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -90,9 +88,9 @@ def _service_root_and_extra_pythonpath(
     if not src.is_dir():
         pytest.skip("service src/ not present in this layout")
     pkgs = [
-        d for d in src.iterdir()
-        if d.is_dir() and d.name not in {"__pycache__"}
-        and (d / "monitoring" / "drift_detection.py").is_file()
+        d
+        for d in src.iterdir()
+        if d.is_dir() and d.name not in {"__pycache__"} and (d / "monitoring" / "drift_detection.py").is_file()
     ]
     if not pkgs:
         pytest.skip("no rendered service package found under src/ — template layout")
@@ -112,9 +110,7 @@ def _service_root_and_extra_pythonpath(
 # ---------------------------------------------------------------------------
 
 
-def test_drift_drill_runs_and_produces_expected_verdict(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_drift_drill_runs_and_produces_expected_verdict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service_root = _service_root_and_extra_pythonpath(monkeypatch)
     drill = _load_drill("run_drift_drill.py")
 
@@ -160,9 +156,7 @@ def test_drift_drill_runs_and_produces_expected_verdict(
     assert drift_report.is_file()
 
 
-def test_drift_drill_is_reproducible(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_drift_drill_is_reproducible(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Same seeds, same module, two runs → identical verdict and PSI."""
     service_root = _service_root_and_extra_pythonpath(monkeypatch)
     drill = _load_drill("run_drift_drill.py")
@@ -198,16 +192,12 @@ def test_drift_drill_is_reproducible(
 # ---------------------------------------------------------------------------
 
 
-def test_deploy_degraded_drill_blocks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_deploy_degraded_drill_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service_root = _service_root_and_extra_pythonpath(monkeypatch)
     drill = _load_drill("run_deploy_degraded_drill.py")
     monkeypatch.chdir(service_root)
 
-    monkeypatch.setattr(
-        "sys.argv", ["run_deploy_degraded_drill.py", "--output-dir", str(tmp_path)]
-    )
+    monkeypatch.setattr("sys.argv", ["run_deploy_degraded_drill.py", "--output-dir", str(tmp_path)])
     rc = drill.main()
     assert rc == 0, f"deploy-degraded drill exited {rc}; expected 0 (gate blocked)"
 
@@ -227,8 +217,7 @@ def test_deploy_degraded_drill_blocks(
     # the test is the canary for that drift in the synthesis routine.
     assert facts["delta_auc_point"] is not None
     assert facts["delta_auc_point"] <= 0.05, (
-        f"shuffled-label challenger should not look superior; got "
-        f"delta_auc_point={facts['delta_auc_point']}"
+        f"shuffled-label challenger should not look superior; got " f"delta_auc_point={facts['delta_auc_point']}"
     )
 
     cc_report = runs[0] / "artifacts" / "champion_challenger.json"
@@ -237,9 +226,7 @@ def test_deploy_degraded_drill_blocks(
     assert cc_data["decision"]["decision"] == "block"
 
 
-def test_deploy_degraded_drill_is_reproducible(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_deploy_degraded_drill_is_reproducible(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Same seeds → same decision and same ΔAUC point estimate."""
     service_root = _service_root_and_extra_pythonpath(monkeypatch)
     drill = _load_drill("run_deploy_degraded_drill.py")
@@ -279,7 +266,4 @@ def test_drills_catalogue_has_canonical_entries() -> None:
     expected = {"run_drift_drill.py", "run_deploy_degraded_drill.py"}
     present = {p.name for p in drills_dir.glob("run_*_drill.py")}
     missing = expected - present
-    assert not missing, (
-        f"drills catalogue missing canonical entries: {sorted(missing)}\n"
-        f"present: {sorted(present)}"
-    )
+    assert not missing, f"drills catalogue missing canonical entries: {sorted(missing)}\n" f"present: {sorted(present)}"

@@ -53,7 +53,6 @@ if str(_REPO_ROOT / "templates") not in sys.path:
 drift = importlib.import_module("{service}.monitoring.drift_detection")
 import common_utils.eda_artifacts as ea  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -178,17 +177,15 @@ def test_detect_drift_eda_baseline_no_drift(
     assert results["summary"]["baseline_source"] == "eda_parquet"
     assert results["summary"]["requires_action"] is False
     for feat, data in results["features"].items():
-        assert data["psi"] < drift.DEFAULT_WARNING, (
-            f"feature {feat}: PSI {data['psi']} above warning threshold on no-drift data"
-        )
+        assert (
+            data["psi"] < drift.DEFAULT_WARNING
+        ), f"feature {feat}: PSI {data['psi']} above warning threshold on no-drift data"
         # In EDA-baseline-only mode (no reference CSV), reference stats are None.
         assert data["reference_mean"] is None
         assert data["reference_std"] is None
 
 
-def test_detect_drift_eda_baseline_flags_alert(
-    baseline_parquet: Path, current_drifted_csv: Path
-) -> None:
+def test_detect_drift_eda_baseline_flags_alert(baseline_parquet: Path, current_drifted_csv: Path) -> None:
     results = drift.detect_drift(
         reference_path=None,
         current_path=str(current_drifted_csv),
