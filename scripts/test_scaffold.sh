@@ -320,10 +320,21 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
   # there means a config that passed CI Pydantic validation could
   # still fail JSON-Schema validation in a downstream tool — the
   # exact silent-divergence ADR-015 PR-B1 closes.
+  # `test_eda_gate.py` + `test_drift_eda_baseline.py` (PR-B2 stage 2)
+  # gate the canonical EDA-artifact contract end-to-end:
+  #   - training refuses to start when leakage_report.json is BLOCKED;
+  #   - drift CronJob can compute PSI against the parquet baseline;
+  #   - both modes (legacy CSV reference / new EDA baseline) agree
+  #     within tolerance on no-drift data.
+  # Without these, a service could ship the canonical artifacts but
+  # silently fall back to legacy CSV mode in production — exactly the
+  # silent-divergence ADR-015 PR-B2 closes.
   if (cd "$SERVICE_DIR" && PYTHONPATH=. timeout 180 pytest \
         tests/test_api.py tests/test_training.py \
         tests/test_quality_gates_config.py \
         tests/test_quality_gates_schema_sync.py \
+        tests/test_eda_gate.py \
+        tests/test_drift_eda_baseline.py \
         tests/test_prediction_logger_lifecycle.py \
         tests/test_error_envelope.py \
         tests/test_input_validation.py \

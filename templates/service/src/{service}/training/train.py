@@ -36,6 +36,22 @@ from ..schemas import ServiceInputSchema
 from .features import FeatureEngineer
 from .model import build_pipeline
 
+# PR-B2: training refuses to start when the EDA leakage gate has not
+# passed. The check is fail-soft: services that have not yet adopted
+# the canonical EDA contract simply skip the gate (with a warning).
+# That preserves the upgrade path for existing services while making
+# the gate mandatory for any service that has run the new pipeline.
+try:
+    from common_utils.eda_artifacts import (
+        EDAArtifactNotFoundError,
+        load_feature_catalog,
+        load_leakage_report,
+    )
+except ImportError:  # pragma: no cover
+    EDAArtifactNotFoundError = FileNotFoundError  # type: ignore[misc,assignment]
+    load_feature_catalog = None  # type: ignore[assignment]
+    load_leakage_report = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -56,9 +72,24 @@ MODEL_REGISTRY_NAME = "{ServiceName}Classifier"
 
 DEFAULT_QUALITY_GATES_PATH = "configs/quality_gates.yaml"
 
+# PR-B2: canonical EDA artifacts location. Override in CI by passing
+# ``eda_artifacts_dir=...`` if the EDA was run with a non-default
+# output directory (e.g. multi-dataset services).
+DEFAULT_EDA_ARTIFACTS_DIR = "eda/artifacts"
+
 OPTUNA_TRIALS = 50
 CV_FOLDS = 5
 RANDOM_STATE = 42
+
+
+class EDAGateError(RuntimeError):
+    """Raised when EDA artifacts indicate training MUST NOT proceed.
+
+    Distinct exception type so CI can map it to a specific exit code
+    and skip the (slow) training body altogether — the alternative is
+    a generic RuntimeError that callers can't differentiate from a
+    transient failure.
+    """
 
 
 class Trainer:
@@ -71,12 +102,14 @@ class Trainer:
         quality_gates: QualityGatesConfig | None = None,
         quality_gates_path: str = DEFAULT_QUALITY_GATES_PATH,
         target_column: str = "target",
+        eda_artifacts_dir: str | None = DEFAULT_EDA_ARTIFACTS_DIR,
     ) -> None:
         self.data_path = data_path
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.feature_engineer = FeatureEngineer()
         self.target_column = target_column
+        self.eda_artifacts_dir = eda_artifacts_dir
 
         # Load + validate quality gates BEFORE any data work. A typo
         # in quality_gates.yaml should fail in milliseconds, not after
@@ -86,6 +119,75 @@ class Trainer:
         # Cross-config sanity: target_column vs protected_attributes.
         quality_gates.validate_against_data(target_column)
         self.gates = quality_gates
+
+        # PR-B2: EDA gate. Runs in milliseconds (just a JSON read);
+        # halts a doomed training run before the 30-minute Optuna
+        # search, before MLflow connection, before everything.
+        self._enforce_eda_gate()
+
+    def _enforce_eda_gate(self) -> None:
+        """Refuse to train when EDA artifacts say we shouldn't.
+
+        Two checks, both fail-soft:
+          1. ``leakage_report.json`` — if present and ``status=BLOCKED``,
+             raise ``EDAGateError``. This is the LOAD-BEARING check
+             that makes "you cannot train on a leaky feature set" a
+             hard rule rather than a TODO comment in the runbook.
+          2. ``feature_catalog.yaml`` — if present, log the count of
+             approved transforms for the audit trail. Loader enforces
+             the D-16 rationale invariant on the way in, so a malformed
+             catalog ALSO blocks training (raises during load).
+
+        Services that haven't run the new EDA pipeline yet have no
+        artifacts on disk; the gate logs a warning and lets training
+        proceed. PR-B4 will tighten this to mandatory for services
+        with `quality_gates.require_eda_artifacts: true`.
+        """
+        if load_leakage_report is None or load_feature_catalog is None:
+            logger.warning(
+                "EDA gate skipped: common_utils.eda_artifacts not importable "
+                "(legacy training path). PR-B2 wiring deferred."
+            )
+            return
+        if self.eda_artifacts_dir is None:
+            logger.info("EDA gate skipped: eda_artifacts_dir explicitly disabled")
+            return
+
+        artifacts_dir = Path(self.eda_artifacts_dir)
+        if not artifacts_dir.exists():
+            logger.warning(
+                "EDA gate skipped: %s does not exist. Run "
+                "`python -m eda.eda_pipeline` to enable the leakage gate.",
+                artifacts_dir,
+            )
+            return
+
+        try:
+            report = load_leakage_report(artifacts_dir)
+        except EDAArtifactNotFoundError:
+            logger.warning(
+                "EDA gate: leakage_report.json missing under %s — "
+                "treat as PR-B2-not-yet-adopted and continue.",
+                artifacts_dir,
+            )
+        else:
+            if not report.passed:
+                raise EDAGateError(
+                    f"EDA leakage gate is BLOCKED. Cannot train. "
+                    f"Blocked features: {list(report.blocked_features)}. "
+                    f"Resolve via reports/04_leakage_audit.md and re-run EDA."
+                )
+            logger.info(
+                "EDA leakage gate: PASSED (%d feature(s) audited, 0 blocked)",
+                len(report.findings) + len(report.blocked_features),
+            )
+
+        try:
+            catalog = load_feature_catalog(artifacts_dir)
+        except EDAArtifactNotFoundError:
+            return
+        n_transforms = len(catalog.get("transforms", []))
+        logger.info("EDA feature catalog: %d transform(s) approved (D-16 rationale enforced at load time)", n_transforms)
 
     def run(self, optuna_trials: int = OPTUNA_TRIALS) -> dict[str, Any]:
         """Execute the complete training pipeline.
