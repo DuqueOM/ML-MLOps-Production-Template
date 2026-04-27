@@ -183,9 +183,19 @@ jobs:
       # we WARN but don't fail — prod gate via Kyverno catches it later.
       # -------------------------------------------------------------------
       - name: Install kustomize
+        # Direct release tarball (PR-R2-5). Using the upstream
+        # install_kustomize.sh piped into bash violated the
+        # supply-chain story AND tripped the unauthenticated GH
+        # releases-API rate limiter on shared runners. Pinned version
+        # is bumped via an explicit PR.
         run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+          set -euo pipefail
+          KVER=v5.4.3
+          curl -sSL -o /tmp/kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KVER}/kustomize_${KVER}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/
+          kustomize version
 
       - name: Pin image to digest
         env:
