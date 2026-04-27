@@ -17,7 +17,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: "{service}-slo"
-  namespace: ml-services
+  # Namespace owned by overlay (PR-R2-3, audit R2).
   labels:
     app: "{service}"
     role: slo
