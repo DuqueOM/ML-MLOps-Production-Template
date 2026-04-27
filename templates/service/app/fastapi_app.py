@@ -262,11 +262,18 @@ def _predict_proba_wrapper(X_array: np.ndarray) -> np.ndarray:
 async def _start_prediction_logger() -> None:
     """Initialize and start the prediction logger. Called from main.lifespan.
 
-    Fail-fast contract (D-21, ADR-006):
+    Fail-fast contract (D-21, ADR-006, Phase 1.1):
         * ``PREDICTION_LOG_ENABLED=false`` (explicit opt-out) → degrade silently;
           the operator has acknowledged that closed-loop monitoring is off.
-        * ``PREDICTION_LOG_ENABLED=true`` (default) AND import failed →
-          RuntimeError. Previously this degraded silently, so production
+        * ``PREDICTION_LOG_ENABLED=true`` (default) AND import failed:
+            - ``ENVIRONMENT in {"dev","local"}`` → log warning, continue.
+              Local dev should not be blocked by an editable install missing
+              common_utils.
+            - any other environment (default ``prod``) → RuntimeError.
+              Production-class environments treat closed-loop monitoring as
+              non-negotiable; without it, drift detection has no
+              ground-truth feed and SLOs become unverifiable.
+          Previously this degraded silently in *all* environments, so prod
           could believe it had closed-loop monitoring while no events were
           ever written. The Dockerfile now COPYs ``common_utils/`` into the
           runtime image so this branch only fires on misconfiguration.
@@ -279,13 +286,21 @@ async def _start_prediction_logger() -> None:
         logger.info("PREDICTION_LOG_ENABLED=false — closed-loop monitoring disabled")
         return
     if not _PREDICTION_LOGGING_AVAILABLE:
-        raise RuntimeError(
+        env = os.getenv("ENVIRONMENT", "prod").lower()
+        msg = (
             "PREDICTION_LOG_ENABLED=true but common_utils.prediction_logger is "
             "not importable. The runtime image is missing common_utils/. "
             "Either add it to the Dockerfile (see templates/service/Dockerfile) "
             "or set PREDICTION_LOG_ENABLED=false to acknowledge closed-loop "
             "monitoring is intentionally off (D-21, ADR-006)."
         )
+        if env in {"dev", "local"}:
+            # Dev workflow tolerance: a local editable install without
+            # common_utils on PYTHONPATH should not block the developer.
+            # The Dockerfile import smoke + this fail-fast keep prod safe.
+            logger.warning("[%s] %s — degrading silently in dev only.", env, msg)
+            return
+        raise RuntimeError(msg)
     try:
         _prediction_logger = build_logger()
         await _prediction_logger.start()

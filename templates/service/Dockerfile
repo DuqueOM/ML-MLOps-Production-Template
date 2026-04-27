@@ -100,6 +100,18 @@ COPY --chown=appuser:appuser monitoring/ ./monitoring/
 # fails fast when PREDICTION_LOG_ENABLED=true AND common_utils is missing.
 COPY --chown=appuser:appuser common_utils/ ./common_utils/
 
+# Build-time smoke import (Phase 1.1 / audit closure):
+# Catches a missing/renamed common_utils module at *image build* time
+# instead of letting the runtime image ship and crash on first boot.
+# Each module here is a hard runtime dependency:
+#   - prediction_logger: closed-loop monitoring (D-21)
+#   - input_validation:  Pandera adapters (PR-R2-4)
+#   - secrets:           credential loader (D-17/D-18)
+# If any import fails, `docker build` exits non-zero and the image
+# never reaches the registry — the regression cannot reach production.
+RUN /opt/venv/bin/python -c "import common_utils.prediction_logger, common_utils.input_validation, common_utils.secrets" \
+    && echo "common_utils import smoke OK"
+
 # Create runtime directories (models downloaded by K8s init container)
 RUN mkdir -p logs data/raw data/processed data/reference models results && \
     chown -R appuser:appuser /app
