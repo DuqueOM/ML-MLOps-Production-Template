@@ -48,7 +48,7 @@ the template.
 | **A1** | Network mode `managed \| existing` + per-env IAM split (CI / deploy / runtime / drift / retrain) | NO — depends on A5 to validate |
 | **A2** | Bootstrap/live Terraform split (state + KMS + AR/ECR + CI identities only in bootstrap) | NO — depends on A1 |
 | **A3** | Cluster defaults: private endpoint opt-in, system/workload node pools, NetworkPolicy deny-default | NO — depends on A2 |
-| **A4** | Day-2 ops runbook (single file, both clouds) + nightly `terraform plan` workflow | NO — independent, can run last |
+| **A4** | Day-2 ops runbook (single file, both clouds) + nightly `terraform plan` workflow | NO — independent, can run last (✅ shipped — see sub-table) |
 
 **A5 first** because it is the only single test that cumulatively
 validates everything the v1.10.0 audit fixed. If A5 passes, A1–A4
@@ -141,7 +141,7 @@ The template is "productized" when ALL of:
 | A1 | Pending | After A5 green (A5b shipped) |
 | A2 | Pending | After A1 |
 | A3 | Pending | After A2 |
-| A4 | Pending | Independent, last |
+| A4 | ✅ **shipped** — Day-2 runbook + nightly TF plan | `templates/docs/runbooks/day-2-operations.md` (single multi-cloud, GCP+AWS tagged tables; required sections enforced by contract test: preflight, scale, drain, cert/secret rotation, cost spike, terraform drift, backup, model rollback). `templates/cicd/terraform-plan-nightly.yml` (auto-shipped via `cp cicd/*.yml`; cron `0 4 * * *`; per-cloud jobs `plan-gcp` + `plan-aws` with `-detailed-exitcode` to distinguish drift from tooling failure; `terraform apply` deliberately absent — contract test enforces); WIF (GCP) + OIDC role-assume (AWS), no static credentials per D-18; opens deduplicated `infra-drift` GitHub Issue with truncated plan when state has drifted; `audit_record.py` invocation per ADR-014 §3.5. `templates/service/tests/test_day2_artifacts_contract.py` (10 cases) enforces both the runbook section list AND the workflow shape (schedule, plan-not-apply, both clouds, OIDC, issue-on-drift, audit). Also fixed `runbook-template.md` A5b kebab leftovers. Wired into `scripts/test_scaffold.sh`. |
 
 The sub-table is the canonical Phase A status. The 5-commit
 sequence on A5 reflects the run-by-run debugging the workflow

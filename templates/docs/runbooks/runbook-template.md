@@ -18,14 +18,14 @@
 
 ```bash
 # 1. Rollback to previous version
-kubectl rollout undo deployment/{service}-predictor -n {namespace}
-kubectl rollout status deployment/{service}-predictor -n {namespace}
+kubectl rollout undo deployment/{service-name}-predictor -n {namespace}
+kubectl rollout status deployment/{service-name}-predictor -n {namespace}
 
 # 2. Verify recovery
-curl -f http://{service-endpoint}/health
+curl -f http://{service-name}-service.{namespace}.svc.cluster.local:8000/health
 
 # 3. Check error rate dropping
-# Prometheus: rate(http_requests_total{service="{service}",status=~"5.."}[5m])
+# Prometheus: rate(http_requests_total{service="{service-name}",status=~"5.."}[5m])
 ```
 
 ### Escalation
@@ -41,7 +41,7 @@ curl -f http://{service-endpoint}/health
 ### Actions
 
 ```bash
-# 1. Check drift scores
+# 1. Check drift scores (Prometheus metric — snake-case {service})
 curl 'http://prometheus:9090/api/v1/query?query={service}_psi_score'
 
 # 2. If drift confirmed, trigger retraining
@@ -59,7 +59,7 @@ gh run list --workflow=retrain-{service}.yml --limit=1
 ### Actions
 
 ```bash
-# 1. Run detailed drift analysis
+# 1. Run detailed drift analysis (Python module — snake-case {service})
 python src/{service}/monitoring/drift_detection.py \
   --reference data/reference/reference.csv \
   --current data/production/latest.csv \
@@ -89,16 +89,16 @@ cat drift_report.json | python -m json.tool
 
 ```bash
 # Pod status
-kubectl get pods -l app={service} -n {namespace}
+kubectl get pods -l app={service-name} -n {namespace}
 
 # Resource usage
-kubectl top pod -l app={service} -n {namespace}
+kubectl top pod -l app={service-name} -n {namespace}
 
 # Recent logs
-kubectl logs -l app={service} -n {namespace} --since=30m --tail=100
+kubectl logs -l app={service-name} -n {namespace} --since=30m --tail=100
 
 # HPA status
-kubectl get hpa {service}-hpa -n {namespace}
+kubectl get hpa {service-name}-hpa -n {namespace}
 ```
 
 ## Key URLs

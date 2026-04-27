@@ -1,0 +1,312 @@
+# =============================================================================
+# Nightly `terraform plan` — drift detection on the service's infra (PR-A4).
+# =============================================================================
+# Goal: detect when the cluster's declared config (in `infra/terraform/<cloud>/`)
+# has drifted from what's actually deployed in the cloud, BEFORE that drift
+# causes a deploy failure. Runs on a schedule (no per-PR cost) and uses
+# `terraform plan` only — never `apply`.
+#
+# Failure modes detected:
+#   - Someone edited a resource in the GCP/AWS console without updating TF
+#   - Someone added/removed a TF resource locally without committing
+#   - A provider version bump renames or relocates fields
+#   - An IAM binding was added out-of-band
+#
+# What this workflow does NOT do:
+#   - Apply anything. `apply` is CONSULT in staging and STOP in prod (ADR-015).
+#   - Bootstrap state. The TF backend MUST already exist (PR-A2 territory).
+#   - Cross-environment plan. Each env has its own state file.
+#
+# Required GitHub Actions secrets / variables (per environment):
+#   GCP:
+#     - secrets.GCP_WIF_PROVIDER          (workload-identity-federation)
+#     - secrets.GCP_SA_EMAIL              (read-only TF role)
+#     - vars.GCP_PROJECT_ID
+#     - vars.GCP_REGION
+#   AWS:
+#     - secrets.AWS_ROLE_ARN              (read-only TF role via OIDC)
+#     - vars.AWS_REGION
+#
+# Why these creds are read-only: the workflow only runs `plan`, never `apply`.
+# Granting it `apply` permissions defeats the gate ADR-015 codifies.
+# =============================================================================
+name: Terraform plan (nightly)
+
+on:
+  schedule:
+    # 04:00 UTC daily — chosen so the result is on the engineer's morning
+    # screen but does not collide with the 02:00 UTC drift-detection cron.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      cloud:
+        description: "Cloud to plan (gcp | aws | both)"
+        type: choice
+        options: [gcp, aws, both]
+        default: both
+      environment:
+        description: "Environment subdir under infra/terraform/<cloud>/"
+        type: string
+        default: dev
+
+permissions:
+  contents: read
+  id-token: write   # GCP WIF and AWS OIDC both consume this
+  pull-requests: write  # post a summary comment when run from a PR
+  issues: write     # open an issue on drift (see job below)
+
+env:
+  TF_VERSION: "1.7.5"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+concurrency:
+  # One concurrent plan per cloud+env. A 2nd schedule trigger that fires
+  # before the 1st finishes is queued, not parallelised, to avoid two
+  # plans contending for the same state lock.
+  group: tf-plan-${{ github.workflow }}-${{ github.event.inputs.cloud || 'all' }}-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  plan-gcp:
+    if: ${{ github.event.inputs.cloud != 'aws' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform/gcp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Terraform init
+        run: terraform init -backend=true -reconfigure
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        run: |
+          set -eo pipefail
+          terraform plan -no-color -detailed-exitcode -lock-timeout=60s \
+            -out=tfplan.binary > tfplan.txt
+          # detailed-exitcode contract:
+          #   0 = no changes, 1 = error, 2 = changes present (drift)
+          ec=$?
+          echo "plan_exit_code=$ec" >> "$GITHUB_OUTPUT"
+          {
+            echo "## GCP plan ($(wc -l < tfplan.txt) lines)"
+            echo
+            echo '```hcl'
+            head -200 tfplan.txt
+            echo '```'
+            if [ "$(wc -l < tfplan.txt)" -gt 200 ]; then
+              echo
+              echo "_truncated; full plan in workflow artifacts_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Exit codes 0 (no drift) and 2 (drift) are both normal; only 1
+          # is a real error. Translate so we can fail the job on drift
+          # but distinguish from a tooling failure in the audit log.
+          if [ "$ec" = "1" ]; then exit 1; fi
+
+      - name: Upload plan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-gcp-${{ github.run_id }}
+          path: |
+            infra/terraform/gcp/tfplan.binary
+            infra/terraform/gcp/tfplan.txt
+          retention-days: 14
+
+      - name: Open issue on drift
+        if: steps.plan.outputs.plan_exit_code == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/terraform/gcp/tfplan.txt', 'utf8');
+            const truncated = plan.split('\n').slice(0, 60).join('\n');
+            const title = `[infra-drift] GCP terraform plan non-empty (${new Date().toISOString().slice(0,10)})`;
+            // De-dupe: do nothing if an open issue with the same title-prefix
+            // already exists. We don't want to spam an issue per nightly run
+            // until the drift is reconciled.
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'infra-drift',
+              state: 'open',
+            });
+            const sameDay = existing.data.find(i => i.title.startsWith('[infra-drift] GCP'));
+            if (sameDay) {
+              core.info(`existing GCP drift issue open: #${sameDay.number}`);
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['infra-drift', 'audit', 'gcp'],
+              body: [
+                '`terraform plan` reported non-empty changeset against `infra/terraform/gcp/`.',
+                '',
+                'Possible causes (see `docs/runbooks/day-2-operations.md` "terraform drift check"):',
+                '- Authored drift: someone edited TF and did not apply',
+                '- Unauthored drift: someone hand-edited the cloud console',
+                '- Provider upgrade renamed/relocated fields',
+                '',
+                '## Plan (truncated)',
+                '',
+                '```hcl',
+                truncated,
+                '```',
+                '',
+                `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\n'),
+            });
+
+  plan-aws:
+    if: ${{ github.event.inputs.cloud != 'gcp' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform/aws
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform init
+        run: terraform init -backend=true -reconfigure
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        run: |
+          set -eo pipefail
+          terraform plan -no-color -detailed-exitcode -lock-timeout=60s \
+            -out=tfplan.binary > tfplan.txt
+          ec=$?
+          echo "plan_exit_code=$ec" >> "$GITHUB_OUTPUT"
+          {
+            echo "## AWS plan ($(wc -l < tfplan.txt) lines)"
+            echo
+            echo '```hcl'
+            head -200 tfplan.txt
+            echo '```'
+            if [ "$(wc -l < tfplan.txt)" -gt 200 ]; then
+              echo
+              echo "_truncated; full plan in workflow artifacts_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ec" = "1" ]; then exit 1; fi
+
+      - name: Upload plan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-aws-${{ github.run_id }}
+          path: |
+            infra/terraform/aws/tfplan.binary
+            infra/terraform/aws/tfplan.txt
+          retention-days: 14
+
+      - name: Open issue on drift
+        if: steps.plan.outputs.plan_exit_code == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/terraform/aws/tfplan.txt', 'utf8');
+            const truncated = plan.split('\n').slice(0, 60).join('\n');
+            const title = `[infra-drift] AWS terraform plan non-empty (${new Date().toISOString().slice(0,10)})`;
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'infra-drift',
+              state: 'open',
+            });
+            const sameDay = existing.data.find(i => i.title.startsWith('[infra-drift] AWS'));
+            if (sameDay) {
+              core.info(`existing AWS drift issue open: #${sameDay.number}`);
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['infra-drift', 'audit', 'aws'],
+              body: [
+                '`terraform plan` reported non-empty changeset against `infra/terraform/aws/`.',
+                '',
+                'Possible causes (see `docs/runbooks/day-2-operations.md` "terraform drift check"):',
+                '- Authored drift: someone edited TF and did not apply',
+                '- Unauthored drift: someone hand-edited the cloud console',
+                '- Provider upgrade renamed/relocated fields',
+                '',
+                '## Plan (truncated)',
+                '',
+                '```hcl',
+                truncated,
+                '```',
+                '',
+                `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\n'),
+            });
+
+  audit:
+    # Append a single audit entry covering both clouds so the per-day
+    # drift detection result is queryable from `ops/audit.jsonl` per
+    # ADR-014 §3.5.
+    needs: [plan-gcp, plan-aws]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compose audit entry
+        run: |
+          mkdir -p ops
+          gcp_result="${{ needs.plan-gcp.result }}"
+          aws_result="${{ needs.plan-aws.result }}"
+          # Convert GitHub Actions job result strings to audit semantics:
+          # success/skipped → no drift; failure → either tool failure or
+          # plan exit 2. The audit log records the GHA result verbatim;
+          # the issue (if any) carries the operator-actionable detail.
+          python scripts/audit_record.py \
+            --agent terraform-plan-nightly \
+            --operation "infra_drift_check" \
+            --environment "${{ github.event.inputs.environment || 'dev' }}" \
+            --base-mode AUTO \
+            --final-mode AUTO \
+            --result "$([ "$gcp_result" = "success" ] && [ "$aws_result" = "success" ] && echo success || echo failure)" \
+            --inputs "{\"trigger\":\"${{ github.event_name }}\",\"cloud\":\"${{ github.event.inputs.cloud || 'both' }}\"}" \
+            --outputs "{\"gcp\":\"$gcp_result\",\"aws\":\"$aws_result\",\"run_url\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          || echo "audit_record.py failed (non-fatal); see workflow run for plan results"
