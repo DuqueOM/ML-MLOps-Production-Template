@@ -123,6 +123,18 @@ if [[ -d "$PROJECT_ROOT/scripts/_lib" ]]; then
     cp -r "$PROJECT_ROOT/scripts/_lib/." "$TARGET_DIR/scripts/_lib/"
 fi
 
+# PR-C3 (ADR-015) — operational drills. Each drill exercises a
+# production code path (drift detection, champion/challenger gate)
+# against deterministic synthetic inputs and writes evidence to
+# docs/runbooks/drills/. Required at runtime by
+# `tests/test_drills_reproducible.py` (scaffold smoke chain).
+if [[ -d "$TEMPLATE_ROOT/scripts/drills" ]]; then
+    mkdir -p "$TARGET_DIR/scripts/drills"
+    cp -r "$TEMPLATE_ROOT/scripts/drills/." "$TARGET_DIR/scripts/drills/"
+else
+    warn "templates/scripts/drills/ missing — scaffolded service will fail PR-C3 drill tests"
+fi
+
 # --- Copy DVC templates ---
 if [[ -f "$TARGET_DIR/dvc.yaml" ]]; then
     info "DVC pipeline template already present"
