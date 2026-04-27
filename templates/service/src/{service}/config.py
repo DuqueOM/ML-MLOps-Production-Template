@@ -257,9 +257,7 @@ class QualityGatesConfig(BaseModel):
                 "AND protected_attributes is empty. Either populate "
                 "protected_attributes in configs/quality_gates.yaml, or "
                 "document an explicit ADR explaining why DIR enforcement "
-                "is not applicable here (PR-R2-7, ADR-005).".format(
-                    tc=target_column, tok=flagged_token
-                )
+                "is not applicable here (PR-R2-7, ADR-005).".format(tc=target_column, tok=flagged_token)
             )
 
 
