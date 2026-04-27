@@ -300,9 +300,15 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
   # to gate every change to configs/quality_gates.yaml — it runs in
   # milliseconds (no sklearn imports) so it's cheap to include here.
   info "Running pytest (test_api.py + test_training.py + test_quality_gates_config.py + contract/)..."
+  # `test_prediction_logger_lifecycle.py` (Phase 1.1) gates the env-aware
+  # fail-fast contract for closed-loop monitoring. It runs in milliseconds
+  # because each test only exercises `_start_prediction_logger` directly,
+  # never the full FastAPI lifespan.
   if (cd "$SERVICE_DIR" && PYTHONPATH=. timeout 180 pytest \
         tests/test_api.py tests/test_training.py \
-        tests/test_quality_gates_config.py tests/contract/ \
+        tests/test_quality_gates_config.py \
+        tests/test_prediction_logger_lifecycle.py \
+        tests/contract/ \
         -q --tb=short --no-cov) > "$TEMP_ROOT/pytest.log" 2>&1; then
     pass "pytest passed on freshly-scaffolded service"
   else
