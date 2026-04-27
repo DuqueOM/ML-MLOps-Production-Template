@@ -165,16 +165,25 @@ find "$TARGET_DIR" -type f \( -name "*.py" -o -name "*.yaml" -o -name "*.yml" \
 done
 
 # --- Create standard directories ---
+# Phase 1.4: data path convention is `raw → processed → reference` for
+# training (consumed by `train.py` + `dvc.yaml`) and `production/` for
+# drift inputs (consumed by the drift CronJob — `cronjob-drift.yaml`
+# mounts `data/production/latest.csv` as the `--current` argument).
+# Without `data/production/` the first drift run fails with FileNotFound.
+# See `docs/data-paths.md` for the full contract.
 mkdir -p "$TARGET_DIR/data/raw"
-mkdir -p "$TARGET_DIR/data/reference"
-mkdir -p "$TARGET_DIR/data/validated"
 mkdir -p "$TARGET_DIR/data/processed"
+mkdir -p "$TARGET_DIR/data/reference"
+mkdir -p "$TARGET_DIR/data/production"
+mkdir -p "$TARGET_DIR/data/validated"
 mkdir -p "$TARGET_DIR/models"
 mkdir -p "$TARGET_DIR/reports"
 
 # --- Create .gitkeep files for empty directories ---
 touch "$TARGET_DIR/data/raw/.gitkeep"
+touch "$TARGET_DIR/data/processed/.gitkeep"
 touch "$TARGET_DIR/data/reference/.gitkeep"
+touch "$TARGET_DIR/data/production/.gitkeep"
 touch "$TARGET_DIR/models/.gitkeep"
 
 # --- Summary ---
