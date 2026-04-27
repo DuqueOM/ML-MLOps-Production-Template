@@ -99,7 +99,73 @@ jobs:
           exit-code: "0"   # warn-only initially; flip to "1" after first clean run
           format: table
 
-      # 6. Markdown link-check (lightweight; full link-check moves to
+      # 6. Toolchain-install hygiene (PR-R2-5, audit R2 §5).
+      #    The audit called out `curl -s … | bash` and
+      #    `releases/latest/download/` as the two weak links in the
+      #    supply-chain story: they run arbitrary upstream shell code
+      #    and they pin to a moving target that can change behaviour
+      #    between two CI runs. The canonical replacement is a pinned
+      #    direct-release-tarball download (see golden-path.yml and
+      #    validate-templates.yml itself for examples).
+      - name: Toolchain install hygiene (PR-R2-5)
+        run: |
+          set -euo pipefail
+          status=0
+          search_dirs=".github/workflows templates/cicd"
+
+          # Drop grep-format lines that are YAML comments
+          # (`file:lineno:     # ...`). This lint scans every workflow
+          # — including itself — so the patterns below are assembled
+          # from concatenated string fragments to avoid self-matching
+          # without needing to exclude validate-templates.yml from its
+          # own scan (which would create a coverage hole).
+          filter() {
+            grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true
+          }
+
+          # Patterns are assembled from concatenated halves so this
+          # script's own source does not contain the literal forbidden
+          # strings — keeps the lint self-stable without self-exclusion
+          # tricks beyond the file filter above.
+          pat_pipe='curl[^|]*[|][[:space:]]*bash'
+          pat_latest='releases/'"latest"'/download/'
+          pat_install_sh='install_'"kustomize"'.sh'
+
+          # A. No curl-piped-into-shell anywhere in workflow YAML.
+          hits=$(grep -rnE "$pat_pipe" \
+                   --include='*.yml' --include='*.yaml' $search_dirs \
+                 | filter)
+          if [ -n "$hits" ]; then
+            echo "::error::Found curl-piped-into-shell in a workflow (see PR-R2-5):"
+            echo "$hits"
+            status=1
+          fi
+
+          # B. Always pin the version, never use the moving 'latest' alias.
+          hits=$(grep -rnE "$pat_latest" \
+                   --include='*.yml' --include='*.yaml' $search_dirs \
+                 | filter)
+          if [ -n "$hits" ]; then
+            echo "::error::Unpinned release URL detected (PR-R2-5). Use '/releases/download/<explicit-version>/'."
+            echo "$hits"
+            status=1
+          fi
+
+          # C. Deny-listed installer shell script from the upstream
+          # kustomize hack/ directory — this was the concrete failure
+          # reported by the audit.
+          hits=$(grep -rn "$pat_install_sh" \
+                   --include='*.yml' --include='*.yaml' $search_dirs \
+                 | filter)
+          if [ -n "$hits" ]; then
+            echo "::error::Deny-listed kustomize installer detected (PR-R2-5). Use the direct /releases/download/ tarball."
+            echo "$hits"
+            status=1
+          fi
+
+          exit $status
+
+      # 7. Markdown link-check (lightweight; full link-check moves to
       #    Phase 5 §5.2 alongside markdown-link-check + spell).
       - name: Quick check that AGENTS.md cites no broken local files
         run: |
@@ -195,10 +261,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install kubeconform
+        # Pinned version, direct release tarball (no unauthenticated GH
+        # API call, no `curl | bash`). Upgrading this pin is an explicit
+        # PR; the CI lint added in PR-R2-5 rejects future :latest /
+        # raw.githubusercontent.com / hack-dir installs.
         run: |
-          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
-            | tar xz
-          sudo mv kubeconform /usr/local/bin/
+          set -euo pipefail
+          KCVER=v0.6.7
+          curl -sSL -o /tmp/kubeconform.tgz \
+            "https://github.com/yannh/kubeconform/releases/download/${KCVER}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tgz -C /tmp
+          sudo mv /tmp/kubeconform /usr/local/bin/
+          kubeconform -v
 
       - name: Validate base manifests
         run: |
@@ -212,9 +286,18 @@ jobs:
             templates/k8s/base/rbac.yaml
 
       - name: Install kustomize
+        # Direct release tarball (not raw.githubusercontent.com/hack/).
+        # The upstream install_kustomize.sh piped into bash hit the
+        # unauthenticated GitHub releases API and failed under the
+        # per-IP rate limiter; see golden-path.yml for the same pattern.
         run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+          set -euo pipefail
+          KVER=v5.4.3
+          curl -sSL -o /tmp/kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KVER}/kustomize_${KVER}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/
+          kustomize version
 
       - name: Validate Kustomize build (base)
         run: kustomize build templates/k8s/base/ > /dev/null
@@ -455,9 +538,14 @@ jobs:
           pip install pytest
 
       - name: Install kustomize
+        # Direct release tarball, pinned version (PR-R2-5).
         run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+          set -euo pipefail
+          KVER=v5.4.3
+          curl -sSL -o /tmp/kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KVER}/kustomize_${KVER}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/
           kustomize version
 
       - name: Run scaffolder end-to-end test

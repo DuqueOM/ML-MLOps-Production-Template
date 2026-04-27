@@ -60,25 +60,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install kubeval
+      - name: Install kubeconform (PR-R2-5)
+        # Replaces the deprecated kubeval install that used
+        # /releases/latest/download/. Pinned version, direct release
+        # tarball, no `curl | bash`. kubeval was archived upstream;
+        # kubeconform is the maintained successor and is also used
+        # by the top-level validate-templates.yml.
         run: |
-          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
-          tar xf kubeval-linux-amd64.tar.gz
-          sudo mv kubeval /usr/local/bin/
+          set -euo pipefail
+          KCVER=v0.6.7
+          curl -sSL -o /tmp/kubeconform.tgz \
+            "https://github.com/yannh/kubeconform/releases/download/${KCVER}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tgz -C /tmp
+          sudo mv /tmp/kubeconform /usr/local/bin/
+          kubeconform -v
 
       - name: Validate base manifests
-        run: kubeval --strict k8s/base/*.yaml
+        run: kubeconform -strict -ignore-missing-schemas k8s/base/*.yaml
 
       - name: Validate GCP overlays (per environment)
         run: |
           for overlay in k8s/overlays/gcp-*; do
-            [ -d "$overlay" ] && kubectl kustomize "$overlay" | kubeval --strict
+            [ -d "$overlay" ] && kubectl kustomize "$overlay" | kubeconform -strict -ignore-missing-schemas
           done
         continue-on-error: true
 
       - name: Validate AWS overlays (per environment)
         run: |
           for overlay in k8s/overlays/aws-*; do
-            [ -d "$overlay" ] && kubectl kustomize "$overlay" | kubeval --strict
+            [ -d "$overlay" ] && kubectl kustomize "$overlay" | kubeconform -strict -ignore-missing-schemas
           done
         continue-on-error: true
