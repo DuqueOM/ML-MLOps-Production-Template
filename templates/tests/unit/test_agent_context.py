@@ -295,6 +295,46 @@ class TestAuditEntry:
         assert decoded["mode"] == "AUTO"
         assert decoded["inputs"] == {"ref": "v1"}
 
+    def test_audit_id_auto_minted(self):
+        """PR-C1: every AuditEntry carries a 32-char hex id by default."""
+        e = AuditEntry(
+            agent="A",
+            operation="op",
+            environment=Environment.DEV,
+            mode=AgentMode.AUTO,
+            inputs={},
+            outputs={},
+        )
+        assert isinstance(e.audit_id, str)
+        assert len(e.audit_id) == 32
+        # Two consecutive entries get distinct ids (regression guard
+        # for accidental class-level state).
+        e2 = AuditEntry(
+            agent="A",
+            operation="op",
+            environment=Environment.DEV,
+            mode=AgentMode.AUTO,
+            inputs={},
+            outputs={},
+        )
+        assert e.audit_id != e2.audit_id
+
+    def test_audit_id_explicit_value_preserved(self):
+        """An explicit audit_id (e.g. GHA run id) must survive intact."""
+        explicit = "deploy-run-12345-abcdef"
+        e = AuditEntry(
+            agent="A",
+            operation="op",
+            environment=Environment.PRODUCTION,
+            mode=AgentMode.STOP,
+            inputs={},
+            outputs={},
+            approver="alice",
+            audit_id=explicit,
+        )
+        assert e.audit_id == explicit
+        assert json.loads(e.to_jsonl())["audit_id"] == explicit
+
 
 # ---------------------------------------------------------------------------
 # AuditLog file writer
@@ -391,3 +431,24 @@ class TestAuditLog:
             outputs={},
         )
         assert "risk_signals:UNAVAILABLE" in entry.risk_signals
+
+    def test_record_operation_threads_audit_id(self, tmp_path):
+        """PR-C1: an explicit audit_id passed to record_operation lands
+        on the persisted entry verbatim (no shadowing by default factory).
+        """
+        log = AuditLog(str(tmp_path / "audit.jsonl"))
+        explicit = "abcd1234" * 4  # 32 chars, deterministic for the test
+        entry = log.record_operation(
+            agent="A",
+            operation="op",
+            environment=Environment.DEV,
+            base_mode=AgentMode.AUTO,
+            final_mode=AgentMode.AUTO,
+            inputs={},
+            outputs={},
+            audit_id=explicit,
+        )
+        assert entry.audit_id == explicit
+        # Persisted JSONL must include the same id under the same key.
+        persisted = log.read_all()
+        assert persisted[0]["audit_id"] == explicit

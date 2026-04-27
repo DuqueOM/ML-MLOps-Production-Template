@@ -113,6 +113,21 @@ def main() -> int:
         default="ops/audit.jsonl",
         help="Path to the audit log file",
     )
+    parser.add_argument(
+        "--audit-id",
+        default=os.environ.get("AUDIT_ID"),
+        help=(
+            "Explicit correlation id (PR-C1, ADR-015). If omitted, falls back "
+            "to $AUDIT_ID, then to a freshly minted uuid hex. Pass the GitHub "
+            "Actions run id (or the deploy id) here so the audit entry, the "
+            "K8s annotation, and the prediction-log line all share one key."
+        ),
+    )
+    parser.add_argument(
+        "--deployment-id",
+        default=os.environ.get("DEPLOYMENT_ID"),
+        help="K8s deployment correlation id (PR-C1) — recorded under outputs.deployment_id when set.",
+    )
     args = parser.parse_args()
 
     # Late import: the helpers live inside templates/, so allow callers to
@@ -153,6 +168,11 @@ def main() -> int:
     Path(args.audit_log).parent.mkdir(parents=True, exist_ok=True)
     log = AuditLog(path=args.audit_log)
 
+    # PR-C1: thread deployment_id into outputs so downstream consumers
+    # (Grafana drill-downs, post-mortem queries) can JOIN by it.
+    if args.deployment_id and "deployment_id" not in outputs:
+        outputs["deployment_id"] = args.deployment_id
+
     try:
         entry = log.record_operation(
             agent=args.agent,
@@ -164,16 +184,33 @@ def main() -> int:
             outputs=outputs,
             approver=args.approver,
             result=result,
+            audit_id=args.audit_id,
         )
     except OSError as exc:
         print(f"error: cannot write audit log ({exc})", file=sys.stderr)
         return 2
+    except TypeError:
+        # `record_operation` may not yet accept audit_id (older common_utils
+        # vendored into a downstream service). Fall back gracefully — the
+        # audit_id then comes from AuditEntry's default factory.
+        entry = log.record_operation(
+            agent=args.agent,
+            operation=args.operation,
+            environment=environment,
+            base_mode=base_mode,
+            final_mode=final_mode,
+            inputs=inputs,
+            outputs=outputs,
+            approver=args.approver,
+            result=result,
+        )
 
     # Mirror to GitHub Actions step summary when running in CI.
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a", encoding="utf-8") as fh:
             fh.write("### Audit entry\n")
+            fh.write(f"- **audit_id**: `{getattr(entry, 'audit_id', '<n/a>')}`\n")
             fh.write(f"- **agent**: `{entry.agent}`\n")
             fh.write(f"- **operation**: `{entry.operation}`\n")
             fh.write(f"- **environment**: `{entry.environment.name}`\n")
@@ -187,7 +224,15 @@ def main() -> int:
             if entry.risk_signals:
                 fh.write(f"- **signals**: {', '.join(entry.risk_signals)}\n")
 
-    print(f"audit entry recorded: {args.operation} → {result}")
+    # Expose audit_id to downstream steps via GITHUB_OUTPUT so the same
+    # workflow can pass it on to (e.g.) the K8s annotation step.
+    gha_output = os.environ.get("GITHUB_OUTPUT")
+    audit_id = getattr(entry, "audit_id", None)
+    if gha_output and audit_id:
+        with open(gha_output, "a", encoding="utf-8") as fh:
+            fh.write(f"audit_id={audit_id}\n")
+
+    print(f"audit entry recorded: {args.operation} → {result} (audit_id={audit_id or '<n/a>'})")
     return 0
 
 

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -68,6 +69,21 @@ _IMAGE_DIGEST_PATTERN = re.compile(r"^[^@]+@sha256:[a-f0-9]{64}$")
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _new_audit_id() -> str:
+    """Mint a fresh audit_id for AuditEntry (PR-C1, ADR-015).
+
+    Used as the canonical correlation key linking a single agentic
+    operation to: the GitHub Actions run that triggered it, the K8s
+    deployment annotation, and the prediction-log line written by the
+    pod that came out of that deploy.
+
+    Format: 32-char lowercase hex (uuid4().hex). Same shape as
+    request_id minted by the FastAPI middleware so log aggregators can
+    treat both as a single ID space.
+    """
+    return uuid.uuid4().hex
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -237,6 +253,11 @@ class AuditEntry:
     risk_signals: list[str] = field(default_factory=list)  # ADR-010 signals present at op time
     base_mode: AgentMode | None = None  # mode before dynamic escalation; None if same as `mode`
     timestamp: str = field(default_factory=_utc_now)
+    # PR-C1 (ADR-015): canonical correlation ID for the operation. Default-
+    # generated so existing call sites do not break; explicit values are
+    # accepted (e.g. when the deploy chain wants to reuse the GitHub Actions
+    # run id as the audit id for cross-system correlation). 32-char hex.
+    audit_id: str = field(default_factory=_new_audit_id)
 
     def __post_init__(self) -> None:
         if self.result not in {"success", "failure", "halted"}:
@@ -315,11 +336,17 @@ class AuditLog:
         risk_context: Any = None,  # common_utils.risk_context.RiskContext or None
         approver: str | None = None,
         result: str = "success",
+        audit_id: str | None = None,
     ) -> AuditEntry:
         """Record an operation and return the persisted entry.
 
         Extracts active signals from `risk_context` if provided. Keeps
         `base_mode` only if it differs from `final_mode` (reduces noise).
+
+        ``audit_id`` (PR-C1, ADR-015) is the canonical correlation id.
+        Pass an explicit value (e.g. the GitHub Actions run id) to JOIN
+        with downstream systems; omit to let `AuditEntry` mint a fresh
+        uuid4 hex.
         """
         signals: list[str] = []
         if risk_context is not None:
@@ -335,7 +362,7 @@ class AuditLog:
             if getattr(risk_context, "available", True) is False:
                 signals.append("risk_signals:UNAVAILABLE")
 
-        entry = AuditEntry(
+        entry_kwargs: dict[str, Any] = dict(
             agent=agent,
             operation=operation,
             environment=environment,
@@ -347,6 +374,9 @@ class AuditLog:
             risk_signals=signals,
             base_mode=base_mode if base_mode != final_mode else None,
         )
+        if audit_id:
+            entry_kwargs["audit_id"] = audit_id
+        entry = AuditEntry(**entry_kwargs)
         self.append(entry)
         return entry
 
