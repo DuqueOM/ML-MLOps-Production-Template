@@ -171,6 +171,49 @@ jobs:
       - name: Validate Kustomize build (base)
         run: kustomize build templates/k8s/base/ > /dev/null
 
+      - name: Base neutrality lint (PR-R2-3, audit R2)
+        # The base manifest must NOT carry environment-specific values;
+        # those belong in overlays. Regressions from this rule made
+        # `environment: production` ship in dev deployments and forced
+        # operators to debug "why is this pod labeled production?".
+        #
+        # Allowed in base:
+        #   * `replicas:` >= HPA `minReplicas` (the floor)
+        #   * `namespace: ml-services` ONLY in kustomization.yaml
+        #     (default for `kustomize build base/` standalone)
+        # Forbidden in base RESOURCES (deployment/rbac/networkpolicy/
+        # promrule/etc.):
+        #   * `environment: <anything>` label
+        #   * explicit `namespace:` field
+        #   * `replicas:` below HPA minReplicas
+        run: |
+          set -euo pipefail
+          status=0
+          # 1. No `environment:` label in base resources
+          if grep -nE '^[[:space:]]+environment:' \
+               templates/k8s/base/*.yaml; then
+            echo "::error::Base manifests must not hardcode an environment label (PR-R2-3). Move it to the overlay."
+            status=1
+          fi
+          # 2. No explicit `namespace:` outside kustomization.yaml.
+          # Match `namespace:` at any indentation, on yaml files other
+          # than kustomization.yaml.
+          if grep -nE '^[[:space:]]+namespace:' \
+               templates/k8s/base/*.yaml \
+               | grep -v '^templates/k8s/base/kustomization.yaml:' \
+               | grep -v '^templates/k8s/base/[^:]*:[0-9]*:[[:space:]]*#' ; then
+            echo "::error::Base resources must not hardcode namespace: -- overlay namespace field is the single source of truth (PR-R2-3)."
+            status=1
+          fi
+          # 3. Base deployment replicas must be >= HPA minReplicas.
+          dep_replicas=$(grep -E '^[[:space:]]+replicas:' templates/k8s/base/deployment.yaml | head -1 | awk '{print $2}')
+          hpa_min=$(grep -E '^[[:space:]]+minReplicas:' templates/k8s/base/hpa.yaml | head -1 | awk '{print $2}')
+          if [ -n "$dep_replicas" ] && [ -n "$hpa_min" ] && [ "$dep_replicas" -lt "$hpa_min" ]; then
+            echo "::error::Deployment replicas ($dep_replicas) < HPA minReplicas ($hpa_min); HPA cannot scale below its floor (PR-R2-3)."
+            status=1
+          fi
+          exit $status
+
       - name: Validate Kustomize builds (all 6 overlays)
         # Each env (dev/staging/prod) for each cloud (gcp/aws) MUST render
         # cleanly. Catches: missing patches, broken namespace.yaml, image

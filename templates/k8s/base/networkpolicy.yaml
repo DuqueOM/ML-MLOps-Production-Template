@@ -14,7 +14,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: "{service}-network-policy"
-  namespace: ml-services
+  # Namespace is OWNED by the overlay (kustomization.yaml `namespace:`).
+  # Hardcoding it here would silently route traffic to the wrong NS in
+  # any env whose overlay uses a different namespace (PR-R2-3, audit R2).
   labels:
     app: "{service}"
     managed-by: kustomize

@@ -5,10 +5,16 @@ metadata:
   labels:
     app: "{service}"
     version: v1.0.0
-    environment: production
+    # `environment:` label is OWNED by the overlay (commonLabels in
+    # k8s/overlays/<cloud>-<env>/kustomization.yaml). Adding it here
+    # would silently overwrite the overlay's value (PR-R2-3, audit R2).
     managed-by: kustomize
 spec:
-  replicas: 1
+  # Floor for HPA — must equal HPA `minReplicas` (k8s/base/hpa.yaml).
+  # PR-R2-3 (audit R2): previous `replicas: 1` contradicted HPA
+  # minReplicas: 2 and PDB minAvailable: 1, making voluntary
+  # disruptions impossible.
+  replicas: 2
   selector:
     matchLabels:
       app: "{service}"
