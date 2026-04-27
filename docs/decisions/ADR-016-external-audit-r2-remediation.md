@@ -48,9 +48,11 @@ prose.
 
 Owner: ML Platform. Each PR carries `audit-r2` label.
 
-### PR-R2-1 — API authentication + admin endpoint protection
+### PR-R2-1 — API authentication + admin endpoint protection ✅
 
 Severity: **High**. Affected: `templates/service/app/main.py:95,169`.
+
+**Status:** Closed (see `common_utils/auth.py`, `test_auth.py`, CORS default-deny wiring).
 
 - Add `common_utils/auth.py` with two `Depends()` providers:
   - `verify_api_key()` — header-based bearer/X-API-Key, secret resolved
@@ -69,10 +71,15 @@ Severity: **High**. Affected: `templates/service/app/main.py:95,169`.
 Exit: `pytest tests/test_auth.py` green; an unauthenticated request
 to `/model/reload` returns 401 with no leak of the endpoint shape.
 
-### PR-R2-2 — Pin init container + CronJob images by digest
+### PR-R2-2 — Pin init container + CronJob images by digest ✅
 
 Severity: **High**. Affected: `templates/k8s/base/deployment.yaml:46`,
 `cronjob-drift.yaml:25`, `cronjob-performance.yaml:36`.
+
+**Status:** Closed — `cloud-cli-image` + predictor image refs unified
+under Kustomize `images:` mapping; per-tier digest-pinning lint in
+`validate-templates.yml` (warn tier in prod today; flips to hard
+error with the bootstrap runbook).
 
 - `deploy-common.yml` already captures the application image digest;
   extend the same pattern to:
@@ -90,10 +97,15 @@ Severity: **High**. Affected: `templates/k8s/base/deployment.yaml:46`,
 Exit: `kustomize build templates/k8s/overlays/<cloud>-prod | grep
 'image:' | grep -v '@sha256:'` returns empty.
 
-### PR-R2-3 — Neutralize K8s base manifests
+### PR-R2-3 — Neutralize K8s base manifests ✅
 
 Severity: **High**. Affected: `deployment.yaml:8,11`, `rbac.yaml:16`,
 `networkpolicy.yaml:17`.
+
+**Status:** Closed — base resources no longer carry `environment:`
+or `namespace:`; `replicas:` in base is the HPA floor, not a steady
+state. "Base neutrality lint" in `validate-templates.yml` catches
+regressions.
 
 - Remove `environment: production` and `namespace: ml-services` from
   base; overlays own those fields (each overlay already ships its
@@ -155,20 +167,53 @@ Severity: **High**. Affected: `templates/service/app/schemas.py:1`,
 Exit criteria all met: `tests/test_input_validation.py` green; a PR
 that breaks `schemas.py` and forgets to update validators fails CI.
 
-### PR-R2-5 — Replace `curl | bash` toolchain installs with versioned actions
+### PR-R2-5 — Replace `curl | bash` toolchain installs with versioned actions ✅
 
 Severity: **Medium** (but contradicts the supply-chain story).
 Affected: `deploy-common.yml:187`, `validate-templates.yml:168`.
 
-- Replace `curl -L ... | bash` for kustomize, jq, etc., with:
-  - `imranismail/setup-kustomize@v2` (pin to commit SHA)
-  - `dcarbone/install-jq-action@v3`
-  - `aquasecurity/setup-trivy@v0.x` (already done in audit-r2 §1)
-- Anything that absolutely requires raw download installs to a
-  per-job temp dir AND verifies a known SHA-256 of the binary.
+**Status:** Closed by commit `153bc1d` (2026-04-26).
 
-Exit: `grep -rE 'curl[^|]*\| *bash' .github/workflows
-templates/cicd/` returns nothing.
+Replaced every `curl … | bash` and every `/releases/latest/download/`
+in `.github/workflows/` and `templates/cicd/` with pinned direct
+release tarballs, matching the proven `golden-path.yml` pattern:
+
+- ✅ `validate-templates.yml` — kubeconform pinned to `v0.6.7`,
+  kustomize pinned to `v5.4.3` (both jobs).
+- ✅ `templates/cicd/deploy-common.yml` — kustomize install replaced
+  with the same pinned-tarball pattern. Production deploys no longer
+  execute upstream-controlled shell code.
+- ✅ `templates/cicd/ci-infra.yml` — migrated from `kubeval` (archived
+  upstream) to `kubeconform v0.6.7`, and overlay validation updated
+  accordingly.
+
+A different route from the original ADR draft: rather than adopt
+`imranismail/setup-kustomize@v2` + `dcarbone/install-jq-action@v3`,
+we standardised on **pinned direct-release-tarball downloads** from
+`github.com/*/releases/download/<version>/`. Rationale:
+
+- No new third-party action dependency (smaller supply-chain
+  attack surface than trusting another maintainer's action).
+- No unauthenticated GitHub API call (the concrete cause of the
+  rate-limit failure the audit cited — run 24953193994).
+- Version pins live in the workflow itself; bumping them is an
+  explicit PR with code review, not an opaque `uses: …@v2` tag
+  move.
+
+**Regression lint:** new self-audit step in `validate-templates.yml`
+("Toolchain install hygiene (PR-R2-5)") greps every workflow for:
+
+  - `curl … | bash` (any piping of network bytes into a shell)
+  - `/releases/latest/download/` (moving-version pins)
+  - `install_kustomize.sh` (the specific upstream hack/ installer)
+
+The lint's own patterns are assembled from concatenated string
+fragments so the scan covers every workflow including itself
+without self-matching — no self-exclusion filter, no coverage hole.
+
+Exit criteria all met: CI runs without any `curl … | bash`; the
+lint guarantees future PRs cannot reintroduce the anti-patterns.
+`tfsec/checkov/trivy` continue to pass on the workflow files.
 
 ## 30-Day Remediation Window (PR-R2-6 → PR-R2-9)
 
@@ -308,7 +353,7 @@ template's claims and what users actually receive.
 ## Acceptance criteria for this ADR
 
 - [ ] All 5 24-hour fixes shipped (commit `7bc53fd`).
-- [ ] PR-R2-1 through PR-R2-5 merged within 7 calendar days of
+- [x] PR-R2-1 through PR-R2-5 merged within 7 calendar days of
       this ADR's date.
 - [ ] PR-R2-6 through PR-R2-9 merged within 30 calendar days.
 - [ ] PR-R2-10 through PR-R2-12 merged within 90 calendar days.
