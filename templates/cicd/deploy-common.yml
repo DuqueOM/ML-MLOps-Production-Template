@@ -268,12 +268,20 @@ jobs:
       # Runs on success AND failure (if: always) so we capture aborts too.
       # ---------------------------------------------------------------------
       - name: Emit audit entry
+        id: audit
         if: always()
         env:
           # Use dynamic mode if the risk step ran; otherwise derive static.
           BASE_MODE: ${{ steps.risk.outputs.base_mode || (inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO')) }}
           FINAL_MODE: ${{ steps.risk.outputs.final_mode || (inputs.environment == 'production' && 'STOP' || (inputs.environment == 'staging' && 'CONSULT' || 'AUTO')) }}
           SIGNAL_SOURCE: ${{ steps.risk.outputs.source || 'unavailable' }}
+          # PR-C1 (ADR-015): canonical correlation id for this deploy.
+          # Format: <env>-<run_id>-<run_attempt>. Stable across retries
+          # of the same workflow run, distinct between attempts. Embeds
+          # the GHA run id so a deploy entry, the K8s annotation, and
+          # the prediction-log line all share one JOIN key.
+          AUDIT_ID: "${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          DEPLOYMENT_ID: "${{ inputs.environment }}-${{ github.run_id }}-${{ github.run_attempt }}"
         run: |
           python scripts/audit_record.py \
             --agent "Agent-K8sBuilder" \
@@ -284,7 +292,9 @@ jobs:
             --result "${{ job.status }}" \
             --inputs '{"cloud":"${{ inputs.cloud }}","cluster":"${{ inputs.cluster_name }}","region":"${{ inputs.region }}","version":"${{ inputs.version }}","services":${{ inputs.services }},"risk_source":"'"${SIGNAL_SOURCE}"'"}' \
             --outputs '{"overlay":"${{ inputs.overlay_path }}","run_id":"${{ github.run_id }}","sha":"${{ github.sha }}"}' \
-            --approver "${{ github.actor }}"
+            --approver "${{ github.actor }}" \
+            --audit-id "${AUDIT_ID}" \
+            --deployment-id "${DEPLOYMENT_ID}"
 
       - name: Upload audit log (kept locally also)
         if: always()
