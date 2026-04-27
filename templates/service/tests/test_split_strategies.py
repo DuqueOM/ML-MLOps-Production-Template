@@ -105,16 +105,13 @@ def _make_grouped_data(n_groups: int = 50, rows_per_group: int = 4) -> tuple[pd.
 
 def test_temporal_split_puts_latest_rows_in_test() -> None:
     X, y = _make_temporal_data(200)
-    trainer = _SplitOnlyTrainer(
-        SplitConfig(strategy="temporal", timestamp_column="ts", test_fraction=0.2)
-    )
+    trainer = _SplitOnlyTrainer(SplitConfig(strategy="temporal", timestamp_column="ts", test_fraction=0.2))
     splits = trainer._split_data(X, y)
 
     train_max_ts = splits["X_train"]["ts"].max()
     test_min_ts = splits["X_test"]["ts"].min()
     assert train_max_ts <= test_min_ts, (
-        "temporal split leaked future into train: "
-        f"train_max_ts={train_max_ts} > test_min_ts={test_min_ts}"
+        "temporal split leaked future into train: " f"train_max_ts={train_max_ts} > test_min_ts={test_min_ts}"
     )
     assert len(splits["X_test"]) == 40
     assert len(splits["X_train"]) == 160
@@ -151,9 +148,7 @@ def test_temporal_split_rejects_missing_column() -> None:
 
 def test_grouped_split_keeps_groups_disjoint() -> None:
     X, y = _make_grouped_data(50, 4)
-    trainer = _SplitOnlyTrainer(
-        SplitConfig(strategy="grouped", entity_id_column="customer_id", test_fraction=0.25)
-    )
+    trainer = _SplitOnlyTrainer(SplitConfig(strategy="grouped", entity_id_column="customer_id", test_fraction=0.25))
     splits = trainer._split_data(X, y)
     train_ids = set(splits["X_train"]["customer_id"])
     test_ids = set(splits["X_test"]["customer_id"])
@@ -190,9 +185,7 @@ def test_random_split_refuses_without_acknowledgement() -> None:
 
 def test_random_split_runs_with_acknowledgement() -> None:
     X, y = _make_temporal_data(100)
-    trainer = _SplitOnlyTrainer(
-        SplitConfig(strategy="random", acknowledge_iid=True, test_fraction=0.2)
-    )
+    trainer = _SplitOnlyTrainer(SplitConfig(strategy="random", acknowledge_iid=True, test_fraction=0.2))
     splits = trainer._split_data(X, y)
     assert len(splits["X_train"]) + len(splits["X_test"]) == 100
     assert trainer._split_meta["strategy"] == "random"

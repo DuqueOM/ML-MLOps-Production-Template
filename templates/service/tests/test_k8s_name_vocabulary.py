@@ -69,10 +69,7 @@ SAMPLE_KEBAB = "golden-path"
 _THIS = Path(__file__).resolve()
 _CANDIDATE_PREFIXES = [_THIS.parents[1], _THIS.parents[2]]
 _DISCOVERY_ROOTS = [
-    prefix / sub
-    for prefix in _CANDIDATE_PREFIXES
-    for sub in ("k8s", "monitoring")
-    if (prefix / sub).is_dir()
+    prefix / sub for prefix in _CANDIDATE_PREFIXES for sub in ("k8s", "monitoring") if (prefix / sub).is_dir()
 ]
 
 
@@ -99,7 +96,7 @@ _ALL_YAMLS = _iter_yaml_files()
 _KEBAB_REGEXES = [
     # Resource names.
     re.compile(r'^\s*name:\s*"\{service\}'),
-    re.compile(r'^\s*name:\s*\{service\}-'),
+    re.compile(r"^\s*name:\s*\{service\}-"),
     # K8s `app:` and `service:` label values.
     re.compile(r'^\s*app:\s*"?\{service\}"?\s*$'),
     re.compile(r'^\s*service:\s*"\{service\}"\s*$'),
@@ -131,8 +128,7 @@ def test_no_naked_service_placeholder_in_kebab_context(yaml_path: Path) -> None:
                 break
     assert not bad, (
         f"{yaml_path}: kebab-context `{{service}}` placeholder found "
-        f"(must be `{{service-name}}` per PR-A5b):\n"
-        + "\n".join(f"  L{n}: {line}" for n, line in bad)
+        f"(must be `{{service-name}}` per PR-A5b):\n" + "\n".join(f"  L{n}: {line}" for n, line in bad)
     )
 
 
@@ -215,9 +211,7 @@ def _collect_names(doc: dict) -> list[tuple[str, str]]:
             for ctype in ("initContainers", "containers"):
                 for i, c in enumerate(job_tmpl.get(ctype, []) or []):
                     if isinstance(c, dict) and isinstance(c.get("name"), str):
-                        out.append(
-                            (f"spec.jobTemplate.spec.template.spec.{ctype}[{i}].name", c["name"])
-                        )
+                        out.append((f"spec.jobTemplate.spec.template.spec.{ctype}[{i}].name", c["name"]))
         # Selector matchLabels.
         sel = spec.get("selector")
         if isinstance(sel, dict):
@@ -248,8 +242,7 @@ def _rfc1123_violations(name: str) -> str | None:
 
 @pytest.mark.parametrize(
     "yaml_path",
-    [p for p in _ALL_YAMLS if "k8s" in p.parts]
-    or [pytest.param(None, marks=pytest.mark.skip(reason="no k8s/ found"))],
+    [p for p in _ALL_YAMLS if "k8s" in p.parts] or [pytest.param(None, marks=pytest.mark.skip(reason="no k8s/ found"))],
     ids=lambda p: p.name if p else "skip",
 )
 def test_rendered_k8s_names_are_rfc1123(yaml_path: Path) -> None:
@@ -286,9 +279,7 @@ def test_rendered_k8s_names_are_rfc1123(yaml_path: Path) -> None:
 
 
 def test_discovery_finds_canonical_manifests() -> None:
-    assert _ALL_YAMLS, (
-        f"no manifests discovered under {[str(r) for r in _DISCOVERY_ROOTS]}"
-    )
+    assert _ALL_YAMLS, f"no manifests discovered under {[str(r) for r in _DISCOVERY_ROOTS]}"
     names = {p.name for p in _ALL_YAMLS}
     expected = {
         "deployment.yaml",
@@ -315,9 +306,7 @@ def test_discovery_finds_canonical_manifests() -> None:
 def test_bug_trigger_slug_actually_violates_rfc1123() -> None:
     """Sanity check: ``golden_path-dev`` MUST fail RFC 1123, otherwise
     the test is asserting against a too-loose regex."""
-    assert _rfc1123_violations(f"{SAMPLE_SNAKE}-dev") is not None, (
-        "golden_path-dev unexpectedly matches RFC 1123 — test regex is wrong"
-    )
-    assert _rfc1123_violations(SAMPLE_KEBAB) is None, (
-        "golden-path unexpectedly fails RFC 1123 — test regex is wrong"
-    )
+    assert (
+        _rfc1123_violations(f"{SAMPLE_SNAKE}-dev") is not None
+    ), "golden_path-dev unexpectedly matches RFC 1123 — test regex is wrong"
+    assert _rfc1123_violations(SAMPLE_KEBAB) is None, "golden-path unexpectedly fails RFC 1123 — test regex is wrong"

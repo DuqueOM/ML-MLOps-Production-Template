@@ -181,8 +181,7 @@ def evaluate_evidence(
     verdict.manifest_path = str(manifest_path)
     if not manifest_path.is_file():
         failures.append(
-            f"training_manifest.json not found at {manifest_path}. "
-            "PR-B3 manifest writer must run before promotion."
+            f"training_manifest.json not found at {manifest_path}. " "PR-B3 manifest writer must run before promotion."
         )
         return verdict
 
@@ -204,8 +203,7 @@ def evaluate_evidence(
     strategy = split.get("strategy")
     if not strategy:
         failures.append(
-            "manifest.split.strategy is missing — the run did not record a "
-            "split policy (PR-B3 wiring incomplete)."
+            "manifest.split.strategy is missing — the run did not record a " "split policy (PR-B3 wiring incomplete)."
         )
     elif strategy not in {"temporal", "grouped", "random"}:
         failures.append(f"manifest.split.strategy={strategy!r} is not a valid strategy")
@@ -235,8 +233,7 @@ def evaluate_evidence(
         verdict.leakage_report_path = str(leakage_path)
         if load_leakage_report is None:
             (failures if require_eda else warnings).append(
-                "common_utils.eda_artifacts is not importable; cannot "
-                "verify leakage_report.json"
+                "common_utils.eda_artifacts is not importable; cannot " "verify leakage_report.json"
             )
         elif not eda_dir.is_dir():
             (failures if require_eda else warnings).append(
@@ -246,9 +243,7 @@ def evaluate_evidence(
             try:
                 report = load_leakage_report(eda_dir)
             except EDAArtifactError as exc:
-                (failures if require_eda else warnings).append(
-                    f"leakage_report.json could not be loaded: {exc}"
-                )
+                (failures if require_eda else warnings).append(f"leakage_report.json could not be loaded: {exc}")
             else:
                 if not report.passed:
                     (failures if require_eda else warnings).append(
@@ -261,8 +256,7 @@ def evaluate_evidence(
         # require_eda=True this is a hard fail; otherwise a warning
         # so the verdict records the exemption was used.
         (failures if require_eda else warnings).append(
-            "manifest.eda_artifacts_dir is null — no EDA evidence linked "
-            "to this run."
+            "manifest.eda_artifacts_dir is null — no EDA evidence linked " "to this run."
         )
 
     verdict.passed = not failures

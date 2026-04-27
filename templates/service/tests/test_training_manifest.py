@@ -24,7 +24,6 @@ if str(_TEMPLATES) not in sys.path:
 
 from common_utils import training_manifest as tm  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # file_sha256
 # ---------------------------------------------------------------------------
@@ -135,8 +134,10 @@ def test_build_initial_manifest_cross_references_eda(tmp_path: Path, fixture_inp
         data_path=fixture_inputs["data"],
         quality_gates_path=fixture_inputs["qg"],
         target_column="target",
-        n_rows=2, n_columns=2,
-        optuna_trials=1, cv_folds=2,
+        n_rows=2,
+        n_columns=2,
+        optuna_trials=1,
+        cv_folds=2,
         eda_artifacts_dir=eda_dir,
     )
     assert m.eda_summary_git_sha == "deadbeef" * 5
@@ -150,8 +151,10 @@ def test_build_initial_manifest_handles_missing_eda(fixture_inputs: dict, tmp_pa
         data_path=fixture_inputs["data"],
         quality_gates_path=fixture_inputs["qg"],
         target_column="target",
-        n_rows=2, n_columns=2,
-        optuna_trials=1, cv_folds=2,
+        n_rows=2,
+        n_columns=2,
+        optuna_trials=1,
+        cv_folds=2,
         eda_artifacts_dir=None,
     )
     assert m.eda_artifacts_dir is None
@@ -171,8 +174,10 @@ def test_build_initial_manifest_tolerates_corrupt_eda_summary(
             data_path=fixture_inputs["data"],
             quality_gates_path=fixture_inputs["qg"],
             target_column="target",
-            n_rows=2, n_columns=2,
-            optuna_trials=1, cv_folds=2,
+            n_rows=2,
+            n_columns=2,
+            optuna_trials=1,
+            cv_folds=2,
             eda_artifacts_dir=eda_dir,
         )
     assert m.eda_summary_git_sha is None
@@ -189,8 +194,10 @@ def test_write_round_trip_preserves_fields(fixture_inputs: dict, tmp_path: Path)
         data_path=fixture_inputs["data"],
         quality_gates_path=fixture_inputs["qg"],
         target_column="target",
-        n_rows=2, n_columns=2,
-        optuna_trials=1, cv_folds=2,
+        n_rows=2,
+        n_columns=2,
+        optuna_trials=1,
+        cv_folds=2,
     )
     m.metrics = {"roc_auc": 0.92, "f1": 0.71}
     m.cv_scores = [0.91, 0.93, 0.92]
@@ -238,8 +245,10 @@ def test_manifest_serialisation_is_byte_stable(fixture_inputs: dict, tmp_path: P
         data_path=fixture_inputs["data"],
         quality_gates_path=fixture_inputs["qg"],
         target_column="target",
-        n_rows=2, n_columns=2,
-        optuna_trials=1, cv_folds=2,
+        n_rows=2,
+        n_columns=2,
+        optuna_trials=1,
+        cv_folds=2,
     )
     m.metrics = {"f1": 0.7, "roc_auc": 0.9}
     m.cv_scores = [0.91, 0.92]

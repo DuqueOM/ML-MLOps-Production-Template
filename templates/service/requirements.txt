@@ -13,6 +13,7 @@ pydantic             ~= 2.10.0
 
 # Data Validation
 pandera              ~= 0.23.0
+jsonschema           ~= 4.23.0    # PR-B1 — quality_gates.schema.json validator (test_quality_gates_schema_sync.py)
 
 # Explainability
 shap                 ~= 0.46.0

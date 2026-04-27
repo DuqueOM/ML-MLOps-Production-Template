@@ -263,9 +263,7 @@ def load_manifest(path: Path | str) -> dict[str, Any]:
     if found is None:
         raise ManifestError(f"{p}: missing 'manifest_version' (loader expects {MANIFEST_VERSION})")
     if found != MANIFEST_VERSION:
-        raise ManifestVersionError(
-            f"{p}: manifest_version={found} != loader version {MANIFEST_VERSION}"
-        )
+        raise ManifestVersionError(f"{p}: manifest_version={found} != loader version {MANIFEST_VERSION}")
     return payload
 
 

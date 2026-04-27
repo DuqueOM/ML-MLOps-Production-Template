@@ -51,10 +51,7 @@ _CANDIDATE_PREFIXES = [
 # Auto-discovery roots: any matching ``*.yaml`` whose top-level shape
 # is a PrometheusRule CRD or a bare ``groups: [...]`` document.
 DISCOVERY_ROOTS = [
-    prefix / sub
-    for prefix in _CANDIDATE_PREFIXES
-    for sub in ("k8s/base", "monitoring")
-    if (prefix / sub).is_dir()
+    prefix / sub for prefix in _CANDIDATE_PREFIXES for sub in ("k8s/base", "monitoring") if (prefix / sub).is_dir()
 ]
 
 # Allowed values for the routing label. Keep this small on purpose —
@@ -124,8 +121,7 @@ def test_discovery_finds_expected_alert_files() -> None:
     here makes that breakage visible.
     """
     assert _ALERT_FILES, (
-        f"no PrometheusRule / alerting-groups files discovered under "
-        f"{[str(r) for r in DISCOVERY_ROOTS]}"
+        f"no PrometheusRule / alerting-groups files discovered under " f"{[str(r) for r in DISCOVERY_ROOTS]}"
     )
     names = {p.name for p in _ALERT_FILES}
     expected_subset = {
@@ -135,10 +131,7 @@ def test_discovery_finds_expected_alert_files() -> None:
         "alerts-template.yaml",
     }
     missing = expected_subset - names
-    assert not missing, (
-        f"discovery missed canonical alert files: {sorted(missing)}\n"
-        f"discovered: {sorted(names)}"
-    )
+    assert not missing, f"discovery missed canonical alert files: {sorted(missing)}\n" f"discovered: {sorted(names)}"
 
 
 @pytest.mark.parametrize(
@@ -191,8 +184,7 @@ def test_every_alert_has_action_label(yaml_path: Path) -> None:
                 bad.append(f"{rule['alert']} (action={action!r})")
     assert not bad, (
         f"{yaml_path.name}: alerts missing or invalid `action` label "
-        f"(must be one of {sorted(ALLOWED_ACTIONS)}):\n  - "
-        + "\n  - ".join(bad)
+        f"(must be one of {sorted(ALLOWED_ACTIONS)}):\n  - " + "\n  - ".join(bad)
     )
 
 
@@ -261,11 +253,5 @@ def test_action_label_consistent_with_severity() -> None:
                 action = labels.get("action")
                 severity = labels.get("severity")
                 if (action, severity) in forbidden_pairs:
-                    bad.append(
-                        f"{path.name}::{rule['alert']} "
-                        f"(action={action!r}, severity={severity!r})"
-                    )
-    assert not bad, (
-        "alerts have incompatible action/severity pairs:\n  - "
-        + "\n  - ".join(bad)
-    )
+                    bad.append(f"{path.name}::{rule['alert']} " f"(action={action!r}, severity={severity!r})")
+    assert not bad, "alerts have incompatible action/severity pairs:\n  - " + "\n  - ".join(bad)

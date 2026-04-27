@@ -50,7 +50,6 @@ EDAGateError = train_module.EDAGateError
 
 import common_utils.eda_artifacts as ea  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers — build a minimal Trainer subclass that ONLY exercises the gate.
 # ---------------------------------------------------------------------------
@@ -141,9 +140,7 @@ def test_passed_leakage_report_allows_training(tmp_path: Path, caplog: pytest.Lo
     assert "transform" in log_text
 
 
-def test_missing_artifacts_dir_skips_gate_with_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_missing_artifacts_dir_skips_gate_with_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     nonexistent = tmp_path / "no_eda_yet"
     trainer = _GateOnlyTrainer(eda_artifacts_dir=nonexistent)
     with caplog.at_level("WARNING"):

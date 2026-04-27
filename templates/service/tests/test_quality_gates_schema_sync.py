@@ -73,110 +73,182 @@ _CASES: list[tuple[str, dict[str, Any], bool]] = [
         },
         True,
     ),
-    ("missing_primary_metric", {
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "protected_attributes": [],
-    }, False),
-    ("missing_protected_attributes", {
-        "primary_metric": "roc_auc",
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-    }, False),
-    ("primary_threshold_too_high", {
-        "primary_metric": "roc_auc",
-        "primary_threshold": 1.5,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "protected_attributes": [],
-    }, False),
-    ("primary_threshold_negative", {
-        "primary_metric": "roc_auc",
-        "primary_threshold": -0.1,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "protected_attributes": [],
-    }, False),
-    ("latency_must_be_strictly_positive", {
-        "primary_metric": "roc_auc",
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "latency_sla_ms": 0.0,
-        "protected_attributes": [],
-    }, False),
-    ("metric_with_leading_space", {
-        "primary_metric": " roc_auc",
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "protected_attributes": [],
-    }, False),
-    ("metric_with_trailing_space", {
-        "primary_metric": "roc_auc",
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1 ",
-        "secondary_threshold": 0.55,
-        "protected_attributes": [],
-    }, False),
-    ("empty_metric_name", {
-        "primary_metric": "",
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "protected_attributes": [],
-    }, False),
-    ("duplicate_protected_attributes", {
-        "primary_metric": "roc_auc",
-        "primary_threshold": 0.8,
-        "secondary_metric": "f1",
-        "secondary_threshold": 0.55,
-        "protected_attributes": ["gender", "gender"],
-    }, False),
+    (
+        "missing_primary_metric",
+        {
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "missing_protected_attributes",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+        },
+        False,
+    ),
+    (
+        "primary_threshold_too_high",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 1.5,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "primary_threshold_negative",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": -0.1,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "latency_must_be_strictly_positive",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "latency_sla_ms": 0.0,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "metric_with_leading_space",
+        {
+            "primary_metric": " roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "metric_with_trailing_space",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1 ",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "empty_metric_name",
+        {
+            "primary_metric": "",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+        },
+        False,
+    ),
+    (
+        "duplicate_protected_attributes",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": ["gender", "gender"],
+        },
+        False,
+    ),
     # PR-B3 — SplitConfig sub-block.
     # Both validators must accept all three legal strategies and reject
     # an unknown strategy / out-of-range fraction. ``acknowledge_iid``
     # is checked at runtime by ``validate_against_data`` (it's the
     # cross-config check), not at YAML-parse time, so a payload with
     # ``random`` + ``acknowledge_iid: false`` is structurally valid here.
-    ("split_temporal", {
-        "primary_metric": "roc_auc", "primary_threshold": 0.8,
-        "secondary_metric": "f1", "secondary_threshold": 0.55,
-        "protected_attributes": [],
-        "split": {"strategy": "temporal", "timestamp_column": "ts", "test_fraction": 0.25},
-    }, True),
-    ("split_grouped", {
-        "primary_metric": "roc_auc", "primary_threshold": 0.8,
-        "secondary_metric": "f1", "secondary_threshold": 0.55,
-        "protected_attributes": [],
-        "split": {"strategy": "grouped", "entity_id_column": "customer_id"},
-    }, True),
-    ("split_random_with_ack", {
-        "primary_metric": "roc_auc", "primary_threshold": 0.8,
-        "secondary_metric": "f1", "secondary_threshold": 0.55,
-        "protected_attributes": [],
-        "split": {"strategy": "random", "acknowledge_iid": True},
-    }, True),
-    ("split_unknown_strategy", {
-        "primary_metric": "roc_auc", "primary_threshold": 0.8,
-        "secondary_metric": "f1", "secondary_threshold": 0.55,
-        "protected_attributes": [],
-        "split": {"strategy": "temproal"},  # typo
-    }, False),
-    ("split_test_fraction_out_of_range", {
-        "primary_metric": "roc_auc", "primary_threshold": 0.8,
-        "secondary_metric": "f1", "secondary_threshold": 0.55,
-        "protected_attributes": [],
-        "split": {"strategy": "random", "acknowledge_iid": True, "test_fraction": 1.5},
-    }, False),
-    ("split_unknown_field", {
-        "primary_metric": "roc_auc", "primary_threshold": 0.8,
-        "secondary_metric": "f1", "secondary_threshold": 0.55,
-        "protected_attributes": [],
-        "split": {"strategy": "random", "acknowledge_iid": True, "extraneous": True},
-    }, False),
+    (
+        "split_temporal",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+            "split": {"strategy": "temporal", "timestamp_column": "ts", "test_fraction": 0.25},
+        },
+        True,
+    ),
+    (
+        "split_grouped",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+            "split": {"strategy": "grouped", "entity_id_column": "customer_id"},
+        },
+        True,
+    ),
+    (
+        "split_random_with_ack",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+            "split": {"strategy": "random", "acknowledge_iid": True},
+        },
+        True,
+    ),
+    (
+        "split_unknown_strategy",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+            "split": {"strategy": "temproal"},  # typo
+        },
+        False,
+    ),
+    (
+        "split_test_fraction_out_of_range",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+            "split": {"strategy": "random", "acknowledge_iid": True, "test_fraction": 1.5},
+        },
+        False,
+    ),
+    (
+        "split_unknown_field",
+        {
+            "primary_metric": "roc_auc",
+            "primary_threshold": 0.8,
+            "secondary_metric": "f1",
+            "secondary_threshold": 0.55,
+            "protected_attributes": [],
+            "split": {"strategy": "random", "acknowledge_iid": True, "extraneous": True},
+        },
+        False,
+    ),
 ]
 
 
@@ -224,17 +296,11 @@ def test_schema_and_pydantic_agree(
     py_ok = _pydantic_accepts(payload)
     js_ok = _jsonschema_accepts(jsonschema_validator, payload)
 
-    assert py_ok == should_be_valid, (
-        f"[{label}] Pydantic verdict {py_ok!r} != expected {should_be_valid!r}"
-    )
-    assert js_ok == should_be_valid, (
-        f"[{label}] JSON Schema verdict {js_ok!r} != expected {should_be_valid!r}"
-    )
+    assert py_ok == should_be_valid, f"[{label}] Pydantic verdict {py_ok!r} != expected {should_be_valid!r}"
+    assert js_ok == should_be_valid, f"[{label}] JSON Schema verdict {js_ok!r} != expected {should_be_valid!r}"
     # Redundant given the two asserts above, but makes the failure
     # message obvious when adding new cases:
-    assert py_ok == js_ok, (
-        f"[{label}] Pydantic={py_ok} but JSONSchema={js_ok} — schemas have drifted"
-    )
+    assert py_ok == js_ok, f"[{label}] Pydantic={py_ok} but JSONSchema={js_ok} — schemas have drifted"
 
 
 def test_committed_template_yaml_passes_both_validators(
@@ -250,7 +316,5 @@ def test_committed_template_yaml_passes_both_validators(
         payload = yaml.safe_load(fh)
 
     assert isinstance(payload, dict), f"{yaml_path}: top-level must be a mapping"
-    assert _jsonschema_accepts(jsonschema_validator, payload), (
-        f"{yaml_path} fails JSON Schema validation"
-    )
+    assert _jsonschema_accepts(jsonschema_validator, payload), f"{yaml_path} fails JSON Schema validation"
     QualityGatesConfig(**payload)  # Pydantic; raises on failure.

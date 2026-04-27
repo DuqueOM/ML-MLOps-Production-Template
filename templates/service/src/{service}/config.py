@@ -137,9 +137,7 @@ class SplitConfig(BaseModel):
     @classmethod
     def _strategy_in_enum(cls, v: str) -> str:
         if v not in SPLIT_STRATEGIES:
-            raise ValueError(
-                f"strategy must be one of {SPLIT_STRATEGIES}, got {v!r}"
-            )
+            raise ValueError(f"strategy must be one of {SPLIT_STRATEGIES}, got {v!r}")
         return v
 
     def validate_columns_present(self, columns: list[str] | tuple[str, ...]) -> None:

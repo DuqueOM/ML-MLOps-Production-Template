@@ -74,20 +74,14 @@ def _runbook_path() -> Path:
     candidates = _candidate_paths("docs/runbooks/day-2-operations.md")
     found = _find_one(candidates)
     if found is None:
-        pytest.fail(
-            "day-2-operations.md not found at any of:\n  - "
-            + "\n  - ".join(str(c) for c in candidates)
-        )
+        pytest.fail("day-2-operations.md not found at any of:\n  - " + "\n  - ".join(str(c) for c in candidates))
     return found
 
 
 def test_day2_runbook_exists_and_has_required_sections() -> None:
     text = _runbook_path().read_text(encoding="utf-8")
     missing = [s for s in REQUIRED_RUNBOOK_SECTIONS if s.lower() not in text.lower()]
-    assert not missing, (
-        "day-2-operations.md missing required sections (PR-A4 contract):\n  - "
-        + "\n  - ".join(missing)
-    )
+    assert not missing, "day-2-operations.md missing required sections (PR-A4 contract):\n  - " + "\n  - ".join(missing)
 
 
 def test_day2_runbook_covers_both_clouds() -> None:
@@ -96,8 +90,7 @@ def test_day2_runbook_covers_both_clouds() -> None:
     assert not missing, (
         "day-2-operations.md must cover both clouds (the single-runbook "
         "design is the rejected-items rationale; not having both clouds "
-        "tagged means the design intent has been lost):\n  - "
-        + "\n  - ".join(missing)
+        "tagged means the design intent has been lost):\n  - " + "\n  - ".join(missing)
     )
 
 
@@ -121,8 +114,7 @@ def test_day2_runbook_uses_kebab_for_k8s_names() -> None:
             bad.append((n, line.strip()))
     assert not bad, (
         "day-2-operations.md uses `{service}` (snake) in a K8s-name "
-        "context (must be `{service-name}` kebab per PR-A5b):\n"
-        + "\n".join(f"  L{n}: {ln}" for n, ln in bad)
+        "context (must be `{service-name}` kebab per PR-A5b):\n" + "\n".join(f"  L{n}: {ln}" for n, ln in bad)
     )
 
 
@@ -143,10 +135,7 @@ def _workflow_path() -> Path:
     ]
     found = _find_one(candidates)
     if found is None:
-        pytest.fail(
-            "terraform-plan-nightly.yml not found at any of:\n  - "
-            + "\n  - ".join(str(c) for c in candidates)
-        )
+        pytest.fail("terraform-plan-nightly.yml not found at any of:\n  - " + "\n  - ".join(str(c) for c in candidates))
     return found
 
 
@@ -187,8 +176,7 @@ def test_workflow_runs_plan_only_never_apply() -> None:
     assert not apply_lines, (
         "terraform-plan-nightly.yml contains a non-comment "
         "`terraform apply` invocation. Apply is CONSULT/STOP per "
-        "ADR-015 and never belongs in a scheduled workflow:\n"
-        + "\n".join(f"  L{n}: {ln}" for n, ln in apply_lines)
+        "ADR-015 and never belongs in a scheduled workflow:\n" + "\n".join(f"  L{n}: {ln}" for n, ln in apply_lines)
     )
 
 
@@ -283,10 +271,7 @@ def test_audit_record_cli_actually_works_with_workflow_args(
     ]
     cli = next((p for p in candidates if p.is_file()), None)
     if cli is None:
-        pytest.skip(
-            "audit_record.py not present in any candidate path; "
-            "skipping smoke test"
-        )
+        pytest.skip("audit_record.py not present in any candidate path; " "skipping smoke test")
 
     # Find common_utils so audit_record can import it. Same dual-layout
     # logic as the drills test.
@@ -313,14 +298,22 @@ def test_audit_record_cli_actually_works_with_workflow_args(
         [
             sys.executable,
             str(cli),
-            "--agent", "terraform-plan-nightly",
-            "--operation", "infra_drift_check",
-            "--environment", "dev",
-            "--base-mode", "AUTO",
-            "--final-mode", "AUTO",
-            "--result", "success",
-            "--inputs", '{"trigger":"schedule","cloud":"both"}',
-            "--outputs", '{"gcp":"success","aws":"success","run_url":"https://example/run/1"}',
+            "--agent",
+            "terraform-plan-nightly",
+            "--operation",
+            "infra_drift_check",
+            "--environment",
+            "dev",
+            "--base-mode",
+            "AUTO",
+            "--final-mode",
+            "AUTO",
+            "--result",
+            "success",
+            "--inputs",
+            '{"trigger":"schedule","cloud":"both"}',
+            "--outputs",
+            '{"gcp":"success","aws":"success","run_url":"https://example/run/1"}',
         ],
         cwd=tmp_path,
         env=env,
