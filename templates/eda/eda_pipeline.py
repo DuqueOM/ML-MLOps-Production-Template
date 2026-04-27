@@ -34,7 +34,9 @@ import json
 import logging
 import pickle
 import re
+import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -42,8 +44,202 @@ import numpy as np
 import pandas as pd
 import yaml
 
+# Canonical EDA artifact contract (ADR-015 PR-B2). Everything written
+# under the canonical filenames defined here is consumed by training,
+# drift, and retrain via ``common_utils.eda_artifacts`` loaders. The
+# legacy artifacts (``02_baseline_distributions.pkl``, etc.) are still
+# emitted alongside for one transition cycle.
+try:
+    from common_utils.eda_artifacts import (
+        ARTIFACT_VERSION,
+        BASELINE_DISTRIBUTIONS_FILENAME,
+        EDA_SUMMARY_FILENAME,
+        FEATURE_CATALOG_FILENAME,
+        LEAKAGE_REPORT_FILENAME,
+        SCHEMA_RANGES_FILENAME,
+    )
+except ImportError:
+    # Fallback so the EDA module remains usable even when invoked from
+    # a sys.path that doesn't include common_utils (e.g. notebooks run
+    # in eda/notebooks/). The canonical names are duplicated here only;
+    # the version is bumped in lock-step with the loader module.
+    ARTIFACT_VERSION = 1
+    EDA_SUMMARY_FILENAME = "eda_summary.json"
+    SCHEMA_RANGES_FILENAME = "schema_ranges.json"
+    BASELINE_DISTRIBUTIONS_FILENAME = "baseline_distributions.parquet"
+    FEATURE_CATALOG_FILENAME = "feature_catalog.yaml"
+    LEAKAGE_REPORT_FILENAME = "leakage_report.json"
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eda")
+
+
+# ---------------------------------------------------------------------------
+# Canonical-artifact helpers (PR-B2)
+# ---------------------------------------------------------------------------
+
+
+def _git_sha() -> str | None:
+    """Return current ``HEAD`` SHA or None when not in a git checkout.
+
+    Embedded in ``eda_summary.json`` so a downstream consumer can
+    JOIN the EDA run back to the exact code that produced it. Failure
+    is silent — operating outside a git repo (e.g. a tarball CI run)
+    is normal and shouldn't crash the pipeline.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if out.returncode == 0:
+            return out.stdout.strip() or None
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return None
+
+
+def _write_eda_summary(
+    output_dir: Path,
+    target: str,
+    n_rows: int,
+    n_columns: int,
+    runtime_seconds: float,
+    extras: dict[str, Any] | None = None,
+) -> Path:
+    """Emit canonical ``eda_summary.json`` (PR-B2).
+
+    Top-level metadata only — every other artifact carries its own
+    detail. Kept JSON (not YAML) so a non-Python consumer (jq, Go,
+    Rust) can parse it without a YAML dep.
+    """
+    payload: dict[str, Any] = {
+        "eda_artifact_version": ARTIFACT_VERSION,
+        "target": target,
+        "n_rows": n_rows,
+        "n_columns": n_columns,
+        "runtime_seconds": round(runtime_seconds, 3),
+        "pipeline_git_sha": _git_sha(),
+    }
+    if extras:
+        payload.update(extras)
+    path = output_dir / "artifacts" / EDA_SUMMARY_FILENAME
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return path
+
+
+def _write_schema_ranges(output_dir: Path, dtypes_map: dict[str, dict], baseline: dict[str, Any]) -> Path:
+    """Emit canonical ``schema_ranges.json`` (PR-B2).
+
+    One entry per feature. Numeric features carry minimum/maximum/
+    mean/std (consumed by Pandera schema synthesis and drift bin
+    construction); categorical features carry top-K values
+    (consumed by validators that want to flag previously-unseen
+    labels in production).
+    """
+    features: list[dict[str, Any]] = []
+    for name, meta in dtypes_map.items():
+        baseline_entry = baseline.get(name, {}) if isinstance(baseline, dict) else {}
+        entry: dict[str, Any] = {
+            "name": name,
+            "dtype": str(meta.get("dtype", "object")),
+            "nullable": bool(meta.get("nulls", 0) > 0),
+            "null_pct": float(meta.get("null_pct", 0.0)),
+            "cardinality": int(meta.get("cardinality", 0)),
+        }
+        if meta.get("min") is not None:
+            entry["minimum"] = float(meta["min"])
+            entry["maximum"] = float(meta["max"])
+        if baseline_entry.get("type") == "numeric":
+            entry["mean"] = baseline_entry.get("mean")
+            entry["std"] = baseline_entry.get("std")
+        elif baseline_entry.get("type") == "categorical":
+            freq = baseline_entry.get("freq", {})
+            top = sorted(freq.items(), key=lambda kv: kv[1], reverse=True)[:10]
+            entry["top_values"] = [str(label) for label, _ in top]
+        features.append(entry)
+
+    payload = {"eda_artifact_version": ARTIFACT_VERSION, "features": features}
+    path = output_dir / "artifacts" / SCHEMA_RANGES_FILENAME
+    path.write_text(json.dumps(payload, indent=2) + "\n")
+    return path
+
+
+def _write_baseline_parquet(output_dir: Path, baseline: dict[str, Any]) -> Path:
+    """Emit canonical ``baseline_distributions.parquet`` (PR-B2).
+
+    Long-form table: ``feature, kind, key, value, eda_artifact_version``.
+    Replaces the unsafe pickle baseline with a stable, cross-version
+    format; pandas writes via pyarrow which all template envs already
+    have via the prediction logger / DVC stack.
+    """
+    rows: list[dict[str, Any]] = []
+    for feature, data in baseline.items():
+        if feature.startswith("_") or not isinstance(data, dict):
+            continue
+        kind = data.get("type")
+        if kind == "numeric":
+            for i, edge in enumerate(data.get("bins", [])):
+                rows.append({"feature": feature, "kind": "numeric_bin_edge", "key": str(i), "value": float(edge)})
+            for stat in ("mean", "std", "skew", "kurtosis"):
+                if stat in data:
+                    rows.append({"feature": feature, "kind": "numeric_stat", "key": stat, "value": float(data[stat])})
+        elif kind == "categorical":
+            for label, freq in data.get("freq", {}).items():
+                rows.append(
+                    {"feature": feature, "kind": "categorical_freq", "key": str(label), "value": float(freq)}
+                )
+
+    df = pd.DataFrame(rows, columns=["feature", "kind", "key", "value"])
+    df["eda_artifact_version"] = ARTIFACT_VERSION
+    path = output_dir / "artifacts" / BASELINE_DISTRIBUTIONS_FILENAME
+    df.to_parquet(path, index=False)
+    return path
+
+
+def _write_feature_catalog(output_dir: Path, proposals: dict[str, Any]) -> Path:
+    """Emit canonical ``feature_catalog.yaml`` (PR-B2).
+
+    Same content as the legacy ``05_feature_proposals.yaml`` but
+    versioned and under the canonical filename. The loader enforces
+    the D-16 invariant (every transform has a non-empty rationale).
+    """
+    payload = {
+        "eda_artifact_version": ARTIFACT_VERSION,
+        **proposals,
+    }
+    path = output_dir / "artifacts" / FEATURE_CATALOG_FILENAME
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.safe_dump(payload, fh, sort_keys=False)
+    return path
+
+
+def _write_leakage_report(
+    output_dir: Path,
+    blocked: list[dict[str, Any]],
+    blocked_features: list[str],
+    thresholds: dict[str, float],
+) -> Path:
+    """Emit canonical ``leakage_report.json`` (PR-B2).
+
+    Machine-readable equivalent of the legacy
+    ``reports/04_leakage_audit.md``. Training and the retrain
+    workflow consume this to refuse to start when blocked features
+    are still present (PR-B3 wires the assertion).
+    """
+    payload = {
+        "eda_artifact_version": ARTIFACT_VERSION,
+        "status": "BLOCKED" if blocked_features else "PASSED",
+        "blocked_features": blocked_features,
+        "findings": blocked,
+        "thresholds": thresholds,
+    }
+    path = output_dir / "artifacts" / LEAKAGE_REPORT_FILENAME
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return path
 
 # Thresholds — tune per domain; documented in ADR-004
 LEAKAGE_CORR_THRESHOLD = 0.95
@@ -243,10 +439,15 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
 
     # ═══ CRITICAL: persist baseline for drift detection (D-15) ═══
     artifacts_dir = output_dir / "artifacts"
+    # Legacy pickle (back-compat for downstream notebooks); the
+    # canonical parquet artifact is written below for the PR-B2
+    # contract that drift_detection.py + retrain consume by reference.
     baseline_path = artifacts_dir / "02_baseline_distributions.pkl"
     with open(baseline_path, "wb") as f:
         pickle.dump(baseline, f)
-    logger.info(f"  Baseline distributions → {baseline_path} (D-15 satisfied)")
+    logger.info(f"  Baseline distributions → {baseline_path} (D-15 satisfied, legacy pkl)")
+    canonical_baseline = _write_baseline_parquet(output_dir, baseline)
+    logger.info(f"  Canonical baseline    → {canonical_baseline} (PR-B2)")
 
     # Univariate HTML report
     report_html = f"""<!DOCTYPE html>
@@ -399,6 +600,22 @@ BLOCKED_FEATURES:
 {_resolution_text(blocked)}
 """)
 
+    # PR-B2: machine-readable equivalent of the markdown audit.
+    # Always written, regardless of GATE pass/fail — a downstream
+    # consumer that wants to verify "we evaluated leakage" needs the
+    # PASSED case to exist on disk just as much as the BLOCKED case.
+    canonical_leakage = _write_leakage_report(
+        output_dir,
+        blocked,
+        blocked_features,
+        thresholds={
+            "correlation": LEAKAGE_CORR_THRESHOLD,
+            "near_perfect": 0.9999,
+            "mi": LEAKAGE_MI_THRESHOLD,
+        },
+    )
+    logger.info(f"  Canonical leakage report → {canonical_leakage} (PR-B2)")
+
     if blocked_features:
         logger.error(f"  GATE FAILED — {len(blocked_features)} features blocked: {blocked_features}")
     else:
@@ -470,8 +687,11 @@ def phase5_proposals(df: pd.DataFrame, target: str, baseline: dict, output_dir: 
     }
 
     artifacts_dir = output_dir / "artifacts"
+    # Legacy filename (back-compat); canonical name written alongside.
     with open(artifacts_dir / "05_feature_proposals.yaml", "w") as f:
         yaml.safe_dump(proposals, f, sort_keys=False)
+    canonical_catalog = _write_feature_catalog(output_dir, proposals)
+    logger.info(f"  Canonical feature catalog → {canonical_catalog} (PR-B2)")
 
     logger.info(f"  Proposed {len(transforms)} transforms, all with rationale (D-16 ok)")
     return proposals
@@ -548,23 +768,38 @@ def phase6_consolidate(
 - Feature transforms proposed: {len(proposals.get("transforms", []))}
 
 ## Artifacts produced
+### Canonical (PR-B2 — consumed by training/drift/retrain)
+- `artifacts/eda_summary.json`              ← run metadata
+- `artifacts/schema_ranges.json`            ← per-feature dtypes + ranges
+- `artifacts/baseline_distributions.parquet` ← **drift PSI input**
+- `artifacts/feature_catalog.yaml`          ← transforms with rationale (D-16)
+- `artifacts/leakage_report.json`           ← machine-readable BLOCKED_FEATURES
+
+### Legacy (still emitted for back-compat, removed after one cycle)
 - `artifacts/01_dtypes_map.json`
-- `artifacts/02_baseline_distributions.pkl` ← **drift detection input**
+- `artifacts/02_baseline_distributions.pkl`
 - `artifacts/03_feature_ranking_initial.csv`
 - `artifacts/05_feature_proposals.yaml`
 
 ## Next steps
 1. Review `reports/04_leakage_audit.md` — ensure `BLOCKED_FEATURES: []`
-2. Review `artifacts/05_feature_proposals.yaml` — approve or reject each transform
+2. Review `artifacts/feature_catalog.yaml` — approve or reject each transform
 3. Review `schema_proposal.py` — copy accepted parts to `src/<service>/schemas.py`
-4. DVC-track `artifacts/02_baseline_distributions.pkl`
-5. Update drift CronJob to load the baseline (closes the loop)
+4. DVC-track `artifacts/baseline_distributions.parquet`
+5. Update drift CronJob to consume the baseline (PR-B2 stage 2)
 
 ## ADR reference
 Create an ADR documenting the dataset, leakage decisions, and feature strategy.
 Cite this summary file from the ADR.
 """)
     logger.info(f"  Summary → {summary}")
+
+    # PR-B2 — canonical structured artifacts. Written last so an
+    # operator can grep `eda_summary.json` to confirm "yes, the whole
+    # 6-phase pipeline ran end-to-end" (the file's existence is a
+    # contract; partial writes are not).
+    canonical_schema = _write_schema_ranges(output_dir, dtypes_map, baseline)
+    logger.info(f"  Canonical schema ranges → {canonical_schema} (PR-B2)")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -586,6 +821,7 @@ def main() -> int:
     (args.output_dir / "reports").mkdir(exist_ok=True)
     (args.output_dir / "artifacts").mkdir(exist_ok=True)
 
+    started = time.monotonic()
     try:
         df = phase0_ingest(args.input, args.output_dir)
         dtypes_map = phase1_profile(df, args.output_dir)
@@ -594,12 +830,35 @@ def main() -> int:
         blocked = phase4_leakage_gate(df, args.target, ranking, args.output_dir)
 
         if blocked:
+            # PR-B2: emit eda_summary.json on the BLOCKED path too —
+            # downstream agents can read status="halted" + the leakage
+            # report and decide what to do without re-parsing logs.
+            _write_eda_summary(
+                args.output_dir,
+                target=args.target,
+                n_rows=len(df),
+                n_columns=len(df.columns),
+                runtime_seconds=time.monotonic() - started,
+                extras={"status": "halted_leakage_gate", "blocked_features": blocked},
+            )
             logger.error("LEAKAGE GATE FAILED — halting pipeline")
             logger.error(f"See {args.output_dir / 'reports' / '04_leakage_audit.md'}")
             return 1
 
         proposals = phase5_proposals(df, args.target, baseline, args.output_dir)
         phase6_consolidate(df, args.target, dtypes_map, baseline, proposals, args.output_dir, args.service_slug)
+
+        # PR-B2: canonical run metadata. Written LAST so its presence
+        # is a definitive "the pipeline completed all phases" signal —
+        # an interrupted run leaves no eda_summary.json behind.
+        _write_eda_summary(
+            args.output_dir,
+            target=args.target,
+            n_rows=len(df),
+            n_columns=len(df.columns),
+            runtime_seconds=time.monotonic() - started,
+            extras={"status": "complete", "input_path": str(args.input)},
+        )
 
         logger.info("━━━ EDA PIPELINE COMPLETE ━━━")
         logger.info(f"Review: {args.output_dir / 'reports' / 'eda_summary.md'}")
