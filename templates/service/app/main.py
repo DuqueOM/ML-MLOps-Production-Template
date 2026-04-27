@@ -215,7 +215,7 @@ async def model_reload() -> dict:
             "version": os.getenv("MODEL_VERSION", "0.1.0"),
             "warmup": report,
         }
-    except Exception as exc:
+    except Exception:
         # Leave _warmed_up False — /ready keeps returning 503 until operator fixes.
         # Detail intentionally redacted (D-32, audit R2): operators read
         # the pod log, not the response body.
