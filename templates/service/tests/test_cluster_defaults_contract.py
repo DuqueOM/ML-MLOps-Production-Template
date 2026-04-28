@@ -72,15 +72,13 @@ def test_gcp_private_endpoint_is_a_variable() -> None:
 
     # Cluster must reference the variable, not a literal.
     cluster_section = re.search(
-        r'private_cluster_config\s*\{[^}]*enable_private_endpoint\s*=\s*(\S+)',
+        r"private_cluster_config\s*\{[^}]*enable_private_endpoint\s*=\s*(\S+)",
         content,
         re.DOTALL,
     )
     assert cluster_section, "GCP cluster must wire enable_private_endpoint"
     value = cluster_section.group(1).strip()
-    assert value.startswith("var."), (
-        f"GCP cluster.enable_private_endpoint must reference var.* (got: {value!r})"
-    )
+    assert value.startswith("var."), f"GCP cluster.enable_private_endpoint must reference var.* (got: {value!r})"
 
 
 def test_aws_public_endpoint_is_opt_in() -> None:
@@ -97,9 +95,9 @@ def test_aws_public_endpoint_is_opt_in() -> None:
         re.DOTALL,
     )
     assert default_match, "AWS must define variable.allow_public_endpoint with default"
-    assert default_match.group(1) == "false", (
-        "AWS allow_public_endpoint default must remain false (PR-R2-6, reaffirmed by PR-A3)"
-    )
+    assert (
+        default_match.group(1) == "false"
+    ), "AWS allow_public_endpoint default must remain false (PR-R2-6, reaffirmed by PR-A3)"
 
 
 # ---------------------------------------------------------------------------
@@ -111,12 +109,8 @@ def test_gcp_has_system_and_workload_node_pools() -> None:
     """GCP cluster has TWO node pools: system + workload."""
     content = _tf_files("gcp")
 
-    system = re.search(
-        r'resource\s+"google_container_node_pool"\s+"system"\s*\{', content
-    )
-    workload = re.search(
-        r'resource\s+"google_container_node_pool"\s+"workload"\s*\{', content
-    )
+    system = re.search(r'resource\s+"google_container_node_pool"\s+"system"\s*\{', content)
+    workload = re.search(r'resource\s+"google_container_node_pool"\s+"workload"\s*\{', content)
     assert system, "GCP must define google_container_node_pool.system (PR-A3)"
     assert workload, "GCP must define google_container_node_pool.workload (PR-A3)"
 
@@ -125,12 +119,8 @@ def test_aws_has_system_and_workload_node_groups() -> None:
     """AWS cluster has TWO node groups: system + workload."""
     content = _tf_files("aws")
 
-    system = re.search(
-        r'resource\s+"aws_eks_node_group"\s+"system"\s*\{', content
-    )
-    workload = re.search(
-        r'resource\s+"aws_eks_node_group"\s+"workload"\s*\{', content
-    )
+    system = re.search(r'resource\s+"aws_eks_node_group"\s+"system"\s*\{', content)
+    workload = re.search(r'resource\s+"aws_eks_node_group"\s+"workload"\s*\{', content)
     assert system, "AWS must define aws_eks_node_group.system (PR-A3)"
     assert workload, "AWS must define aws_eks_node_group.workload (PR-A3)"
 
@@ -160,10 +150,10 @@ def test_workload_pool_has_taint(cloud: str) -> None:
     assert pool_match, f"{cloud}: workload pool resource not found"
     pool = pool_match.group(1)
 
-    assert re.search(r'taint\s*\{', pool), f"{cloud} workload pool must declare a taint block"
-    assert "NO_SCHEDULE" in pool, (
-        f"{cloud} workload pool taint must use effect=NO_SCHEDULE (system pods stay on system pool)"
-    )
+    assert re.search(r"taint\s*\{", pool), f"{cloud} workload pool must declare a taint block"
+    assert (
+        "NO_SCHEDULE" in pool
+    ), f"{cloud} workload pool taint must use effect=NO_SCHEDULE (system pods stay on system pool)"
 
 
 @pytest.mark.parametrize("cloud", ["aws", "gcp"])
@@ -187,9 +177,9 @@ def test_system_pool_has_no_taint(cloud: str) -> None:
 
     # No `taint {` block in the system pool — strip comments first.
     code_only = "\n".join(line for line in pool.splitlines() if not line.lstrip().startswith("#"))
-    assert not re.search(r'^\s*taint\s*\{', code_only, re.MULTILINE), (
-        f"{cloud} system pool must NOT declare a taint (kube-system needs to land here)"
-    )
+    assert not re.search(
+        r"^\s*taint\s*\{", code_only, re.MULTILINE
+    ), f"{cloud} system pool must NOT declare a taint (kube-system needs to land here)"
 
 
 # ---------------------------------------------------------------------------
@@ -233,9 +223,9 @@ def test_deny_default_is_in_kustomization() -> None:
         pytest.skip("kustomization not in this layout")
 
     content = kustomization.read_text()
-    assert "networkpolicy-deny-default.yaml" in content, (
-        "kustomization.yaml must include networkpolicy-deny-default.yaml (PR-A3)"
-    )
+    assert (
+        "networkpolicy-deny-default.yaml" in content
+    ), "kustomization.yaml must include networkpolicy-deny-default.yaml (PR-A3)"
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +250,8 @@ def test_base_deployment_has_workload_toleration() -> None:
     pod_spec = deployment["spec"]["template"]["spec"]
     tolerations = pod_spec.get("tolerations", [])
     matching = [
-        t for t in tolerations
+        t
+        for t in tolerations
         if t.get("key") == "workload-type" and t.get("value") == "ml-services" and t.get("effect") == "NoSchedule"
     ]
     assert matching, (

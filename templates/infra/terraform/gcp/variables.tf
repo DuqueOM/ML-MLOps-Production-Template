@@ -168,3 +168,65 @@ variable "workload_node_taint_value" {
   type        = string
   default     = "ml-services"
 }
+
+# ----------------------------------------------------------------------
+# Parity with AWS — secrets / logging / services
+# ----------------------------------------------------------------------
+# These variables mirror the AWS-side defaults so a single set of
+# overlay tfvars works for both clouds without per-cloud divergence.
+# ----------------------------------------------------------------------
+
+variable "service_names" {
+  description = <<-EOT
+    Logical service names that need per-service Secret Manager entries
+    + log buckets + (future) Artifact Registry repos. One entry per ML
+    service deployed to this cluster. Mirrors AWS variable.service_names.
+  EOT
+  type        = list(string)
+  default     = ["fraud-detector"]
+}
+
+variable "secret_names" {
+  description = <<-EOT
+    Logical names of secrets to provision (one Secret Manager entry
+    per name × service). Defaults to the canonical set used by the
+    template: api_key (predict auth), admin_api_key (admin gate),
+    mlflow_password. Mirrors AWS variable.secret_names.
+  EOT
+  type        = list(string)
+  default     = ["api_key", "admin_api_key", "mlflow_password"]
+}
+
+variable "log_retention_days" {
+  description = <<-EOT
+    Cloud Logging bucket retention in days. Default 30 matches AWS dev
+    tier; overlays bump to 90 (staging) and 365 (prod). Note: GCP
+    enforces a hard floor of 1 day and a maximum of 3650 days
+    (10 years). Mirrors AWS variable.log_retention_days.
+  EOT
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.log_retention_days >= 1 && var.log_retention_days <= 3650
+    error_message = "log_retention_days must be 1..3650 (Cloud Logging max ~10y)."
+  }
+}
+
+variable "billing_account" {
+  description = <<-EOT
+    GCP Billing Account ID (without the 'billingAccounts/' prefix) used
+    to scope the budget alert. Required when using google_billing_budget.
+    Find via: gcloud billing accounts list.
+    Empty string disables the budget resource — useful for environments
+    without billing-admin permissions on the calling principal.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "budget_notification_emails" {
+  description = "Email addresses to notify on budget threshold breaches."
+  type        = list(string)
+  default     = []
+}
