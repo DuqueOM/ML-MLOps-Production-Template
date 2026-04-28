@@ -6,6 +6,25 @@ Closes audit High-6 (state collisions between dev/staging/prod).
 Authority: ADR-011 (environment promotion gates), invariants D-10
 (remote state) and D-17 (no hardcoded credentials).
 
+## Two bootstrap paths (ADR-015 PR-A2)
+
+There are now **two equivalent ways** to provision the state backend:
+
+| Path | When to use | How |
+|------|-------------|-----|
+| **Terraform bootstrap** (recommended) | New projects, reproducibility matters | `cd templates/infra/terraform/{gcp,aws}/bootstrap && terraform apply` per env |
+| **CLI bootstrap** (legacy, below) | Existing deployments, manual control | `gcloud` / `aws` commands in §GCP / §AWS sections |
+
+The Terraform bootstrap creates state bucket + KMS key + container
+registry + (AWS) DynamoDB lock table, all version-controlled. See
+`templates/infra/terraform/README.md` for the full workflow including
+output capture and migration from CLI-bootstrapped buckets.
+
+The CLI sections below remain authoritative for adopters who prefer to
+keep state-bucket creation outside of Terraform's lifecycle.
+
+---
+
 ## Why per-env state
 
 A single `terraform.tfstate` shared across dev/staging/prod is two

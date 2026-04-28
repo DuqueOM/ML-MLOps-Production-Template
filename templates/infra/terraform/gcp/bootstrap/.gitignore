@@ -1,0 +1,15 @@
+# Bootstrap uses local Terraform state — these files contain resource IDs
+# that are reproducible from `terraform import`, but should NOT be
+# committed because:
+#   1. They reveal project/account internals
+#   2. `terraform init` in this dir generates per-operator metadata
+#   3. Multiple operators applying bootstrap separately would conflict
+#
+# Operators back up local state to a private location after each apply.
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
