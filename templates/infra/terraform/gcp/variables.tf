@@ -112,3 +112,59 @@ variable "services_cidr" {
   type        = string
   default     = "10.30.0.0/20"
 }
+
+# ----------------------------------------------------------------------
+# Cluster defaults (ADR-015 PR-A3)
+# ----------------------------------------------------------------------
+# Hardening + isolation knobs that operators flip per environment.
+# Default values target staging/prod; dev overlays may relax via tfvars.
+# ----------------------------------------------------------------------
+
+variable "enable_private_endpoint" {
+  description = <<-EOT
+    Lock the GKE control plane to PRIVATE access only (no public endpoint).
+    Default false to preserve backwards compatibility — adopters with
+    bastion/VPN access flip this to true for prod. When true, kubectl
+    must reach the master via the VPC (Cloud SQL Auth Proxy / IAP /
+    bastion / VPN). PR-A3.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "master_authorized_networks" {
+  description = <<-EOT
+    CIDR blocks allowed to reach the GKE control plane. Empty list = no
+    public access (only relevant when enable_private_endpoint=false).
+    Format: list of objects with cidr_block + display_name.
+  EOT
+  type = list(object({
+    cidr_block   = string
+    display_name = string
+  }))
+  default = []
+}
+
+variable "system_node_count" {
+  description = "Initial nodes in the SYSTEM pool (kube-system, monitoring, ingress). PR-A3."
+  type        = number
+  default     = 1
+}
+
+variable "system_machine_type" {
+  description = "Machine type for SYSTEM pool. Smaller than workload — these nodes only run cluster infra."
+  type        = string
+  default     = "e2-small"
+}
+
+variable "workload_node_taint_key" {
+  description = "Taint key applied to the workload pool. ML pods need a matching toleration."
+  type        = string
+  default     = "workload-type"
+}
+
+variable "workload_node_taint_value" {
+  description = "Taint value applied to the workload pool."
+  type        = string
+  default     = "ml-services"
+}

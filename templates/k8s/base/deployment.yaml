@@ -89,6 +89,17 @@ spec:
       # Coordinated with uvicorn's --timeout-graceful-shutdown (see args below).
       terminationGracePeriodSeconds: 30
 
+      # ADR-015 PR-A3 — toleration for the dedicated workload node pool.
+      # Terraform's GKE/EKS taint `workload-type=ml-services:NoSchedule`
+      # means ML pods can ONLY land on the workload pool. This toleration
+      # is the matching key that opts in. System pods (kube-system,
+      # monitoring) lack this toleration and stay on the system pool.
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: ml-services
+          effect: NoSchedule
+
       containers:
         - name: "{service-name}-predictor"
           image: "{service-name}-predictor:latest"   # Patched by Kustomize overlay

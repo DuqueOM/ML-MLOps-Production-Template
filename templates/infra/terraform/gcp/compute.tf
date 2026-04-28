@@ -25,10 +25,28 @@ resource "google_container_cluster" "gke" {
     enabled = true
   }
 
+  # ADR-015 PR-A3 — control-plane reachability.
+  # `enable_private_endpoint` is now opt-in (default false). When flipped
+  # to true, kubectl reaches the master via VPC only — bastion / IAP /
+  # VPN required. `master_authorized_networks_config` gates ALL public
+  # control-plane access (relevant when enable_private_endpoint=false).
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = false
+    enable_private_endpoint = var.enable_private_endpoint
     master_ipv4_cidr_block  = "172.16.0.0/28"
+  }
+
+  dynamic "master_authorized_networks_config" {
+    for_each = length(var.master_authorized_networks) > 0 ? [1] : []
+    content {
+      dynamic "cidr_blocks" {
+        for_each = var.master_authorized_networks
+        content {
+          cidr_block   = cidr_blocks.value.cidr_block
+          display_name = cidr_blocks.value.display_name
+        }
+      }
+    }
   }
 
   ip_allocation_policy {
@@ -41,9 +59,72 @@ resource "google_container_cluster" "gke" {
   }
 }
 
-# Node Pool
-resource "google_container_node_pool" "nodes" {
-  name       = "${var.project_name}-node-pool"
+# ============================================================================
+# Node pools (ADR-015 PR-A3)
+# ============================================================================
+# Two pools by purpose:
+#
+#   system   — kube-system, monitoring, ingress controllers, Kyverno
+#              (no taint; everything tolerates it)
+#   workload — ML service pods (taint: workload-type=ml-services:NoSchedule)
+#
+# Why split:
+#   * Blast radius: an OOM in a workload pod cannot evict kube-dns or the
+#     Prometheus stateful set, because those land on system nodes.
+#   * Cost: the system pool is small (e2-small, 1-2 nodes); the workload
+#     pool autoscales independently with HPA-driven demand.
+#   * Upgrades: surge upgrades on the workload pool don't disturb the
+#     control-plane add-ons.
+#
+# ML services MUST set tolerations matching the workload taint:
+#   tolerations:
+#     - key: workload-type
+#       operator: Equal
+#       value: ml-services
+#       effect: NoSchedule
+# ============================================================================
+
+# System pool — small, no taint; runs kube-system + cluster add-ons.
+resource "google_container_node_pool" "system" {
+  name       = "${var.project_name}-system-pool"
+  location   = var.region
+  cluster    = google_container_cluster.gke.name
+  node_count = var.system_node_count
+
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 3
+  }
+
+  node_config {
+    machine_type = var.system_machine_type
+    disk_size_gb = 30
+    disk_type    = "pd-standard"
+
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+
+    labels = {
+      environment   = var.environment
+      managed-by    = "terraform"
+      workload-type = "system"
+    }
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+}
+
+# Workload pool — taint scheduled-only for ML services.
+resource "google_container_node_pool" "workload" {
+  name       = "${var.project_name}-workload-pool"
   location   = var.region
   cluster    = google_container_cluster.gke.name
   node_count = var.initial_node_count
@@ -67,8 +148,18 @@ resource "google_container_node_pool" "nodes" {
     ]
 
     labels = {
-      environment = var.environment
-      managed-by  = "terraform"
+      environment   = var.environment
+      managed-by    = "terraform"
+      workload-type = var.workload_node_taint_value
+    }
+
+    # NoSchedule taint — pods without a matching toleration cannot land here.
+    # ML service Deployments must add the matching toleration (see PR-A3
+    # docs in templates/k8s/base/deployment.yaml).
+    taint {
+      key    = var.workload_node_taint_key
+      value  = var.workload_node_taint_value
+      effect = "NO_SCHEDULE"
     }
   }
 

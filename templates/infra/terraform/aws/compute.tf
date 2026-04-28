@@ -93,10 +93,58 @@ data "tls_certificate" "eks" {
   url = aws_eks_cluster.eks.identity[0].oidc[0].issuer
 }
 
-# Node Group
-resource "aws_eks_node_group" "nodes" {
+# ============================================================================
+# Node groups (ADR-015 PR-A3) — system + workload split
+# ============================================================================
+# Two node groups by purpose:
+#
+#   system   — kube-system, monitoring, ingress, AWS LB controller
+#              (no taint; everything tolerates it)
+#   workload — ML service pods (taint: workload-type=ml-services:NO_SCHEDULE)
+#
+# Same rationale as the GCP side (templates/infra/terraform/gcp/compute.tf):
+# blast radius isolation + independent autoscaling + non-disruptive upgrades.
+#
+# ML services MUST set a matching toleration in their PodSpec:
+#   tolerations:
+#     - key: workload-type
+#       operator: Equal
+#       value: ml-services
+#       effect: NoSchedule
+# ============================================================================
+
+# System node group — small, no taint; runs cluster add-ons.
+resource "aws_eks_node_group" "system" {
   cluster_name    = aws_eks_cluster.eks.name
-  node_group_name = "${var.project_name}-nodes"
+  node_group_name = "${var.project_name}-system"
+  node_role_arn   = aws_iam_role.eks_node.arn
+  subnet_ids      = local.eks_subnet_ids
+  instance_types  = [var.system_instance_type]
+
+  scaling_config {
+    desired_size = var.system_node_count
+    min_size     = 1
+    max_size     = 3
+  }
+
+  labels = {
+    environment   = var.environment
+    managed-by    = "terraform"
+    workload-type = "system"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_ecr_policy,
+  ]
+}
+
+# Workload node group — taint scheduled-only for ML services.
+# Renamed from `nodes` to `workload` to match the GCP-side naming.
+resource "aws_eks_node_group" "workload" {
+  cluster_name    = aws_eks_cluster.eks.name
+  node_group_name = "${var.project_name}-workload"
   node_role_arn   = aws_iam_role.eks_node.arn
   subnet_ids      = local.eks_subnet_ids
   instance_types  = [var.instance_type]
@@ -108,8 +156,16 @@ resource "aws_eks_node_group" "nodes" {
   }
 
   labels = {
-    environment = var.environment
-    managed-by  = "terraform"
+    environment   = var.environment
+    managed-by    = "terraform"
+    workload-type = var.workload_node_taint_value
+  }
+
+  # NoSchedule taint — pods without a matching toleration cannot land here.
+  taint {
+    key    = var.workload_node_taint_key
+    value  = var.workload_node_taint_value
+    effect = "NO_SCHEDULE"
   }
 
   depends_on = [

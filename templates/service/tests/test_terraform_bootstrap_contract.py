@@ -87,8 +87,7 @@ def test_bootstrap_uses_local_state(cloud: str) -> None:
     # comment about NOT having a backend doesn't false-positive.
     code_only = "\n".join(line for line in main_tf.splitlines() if not line.lstrip().startswith("#"))
     assert not re.search(r'backend\s+"\w+"\s*\{', code_only), (
-        f"{cloud}/bootstrap/main.tf must NOT have a backend block "
-        "(bootstrap uses local state by design — see PR-A2)"
+        f"{cloud}/bootstrap/main.tf must NOT have a backend block " "(bootstrap uses local state by design — see PR-A2)"
     )
 
 
@@ -135,9 +134,9 @@ def test_state_bucket_has_prevent_destroy(cloud: str) -> None:
     bootstrap = _bootstrap_dir(cloud)
     state_tf = (bootstrap / "state.tf").read_text()
 
-    assert "prevent_destroy = true" in state_tf, (
-        f"{cloud}/bootstrap/state.tf state bucket must declare prevent_destroy=true"
-    )
+    assert (
+        "prevent_destroy = true" in state_tf
+    ), f"{cloud}/bootstrap/state.tf state bucket must declare prevent_destroy=true"
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +207,7 @@ def test_no_resource_collision_between_bootstrap_and_live(cloud: str) -> None:
         pytest.skip("Terraform tree not found")
     bootstrap = _bootstrap_dir(cloud)
     live_dir = TF_ROOT / cloud
-    live_content = "\n".join(
-        p.read_text() for p in live_dir.glob("*.tf") if p.is_file()
-    )
+    live_content = "\n".join(p.read_text() for p in live_dir.glob("*.tf") if p.is_file())
 
     if cloud == "gcp":
         # State bucket and KMS keyring are bootstrap-only.
@@ -227,13 +224,10 @@ def test_no_resource_collision_between_bootstrap_and_live(cloud: str) -> None:
     for pattern in forbidden_in_live:
         match = re.search(pattern, live_content)
         assert not match, (
-            f"{cloud} live layer must not redeclare bootstrap resource "
-            f"matching {pattern!r} (lifecycle conflict)"
+            f"{cloud} live layer must not redeclare bootstrap resource " f"matching {pattern!r} (lifecycle conflict)"
         )
 
     # Sanity check the bootstrap actually does declare them.
     bs_content = _read_all_tf(bootstrap)
     sentinel = forbidden_in_live[0]
-    assert re.search(sentinel, bs_content), (
-        f"{cloud}/bootstrap should declare {sentinel!r} (test fixture sanity check)"
-    )
+    assert re.search(sentinel, bs_content), f"{cloud}/bootstrap should declare {sentinel!r} (test fixture sanity check)"

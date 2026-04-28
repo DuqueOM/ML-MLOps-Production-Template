@@ -193,3 +193,30 @@ variable "github_repo" {
   type        = string
   default     = ""
 }
+
+# ----------------------------------------------------------------------
+# Cluster defaults (ADR-015 PR-A3) — system/workload node group split
+# ----------------------------------------------------------------------
+variable "system_node_count" {
+  description = "Initial nodes in the SYSTEM node group (kube-system, monitoring, ingress). PR-A3."
+  type        = number
+  default     = 1
+}
+
+variable "system_instance_type" {
+  description = "Instance type for SYSTEM node group. Smaller than workload — these only run cluster infra."
+  type        = string
+  default     = "t3.small"
+}
+
+variable "workload_node_taint_key" {
+  description = "Taint key applied to the workload node group. ML pods need a matching toleration."
+  type        = string
+  default     = "workload-type"
+}
+
+variable "workload_node_taint_value" {
+  description = "Taint value applied to the workload node group."
+  type        = string
+  default     = "ml-services"
+}

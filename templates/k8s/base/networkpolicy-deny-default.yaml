@@ -1,0 +1,46 @@
+# Deny-default NetworkPolicy (ADR-015 PR-A3)
+# ============================================================================
+# Catches the regression channel where a new pod is added to the namespace
+# without a matching allow-policy: by default, ZERO traffic flows.
+#
+# K8s NetworkPolicy semantics:
+#   * No policies match a pod    → ALL traffic allowed (default-allow)
+#   * ANY policy matches a pod   → only EXPLICITLY ALLOWED traffic flows
+#
+# This manifest defines a policy that selects ALL pods in the namespace
+# (`podSelector: {}`) but specifies NO ingress + NO egress rules. Combined
+# with the per-service allow policy (`networkpolicy.yaml`), the
+# composition is:
+#
+#   Default          : DENY everything
+#   Per-service rule : ALLOW only the specific traffic the service needs
+#
+# Adopters who want pure deny-default (no template-shipped allow rules)
+# can disable the per-service NetworkPolicy and rely on this baseline.
+#
+# This baseline does NOT prevent kube-system from working: kube-system
+# pods live in a different namespace (`kube-system`), so this policy
+# does not select them.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  # Namespace is OWNED by the overlay (kustomization.yaml `namespace:`),
+  # consistent with PR-R2-3 base neutrality.
+  labels:
+    managed-by: kustomize
+    purpose: baseline-deny
+  annotations:
+    mlops.template/adr: "ADR-015-PR-A3"
+    mlops.template/notes: |
+      Deny-default baseline. Per-service allow rules in networkpolicy.yaml
+      compose ON TOP of this — the union is what each pod sees. Removing
+      this baseline means a forgotten-policy pod is implicitly default-allow,
+      which violates ADR-015 PR-A3.
+spec:
+  # Empty podSelector matches EVERY pod in the namespace.
+  podSelector: {}
+  # Both ingress and egress restricted; absence of rules = deny.
+  policyTypes:
+    - Ingress
+    - Egress
