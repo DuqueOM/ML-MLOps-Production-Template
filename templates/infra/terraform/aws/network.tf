@@ -168,11 +168,24 @@ locals {
 # ---------------------------------------------------------------------------
 # Plan-time guard: existing mode requires non-empty subnet_ids
 # ---------------------------------------------------------------------------
-# Implemented as a check block so the error fires at plan time with a
-# clear message rather than as a confusing "subnet_ids[0] is null" later.
-check "existing_mode_requires_subnet_ids" {
-  assert {
-    condition     = var.network_mode != "existing" || length(var.subnet_ids) > 0
-    error_message = "network_mode='existing' requires var.subnet_ids to be a non-empty list"
+# Implemented as a `terraform_data` resource with a `lifecycle.precondition`
+# so the error fires at plan time with a clear message rather than as a
+# confusing "subnet_ids[0] is null" later. We deliberately do NOT use a
+# top-level `check` block here even though it would be more idiomatic —
+# tfsec's HCL parser (used by the self-audit job) rejects `check` blocks
+# as of v1.28.x (tracked at aquasecurity/tfsec#1994). `terraform_data` is
+# supported by every parser since Terraform 1.4 and produces the same
+# plan-time error semantics.
+resource "terraform_data" "network_mode_validation" {
+  input = {
+    network_mode    = var.network_mode
+    subnet_ids_count = length(var.subnet_ids)
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.network_mode != "existing" || length(var.subnet_ids) > 0
+      error_message = "network_mode='existing' requires var.subnet_ids to be a non-empty list"
+    }
   }
 }
