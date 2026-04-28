@@ -409,15 +409,31 @@ jobs:
         with:
           terraform_version: "1.7.0"
 
-      - name: Validate GCP
+      - name: Validate GCP (live)
         run: |
           cd templates/infra/terraform/gcp
           terraform init -backend=false -upgrade=false
           terraform validate
 
-      - name: Validate AWS
+      - name: Validate AWS (live)
         run: |
           cd templates/infra/terraform/aws
+          terraform init -backend=false -upgrade=false
+          terraform validate
+
+      # ADR-015 PR-A2 — bootstrap layer: state bucket + KMS + registry.
+      # Bootstrap uses LOCAL state (chicken-and-egg with the bucket it
+      # creates), so `init -backend=false` is the natural fit even though
+      # there's no `backend` block to disable.
+      - name: Validate GCP (bootstrap)
+        run: |
+          cd templates/infra/terraform/gcp/bootstrap
+          terraform init -backend=false -upgrade=false
+          terraform validate
+
+      - name: Validate AWS (bootstrap)
+        run: |
+          cd templates/infra/terraform/aws/bootstrap
           terraform init -backend=false -upgrade=false
           terraform validate
 
