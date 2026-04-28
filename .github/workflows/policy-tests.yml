@@ -77,10 +77,14 @@ jobs:
           # --confcutdir: hard cap on conftest discovery — never above
           #   policy/'s own conftest.py
           # -p no:cacheprovider: workflow is ephemeral, no cache to keep
+          # -o addopts="": override the cov defaults inherited from
+          #   templates/service/pyproject.toml (workflow doesn't
+          #   install pytest-cov so --no-cov would also be unknown).
           python -m pytest templates/service/tests/policy/ \
             --rootdir=templates/service/tests/policy \
             --confcutdir=templates/service/tests/policy \
-            -v --no-cov -p no:cacheprovider \
+            -o addopts="" \
+            -v -p no:cacheprovider \
             --tb=short --color=no
 
       - name: Summary
