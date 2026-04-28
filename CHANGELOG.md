@@ -6,6 +6,65 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [1.11.0] - 2026-04-28
+
+Closes the ADR-016 external-audit R2 remediation backlog (7-day, 30-day, and 90-day windows all materially shipped) and lays the policy foundation for two new agent capabilities (Operational Memory Plane, Agentic CI Self-Healing). Also closes the OSS-packaging gap (NOTICE, DCO, CODEOWNERS) and tightens cloud parity through an additional 33 contract tests.
+
+### ADR-016 R2 remediation — closed
+
+- **PR-R2-1..R2-5** (7-day window): shipped earlier in 1.10.0.
+- **PR-R2-6** AWS parity: storage, registry, IAM, secrets, logging — shipped.
+- **PR-R2-7** Quality-gate config externalized per service — shipped.
+- **PR-R2-8** EDA artifacts as machine-readable contract — shipped (delivered as part of PR-B2 stages 1–2).
+- **PR-R2-9 Stage 1** Closed-loop verification — NEW `.github/workflows/golden-path-extended.yml` that re-scaffolds + deploys + posts 100 valid + 5 invalid `/predict` requests + asserts the prediction-log counter increments. Triggers on `workflow_run` after the base Golden Path E2E succeeds, plus weekly schedule and on-demand. PR-R2-9b (alert firing via Prometheus + Pushgateway) is the explicit follow-on.
+- **PR-R2-10** Reproducible drift + degraded-deploy drills — shipped.
+- **PR-R2-11** D-01..D-31 anti-patterns as policy tests over scaffolded output — NEW `templates/service/tests/policy/` (13 tests) + dedicated weekly workflow. The suite scaffolds a fresh service per session and asserts AGENTS.md invariants hold on the rendered output. Surfaces a documentation drift in `aws/iam.tf` on first run; fixed in same PR.
+- **PR-R2-12** Adoption-boundary doc + non-agentic on-ramp — NEW `docs/ADOPTION.md` (maturity matrix per cloud × environment + non-claims list) + 12 new `make` targets so teams can adopt the template without inheriting the agentic surface + `test_adoption_boundary_contract.py` (7 tests) enforcing parity workflow ↔ make target ↔ doc.
+
+### Cloud parity (AWS ↔ GCP)
+
+- **GCP gets** secrets.tf, logging.tf, kms.tf at the live layer with bootstrap-tier KMS key separation. Mirrors the AWS surface introduced in 1.10.0.
+- **NEW** `test_terraform_cloud_parity.py` (14 tests) enforces semantic parity: same secret-store usage, logging retention, budget alert wiring, CMEK across both clouds.
+- **GCP IAM** parity rationale documented inline in `gcp/iam.tf`: GCP doesn't need an `iam-roles-split.tf` equivalent because per-service identities don't exist on GCP — Workload Identity bindings per-secret/per-bucket already partition responsibilities.
+- **Cluster defaults** (PR-A3): private endpoint opt-in, system/workload node pool split with taint, deny-default `NetworkPolicy`. Enforced by `test_cluster_defaults_contract.py` (11 tests).
+- **Bootstrap split**: state bucket, KMS, registry tiers separated from live layer per ADR. Enforced by `test_terraform_bootstrap_contract.py` (~7 tests).
+
+### NEW agent capabilities (Phase 0 only — runtime deferred)
+
+- **ADR-018 Operational Memory Plane** ratifies a typed retrieval layer over existing evidence (audit.jsonl, drift reports, postmortems, security findings) that feeds new dynamic risk signals to `risk_context.py`. Hard boundaries codified: NOT in `/predict` path, NOT authoritative, NOT a policy mutator (memory hits can only ESCALATE prudence, never demote STOP). Phase plan with 7 phases; either phase auto-withdraws if the next phase doesn't ship in 30 days.
+- **ADR-019 Agentic CI Self-Healing** ratifies the policy contract for bounded autofix on CI failures. Ships TWO governance YAMLs (`templates/config/ci_autofix_policy.yaml`, `templates/config/model_routing_policy.yaml`) + ONE contract test (10 invariants) + the canonical failure-class table (12 classes mapped AUTO/CONSULT/STOP). Runtime scripts deferred — policy first, scripts second.
+
+### Model routing recommendation
+
+- New README §"Recommended baseline (verified 2026-04)" subsection adds a provider × tier table mirroring `model_routing_policy.yaml` plus three pre-tuned profiles. Includes an explicit honesty caveat: vendor model names rotate every 6–12 months; the `verified_at` field declares when the catalog was last reconciled; the contract test enforces structure (preview never lands on protected branches), not specific identities.
+
+### OSS packaging
+
+- **NEW** `NOTICE` (Apache-2.0 attribution).
+- **NEW** `DCO.md` (explicit DCO policy — already used in commits but undocumented).
+- **NEW** `.github/CODEOWNERS` routes review for protected areas (AGENTS.md, agent runtime config, ADRs, CICD/k8s/infra/scripts, common_utils, service template, monitoring, governance files).
+- Existing `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md` retained — already detailed and aligned.
+
+### CI hardening
+
+- **CI tfsec fix**: replaced unsupported Terraform `check` block with `terraform_data` + `lifecycle.precondition` for AWS subnet validation (tfsec v1.28.x parser limitation).
+- **Policy-tests workflow numpy isolation**: added `--rootdir` + `--confcutdir` so the policy suite doesn't trigger the parent ML conftest's numerics imports. Workflow stays cheap (~30s install vs ~5min full ML stack).
+- **black drift fix**: 5 test files reformatted; local + CI now agree.
+- **F541 fix**: removed an f-prefix on a string with no placeholders.
+
+### Test count
+
+Contract tests: **76 PASS** (14 parity, 7 bootstrap, 11 cluster defaults, 7 adoption boundary, 10 CI policy, 18 day-2 artifacts, 9 IAM least-privilege).
+Policy tests over scaffolded output: **13 PASS + 3 SKIP** (~4 min wall-clock per run).
+
+### Known follow-ons (scoped, not regressions)
+
+- **PR-R2-9b** alert-firing via Prometheus + Pushgateway (Stage 2 of PR-R2-9).
+- **ADR-018 Phases 1–6** (canonical contracts, ingestion, storage/retrieval, integration, shadow→advisory→guarded-gate→enforced, hardening).
+- **ADR-019 Phases 1–6** (context collection, classification, verifier helpers, workflow scaffold, AUTO enablement per failure class, CONSULT lane).
+
+---
+
 ## [1.10.0] - 2026-04-26
 
 Closes a 15-finding template audit. The audit caught a class of bugs
