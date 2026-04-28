@@ -64,27 +64,21 @@ def _read_cloud_tf(cloud: str) -> str:
 def test_aws_provisions_secret_per_service_secret_pair() -> None:
     """AWS Secrets Manager: one entry per (service × secret_name)."""
     content = _read_cloud_tf("aws")
-    secret_resource = re.search(
-        r'resource\s+"aws_secretsmanager_secret"\s+"\w+"\s*\{', content
-    )
+    secret_resource = re.search(r'resource\s+"aws_secretsmanager_secret"\s+"\w+"\s*\{', content)
     assert secret_resource, "AWS must define aws_secretsmanager_secret"
-    assert "setproduct(var.service_names, var.secret_names)" in content, (
-        "AWS Secrets must iterate the Cartesian product of services × secret names"
-    )
+    assert (
+        "setproduct(var.service_names, var.secret_names)" in content
+    ), "AWS Secrets must iterate the Cartesian product of services × secret names"
 
 
 def test_gcp_provisions_secret_per_service_secret_pair() -> None:
     """GCP Secret Manager: one entry per (service × secret_name) — parity with AWS."""
     content = _read_cloud_tf("gcp")
-    secret_resource = re.search(
-        r'resource\s+"google_secret_manager_secret"\s+"\w+"\s*\{', content
-    )
-    assert secret_resource, (
-        "GCP must define google_secret_manager_secret — parity with AWS secrets.tf"
-    )
-    assert "setproduct(var.service_names, var.secret_names)" in content, (
-        "GCP Secret Manager must iterate the same Cartesian product as AWS"
-    )
+    secret_resource = re.search(r'resource\s+"google_secret_manager_secret"\s+"\w+"\s*\{', content)
+    assert secret_resource, "GCP must define google_secret_manager_secret — parity with AWS secrets.tf"
+    assert (
+        "setproduct(var.service_names, var.secret_names)" in content
+    ), "GCP Secret Manager must iterate the same Cartesian product as AWS"
 
 
 # ---------------------------------------------------------------------------
@@ -95,23 +89,21 @@ def test_gcp_provisions_secret_per_service_secret_pair() -> None:
 def test_aws_sets_log_retention() -> None:
     """AWS CloudWatch log groups must reference var.log_retention_days."""
     content = _read_cloud_tf("aws")
-    assert re.search(r'resource\s+"aws_cloudwatch_log_group"', content), (
-        "AWS must define aws_cloudwatch_log_group"
-    )
-    assert "var.log_retention_days" in content, (
-        "AWS log groups must use var.log_retention_days (no AWS-default 'Never expire')"
-    )
+    assert re.search(r'resource\s+"aws_cloudwatch_log_group"', content), "AWS must define aws_cloudwatch_log_group"
+    assert (
+        "var.log_retention_days" in content
+    ), "AWS log groups must use var.log_retention_days (no AWS-default 'Never expire')"
 
 
 def test_gcp_sets_log_retention() -> None:
     """GCP Cloud Logging buckets must reference var.log_retention_days — parity with AWS."""
     content = _read_cloud_tf("gcp")
-    assert re.search(r'resource\s+"google_logging_project_bucket_config"', content), (
-        "GCP must define google_logging_project_bucket_config — parity with AWS logging.tf"
-    )
-    assert "var.log_retention_days" in content, (
-        "GCP log bucket must use var.log_retention_days (overrides GCP's fixed 30d default)"
-    )
+    assert re.search(
+        r'resource\s+"google_logging_project_bucket_config"', content
+    ), "GCP must define google_logging_project_bucket_config — parity with AWS logging.tf"
+    assert (
+        "var.log_retention_days" in content
+    ), "GCP log bucket must use var.log_retention_days (overrides GCP's fixed 30d default)"
 
 
 # ---------------------------------------------------------------------------
@@ -122,18 +114,16 @@ def test_gcp_sets_log_retention() -> None:
 def test_aws_has_budget_alert() -> None:
     """AWS Budgets monthly alarm exists and references var.monthly_budget."""
     content = _read_cloud_tf("aws")
-    assert re.search(r'resource\s+"aws_budgets_budget"', content), (
-        "AWS must define aws_budgets_budget"
-    )
+    assert re.search(r'resource\s+"aws_budgets_budget"', content), "AWS must define aws_budgets_budget"
     assert "var.monthly_budget" in content
 
 
 def test_gcp_has_budget_alert() -> None:
     """GCP Billing Budget exists and references var.monthly_budget — parity with AWS."""
     content = _read_cloud_tf("gcp")
-    assert re.search(r'resource\s+"google_billing_budget"', content), (
-        "GCP must define google_billing_budget — parity with AWS aws_budgets_budget"
-    )
+    assert re.search(
+        r'resource\s+"google_billing_budget"', content
+    ), "GCP must define google_billing_budget — parity with AWS aws_budgets_budget"
     assert "var.monthly_budget" in content
 
 
@@ -152,9 +142,9 @@ def test_aws_secrets_use_cmek() -> None:
         re.DOTALL | re.MULTILINE,
     )
     assert secret_block, "AWS secrets resource not found"
-    assert re.search(r'kms_key_id\s*=\s*aws_kms_key', secret_block.group(0)), (
-        "AWS secrets must reference a customer-managed KMS key (CMEK)"
-    )
+    assert re.search(
+        r"kms_key_id\s*=\s*aws_kms_key", secret_block.group(0)
+    ), "AWS secrets must reference a customer-managed KMS key (CMEK)"
 
 
 def test_gcp_secrets_use_cmek() -> None:
@@ -165,9 +155,9 @@ def test_gcp_secrets_use_cmek() -> None:
         re.DOTALL | re.MULTILINE,
     )
     assert secret_block, "GCP Secret Manager resource not found"
-    assert "customer_managed_encryption" in secret_block.group(0), (
-        "GCP secrets must use customer_managed_encryption (CMEK) — parity with AWS"
-    )
+    assert "customer_managed_encryption" in secret_block.group(
+        0
+    ), "GCP secrets must use customer_managed_encryption (CMEK) — parity with AWS"
 
 
 def test_gcp_logs_use_cmek() -> None:
@@ -179,9 +169,7 @@ def test_gcp_logs_use_cmek() -> None:
         re.DOTALL | re.MULTILINE,
     )
     assert log_block, "GCP log bucket resource not found"
-    assert "cmek_settings" in log_block.group(0), (
-        "GCP per-service log bucket must declare cmek_settings"
-    )
+    assert "cmek_settings" in log_block.group(0), "GCP per-service log bucket must declare cmek_settings"
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +209,4 @@ def test_secret_names_default_matches_across_clouds() -> None:
     assert aws_match and gcp_match
     aws_default = re.sub(r"\s+", "", aws_match.group(1))
     gcp_default = re.sub(r"\s+", "", gcp_match.group(1))
-    assert aws_default == gcp_default, (
-        f"secret_names defaults diverge:\n  AWS: {aws_default}\n  GCP: {gcp_default}"
-    )
+    assert aws_default == gcp_default, f"secret_names defaults diverge:\n  AWS: {aws_default}\n  GCP: {gcp_default}"
