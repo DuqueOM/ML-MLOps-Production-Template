@@ -44,10 +44,7 @@ def test_d01_no_multi_worker_uvicorn(scaffold_dir: Path) -> None:
             if match:
                 offenders.append(f"{path.relative_to(scaffold_dir)}: --workers {match.group(1)}")
 
-    assert not offenders, (
-        "D-01 violation: multi-worker uvicorn detected in:\n  "
-        + "\n  ".join(offenders)
-    )
+    assert not offenders, "D-01 violation: multi-worker uvicorn detected in:\n  " + "\n  ".join(offenders)
 
 
 # ---------------------------------------------------------------------------
@@ -100,10 +97,7 @@ def test_d05_ml_packages_use_compatible_release(file_text) -> None:
         match = re.match(r"^([a-zA-Z0-9_-]+)\s*==", bare)
         if match and match.group(1).lower() in ml_packages:
             offenders.append(line)
-    assert not offenders, (
-        "D-05 violation: ML packages pinned with `==` instead of `~=`:\n  "
-        + "\n  ".join(offenders)
-    )
+    assert not offenders, "D-05 violation: ML packages pinned with `==` instead of `~=`:\n  " + "\n  ".join(offenders)
 
 
 # ---------------------------------------------------------------------------
@@ -145,10 +139,7 @@ def test_d11_dockerfile_no_baked_models(file_text) -> None:
         r"COPY\s+.*\.pkl\b",
     ]
     offenders = [p for p in forbidden if re.search(p, dockerfile, re.IGNORECASE)]
-    assert not offenders, (
-        f"D-11 violation: Dockerfile COPIES model artifacts into image:\n  "
-        + "\n  ".join(offenders)
-    )
+    assert not offenders, "D-11 violation: Dockerfile COPIES model artifacts into image:\n  " + "\n  ".join(offenders)
 
 
 # ---------------------------------------------------------------------------
@@ -174,10 +165,7 @@ def test_d17_no_direct_env_secret_reads(scaffold_dir: Path) -> None:
         # - tests/policy/ (THIS suite — contains regex literals
         #   that match themselves when scanning the scaffolded output)
         # - __pycache__/.git (binary/VCS noise)
-        if any(
-            part in {"__pycache__", ".git", "common_utils", "scripts"}
-            for part in rel.parts
-        ):
+        if any(part in {"__pycache__", ".git", "common_utils", "scripts"} for part in rel.parts):
             continue
         if rel.parts[:2] == ("tests", "policy"):
             continue
@@ -208,19 +196,12 @@ def test_d23_probes_use_distinct_paths(yaml_load_all, glob_files) -> None:
     """
     offenders: list[str] = []
     # Base deployments only; overlay patches inherit probe specs.
-    for dep_file in glob_files("k8s/base/deployment*.yaml") + glob_files(
-        "k8s/base/*deployment.yaml"
-    ):
+    for dep_file in glob_files("k8s/base/deployment*.yaml") + glob_files("k8s/base/*deployment.yaml"):
         docs = yaml_load_all(dep_file)
         for doc in docs:
             if not isinstance(doc, dict) or doc.get("kind") != "Deployment":
                 continue
-            containers = (
-                doc.get("spec", {})
-                .get("template", {})
-                .get("spec", {})
-                .get("containers", [])
-            )
+            containers = doc.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
             for container in containers:
                 liveness = (container.get("livenessProbe") or {}).get("httpGet", {})
                 readiness = (container.get("readinessProbe") or {}).get("httpGet", {})
@@ -228,8 +209,7 @@ def test_d23_probes_use_distinct_paths(yaml_load_all, glob_files) -> None:
                 rpath = readiness.get("path")
                 if lpath and rpath and lpath == rpath:
                     offenders.append(
-                        f"{dep_file.name}/{container.get('name')}: "
-                        f"liveness and readiness share path {lpath!r}"
+                        f"{dep_file.name}/{container.get('name')}: " f"liveness and readiness share path {lpath!r}"
                     )
     assert not offenders, "D-23 violation: " + "; ".join(offenders)
 
@@ -252,9 +232,7 @@ def test_d25_grace_period_beats_uvicorn_shutdown(yaml_load_all, glob_files) -> N
     # Only inspect BASE deployments; overlay patches legitimately omit
     # terminationGracePeriodSeconds because they touch specific fields
     # via strategic merge (the base value is inherited).
-    for dep_file in glob_files("k8s/base/deployment*.yaml") + glob_files(
-        "k8s/base/*deployment.yaml"
-    ):
+    for dep_file in glob_files("k8s/base/deployment*.yaml") + glob_files("k8s/base/*deployment.yaml"):
         docs = yaml_load_all(dep_file)
         for doc in docs:
             if not isinstance(doc, dict) or doc.get("kind") != "Deployment":
@@ -265,8 +243,7 @@ def test_d25_grace_period_beats_uvicorn_shutdown(yaml_load_all, glob_files) -> N
                 offenders.append(f"{dep_file.name}: no terminationGracePeriodSeconds set")
             elif grace < min_grace_default:
                 offenders.append(
-                    f"{dep_file.name}: terminationGracePeriodSeconds={grace} "
-                    f"(< {min_grace_default}s default)"
+                    f"{dep_file.name}: terminationGracePeriodSeconds={grace} " f"(< {min_grace_default}s default)"
                 )
     assert not offenders, "D-25 violation: " + "; ".join(offenders)
 
@@ -307,9 +284,7 @@ def test_d29_pss_labels_on_overlays(yaml_load_all, glob_files) -> None:
     """
     offenders: list[str] = []
     namespace_seen = False
-    for ns_file in glob_files("k8s/overlays/**/namespace*.yaml") + glob_files(
-        "k8s/overlays/**/*-namespace.yaml"
-    ):
+    for ns_file in glob_files("k8s/overlays/**/namespace*.yaml") + glob_files("k8s/overlays/**/*-namespace.yaml"):
         docs = yaml_load_all(ns_file)
         for doc in docs:
             if not isinstance(doc, dict) or doc.get("kind") != "Namespace":
@@ -318,8 +293,7 @@ def test_d29_pss_labels_on_overlays(yaml_load_all, glob_files) -> None:
             labels = (doc.get("metadata") or {}).get("labels") or {}
             if "pod-security.kubernetes.io/enforce" not in labels:
                 offenders.append(
-                    f"{ns_file.relative_to(ns_file.parents[4])}: missing "
-                    f"pod-security.kubernetes.io/enforce label"
+                    f"{ns_file.relative_to(ns_file.parents[4])}: missing " f"pod-security.kubernetes.io/enforce label"
                 )
     if not namespace_seen:
         pytest.skip("No Namespace resources found under k8s/overlays/")

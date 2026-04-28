@@ -63,11 +63,23 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
+          # Policy suite needs ONLY pytest + pyyaml — no numerics.
+          # The parent templates/service/tests/conftest.py imports numpy
+          # for ML test fixtures; we bypass it via --rootdir + --confcutdir
+          # below so we don't have to install the full ML stack just to
+          # parse YAML.
           pip install pytest pyyaml
 
       - name: Run policy suite
         run: |
+          # --rootdir: pytest treats policy/ as the project root, so it
+          #   does NOT walk up and load templates/service/tests/conftest.py
+          # --confcutdir: hard cap on conftest discovery — never above
+          #   policy/'s own conftest.py
+          # -p no:cacheprovider: workflow is ephemeral, no cache to keep
           python -m pytest templates/service/tests/policy/ \
+            --rootdir=templates/service/tests/policy \
+            --confcutdir=templates/service/tests/policy \
             -v --no-cov -p no:cacheprovider \
             --tb=short --color=no
 

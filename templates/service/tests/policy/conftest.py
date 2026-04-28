@@ -36,9 +36,7 @@ def _find_repo_root() -> Path:
     for ancestor in here.parents:
         if (ancestor / "templates" / "scripts" / "new-service.sh").is_file():
             return ancestor
-    raise RuntimeError(
-        "Could not locate templates/scripts/new-service.sh from this file's path"
-    )
+    raise RuntimeError("Could not locate templates/scripts/new-service.sh from this file's path")
 
 
 REPO_ROOT = _find_repo_root()
