@@ -36,4 +36,5 @@ resources:
   - performance-prometheusrule.yaml
   - analysistemplate-champion-challenger.yaml
   - networkpolicy.yaml
+  - networkpolicy-deny-default.yaml
   - rbac.yaml
