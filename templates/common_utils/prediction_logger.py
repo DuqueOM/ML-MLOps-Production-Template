@@ -119,7 +119,8 @@ class SQLiteBackend:
 
         self.path = path or os.getenv("PREDICTION_LOG_SQLITE_PATH", "predictions.db")
         self._conn = sqlite3.connect(self.path, check_same_thread=False)
-        self._conn.execute("""
+        self._conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS predictions_log (
               prediction_id TEXT PRIMARY KEY,
               entity_id TEXT NOT NULL,
@@ -132,7 +133,8 @@ class SQLiteBackend:
               latency_ms REAL,
               deployment_id TEXT
             )
-            """)
+            """
+        )
         # PR-C1: lazy schema migration for SQLite databases created by
         # earlier versions. ``ALTER TABLE ... ADD COLUMN`` is idempotent
         # via the ``OperationalError`` catch (sqlite3 raises if the column

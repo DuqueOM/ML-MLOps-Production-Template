@@ -24,9 +24,8 @@ import asyncio
 import logging
 from unittest.mock import patch
 
-import pytest
-
 import app.fastapi_app as fastapi_app_mod
+import pytest
 
 # Capture the real function at IMPORT time. The session-scope autouse
 # fixture in conftest.py patches ``fastapi_app_mod._start_prediction_logger``

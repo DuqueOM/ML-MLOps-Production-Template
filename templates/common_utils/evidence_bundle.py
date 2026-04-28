@@ -144,7 +144,6 @@ def evaluate_evidence(
     # for the CLI's fast-path "missing model" exit.
     try:
         from common_utils.training_manifest import (
-            MANIFEST_VERSION,
             ManifestError,
             file_sha256,
             load_manifest,

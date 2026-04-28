@@ -1,13 +1,35 @@
 # Pre-commit hooks for ML-MLOps Production Template contributors
-# Install: pip install pre-commit && pre-commit install
-# Run all: pre-commit run --all-files
 #
-# Enforces: black → isort → flake8 on templates/ and examples/
-# For the per-service hooks (includes mypy, bandit, gitleaks), see templates/.pre-commit-config.yaml
+# Install (MANDATORY):
+#   pip install pre-commit
+#   pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# Run all:
+#   pre-commit run --all-files
+#
+# Why a pre-push hook layer too: the pre-commit lane is fast (< 5s) and
+# catches formatting + secret leaks. The pre-push lane runs the scaffold
+# smoke test (~60s) which catches dependency-graph bugs the fast lane
+# cannot — e.g. a contributor adding a test that imports a package not
+# in `templates/service/requirements.txt` would pass black + flake8 but
+# fail at scaffold-time. The CI failure of 2026-04-27 (jsonschema
+# missing) is exactly this class.
+#
+# Versions MUST match what `.github/workflows/validate-templates.yml`
+# resolves at pip-install time. Drift between local pre-commit and CI
+# means contributors get green locally and red in CI — the failure mode
+# this whole config exists to prevent. CI runs `pre-commit run
+# --all-files` (since 2026-04-28) so the versions below are the single
+# source of truth.
+#
+# For the per-service hooks (includes mypy, bandit, gitleaks), see
+# templates/.pre-commit-config.yaml
 
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.4.2
+    # 25.1.0 fixes the f-string-with-regex parser bug that 24.4.2 hit
+    # on templates/service/tests/test_api.py:201. See commit history.
+    rev: 25.1.0
     hooks:
       - id: black
         language_version: python3
@@ -24,7 +46,7 @@ repos:
           )
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
         name: isort (python)
@@ -41,7 +63,7 @@ repos:
           )
 
   - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
+    rev: 7.1.1
     hooks:
       - id: flake8
         args: ["--max-line-length=120", "--extend-ignore=E203,W503"]
@@ -57,7 +79,7 @@ repos:
           )
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
         exclude: ^.*\.md$
@@ -69,12 +91,43 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=500"]
 
-  # Secret detection with gitleaks
+  # Secret detection with gitleaks (D-17, D-18 invariants)
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.4
+    rev: v8.21.2
     hooks:
       - id: gitleaks
         name: gitleaks (secret detection)
         description: Detect hardcoded secrets in template code
         args: ["--config=.gitleaks.toml"]
         pass_filenames: false
+
+  # Pre-push: scaffold smoke test. Catches dependency-graph + scaffolder
+  # regressions that the fast hooks above cannot:
+  #   - missing entries in templates/service/requirements.txt that any
+  #     test or src module imports
+  #   - new {placeholder} variables added to templates without matching
+  #     substitution rules in new-service.sh
+  #   - K8s manifest names that violate RFC 1123 after substitution
+  #     (PR-A5b territory)
+  # Local hook (no remote rev) so contributors get exactly the same
+  # bash script CI runs — no version drift possible.
+  - repo: local
+    hooks:
+      - id: scaffold-smoke
+        name: scaffold smoke test (~60s)
+        description: |
+          Run scripts/test_scaffold.sh end-to-end before push. Catches
+          the dependency-graph and placeholder-substitution failure
+          modes that no fast formatter check can detect.
+        entry: bash scripts/test_scaffold.sh
+        language: system
+        # `pass_filenames: false` because the script doesn't take
+        # filenames — it scaffolds a fresh service from scratch.
+        pass_filenames: false
+        # Only on pre-push, not on every commit. ~60s is too slow for
+        # commit-time but acceptable on push.
+        stages: [pre-push]
+        # Always run, regardless of which files changed. A change to
+        # templates/scripts/new-service.sh affects everything;
+        # restricting `files:` would create false-negatives.
+        always_run: true
