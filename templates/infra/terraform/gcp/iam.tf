@@ -21,6 +21,18 @@
 # All identities are project-scoped (no org-level grants). Per-environment
 # isolation is achieved by deploying this Terraform once per env, which
 # creates env-suffixed names (e.g. ci-sa-staging, ci-sa-production).
+#
+# Parity note — why no iam-roles-split.tf (unlike AWS):
+#   AWS splits `iam.tf` (per-SERVICE IRSA roles via for_each) from
+#   `iam-roles-split.tf` (per-PURPOSE ci/deploy/drift/retrain roles) to
+#   keep the for_each contract clean. GCP does not have per-service
+#   identities — all services share the single `runtime` SA and gain
+#   access via per-secret / per-bucket IAM bindings in secrets.tf and
+#   logging.tf. So per-purpose and per-service concerns don't collide
+#   here, and splitting the file would only add directory noise.
+#   Cloud parity is at the semantic level (same 5 identities, same
+#   permissions contract), not the filename level. See
+#   test_iam_least_privilege.py for enforcement.
 # ============================================================================
 
 # ---------------------------------------------------------------------------
