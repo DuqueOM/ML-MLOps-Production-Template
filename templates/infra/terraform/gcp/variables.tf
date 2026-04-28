@@ -61,3 +61,54 @@ variable "monthly_budget" {
   type        = number
   default     = 500
 }
+
+# ----------------------------------------------------------------------
+# Network mode (ADR-017 / PR-A1)
+# ----------------------------------------------------------------------
+# 'managed':  template creates VPC + subnetwork with secondary ranges
+# 'existing': caller provides network_name + subnetwork_name (data lookup)
+#
+# Default 'managed' preserves backwards compatibility for adopters who
+# accepted the implicit auto-mode VPC. Teams with existing VPCs flip to
+# 'existing' and pass their network/subnetwork names.
+# ----------------------------------------------------------------------
+variable "network_mode" {
+  description = "Network topology mode: 'managed' (template creates VPC) or 'existing' (use provided VPC/subnets)"
+  type        = string
+  default     = "managed"
+
+  validation {
+    condition     = contains(["managed", "existing"], var.network_mode)
+    error_message = "network_mode must be 'managed' or 'existing'"
+  }
+}
+
+variable "network_name" {
+  description = "Existing VPC network name (required when network_mode='existing')"
+  type        = string
+  default     = ""
+}
+
+variable "subnetwork_name" {
+  description = "Existing subnetwork name (required when network_mode='existing')"
+  type        = string
+  default     = ""
+}
+
+variable "subnetwork_cidr" {
+  description = "Subnetwork primary CIDR (managed mode only)"
+  type        = string
+  default     = "10.10.0.0/20"
+}
+
+variable "pods_cidr" {
+  description = "Secondary range CIDR for GKE pods (managed mode only)"
+  type        = string
+  default     = "10.20.0.0/14"
+}
+
+variable "services_cidr" {
+  description = "Secondary range CIDR for GKE services (managed mode only)"
+  type        = string
+  default     = "10.30.0.0/20"
+}
