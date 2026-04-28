@@ -23,7 +23,7 @@ Scope: classical ML (scikit-learn, XGBoost, LightGBM). Not LLM/GenAI.
   - 02-training.md: pipeline, quality gates, fairness (paths: **/training/*.py)
   - 03-kubernetes.md: 1-worker, CPU HPA, init container (paths: k8s/**/*.yaml)
   - 04-terraform.md: remote state, no secrets (paths: **/*.tf)
-  - 05-examples.md: simplified patterns (paths: examples/**/*) 
+  - 05-examples.md: simplified patterns (paths: examples/**/*)
 - .cursor/rules/ — 5 Cursor MDC rules (globs: frontmatter triggers)
   - 01-mlops-conventions.mdc: session protocol, full D-01→D-12 (globs: **/*.*)
   - 02-kubernetes.mdc: HPA, init container, probes (globs: k8s/**/*.yaml)

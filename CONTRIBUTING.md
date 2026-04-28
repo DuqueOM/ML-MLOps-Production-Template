@@ -13,15 +13,30 @@ Thanks for contributing. This repository is meant to be a serious production tem
 
 1. Fork the repository.
 2. Create a branch for your change.
-3. Install local checks:
+3. **Install local checks (mandatory)**:
 
    ```bash
    pip install pre-commit
-   pre-commit install
+   pre-commit install --hook-type pre-commit --hook-type pre-push
    ```
 
+   This installs:
+   - **pre-commit hooks**: black, isort, flake8, gitleaks (fast, run on every commit)
+   - **pre-push hook**: scaffold smoke test (~60s, runs before push to catch dependency graph and placeholder substitution regressions)
+
+   **Without both hook types installed, your commits will fail CI.** The CI runs the exact same pre-commit configuration, so local pre-commit failures predict CI failures.
+
 4. Make your changes.
-5. Run the relevant quality gates locally.
+5. Run the relevant quality gates locally:
+
+   ```bash
+   # Run all commit-stage hooks manually (if you need to check before committing)
+   pre-commit run --all-files
+
+   # Run the pre-push hook manually (if you need to verify before pushing)
+   pre-commit run --hook-stage pre-push --all-files
+   ```
+
 6. Commit with sign-off:
 
    ```bash

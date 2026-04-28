@@ -194,17 +194,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install tools
-        run: pip install flake8 black isort mypy
+      - name: Install pre-commit
+        run: pip install pre-commit
 
-      - name: Check formatting (black)
-        run: black --check --line-length=120 templates/service/ templates/common_utils/
-
-      - name: Check imports (isort)
-        run: isort --check --profile=black --line-length=120 templates/service/ templates/common_utils/
-
-      - name: Lint (flake8)
-        run: flake8 --max-line-length=120 --extend-ignore=E203,W503 templates/service/ templates/common_utils/
+      - name: Run pre-commit hooks (black, isort, flake8, gitleaks)
+        # Single source of truth for versions: .pre-commit-config.yaml.
+        # Prevents version drift between CI and local pre-commit install.
+        # Runs all commit-stage hooks (excludes pre-push scaffold smoke).
+        run: pre-commit run --all-files --hook-stage commit
 
       - name: Schema-validation wiring (PR-R2-4, audit R2)
         # Pandera ServiceInputSchema must be the SINGLE SOURCE OF TRUTH

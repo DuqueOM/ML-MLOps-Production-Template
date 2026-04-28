@@ -23,9 +23,6 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
 from app.fastapi_app import (
     _start_prediction_logger,
     _stop_prediction_logger,
@@ -33,6 +30,8 @@ from app.fastapi_app import (
     router,
     warm_up_model,
 )
+from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 try:
     from common_utils.auth import require_admin
@@ -170,9 +169,8 @@ async def ready():
     violating the P95 SLO. During graceful shutdown we set _warmed_up=False
     so K8s stops routing new traffic while the pod drains.
     """
-    from fastapi.responses import JSONResponse
-
     from app.fastapi_app import _model_pipeline
+    from fastapi.responses import JSONResponse
 
     model_loaded = _model_pipeline is not None
     is_ready = model_loaded and _warmed_up

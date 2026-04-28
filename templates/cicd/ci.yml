@@ -18,20 +18,21 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install flake8 black isort mypy
+      - name: Install pre-commit
+        run: pip install pre-commit
 
-      - name: flake8
-        run: flake8 src/ app/ tests/ --max-line-length=120
-
-      - name: black
-        run: black --check src/ app/ tests/
-
-      - name: isort
-        run: isort --check-only src/ app/ tests/
+      - name: Run pre-commit hooks (black, isort, flake8, gitleaks)
+        # Single source of truth for versions: .pre-commit-config.yaml.
+        # Prevents version drift between CI and local pre-commit install.
+        # Runs all commit-stage hooks (excludes pre-push scaffold smoke).
+        run: pre-commit run --all-files --hook-stage commit
 
       - name: mypy
-        run: mypy src/ app/ --ignore-missing-imports
+        # mypy not in pre-commit hooks yet — kept separate for now.
+        # TODO: add mypy to .pre-commit-config.yaml once baseline clean.
+        run: |
+          pip install mypy
+          mypy src/ app/ --ignore-missing-imports
 
       # ADR-015 PR-B1 — quality_gates.yaml as an executable contract.
       # Runs before pytest so a malformed quality_gates.yaml fails in
@@ -220,8 +221,8 @@ jobs:
           docker build -t "$IMAGE" ${{ matrix.service }}/
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-      - name: Trivy vulnerability scan (blocker: HIGH/CRITICAL)
-        # Pinned to immutable tag (D-19, ADR-014 §1.1). Dependabot updates
+      - name: "Trivy vulnerability scan (blocker: HIGH/CRITICAL)"
+        # Pinned to immutable tag (D-19, ADR-014 section 1.1). Dependabot updates
         # via .github/dependabot.yml. Phase 5 will harden to commit-SHA.
         uses: aquasecurity/trivy-action@v0.36.0
         with:

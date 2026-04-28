@@ -25,7 +25,6 @@ import re
 from pathlib import Path
 
 import pytest
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,7 +85,6 @@ def test_retrain_workflow_downloads_to_training_path() -> None:
     silently produces an empty model.
     """
     wf_path = REPO_ROOT / ".github" / "workflows" / "retrain-service.yml"
-    train_path = REPO_ROOT / "src"
 
     if not wf_path.is_file():
         # Scaffolded layout copies retrain-service.yml under .github/workflows
