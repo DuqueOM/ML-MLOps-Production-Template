@@ -8,6 +8,26 @@ Thanks for contributing. This repository is meant to be a serious production tem
 - Keep solutions proportional to the problem. This repo is intentionally opinionated, but it should not drift into platform over-engineering.
 - Prefer production-backed patterns over purely theoretical abstractions.
 - If a change affects architecture, governance, security posture, or default behavior, document it with an ADR.
+- Versioning is governed by [`docs/RELEASING.md`](docs/RELEASING.md). Breaking changes to scaffolded output, contracts, or overlay names require a MAJOR bump and a row in [`MIGRATION.md`](MIGRATION.md).
+
+## Evidence policy for new components (per ADR-020 §S1-2)
+
+R4 audit finding H2 documented a recurring class of bugs where new template components shipped without execution evidence. To prevent regression, **PRs that introduce a new component MUST include three evidence blocks in the PR body**, enforced by [`pr-evidence-check.yml`](.github/workflows/pr-evidence-check.yml):
+
+1. **Evidence — Schema / Contract Test**: path to the test file that pins the new component's contract.
+2. **Evidence — Real Execution Output**: truncated raw output (stdout/stderr) from running the new component end-to-end. Description text is NOT acceptable — actual output is.
+3. **Evidence — CI Run Link**: URL to the GitHub Actions run that produced the output above, OR a link to a [`VALIDATION_LOG.md`](VALIDATION_LOG.md) entry.
+
+The allowlist that triggers this requirement:
+
+- `.github/workflows/*.yml`, `templates/cicd/*.yml` (workflows / deploy YAML)
+- `templates/k8s/overlays/**`, `templates/k8s/policies/**` (cluster surface)
+- `templates/service/tests/contract/**` (new contract tests)
+- `templates/common_utils/*.py` (adopter API surface)
+- `scripts/*.py`, `scripts/*.sh` (operational scripts)
+- `templates/config/*.yaml` (policy YAML)
+
+Typical doc-only or refactor PRs that don't introduce a new component are exempt; the evidence section can be deleted from the PR body in that case.
 
 ## How to contribute
 

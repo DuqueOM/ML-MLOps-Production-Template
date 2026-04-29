@@ -125,6 +125,139 @@ before the row's status can claim "Production-ready".
 
 ---
 
+## Entry 002 — Sprint 1 close (R4 audit response, ADR-019 Phase 1 + structural workflows)
+
+- **Date**: 2026-04-29
+- **Branch**: `audit-r4/sprint-0-credibility` (continuation; Sprint 1 batched on the same branch per user direction)
+- **Base commit (Sprint 1 start)**: `12f5ccefba08edf198426609aba5fd608f616999`
+- **Environment**: local Linux developer workstation (Ubuntu-class), Python 3.13.5; no cloud account, no Kubernetes cluster
+- **Operator**: Staff/Lead engineer — agentic implementation, STOP-delegated items deferred
+- **Scope**: ADR-019 Phase 1 read-only runtime + per-PR smoke lane + per-PR evidence policy + STOP-delegated runbooks + agentic red-team log
+
+### What was executed
+
+#### 1. ADR-019 Phase 1 runtime — protected paths short-circuit verified
+
+```
+$ printf 'would reformat templates/common_utils/secrets.py\n' \
+  | python scripts/ci_collect_context.py --job-name lint --workflow ci \
+      --changed-files templates/common_utils/secrets.py \
+  | python scripts/ci_classify_failure.py \
+  | python -c "import json,sys; d=json.load(sys.stdin); \
+      print(f'final_mode={d[\"final_mode\"]}'); \
+      print(f'matched_class={d[\"matched_class\"]}'); \
+      print(f'protected_paths_hit={d[\"protected_paths_hit\"]}'); \
+      print(f'writes_allowed={d[\"writes_allowed\"]}')"
+
+final_mode=STOP
+matched_class=blast_radius_exceeded
+protected_paths_hit=['templates/common_utils/secrets.py']
+writes_allowed=False
+```
+
+This is the canonical adversarial test (Red-Team Log Entry 3): a black
+formatter-drift signature on a protected path. The classifier short-circuits
+to STOP based on `protected_paths`, before the signature-derived AUTO class
+would have been considered. `writes_allowed` is `False`, confirming Phase 1
+read-only invariant. End-to-end stdin pipeline functional.
+
+#### 2. ADR-019 Phase 1 runtime — full invariant suite
+
+```
+$ python -m pytest templates/service/tests/test_ci_classify_failure_phase1.py \
+      --no-cov --noconftest -q
+collected 27 items
+templates/service/tests/test_ci_classify_failure_phase1.py ............. [ 48%]
+..............                                                           [100%]
+=========================== 27 passed in 4.27s ===========================
+```
+
+27 invariants covering: read-only enforcement, schema stability,
+protected-paths short-circuit (9 parametrized paths), STOP signatures,
+AUTO routing for safe drift, blast-radius escalation (lines + files),
+no-signature → STOP fallback, no memory hooks in Phase 1 output.
+
+#### 3. Aggregate R4 invariant suite — green
+
+```
+$ python -m pytest \
+    templates/service/tests/test_ci_classify_failure_phase1.py \
+    templates/service/tests/test_phase0_disclosure.py \
+    templates/service/tests/test_readme_model_names.py \
+    templates/service/tests/test_ci_autofix_policy_contract.py \
+    templates/service/tests/test_adoption_boundary_contract.py \
+    --no-cov --noconftest -q
+
+======================== 50 passed, 3 skipped in 4.97s =========================
+```
+
+The 3 skipped invariants in `test_phase0_disclosure.py` are the
+ADR-019-side banner / hero / matrix checks that correctly skip now that
+ADR-019 has transitioned to Phase 1. The ADR-018 side (3 active invariants)
+remains enforced because ADR-018 is still Phase 0.
+
+#### 4. New CI workflows — structural verification
+
+Three new GitHub Actions workflows added to `.github/workflows/`:
+
+- `ci-self-healing-shadow.yml` — wires Phase 1 classifier into CI in
+  shadow mode; verifies `writes_allowed=false` invariant inline; uploads
+  context.json + classification.json as 30-day artifacts.
+- `pr-smoke-lane.yml` — per-PR scaffold + render six overlays + kubeconform
+  validate + binary-presence audit on deploy chain.
+- `pr-evidence-check.yml` — enforces three evidence blocks in PR body for
+  PRs that introduce new components (allowlist of paths defined in CONTRIBUTING.md).
+
+Workflows are syntactically validated by pre-commit `check yaml` hook;
+structural smoke pending GitHub Actions runner verification at first push.
+
+### What was NOT validated (pending — Sprint 2 / Sprint 3 / external)
+
+- **Real `kustomize build` of the six overlays** — `pr-smoke-lane.yml` renders
+  in CI; local environment lacked `kustomize` binary at Sprint 1 close. First
+  CI run on the audit-r4 branch will confirm.
+- **Real `kubeconform` validation** — same as above; `pr-smoke-lane.yml` runs
+  it inline.
+- **`pr-evidence-check.yml` enforcing on a real PR** — pending the first PR
+  that touches the allowlist after this branch lands.
+- **Shadow-mode classifier precision** — requires 14 days of CI failure data
+  per ADR-019 §Phase plan. The classifier is now wired; the data
+  collection starts on first failure post-merge.
+- **`docs/runbooks/secret-history-scan.md` Procedure 1 + 2 execution** — STOP-
+  delegated to Platform / Security per the runbook header. Not executed in
+  this entry; tracked under H5/H6.
+- **`docs/runbooks/kyverno-admission-validation.md` Steps 1–7 execution on
+  kind cluster** — STOP-delegated; tracked under H7.
+- **Memory plane Phase 1 contracts (`memory_types.py`, `memory_redaction.py`)**
+  — Sprint 2 (S2-1).
+- **Compliance gap analysis** — Sprint 2 (S2-2).
+
+### Conclusion (Entry 002)
+
+Sprint 1 closes 4 of the 7 R4 Highs (H1, H2, H3, H4) with executable
+artifacts and contract tests, and lands documented runbooks for the 3
+STOP-delegated Highs (H5, H6, H7). The agentic red-team log
+(`docs/agentic/red-team-log.md`) converts the AUTO/CONSULT/STOP claims
+into evidence with five documented evasion attempts and the invariants
+that blocked each one.
+
+The maturity matrix row for "Agentic CI self-healing" upgrades from
+"Phase 0 — runtime not implemented" to "Phase 1 — shadow / read-only"
+with the runtime artifacts and 27 contract-test invariants enforcing the
+Phase 1 boundary. The next status change requires 14 days of shadow data
+and a CONSULT-mode Phase-1 → Phase-2 decision per ADR-019 §Phase plan.
+
+R4 finding closure status:
+
+- C1, C2, C3, C4, C5: closed in Sprint 0 (Entry 001).
+- H1: Phase 1 closed; Phase 2 opens after shadow precision review.
+- H2: closed (PR-evidence policy + workflow + CONTRIBUTING update).
+- H3: closed (per-PR smoke lane wired).
+- H4: closed (red-team log with 5 entries + invariant index).
+- H5, H6, H7: runbooks shipped; **execution evidence pending Platform / Security action**. The maturity matrix row for "Security and supply chain" remains "Production-ready" pending those entries (does NOT upgrade to "Verified end-to-end" until the runbooks have been executed and recorded).
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:
