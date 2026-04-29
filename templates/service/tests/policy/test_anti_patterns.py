@@ -329,6 +329,78 @@ def test_d31_five_identity_iam_split(scaffold_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# D-32: Drift CronJob references the scaffolded Python package, not a
+# placeholder or a kebab-cased path that fails at module-import time.
+#
+# Regression test for the bug where cronjob-drift.yaml used
+# `src/{service-name}/monitoring/drift_detection.py` (kebab) but the
+# scaffolder renames `src/{service}` → `src/<snake_slug>`. Python
+# module paths must be snake_case; kebab fails ModuleNotFoundError
+# at runtime even though the manifest applies cleanly.
+# ---------------------------------------------------------------------------
+
+
+def test_d32_drift_cronjob_python_path(scaffold_dir: Path) -> None:
+    """The drift CronJob's `python -m`/python <path> must hit a real
+    Python package directory in the scaffolded service.
+
+    Concretely:
+      - No `{service}` / `{service-name}` placeholder may survive
+      - The path must start with `src/<snake_slug>/`, where snake_slug
+        is a real directory the scaffolder produced
+    """
+    cronjob = scaffold_dir / "k8s" / "base" / "cronjob-drift.yaml"
+    if not cronjob.is_file():
+        pytest.skip("k8s/base/cronjob-drift.yaml not produced by scaffolder")
+
+    text = cronjob.read_text()
+
+    # Placeholder leak guard
+    leaked = [p for p in ("{service}", "{service-name}", "{ServiceName}") if p in text]
+    assert not leaked, (
+        f"D-32 violation: cronjob-drift.yaml leaked placeholders {leaked} "
+        f"after scaffolding — substitution rules are incomplete."
+    )
+
+    # Locate the python entrypoint line. The CronJob runs:
+    #     python  src/<pkg>/monitoring/drift_detection.py  ...
+    drift_line = re.search(
+        r"src/([A-Za-z0-9_]+)/monitoring/drift_detection\.py",
+        text,
+    )
+    assert drift_line is not None, (
+        "D-32 violation: cronjob-drift.yaml does not reference a Python "
+        "module path of the form src/<pkg>/monitoring/drift_detection.py. "
+        "The drift CronJob would fail at runtime."
+    )
+
+    pkg = drift_line.group(1)
+    # snake_case Python package names: lowercase + underscores ONLY.
+    # A kebab-case slug like 'fraud-detector' is invalid and would
+    # explode at module-import time with ModuleNotFoundError.
+    assert "-" not in pkg, (
+        f"D-32 violation: cronjob-drift.yaml references kebab-cased "
+        f"path src/{pkg}/ — Python packages must be snake_case. "
+        f"Use {{service}} not {{service-name}} in this manifest."
+    )
+
+    # And the directory must actually exist on disk
+    pkg_dir = scaffold_dir / "src" / pkg
+    assert pkg_dir.is_dir(), (
+        f"D-32 violation: cronjob-drift.yaml points at src/{pkg}/ but "
+        f"that directory was not produced by the scaffolder. Most likely "
+        f"the manifest uses {{service-name}} (kebab) instead of {{service}} "
+        f"(snake) in the python module path."
+    )
+
+    drift_module = pkg_dir / "monitoring" / "drift_detection.py"
+    assert drift_module.is_file(), (
+        f"D-32 violation: {drift_module} does not exist — the CronJob "
+        f"command points at a file the scaffolder did not produce."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Process-only anti-patterns — documented but not statically inspectable.
 # These SKIP explicitly so the coverage table stays complete.
 # ---------------------------------------------------------------------------

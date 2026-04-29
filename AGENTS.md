@@ -263,6 +263,7 @@ GitHub Actions flow with required_reviewers.
 | D-29 | Namespace without Pod Security Standards labels | Label prod namespaces `pod-security.kubernetes.io/enforce: restricted`; dev/staging `enforce: baseline` + `warn/audit: restricted`. See `templates/k8s/policies/pod-security-standards.yaml`. Container `securityContext` drops ALL capabilities, `allowPrivilegeEscalation: false`, `runAsNonRoot: true` |
 | D-30 | Production image without SBOM attestation | Deploy workflow MUST generate an SBOM (Syft / CycloneDX) and attach it as a Cosign attestation (`cosign attest --type cyclonedx`). Full SLSA L3 provenance is documented as roadmap in `deploy-gcp.yml` §1b |
 | D-31 | Monolithic IAM identity for CI / deploy / runtime / drift / retrain (ADR-017) | Each cloud Terraform splits identities by **purpose** (`ci`, `deploy`, `runtime`, `drift`, `retrain`) AND by **environment** (one set per env). GCP: 5 `google_service_account` resources with WI bindings for runtime/drift/retrain. AWS: GitHub OIDC for ci/deploy + IRSA for runtime/drift/retrain. Audit trail identifies which workflow acted. Blast radius: leaked CI key cannot read prod model artifacts; leaked runtime key cannot push images. Enforced by `tests/test_iam_least_privilege.py` (no wildcard principals, no `Action: "*"`, no IAM mutation on CI role) |
+| D-32 | K8s manifests reference Python package paths using kebab-case placeholders | Python module paths MUST use snake_case (`{service}`), never kebab (`{service-name}`). The scaffolder renames `src/{service}` → `src/<snake_slug>`; a manifest pointing at `src/{service-name}/...` (e.g. `src/fraud-detector/...`) applies cleanly but explodes at runtime with `ModuleNotFoundError` because `fraud-detector` is not a valid Python package name. Enforced by `tests/policy/test_anti_patterns.py::test_d32_drift_cronjob_python_path` (placeholder leak guard + snake-case check + on-disk directory existence) |
 
 ## Session Initialization Protocol
 
@@ -281,7 +282,7 @@ When starting a new session in a project derived from this template:
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
 - `security-audit` — pre-build/pre-deploy scans: gitleaks, trivy, cosign verify, IAM review
 - `secret-breach-response` — incident playbook when a secret is leaked (detect → rotate → audit → postmortem)
-- `debug-ml-inference` — diagnose serving issues (starts with D-01..D-30 checklist)
+- `debug-ml-inference` — diagnose serving issues (starts with D-01..D-32 checklist)
 - `drift-detection` — analyze PSI drift + concept drift (sliced performance)
 - `concept-drift-analysis` — root-cause sliced performance regressions with ground truth
 - `model-retrain` — execute retraining with quality gates + Champion/Challenger
@@ -291,7 +292,7 @@ When starting a new session in a project derived from this template:
 - `cost-audit` — monthly cloud cost review
 - `batch-inference` — scaffold + run batch scoring jobs (CronJob + Parquet output) reusing the service's model and feature-engineering code
 - `performance-degradation-rca` — end-to-end RCA for a performance-degradation incident: correlates sliced metrics, drift, deploy history, upstream data changes, and prediction logs into one evidence-backed root cause
-- `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-30; produces a PASS/FAIL report with file:line evidence
+- `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-32; produces a PASS/FAIL report with file:line evidence
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -400,7 +401,7 @@ skills/workflows — those are invoked via conversation in any IDE).
 └── 14-github-actions.md     # paths: .github/workflows/*.yml — D-26/30, OIDC
 
 .cursor/rules/          # Cursor IDE — 12 glob-scoped .mdc rules
-├── 01-mlops-conventions.mdc  # globs: **/* (always) — D-01..D-30 + Behavior Protocol (static + dynamic ADR-010)
+├── 01-mlops-conventions.mdc  # globs: **/* (always) — D-01..D-32 + Behavior Protocol (static + dynamic ADR-010)
 ├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA CPU-only, init container, probes split, PDB
 ├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP KernelExplainer, /health vs /ready
 ├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, quality gates, fairness
@@ -423,7 +424,7 @@ skills/workflows — those are invoked via conversation in any IDE).
 
 | Invariant group | Windsurf | Cursor | Claude |
 |-----------------|----------|--------|--------|
-| Core + D-01→D-30 | `01-mlops-conventions.md` (always_on) | `01-mlops-conventions.mdc` | `01-serving.md` + `02-training.md` |
+| Core + D-01→D-32 | `01-mlops-conventions.md` (always_on) | `01-mlops-conventions.mdc` | `01-serving.md` + `02-training.md` |
 | Closed-loop (D-20→D-22) | `13-closed-loop-monitoring.md` | `08-closed-loop.mdc` | `08-closed-loop.md` |
 | Kubernetes (D-02) | `02-kubernetes.md` | `02-kubernetes.mdc` | `03-kubernetes.md` |
 | Terraform | `03-terraform.md` | — (covered in 01) | `04-terraform.md` |

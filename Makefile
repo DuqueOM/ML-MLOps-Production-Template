@@ -32,12 +32,23 @@ help: ## Show this help message
 # Setup
 # ═══════════════════════════════════════════════
 
-install-dev: ## Install contributor tools + pre-commit hooks
+install-dev: ## Install contributor tools + pre-commit hooks (idempotent)
 	@echo "$(GREEN)Installing contributor tools...$(NC)"
-	pip install black isort flake8 mypy pre-commit
+	pip install black isort flake8 mypy bandit pre-commit
 	pip install -r examples/minimal/requirements.txt
-	pre-commit install
+	@bash scripts/dev-setup.sh
 	@echo "$(GREEN)✓ Contributor environment ready$(NC)"
+
+verify-hooks: ## Verify pre-commit hooks are actually installed in .git/hooks/
+	@hooks_dir="$$(git rev-parse --git-path hooks)" ; \
+	for h in pre-commit pre-push ; do \
+	  if [ ! -f "$$hooks_dir/$$h" ] || ! grep -q pre-commit "$$hooks_dir/$$h" 2>/dev/null ; then \
+	    echo "$(GREEN)MISSING:$(NC) $$hooks_dir/$$h" ; \
+	    echo "  Run: make install-dev   (or: bash scripts/dev-setup.sh)" ; \
+	    exit 1 ; \
+	  fi ; \
+	  echo "✓ $$hooks_dir/$$h" ; \
+	done
 
 bootstrap: ## One-command setup: detect OS, install deps, configure MCPs, run example
 	@bash scripts/bootstrap.sh

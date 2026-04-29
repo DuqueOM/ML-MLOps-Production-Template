@@ -1,29 +1,50 @@
-# Pre-commit hooks for ML-MLOps Production Template contributors
+# Pre-commit hooks — MANDATORY first-filter for contributors.
 #
-# Install (MANDATORY):
+# This is the FIRST gate before any code enters the repo. CI is the
+# last-line safety net (it re-runs these same hooks on every PR via
+# `validate-templates.yml`), but pre-commit must catch the 90% case
+# at commit time, before a PR is even opened. If pre-commit is green
+# locally, CI's lint lane must be green too — same config, same
+# versions, no drift.
+#
+# Install (ONE command — covers both pre-commit AND pre-push stages):
+#
 #   pip install pre-commit
-#   pre-commit install --hook-type pre-commit --hook-type pre-push
+#   pre-commit install                   # reads default_install_hook_types below
 #
-# Run all:
+# Run all (debug or one-shot full sweep):
+#
 #   pre-commit run --all-files
 #
-# Why a pre-push hook layer too: the pre-commit lane is fast (< 5s) and
-# catches formatting + secret leaks. The pre-push lane runs the scaffold
-# smoke test (~60s) which catches dependency-graph bugs the fast lane
-# cannot — e.g. a contributor adding a test that imports a package not
-# in `templates/service/requirements.txt` would pass black + flake8 but
-# fail at scaffold-time. The CI failure of 2026-04-27 (jsonschema
-# missing) is exactly this class.
+# Two-stage design (both installed by default via default_install_hook_types):
 #
-# Versions MUST match what `.github/workflows/validate-templates.yml`
-# resolves at pip-install time. Drift between local pre-commit and CI
-# means contributors get green locally and red in CI — the failure mode
-# this whole config exists to prevent. CI runs `pre-commit run
-# --all-files` (since 2026-04-28) so the versions below are the single
-# source of truth.
+#   pre-commit stage (< 5s): formatting, lint, type check, security lint,
+#     secret detection. Blocks the commit itself.
 #
-# For the per-service hooks (includes mypy, bandit, gitleaks), see
-# templates/.pre-commit-config.yaml
+#   pre-push stage (~60s): scaffold smoke test. Catches dependency-graph
+#     and placeholder-substitution bugs the fast lane cannot — e.g. a
+#     contributor adding a test that imports a package not in
+#     `templates/service/requirements.txt` passes black + flake8 but
+#     fails scaffold-time (CI failure of 2026-04-27 is exactly this
+#     class). Blocks the push.
+#
+# Versions are pinned to match `.github/workflows/validate-templates.yml`.
+# Drift between local and CI means green local → red CI, which is the
+# failure mode this config exists to prevent. CI runs
+# `pre-commit run --all-files` since 2026-04-28 so these versions ARE
+# the single source of truth.
+#
+# For the per-service hook config, see `templates/.pre-commit-config.yaml`.
+
+# Auto-install both stages when contributor runs `pre-commit install`
+# once. Previously they had to remember `--hook-type pre-push` too,
+# which almost nobody did — pre-push hooks silently never ran.
+default_install_hook_types: [pre-commit, pre-push]
+
+# fail_fast: false is the DEFAULT (shown explicit for intent) — we
+# want contributors to see EVERY violation in one run, not stop at
+# the first. Fewer commit → fix → commit → fix → commit cycles.
+fail_fast: false
 
 repos:
   - repo: https://github.com/psf/black
@@ -91,6 +112,46 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=500"]
 
+  # mypy + bandit scope: REAL Python only.
+  # `templates/service/src/{service}/` is template territory — the
+  # `{service}` segment is a placeholder that new-service.sh
+  # substitutes at scaffold time. Running static analysis on the
+  # un-substituted templates explodes (mypy: "{service} is not a
+  # valid Python package name"). The scaffolded SERVICE gets its
+  # OWN per-service hook config (templates/.pre-commit-config.yaml).
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args:
+          - "--python-version=3.11"
+          - "--ignore-missing-imports"
+          - "--no-strict-optional"
+        files: ^(templates/common_utils/|examples/|scripts/)
+        exclude: >
+          (?x)(
+            ^\.venv/|
+            ^.*\/tests\/|
+            ^.*\/__pycache__\/|
+            ^scripts/test_scaffold\.sh$
+          )
+        additional_dependencies:
+          - "pydantic>=2.0"
+          - "types-PyYAML"
+          - "types-requests"
+
+  # Security lint — bandit catches obvious patterns (eval, hardcoded
+  # tmp paths, shell=True, weak crypto). `-ll -i` = LOW severity LOW
+  # confidence threshold ignored, so we get medium+ only — enough
+  # signal without overwhelming.
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ["-ll", "-i"]
+        files: ^(templates/common_utils/|examples/|scripts/)
+        exclude: ^.*\/tests\/
+
   # Secret detection with gitleaks (D-17, D-18 invariants)
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.2
@@ -100,6 +161,33 @@ repos:
         description: Detect hardcoded secrets in template code
         args: ["--config=.gitleaks.toml"]
         pass_filenames: false
+
+  # Project's OWN gates — run them locally so contributors don't
+  # wait for CI to discover an agentic-config drift. These are
+  # cheap (< 2s each) and they're already required by CI; running
+  # locally is pure win.
+  - repo: local
+    hooks:
+      - id: validate-agentic
+        name: validate agentic system (rules/skills/workflows/AGENTS.md)
+        description: |
+          Runs scripts/validate_agentic.py --strict to catch drift
+          between AGENTS.md and the agent runtime config (rules,
+          skills, workflows). Same script CI runs.
+        entry: python scripts/validate_agentic.py --strict
+        language: system
+        pass_filenames: false
+        files: ^(AGENTS\.md|\.windsurf/|\.cursor/|\.claude/|scripts/validate_agentic\.py)
+      - id: ci-autofix-policy-contract
+        name: CI autofix policy contract (ADR-019)
+        description: |
+          The two governance YAMLs in templates/config/ have a
+          contract test (10 invariants). Run it locally on every
+          commit that touches them so policy drift never reaches CI.
+        entry: python -m pytest templates/service/tests/test_ci_autofix_policy_contract.py -q -o addopts=""
+        language: system
+        pass_filenames: false
+        files: ^(templates/config/(ci_autofix_policy|model_routing_policy)\.yaml|templates/service/tests/test_ci_autofix_policy_contract\.py)$
 
   # Pre-push: scaffold smoke test. Catches dependency-graph + scaffolder
   # regressions that the fast hooks above cannot:
