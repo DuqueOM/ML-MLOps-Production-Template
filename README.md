@@ -49,7 +49,7 @@ It ships:
 - Closed-loop monitoring with prediction logging, delayed ground truth, sliced performance, champion/challenger evaluation, and retraining hooks.
 - Security controls for secrets, identity federation, SBOM generation, image signing, admission policy, and pod hardening.
 - Agentic governance through `AUTO / CONSULT / STOP`, plus dynamic risk escalation based on live signals.
-- Safe CI self-healing for low-risk failures, with bounded blast radius and mandatory verification _(policy ratified — **runtime Phase 0; not implemented yet**, see ADR-019)_.
+- Safe CI self-healing for low-risk failures, with bounded blast radius and mandatory verification _(policy + classifier shipped — **runtime Phase 1; shadow mode only, no writes**, see ADR-019)_.
 - Optional Operational Memory Plane that helps agents retrieve prior incidents, decisions, deploy regressions, and successful remediations _(contracts ratified — **runtime Phase 0; not implemented yet**, see ADR-018)_.
 
 This is not a generic starter repo. It is a production template with encoded operating constraints.
@@ -69,7 +69,7 @@ The template is positioned as a hardened open-source baseline for enterprise ML 
 | Closed-loop monitoring | Production-ready | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
 | Security and supply chain | Production-ready | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
 | Agentic controls | Production-ready | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
-| Agentic CI self-healing | **Phase 0 — runtime not implemented** | Policy contract ratified (ADR-019), failure-class table mapped to AUTO/CONSULT/STOP, contract test green. Runtime scripts (`ci_collect_context.py`, `ci_classify_failure.py`, patch worker, verifier) deferred. No agent autonomously opens PRs against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan. |
+| Agentic CI self-healing | **Phase 1 — shadow / read-only** | Policy + classifier + collector ship today (ADR-019). `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py` observe CI failures and emit AUTO/CONSULT/STOP classifications without writing anything. Patch worker, verifier, and write-enabled lanes deferred to Phase 2+ pending 14 days of shadow precision data. No agent autonomously opens PRs against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan. |
 | Operational Memory Plane | **Phase 0 — runtime not implemented** | Optional companion. Contracts and threat model ratified (ADR-018). `memory_types.py`, `memory_redaction.py`, ingest worker, vector store, retrieval API deferred. Adopters cannot call retrieval APIs today. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan. |
 
 External dependencies remain your responsibility: cloud accounts, Kubernetes clusters, MLflow backend, secret stores, and observability backends must exist before the template can operate in a real environment.
@@ -260,9 +260,9 @@ The operational rule is simple: memory can add context and escalate caution, but
 
 ## Agentic CI self-healing
 
-> **Status — Phase 0 only. Runtime NOT implemented.** This section describes the policy contract that ships today: `templates/config/ci_autofix_policy.yaml`, `templates/config/model_routing_policy.yaml`, the failure-class table mapped to `AUTO` / `CONSULT` / `STOP`, and `test_ci_autofix_policy_contract.py` enforcing 10 invariants. The runtime scripts that would actually classify CI failures and propose patches — `scripts/ci_collect_context.py`, `scripts/ci_classify_failure.py`, the patch worker, the verifier — are **NOT yet implemented** in this template and are explicitly deferred per ADR-019 §Phase plan. No agent will autonomously open a PR against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan for the staged delivery.
+> **Status — Phase 1 (shadow, read-only).** The classifier and collector ship today: `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py`, governed by `templates/config/ci_autofix_policy.yaml` and `templates/config/model_routing_policy.yaml`, with 10 policy-contract invariants and 27 Phase-1 runtime invariants enforced by `test_ci_autofix_policy_contract.py` and `test_ci_classify_failure_phase1.py`. The classifier is wired into CI in **shadow mode only** — it observes failures and emits classifications, but **does NOT write code, does NOT open PRs, does NOT mutate any branch**. The patch worker, verifier, and write-enabled lanes are **NOT implemented yet** and are gated on 14 days of shadow data per ADR-019 §Phase plan. No agent will autonomously open a PR against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan for the staged delivery.
 >
-> _Audit trail: this Phase-0 disclosure was added in response to R4 finding C2. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2._
+> _Audit trail: Phase 0 disclosure added in response to R4 finding C2; transitioned to Phase 1 in the same audit-r4 sprint. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2 + §S1-6._
 
 The template supports a bounded self-healing lane for CI. This is not "let the agent fix anything." It is a policy-governed repair loop with verification, audit, and branch isolation.
 
