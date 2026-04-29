@@ -331,7 +331,7 @@ Vendor model names rotate every 6–12 months. The `verified_at` field in `model
 
 ## Anti-patterns encoded
 
-The template encodes and audits 30 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
+The template encodes and audits 32 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
 
 | ID | Anti-pattern | Corrective action |
 |----|--------------|-------------------|
@@ -365,6 +365,8 @@ The template encodes and audits 30 production anti-patterns across serving, trai
 | D-28 | Breaking API change without version bump and snapshot refresh | Refresh the OpenAPI snapshot and apply semantic version discipline. |
 | D-29 | Namespace missing Pod Security Standards labels | Label namespaces and enforce the correct pod security level by environment. |
 | D-30 | Production image lacks SBOM attestation | Attach a CycloneDX SBOM attestation as part of the signed release chain. |
+| D-31 | Monolithic IAM identity for ci/deploy/runtime/drift/retrain | Per-purpose, per-environment service accounts with WIF (GCP) and IRSA (AWS); enforced by `tests/test_iam_least_privilege.py`. |
+| D-32 | K8s manifests reference Python paths with kebab-case placeholders | Python module paths use `{service}` (snake), never `{service-name}` (kebab); enforced by `tests/policy/test_anti_patterns.py::test_d32_drift_cronjob_python_path`. |
 
 The full invariant text and operating rules live in [AGENTS.md](AGENTS.md).
 

@@ -212,7 +212,11 @@ def _query_prometheus_scalar(prom_url: str, query: str, timeout: float) -> bool 
     qs = urllib.parse.urlencode({"query": query})
     url = f"{base}/api/v1/query?{qs}"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310 — internal URL
+        # Bandit B310: urlopen permitted-schemes audit. The URL is built
+        # from `prom_url` which comes from deployment config (env var or
+        # ServiceAccount-mounted ConfigMap), never from request input.
+        # Schemes are constrained to http(s) by Prometheus deployment.
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310, # nosec B310
             payload = json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError) as exc:
         logger.debug("Prometheus query failed (%s): %s", query, exc)
@@ -294,7 +298,6 @@ def get_risk_context(
             return ctx
 
     prom_url = prometheus_url or os.getenv("PROMETHEUS_URL")
-    ctx: RiskContext
     if prom_url:
         ctx = _load_prometheus_signals(prom_url)
         if not ctx.available:

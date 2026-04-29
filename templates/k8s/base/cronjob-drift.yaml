@@ -25,7 +25,12 @@ spec:
               image: "{service-name}-predictor:latest"
               command:
                 - python
-                - src/{service-name}/monitoring/drift_detection.py
+                # Python package paths are snake_case ({service}), not
+                # kebab ({service-name}). The scaffolder renames
+                # src/{service} → src/<snake_slug>; using {service-name}
+                # here would fail at runtime with ModuleNotFoundError
+                # (fraud-detector is not a valid Python package name).
+                - src/{service}/monitoring/drift_detection.py
                 - --reference
                 - data/reference/reference.csv
                 - --current
