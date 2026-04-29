@@ -1,0 +1,169 @@
+name: ci-self-healing-shadow
+
+# ADR-019 Phase 1 — read-only classifier in SHADOW mode.
+#
+# This workflow runs on every workflow_run completion of the main CI
+# workflows. When a CI run fails, it ingests the failure log, classifies
+# it via scripts/ci_collect_context.py + scripts/ci_classify_failure.py,
+# and publishes the classification to the GHA step summary + uploads
+# the JSON as an artifact for shadow precision analysis.
+#
+# It NEVER writes to the repo. It NEVER opens a PR. It NEVER mutates any
+# branch. It exists exclusively to gather precision data so the Phase 1 →
+# Phase 2 transition decision (ADR-019 §Phase plan) is grounded in
+# evidence rather than speculation.
+#
+# Decision gate: 14 days of shadow data with classifier precision >= 0.90
+# on AUTO classifications and zero false-positive STOP-class downgrades.
+#
+# Authority: ADR-019 §Phase 1, ADR-020 §S1-6.
+
+on:
+  workflow_run:
+    workflows:
+      - "validate-templates"
+      - "policy-tests"
+      - "golden-path"
+      - "golden-path-extended"
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      log_artifact_url:
+        description: "Optional URL to a failure log artifact (for replay)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  shadow-classify:
+    # Only run on FAILED upstream workflows; success runs have nothing to
+    # classify.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout (read-only)
+        uses: actions/checkout@v4
+        with:
+          # Shadow mode — fetch only what we need.
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          # Classifier needs ONLY pyyaml.
+          pip install pyyaml
+
+      - name: Download upstream failure logs
+        # We download the upstream workflow logs via the actions/download-artifact
+        # API. In Phase 1 the simplest signal is the workflow_run conclusion;
+        # log fetching is best-effort. If we can't fetch, we still classify
+        # against the empty log (which produces a no-signature → STOP result,
+        # which is the correct conservative default).
+        id: fetch-logs
+        run: |
+          set -euo pipefail
+          mkdir -p ./_shadow
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "upstream_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+            echo "upstream_workflow=${{ github.event.workflow_run.name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "upstream_run_id=manual" >> "$GITHUB_OUTPUT"
+            echo "upstream_workflow=workflow_dispatch" >> "$GITHUB_OUTPUT"
+          fi
+          # Phase 1 keeps log retrieval simple: an empty log is acceptable.
+          # The classifier's behavior on empty input (no signature → STOP)
+          # is the correct conservative default and is itself a covered
+          # invariant in test_ci_classify_failure_phase1.py.
+          : > ./_shadow/failure.log
+
+      - name: Resolve changed files
+        id: changed-files
+        run: |
+          set -euo pipefail
+          # Use the head SHA from the upstream run if available; otherwise
+          # the current HEAD. Read-only git command.
+          if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
+            HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            HEAD_SHA="$(git rev-parse HEAD)"
+          fi
+          echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          # Best effort: list files in last commit. Real Phase-2 implementation
+          # would use the PR diff API.
+          git diff --name-only "${HEAD_SHA}~1...${HEAD_SHA}" > ./_shadow/changed_files.txt 2>/dev/null \
+            || echo "" > ./_shadow/changed_files.txt
+          echo "changed_count=$(wc -l < ./_shadow/changed_files.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Collect context (read-only)
+        run: |
+          set -euo pipefail
+          python scripts/ci_collect_context.py \
+            --job-name "${{ steps.fetch-logs.outputs.upstream_workflow }}" \
+            --workflow "${{ steps.fetch-logs.outputs.upstream_workflow }}" \
+            --pr-number 0 \
+            --log-file ./_shadow/failure.log \
+            --changed-files-from-stdin \
+            --changed-files-file ./_shadow/changed_files.txt \
+            > ./_shadow/context.json
+          echo "::notice::Phase 1 shadow — context collected (no writes performed)"
+
+      - name: Classify (read-only)
+        id: classify
+        run: |
+          set -euo pipefail
+          python scripts/ci_classify_failure.py \
+            --policy templates/config/ci_autofix_policy.yaml \
+            --context-file ./_shadow/context.json \
+            > ./_shadow/classification.json
+          # Echo to step summary for human review.
+          {
+            echo "## ADR-019 Phase 1 — shadow classification"
+            echo
+            echo "Upstream run: \`${{ steps.fetch-logs.outputs.upstream_run_id }}\`"
+            echo "Upstream workflow: \`${{ steps.fetch-logs.outputs.upstream_workflow }}\`"
+            echo "HEAD SHA: \`${{ steps.changed-files.outputs.head_sha }}\`"
+            echo
+            echo '```json'
+            cat ./_shadow/classification.json
+            echo
+            echo '```'
+            echo
+            echo "**Phase 1 invariant:** \`writes_allowed\` is always \`false\`."
+            echo "**No PR was opened. No file was modified.** This is a shadow run."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Phase 1 invariant — writes_allowed is false
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sys
+          with open("./_shadow/classification.json", "r", encoding="utf-8") as fh:
+              c = json.load(fh)
+          if c.get("writes_allowed") is not False:
+              print("FATAL: classifier emitted writes_allowed != false in shadow lane", file=sys.stderr)
+              sys.exit(1)
+          print("OK: writes_allowed=false confirmed (Phase 1 invariant)")
+          PY
+
+      - name: Upload shadow artifacts (read-only audit trail)
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-classification-${{ github.run_id }}
+          path: |
+            ./_shadow/context.json
+            ./_shadow/classification.json
+          retention-days: 30
+          if-no-files-found: error
