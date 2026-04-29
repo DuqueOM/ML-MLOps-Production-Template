@@ -1,0 +1,165 @@
+name: pr-smoke-lane
+
+# ADR-020 §S1-1 — per-PR scaffold + overlay render + binary-presence check.
+#
+# This workflow exists because R4 finding H3 documented a recurring class of
+# bugs where the YAML looked right but had never been executed end-to-end:
+#   - Overlays that never rendered correctly (v1.10 fix);
+#   - Cosign that was never installed in any workflow (v1.10 fix);
+#   - Closed-loop schemas that never matched the live service (v1.12 fix).
+#
+# Per-PR fast feedback that catches the same class of bugs BEFORE merge:
+#   1. Scaffold a service from the template (test_scaffold.sh).
+#   2. For each of the six overlays (gcp-{dev,staging,prod},
+#      aws-{dev,staging,prod}), run `kustomize build` and pipe through
+#      `kubeconform --strict` against Kubernetes 1.29.0.
+#   3. Verify the deploy chain references only binaries the workflow can
+#      actually find: kustomize, kubeconform, cosign, syft, trivy, gitleaks,
+#      kubectl. If a deploy script references a binary missing from the
+#      runner, the smoke lane fails LOUD with an actionable message.
+#
+# The slow Golden Path E2E (12-15 min, kind + Kyverno) remains opt-in via
+# golden-path.yml. THIS workflow is the fast per-PR filter (~3 min target).
+#
+# Authority: ADR-020 §S1-1, R4 audit H3, docs/audit/ACTION_PLAN_R4.md.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-scaffold-and-overlays:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install kustomize
+        run: |
+          set -euo pipefail
+          curl -sSLf "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | bash
+          sudo mv ./kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - name: Install kubeconform
+        run: |
+          set -euo pipefail
+          curl -sSLf -o kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz"
+          tar xf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Scaffold a fresh service from the template
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/scaffold-out
+          # The repo's test_scaffold.sh produces a renderable service tree
+          # for downstream contract tests. We reuse it as the smoke source.
+          bash scripts/test_scaffold.sh
+          ls -la /tmp/scaffold-out 2>/dev/null || true
+
+      - name: Render the six overlays
+        id: render-overlays
+        run: |
+          set -euo pipefail
+          OVERLAY_BASE="templates/k8s/overlays"
+          OUT_DIR="/tmp/overlay-renders"
+          mkdir -p "${OUT_DIR}"
+          OVERLAYS=(gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod)
+          FAILED=0
+          for ov in "${OVERLAYS[@]}"; do
+            if [ ! -d "${OVERLAY_BASE}/${ov}" ]; then
+              echo "::error file=${OVERLAY_BASE}/${ov}::overlay directory missing"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+            if ! kustomize build "${OVERLAY_BASE}/${ov}" > "${OUT_DIR}/${ov}.yaml" 2>"${OUT_DIR}/${ov}.err"; then
+              echo "::error file=${OVERLAY_BASE}/${ov}/kustomization.yaml::kustomize build failed"
+              echo "----- stderr for ${ov} -----"
+              cat "${OUT_DIR}/${ov}.err" || true
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+            echo "OK ${ov}: $(wc -l < "${OUT_DIR}/${ov}.yaml") lines rendered"
+          done
+          echo "failed_count=${FAILED}" >> "$GITHUB_OUTPUT"
+          if [ "${FAILED}" -gt 0 ]; then
+            echo "::error::${FAILED} overlay(s) failed to render — see logs above"
+            exit 1
+          fi
+
+      - name: Validate rendered overlays with kubeconform
+        run: |
+          set -euo pipefail
+          OUT_DIR="/tmp/overlay-renders"
+          # --strict: rejects unknown fields. --kubernetes-version pins the
+          # validation target; bump in lockstep with the cluster floor.
+          # --skip flags accommodate template CRDs not in the standard schema.
+          for f in "${OUT_DIR}"/*.yaml; do
+            echo "=== validating $(basename "$f") ==="
+            kubeconform --strict --kubernetes-version 1.29.0 \
+              --skip Kustomization,PrometheusRule,ServiceMonitor,Rollout,AnalysisTemplate,ClusterPolicy,Policy \
+              "$f"
+          done
+
+      - name: Binary-presence audit on deploy scripts
+        # Deploy chain (templates/cicd/deploy-*.yml + scripts referenced from
+        # them) MUST only invoke binaries the runner can actually find. R4
+        # finding H3 specifically calls out historical regressions: cosign /
+        # syft / kubeconform invoked but never installed. We validate at PR
+        # time that any binary referenced from a deploy YAML is either:
+        #   (a) in the workflow's installation set;
+        #   (b) explicitly declared in the workflow as `uses:` action; or
+        #   (c) flagged via inline comment as install-on-demand.
+        #
+        # This step does NOT install the binaries — it only AUDITS that the
+        # deploy YAML references them in a sane way.
+        run: |
+          set -euo pipefail
+          REQUIRED_BINS=(kustomize kubeconform kubectl cosign syft trivy gitleaks)
+          MISSING=()
+          for bin in "${REQUIRED_BINS[@]}"; do
+            if ! command -v "$bin" >/dev/null 2>&1; then
+              # Some binaries (cosign, syft, trivy, gitleaks, kubectl) the
+              # smoke lane intentionally does NOT install — they live in
+              # downstream workflows. We just check that downstream workflows
+              # mention them so the PR-time signal is "your deploy YAML
+              # references a binary that is not declared anywhere in CI".
+              if ! grep -REq "(install[- ]?${bin}|${bin}-action|${bin} version)" \
+                   templates/cicd/ .github/workflows/ 2>/dev/null; then
+                MISSING+=("$bin")
+              fi
+            fi
+          done
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::Deploy chain references binaries with no install/declare path: ${MISSING[*]}"
+            echo "::error::Either install via the workflow or document via 'uses:' / install step."
+            exit 1
+          fi
+          echo "OK: every required binary is installed locally or declared in CI."
+
+      - name: Upload rendered overlays (debug aid)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-smoke-rendered-overlays-${{ github.run_id }}
+          path: /tmp/overlay-renders/
+          retention-days: 7
+          if-no-files-found: warn

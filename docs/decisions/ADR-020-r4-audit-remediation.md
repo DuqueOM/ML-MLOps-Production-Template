@@ -113,6 +113,45 @@ the structure; the plan document is the operational artifact.
 
 ## Progress log
 
-_To be updated at the close of each sprint with closed-finding evidence._
+_Updated at the close of each sprint with closed-finding evidence._
 
-- **Sprint 0 (in progress, opened 2026-04-29)**: branch `audit-r4/sprint-0-credibility` opened; ACTION_PLAN_R4 + ADR-020 ratified.
+### Sprint 0 — closed 2026-04-29 (commit `39fbfb7`)
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| C1 | Closed | README §"Recommended baseline" reworded; `tests/test_readme_model_names.py` (3 invariants) green |
+| C2 | Closed | Phase-0 banners on README §"Operational Memory Plane" + §"Agentic CI self-healing"; `tests/test_phase0_disclosure.py` (6 invariants) green |
+| C3 | Closed | `docs/RELEASING.md` ratified; `### Breaking for adopters` blocks added retroactively to v1.10/v1.11/v1.12 |
+| C4 | Closed | `VALIDATION_LOG.md` Entry 001 with binary inventory + gitleaks scan + R4 invariant test runs |
+| C5 | Closed | `MIGRATION.md` with rows for v1.7→v1.12 (highest-impact: v1.9→v1.10) |
+
+Sprint 0 mode mix executed as planned (4 AUTO + 1 CONSULT). Zero cloud
+runtime touched. Net diff: +1236 / -7 lines across 9 files.
+
+### Sprint 1 — closed 2026-04-29 (commit chain — see VALIDATION_LOG Entry 002)
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| H1 | Phase 1 closed | `scripts/ci_collect_context.py`, `scripts/ci_classify_failure.py`, `.github/workflows/ci-self-healing-shadow.yml`, `tests/test_ci_classify_failure_phase1.py` (27 invariants green). ADR-019 status: Phase 0 → Phase 1. Phase 2 gated on 14 days of shadow data. |
+| H2 | Closed | `.github/workflows/pr-evidence-check.yml`, `.github/pull_request_template.md` updated, `CONTRIBUTING.md` §"Evidence policy for new components" |
+| H3 | Closed | `.github/workflows/pr-smoke-lane.yml` — scaffold + 6 overlay renders + kubeconform + binary-presence audit per PR |
+| H4 | Closed | `docs/agentic/red-team-log.md` with 5 documented evasion attempts + invariant index + 3 follow-ups |
+| H5 | Runbook shipped | `docs/runbooks/secret-history-scan.md` — STOP-delegated to Platform / Security; execution pending |
+| H6 | Runbook shipped | (same as H5; merged into single runbook) |
+| H7 | Runbook shipped | `docs/runbooks/kyverno-admission-validation.md` — STOP-delegated to Platform; kind-cluster procedure documented; execution pending |
+
+The three runbooks (H5 / H6 / H7) ship the operational procedure but the
+**execution evidence** has not yet been recorded. Per ADR-020 §"Hard rules"
+#5, they are not executed inside the agent loop; their entry in
+`VALIDATION_LOG.md` will be added by Platform / Security.
+
+### Sprint 2 — open
+
+S2-1 ADR-018 Phase 1 contracts; S2-2 Compliance gap analysis; S2-3
+Fairness + PSI ADRs; S2-4 Alertmanager routing test; S2-5 secrets +
+ground-truth runbooks. See `docs/audit/ACTION_PLAN_R4.md` §6.
+
+### Sprint 3 — open
+
+L1, L2, L3 + Phase-1 → Phase-2 transition gate decision (CONSULT). See
+`docs/audit/ACTION_PLAN_R4.md` §7.

@@ -1,0 +1,149 @@
+name: pr-evidence-check
+
+# ADR-020 §S1-2 — per-PR evidence policy enforcement.
+#
+# R4 finding H2: PRs that introduced new template components (workflows,
+# deploy scripts, schema contracts) historically shipped without execution
+# evidence. The pattern produced multiple post-release incidents fixed in
+# v1.10 / v1.12.
+#
+# This workflow enforces the policy documented in CONTRIBUTING.md: when a
+# PR touches the allowlist (new workflow, new deploy YAML, new schema, new
+# scaffolded contract), the PR description MUST contain three filled
+# blocks:
+#
+#   ### Evidence — Schema / Contract Test
+#   <link to test file added or modified>
+#
+#   ### Evidence — Real Execution Output
+#   <output excerpt, truncated, raw>
+#
+#   ### Evidence — CI Run Link
+#   <URL to the CI run that produced the output above>
+#
+# An empty / unfilled block fails this check. The check is BLOCKING for
+# the allowlist; for non-allowlist PRs (typical doc fix, refactor inside
+# existing component) it is informational and does not block.
+#
+# Authority: ADR-020 §S1-2, R4 audit H2, docs/audit/ACTION_PLAN_R4.md.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  evidence-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed paths
+        id: changed
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git diff --name-only --diff-filter=A "${BASE_SHA}...${HEAD_SHA}" > /tmp/added_files.txt || true
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > /tmp/changed_files.txt || true
+          echo "added_count=$(wc -l < /tmp/added_files.txt)" >> "$GITHUB_OUTPUT"
+          echo "changed_count=$(wc -l < /tmp/changed_files.txt)" >> "$GITHUB_OUTPUT"
+          echo "----- added files (this PR) -----"
+          cat /tmp/added_files.txt || true
+
+      - name: Decide whether evidence is required
+        id: required
+        run: |
+          set -euo pipefail
+          ALLOWLIST_PATTERNS=(
+            '^\.github/workflows/.*\.yml$'
+            '^templates/cicd/.*\.yml$'
+            '^templates/k8s/overlays/.*'
+            '^templates/k8s/policies/.*'
+            '^templates/service/tests/contract/.*'
+            '^templates/common_utils/.*\.py$'
+            '^scripts/.*\.py$'
+            '^scripts/.*\.sh$'
+            '^templates/config/.*\.yaml$'
+          )
+          # If ANY *added* file matches the allowlist, evidence is required.
+          REQUIRED=0
+          while IFS= read -r f; do
+            for pat in "${ALLOWLIST_PATTERNS[@]}"; do
+              if [[ "$f" =~ $pat ]]; then
+                REQUIRED=1
+                echo "Allowlist match: $f (pattern $pat)"
+                break
+              fi
+            done
+          done < /tmp/added_files.txt
+          echo "required=${REQUIRED}" >> "$GITHUB_OUTPUT"
+          if [ "${REQUIRED}" -eq 0 ]; then
+            echo "::notice::No new component introduced — evidence is informational, not blocking."
+          else
+            echo "::notice::New component introduced — evidence blocks REQUIRED in PR body."
+          fi
+
+      - name: Verify evidence blocks present in PR body
+        if: ${{ steps.required.outputs.required == '1' }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          # Require the three canonical evidence headers AND non-empty content
+          # under each. We do a structural check rather than a regex on
+          # arbitrary URLs because a contributor may legitimately link to a
+          # local artifact path under VALIDATION_LOG.md.
+          python - <<'PY'
+          import os
+          import re
+          import sys
+
+          body = os.environ.get("PR_BODY") or ""
+          headers = [
+              "### Evidence — Schema / Contract Test",
+              "### Evidence — Real Execution Output",
+              "### Evidence — CI Run Link",
+          ]
+
+          missing = []
+          empty = []
+          for header in headers:
+              idx = body.find(header)
+              if idx == -1:
+                  missing.append(header)
+                  continue
+              tail = body[idx + len(header):]
+              # Block content runs until the next ### header or end-of-body.
+              next_idx = re.search(r"^\s*###\s", tail, flags=re.MULTILINE)
+              chunk = tail[: next_idx.start()] if next_idx else tail
+              # Strip the canonical placeholder/instruction line if present.
+              chunk = re.sub(r"<!--.*?-->", "", chunk, flags=re.DOTALL)
+              if not chunk.strip():
+                  empty.append(header)
+
+          if missing:
+              print("::error::Missing required evidence headers:")
+              for h in missing:
+                  print(f"  - {h}")
+          if empty:
+              print("::error::Evidence headers present but content is empty:")
+              for h in empty:
+                  print(f"  - {h}")
+          if missing or empty:
+              print()
+              print("::error::Per ADR-020 §S1-2, this PR introduces a new component")
+              print("::error::and MUST include the three evidence blocks. See")
+              print("::error::CONTRIBUTING.md §'Evidence policy for new components'.")
+              sys.exit(1)
+          print("OK: all three evidence blocks present and non-empty.")
+          PY
