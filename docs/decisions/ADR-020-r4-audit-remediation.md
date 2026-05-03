@@ -205,3 +205,11 @@ All R5 findings closed. Sprint 3 scope now: R4 Mediums/Lows (M5/L1/L2/L3) + foll
 | Red-team F3 | Closed | `templates/service/tests/test_red_team_regression.py` — 6 regression invariants covering Entries 2+3 (protected_paths short-circuit precedence), Entry 2 signature lock, Entry 4 (PR-level blast-radius aggregation), Entry 5 / F2 (off_hours cannot be suppressed), and red-team-log integrity check. Direct-import of `scripts/ci_classify_failure.classify(context, policy)`, no subprocess, runtime < 1 s. |
 
 Sprint 3 remaining scope: R4-M5 (Alertmanager routing test, CONSULT — requires amtool + new alertmanager config) + ADR-019 Phase-1 → Phase-2 CONSULT decision (gated on 14 days of shadow data post-merge).
+
+### Sprint 3 — batch 3 closure 2026-05-03
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| R4-M5 | Closed | New `templates/monitoring/alertmanager.yml` (routing tree + 4 receivers + inhibit rule) — separate from the existing `alertmanager-rules.yaml` which only emits alerts. New `templates/monitoring/tests/test_alertmanager_routing.py` locks 14 invariants: 5 routing rows via `amtool config routes test` (authoritative) + 5 identical rows via a pure-Python simulator (always-runs fallback) + `amtool check-config` structural check + defined-receivers cross-check + sibling-file layout check + P1→P2/P3/P4 inhibit-rule existence. `amtool` auto-discovered from `$PATH` or `<repo>/alertmanager-*/amtool`; amtool-authoritative tests skip cleanly when the binary is absent. New `docs/runbooks/alertmanager-validation.md` documents the manual end-to-end exercise against a real cluster + audit-log template. |
+
+Remaining Sprint 3 scope: only **ADR-019 Phase-1 → Phase-2 CONSULT decision**, which is time-gated on 14 days of shadow data post-merge of PR #15 — not an actionable engineering task.
