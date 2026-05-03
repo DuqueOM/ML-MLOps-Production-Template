@@ -7,7 +7,7 @@
 # locally, CI's lint lane must be green too — same config, same
 # versions, no drift.
 #
-# Install (ONE command — covers both pre-commit AND pre-push stages):
+# Install (ONE command — pre-commit stage only as of R5-L4):
 #
 #   pip install pre-commit
 #   pre-commit install                   # reads default_install_hook_types below
@@ -16,30 +16,31 @@
 #
 #   pre-commit run --all-files
 #
-# Two-stage design (both installed by default via default_install_hook_types):
+# Single-stage design (pre-commit only):
 #
-#   pre-commit stage (< 5s): formatting, lint, type check, security lint,
-#     secret detection. Blocks the commit itself.
+#   pre-commit stage (< 5s target): formatting, lint, type check, security
+#     lint, secret detection, fast contract tests. Blocks the commit itself.
 #
-#   pre-push stage (~60s): scaffold smoke test. Catches dependency-graph
-#     and placeholder-substitution bugs the fast lane cannot — e.g. a
-#     contributor adding a test that imports a package not in
-#     `templates/service/requirements.txt` passes black + flake8 but
-#     fails scaffold-time (CI failure of 2026-04-27 is exactly this
-#     class). Blocks the push.
+# pre-push (~60s scaffold smoke) was REMOVED in R5-L4 (May 2026) because
+# it duplicated `.github/workflows/pr-smoke-lane.yml` AND triggered
+# `--no-verify` normalization on contributors who pushed frequently. The
+# replacement chain is:
 #
-# Versions are pinned to match `.github/workflows/validate-templates.yml`.
+#   - on demand:           `make smoke` (~60s scaffold end-to-end)
+#   - on demand (full):    `make validate-templates` (lint + render + scaffold + EDA)
+#   - per PR (authoritative gate): `pr-smoke-lane.yml`
+#
 # Drift between local and CI means green local → red CI, which is the
-# failure mode this config exists to prevent. CI runs
-# `pre-commit run --all-files` since 2026-04-28 so these versions ARE
-# the single source of truth.
+# slowest and most expensive feedback loop. Avoid by version-pinning
+# and by mirroring the order CI runs them in `validate-templates.yml`.
+# This file is the single source of truth (CI re-uses it via
+# `pre-commit run --all-files` since 2026-04-28).
 #
 # For the per-service hook config, see `templates/.pre-commit-config.yaml`.
 
-# Auto-install both stages when contributor runs `pre-commit install`
-# once. Previously they had to remember `--hook-type pre-push` too,
-# which almost nobody did — pre-push hooks silently never ran.
-default_install_hook_types: [pre-commit, pre-push]
+# Single-stage install — pre-push stage was retired in R5-L4 (May 2026);
+# `make smoke` + CI pr-smoke-lane.yml replace it.
+default_install_hook_types: [pre-commit]
 
 # fail_fast: false is the DEFAULT (shown explicit for intent) — we
 # want contributors to see EVERY violation in one run, not stop at
@@ -174,7 +175,7 @@ repos:
           Runs scripts/validate_agentic.py --strict to catch drift
           between AGENTS.md and the agent runtime config (rules,
           skills, workflows). Same script CI runs.
-        entry: python scripts/validate_agentic.py --strict
+        entry: python3 scripts/validate_agentic.py --strict
         language: system
         pass_filenames: false
         files: ^(AGENTS\.md|\.windsurf/|\.cursor/|\.claude/|scripts/validate_agentic\.py)
@@ -188,38 +189,20 @@ repos:
         # for the service test suite but not for this contract test).
         # --rootdir: avoids pytest walking up to the repo pyproject.toml
         # which applies coverage plugins this hook doesn't need.
-        entry: python -m pytest templates/service/tests/test_ci_autofix_policy_contract.py -q -o addopts="" --noconftest --rootdir=.
+        entry: python3 -m pytest templates/service/tests/test_ci_autofix_policy_contract.py -q -o addopts="" --noconftest --rootdir=.
         language: system
         pass_filenames: false
         files: ^(templates/config/(ci_autofix_policy|model_routing_policy)\.yaml|templates/service/tests/test_ci_autofix_policy_contract\.py)$
 
-  # Pre-push: scaffold smoke test. Catches dependency-graph + scaffolder
-  # regressions that the fast hooks above cannot:
-  #   - missing entries in templates/service/requirements.txt that any
-  #     test or src module imports
-  #   - new {placeholder} variables added to templates without matching
-  #     substitution rules in new-service.sh
-  #   - K8s manifest names that violate RFC 1123 after substitution
-  #     (PR-A5b territory)
-  # Local hook (no remote rev) so contributors get exactly the same
-  # bash script CI runs — no version drift possible.
-  - repo: local
-    hooks:
-      - id: scaffold-smoke
-        name: scaffold smoke test (~60s)
-        description: |
-          Run scripts/test_scaffold.sh end-to-end before push. Catches
-          the dependency-graph and placeholder-substitution failure
-          modes that no fast formatter check can detect.
-        entry: bash scripts/test_scaffold.sh
-        language: system
-        # `pass_filenames: false` because the script doesn't take
-        # filenames — it scaffolds a fresh service from scratch.
-        pass_filenames: false
-        # Only on pre-push, not on every commit. ~60s is too slow for
-        # commit-time but acceptable on push.
-        stages: [pre-push]
-        # Always run, regardless of which files changed. A change to
-        # templates/scripts/new-service.sh affects everything;
-        # restricting `files:` would create false-negatives.
-        always_run: true
+  # NOTE: scaffold smoke test was previously a pre-push hook here.
+  # Removed per R5-L4 (audit-r4 / R5 mini-audit, May 2026). Rationale:
+  #   - the same scaffold + 6 overlay renders + kubeconform + binary
+  #     audit runs on every PR via .github/workflows/pr-smoke-lane.yml
+  #   - >60s on every push triggers `--no-verify` normalization, which
+  #     silently kills the invariant the hook was protecting
+  #   - industry baseline: pre-commit < 5 s, pre-push < 30 s, CI per-PR
+  #     3–10 min (Software Engineering at Google §4.2)
+  # On-demand local runs:
+  #   make smoke              # alias of: bash scripts/test_scaffold.sh
+  #   make validate-templates # full local validation chain
+  # See docs/audit/ACTION_PLAN_R5.md §R5-L4 for the full decision record.

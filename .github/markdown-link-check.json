@@ -7,7 +7,8 @@
     { "pattern": "\\{ServiceName\\}|\\{service\\}|\\{namespace\\}|\\{ORG\\}|\\{REPO\\}|\\{PROJECT_ID\\}|\\{REGION\\}|\\{ACCOUNT\\}|\\{REPO\\}|\\{ENV\\}|\\{VERSION\\}|\\{NAMESPACE\\}|\\{N\\}|\\{X\\}|\\{Y\\}|\\{date\\}|\\{service-name\\}|\\{slug\\}" },
     { "pattern": "^https://github\\.com/\\{ORG\\}" },
     { "pattern": "youtu\\.be/XXX" },
-    { "pattern": "example\\.com" }
+    { "pattern": "example\\.com" },
+    { "pattern": "^https://ai\\.google\\.dev/" }
   ],
   "replacementPatterns": [
     {

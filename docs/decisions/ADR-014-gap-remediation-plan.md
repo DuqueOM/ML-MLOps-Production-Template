@@ -11,7 +11,7 @@ Proposed (executable plan, awaiting first-batch execution)
 ## Context
 
 A comprehensive internal audit (April 2026) identified **47 gaps** between the
-template's stated guarantees (D-01..D-30 invariants, agentic governance,
+template's stated guarantees (D-01..D-32 invariants, agentic governance,
 Dynamic Behavior Protocol per ADR-010, supply-chain via Cosign+SBOM+Kyverno,
 multi-cloud parity GKE+EKS) and the current implementation. Five additional
 gaps surfaced during triage (#48–#52). Total: **52 gaps**.

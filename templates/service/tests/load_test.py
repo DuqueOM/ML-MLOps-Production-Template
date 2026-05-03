@@ -23,26 +23,40 @@ Acceptance criteria (from new-service skill):
     - Error rate < 1% under 100 concurrent users
     - P95 latency within SLA (default: 100ms for single, 1s for batch)
 
-TODO: Replace SAMPLE_PAYLOAD with your actual feature schema.
+TODO: Replace SAMPLE_PAYLOAD feature_a/b/c with your actual feature schema.
 TODO: Adjust user count and spawn rate for your expected traffic.
+
+Schema contract (R5-M4): SAMPLE_PAYLOAD MUST validate against
+`app.schemas.PredictionRequest` and BATCH_PAYLOAD MUST validate against
+`app.schemas.BatchPredictionRequest`. Tests
+`test_load_payload_matches_schema.py` enforce this; if you rename
+features in `schemas.py`, update both this file and the contract test
+in the same commit.
 """
 
 from locust import HttpUser, between, task
 
 # ---------------------------------------------------------------------------
-# Configuration — customize per service
+# Configuration — customize per service.
+# Mirrors the canonical example in templates/service/app/schemas.py
+# (`PredictionRequest.model_config["json_schema_extra"]["examples"][0]`).
+# Closed-loop monitoring (ADR-006, D-20) requires `entity_id`; sliced
+# performance (ADR-007) is enabled by `slice_values`.
 # ---------------------------------------------------------------------------
-# TODO: Replace with actual features matching your Pydantic schema
 SAMPLE_PAYLOAD = {
-    "feature_1": 42.0,
-    "feature_2": 600,
-    "feature_3": 1,
-    "feature_4": 50000.0,
+    "entity_id": "load_test_cust_001",
+    "slice_values": {"country": "MX", "channel": "mobile"},
+    "feature_a": 42.0,
+    "feature_b": 50000.0,
+    "feature_c": "category_A",
 }
 
 BATCH_SIZE = 10
 BATCH_PAYLOAD = {
-    "instances": [SAMPLE_PAYLOAD] * BATCH_SIZE,
+    # Per `BatchPredictionRequest`, the canonical key is `customers`,
+    # not `instances`. Each batch entry needs a UNIQUE entity_id so the
+    # closed-loop logger does not collapse rows on the join key (D-20).
+    "customers": [{**SAMPLE_PAYLOAD, "entity_id": f"load_test_cust_{i:03d}"} for i in range(BATCH_SIZE)],
 }
 
 

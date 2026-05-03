@@ -1,6 +1,13 @@
 # ADR-018: Operational Memory Plane
 
-- **Status**: Proposed (Phase 0 — scope + non-goals + threat model)
+- **Status**: Phase 1 (canonical contracts + redaction) — no storage, no retrieval
+  - Phase 0 ratified 2026-04-28 (scope + non-goals + threat model)
+  - Phase 1 shipped 2026-04-29 (`templates/common_utils/memory_types.py`,
+    `templates/common_utils/memory_redaction.py`,
+    `test_memory_contracts.py` + `test_memory_redaction.py` with 59
+    invariants). Per ADR-020 §S2-1.
+  - Phase 2 (ingest worker + storage) gated on Phase 1 contract stability
+    over 30 days; no Phase 2 PR will open before that.
 - **Date**: 2026-04-28
 - **Deciders**: @DuqueOM, AI staff engineer
 - **Supersedes**: none

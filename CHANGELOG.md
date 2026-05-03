@@ -4,11 +4,21 @@ All notable changes to the ML-MLOps Production Template are documented in this f
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+> **Versioning policy is now governed by [`docs/RELEASING.md`](docs/RELEASING.md).** Adopter migration guidance lives in [`MIGRATION.md`](MIGRATION.md). Verified-execution evidence lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md). Tags `v1.0.0`–`v1.12.0` remain immutable; the `### Breaking for adopters (post-R4 audit re-classification)` blocks below document, after the fact, the contract changes that under the new policy would have required a MAJOR bump. The next breaking change goes to `v2.0.0`.
+
 ---
 
 ## [1.12.0] - 2026-04-29
 
 Closes 4 external-audit Round-3 findings and hardens pre-commit as the first filter. Root cause of the R3 findings: contributor clones shipped without actually installing git hooks, so black / flake8 drift, a closed-loop workflow with a payload that didn't match the live schema, and a kebab-vs-snake path bug in the drift CronJob all reached CI as the last line of defense. This release makes the first filter non-optional.
+
+### Breaking for adopters (post-R4 audit re-classification)
+
+Under the versioning policy ratified in `docs/RELEASING.md` (introduced post-tag in response to R4 finding C3), the following items in this release WOULD have required a MAJOR bump. Tag `v1.12.0` is immutable; this block documents the contract change so adopters can migrate explicitly. See `MIGRATION.md` for the `v1.11 → v1.12` row.
+
+- **Closed-loop schema realignment** (HIGH-1, PR-R2-9): the `golden-path-extended.yml` workflow now POSTs `entity_id` + `feature_a/b/c` + `slice_values` to `/predict`, replacing the previous `feature_1/2/3` payload that returned 422 against the live schema. Adopters who copied or extended that workflow MUST update their payload to the canonical schema. Metric fallback also changed from `requests_total{endpoint="/predict"}` to `requests_total{status=~"2xx|4xx"}` because the counter only carries a `status` label.
+- **Drift CronJob Python path** (HIGH-2, D-32): scaffolded manifest now uses `src/{service}/monitoring/drift_detection.py` (snake) instead of `src/{service-name}/...` (kebab). Adopters whose CronJob applied cleanly but exploded with `ModuleNotFoundError` at runtime must redeploy after re-scaffolding or apply the snake-case path manually.
+- **Pre-commit hook contract**: hook count went 9 → 14 with `default_install_hook_types: [pre-commit, pre-push]`. Adopters who maintained custom `.pre-commit-config.yaml` overlays MUST run `pre-commit install --overwrite` (now wrapped in `scripts/dev-setup.sh` and `make verify-hooks`).
 
 ### HIGH — closed (pre-commit + audit R3)
 
@@ -55,6 +65,14 @@ Result: **14 hooks** (was 9), all 14 green on `main`.
 ## [1.11.0] - 2026-04-28
 
 Closes the ADR-016 external-audit R2 remediation backlog (7-day, 30-day, and 90-day windows all materially shipped) and lays the policy foundation for two new agent capabilities (Operational Memory Plane, Agentic CI Self-Healing). Also closes the OSS-packaging gap (NOTICE, DCO, CODEOWNERS) and tightens cloud parity through an additional 33 contract tests.
+
+### Breaking for adopters (post-R4 audit re-classification)
+
+Under the versioning policy in `docs/RELEASING.md`, the following items in this release WOULD have required a MAJOR bump. Tag `v1.11.0` is immutable; this block documents the contract change explicitly.
+
+- **GCP IAM split surface**: `gcp/iam.tf` introduced per-service identity bindings that change the IAM model. Adopters with existing GCP deployments must apply the `terraform plan` carefully and confirm no privilege downgrade for in-flight workloads.
+- **`templates/config/ci_autofix_policy.yaml` and `model_routing_policy.yaml` introduced**: these become the canonical source of truth for autofix routing. Adopters who previously relied on undocumented defaults must opt in by enabling the (Phase 0) policy contract tests; no runtime behavior change yet.
+- **New `make` targets in non-agentic on-ramp**: 12 targets added (`scaffold`, `validate`, `deploy-dev`, etc.). Adopters who maintained custom Makefiles must merge the new targets per `docs/ADOPTION.md`.
 
 ### ADR-016 R2 remediation — closed
 
@@ -119,6 +137,16 @@ but the deploy chain, supply-chain trust chain, and governance gates
 had silent gaps a real production user would discover only at the
 worst time. This release is mostly fixes; there is little new
 surface area but the existing surface now does what the docs say.
+
+### Breaking for adopters (post-R4 audit re-classification)
+
+Under the versioning policy in `docs/RELEASING.md`, this release SHOULD have been `v2.0.0` rather than `v1.10.0`. The R4 audit (finding C3) explicitly flagged it. Tag `v1.10.0` is immutable; this block makes the contract change visible. See `MIGRATION.md` for the `v1.9 → v1.10` row, which is the highest-impact migration in the project's history.
+
+- **Six environment overlays renamed**: `gcp-production` → `gcp-prod`; `aws-production` → `aws-prod`; new `gcp-dev`, `gcp-staging`, `aws-dev`, `aws-staging` introduced. Adopters MUST update every reference in custom CI, deploy scripts, and `kubectl` invocations. Pre-`v1.10` deploys for dev/staging never worked; adopters who thought they had dev deploys did not.
+- **Cosign signing path now wired end-to-end**: prior versions advertised image signing but did NOT install `cosign` in any workflow. From `v1.10.0` onward, every prod build signs and attests; adopters with existing Kyverno admission policies in audit mode must move to enforce mode AFTER confirming all images carry signatures and SBOMs.
+- **Image digest pinning is now mandatory**: `kustomize edit set image <name>=<repo>@<digest>` runs BEFORE every `kubectl apply`. Adopters who deployed by tag (e.g. `:latest`, `:1.0`) MUST switch to digest references; mutable tags are no longer supported by the deploy chain.
+- **Init-container model loading**: `templates/k8s/base/deployment.yaml` introduces an init-container with an `emptyDir` volume to download model artifacts at runtime. Adopters who baked artifacts into images (D-11) MUST migrate to the init pattern.
+- **Pod Security Standards labels mandatory**: each overlay now carries the correct PSS labels (`enforce=baseline` for dev/staging, `enforce=restricted` for prod). Adopters with custom namespaces MUST add the labels or admission control will reject the pods.
 
 ### Critical fixes
 
