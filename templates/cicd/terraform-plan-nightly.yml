@@ -26,6 +26,17 @@
 #   AWS:
 #     - secrets.AWS_ROLE_ARN              (read-only TF role via OIDC)
 #     - vars.AWS_REGION
+#   OPTIONAL — cost breakdown (R4-L3):
+#     - secrets.INFRACOST_API_KEY         (from https://www.infracost.io/docs/)
+#
+#   When INFRACOST_API_KEY is present, each plan job runs
+#   `infracost breakdown` against the Terraform plan binary and emits:
+#     - a Markdown cost table in the step summary (monthly $ per resource)
+#     - an `infracost-<cloud>-<run_id>.json` artifact for 14-day retention
+#     - an extended audit-log field `cost_monthly_usd` in `ops/audit.jsonl`
+#   When the secret is absent, the step is skipped. The workflow NEVER
+#   fails on cost data alone — over-provisioning is a CONSULT signal,
+#   not a STOP (see ADR-020 §L3).
 #
 # Why these creds are read-only: the workflow only runs `plan`, never `apply`.
 # Granting it `apply` permissions defeats the gate ADR-015 codifies.
@@ -132,6 +143,61 @@ jobs:
             infra/terraform/gcp/tfplan.txt
           retention-days: 14
 
+      # --------------------------------------------------------------
+      # R4-L3 — Infracost breakdown (over-provisioning detection).
+      # Runs only when INFRACOST_API_KEY is configured. The key is
+      # evaluated inside `env:` so that the step's own `if:` can safely
+      # compare strings (GHA does not allow `secrets.*` in `if:` on
+      # composite actions). Non-fatal: any failure emits a notice but
+      # does not fail the plan job — cost data is a CONSULT signal.
+      # --------------------------------------------------------------
+      - name: Infracost setup
+        id: infracost-setup-gcp
+        if: env.INFRACOST_API_KEY != ''
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ env.INFRACOST_API_KEY }}
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Infracost breakdown (GCP)
+        id: infracost-gcp
+        if: steps.infracost-setup-gcp.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -eo pipefail
+          # Convert TF plan binary to JSON for infracost (it accepts both
+          # but JSON is the documented stable input path).
+          terraform show -json tfplan.binary > tfplan.json
+          infracost breakdown --path=tfplan.json \
+            --format=json --out-file=infracost-gcp.json || {
+            echo "::notice::infracost breakdown failed; continuing"
+            exit 0
+          }
+          # Total monthly cost in USD, null-safe.
+          total=$(jq -r '.totalMonthlyCost // "null"' infracost-gcp.json)
+          echo "monthly_usd=$total" >> "$GITHUB_OUTPUT"
+          {
+            echo "## GCP monthly cost estimate"
+            echo
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Total monthly (USD) | $total |"
+            echo "| Source | \`infracost breakdown\` against tfplan.binary |"
+            echo
+            infracost breakdown --path=tfplan.json --format=table 2>/dev/null \
+              | head -40 || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload infracost artifact (GCP)
+        if: always() && steps.infracost-gcp.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-gcp-${{ github.run_id }}
+          path: infra/terraform/gcp/infracost-gcp.json
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Open issue on drift
         if: steps.plan.outputs.plan_exit_code == '2'
         uses: actions/github-script@v7
@@ -236,6 +302,53 @@ jobs:
             infra/terraform/aws/tfplan.binary
             infra/terraform/aws/tfplan.txt
           retention-days: 14
+
+      # --------------------------------------------------------------
+      # R4-L3 — Infracost breakdown (AWS). Same contract as GCP above.
+      # --------------------------------------------------------------
+      - name: Infracost setup
+        id: infracost-setup-aws
+        if: env.INFRACOST_API_KEY != ''
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ env.INFRACOST_API_KEY }}
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Infracost breakdown (AWS)
+        id: infracost-aws
+        if: steps.infracost-setup-aws.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -eo pipefail
+          terraform show -json tfplan.binary > tfplan.json
+          infracost breakdown --path=tfplan.json \
+            --format=json --out-file=infracost-aws.json || {
+            echo "::notice::infracost breakdown failed; continuing"
+            exit 0
+          }
+          total=$(jq -r '.totalMonthlyCost // "null"' infracost-aws.json)
+          echo "monthly_usd=$total" >> "$GITHUB_OUTPUT"
+          {
+            echo "## AWS monthly cost estimate"
+            echo
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Total monthly (USD) | $total |"
+            echo "| Source | \`infracost breakdown\` against tfplan.binary |"
+            echo
+            infracost breakdown --path=tfplan.json --format=table 2>/dev/null \
+              | head -40 || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload infracost artifact (AWS)
+        if: always() && steps.infracost-aws.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-aws-${{ github.run_id }}
+          path: infra/terraform/aws/infracost-aws.json
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Open issue on drift
         if: steps.plan.outputs.plan_exit_code == '2'
