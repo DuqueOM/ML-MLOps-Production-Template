@@ -1,0 +1,20 @@
+# JSON 6902 patch — R5-M3 egress narrowing for GCP production.
+# See overlays/gcp-staging/patch-networkpolicy.yaml for rationale.
+# Prod uses the same CIDR scope as staging; separate files exist so
+# per-environment CIDRs can diverge without a kustomize components
+# redesign (e.g., prod may later get a dedicated egress NAT CIDR).
+- op: replace
+  path: /spec/egress/3
+  value:
+    to:
+      - ipBlock:
+          cidr: 199.36.153.4/30       # restricted.googleapis.com
+      - ipBlock:
+          cidr: 199.36.153.8/30       # private.googleapis.com
+      - ipBlock:
+          cidr: 34.0.0.0/8
+          except:
+            - 34.64.0.0/10
+    ports:
+      - protocol: TCP
+        port: 443

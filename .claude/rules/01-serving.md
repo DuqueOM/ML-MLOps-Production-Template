@@ -41,5 +41,5 @@ paths:
   `prediction_log_total` + `prediction_log_errors_total` (D-22)
 - Optional: `{service}_input_out_of_range_total{feature,direction}` (C4)
 
-See `AGENTS.md` for anti-pattern table D-01 to D-30 and both Behavior
+See `AGENTS.md` for anti-pattern table D-01 to D-32 and both Behavior
 Protocols (static mapping + ADR-010 dynamic escalation).

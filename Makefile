@@ -12,7 +12,7 @@
 #   make test-examples     # Run example regression tests
 
 .PHONY: help install-dev lint-all format-all validate-templates \
-        validate-agentic bootstrap \
+        validate-agentic bootstrap smoke \
         demo-minimal test-examples clean
 
 # Colors
@@ -104,6 +104,8 @@ validate-agentic: ## Validate agentic system (rules, skills, workflows, AGENTS.m
 test-scaffold: ## End-to-end test: runs new-service.sh in a tmp dir and validates output
 	@echo "$(GREEN)Testing scaffolder end-to-end...$(NC)"
 	@bash scripts/test_scaffold.sh
+
+smoke: test-scaffold ## Alias of test-scaffold. Run before push when touching templates/k8s/, templates/cicd/, or scripts/new-service.sh. CI runs the same script in pr-smoke-lane.yml; this is the local on-demand entry point (R5-L4).
 
 eda-validate: ## Validate EDA pipeline: syntax + run against example dataset
 	@echo "$(GREEN)Validating EDA pipeline...$(NC)"

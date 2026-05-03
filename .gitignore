@@ -123,3 +123,7 @@ _scaffold_scratch/
 # ─── PRIVATE ─────────────────────────────────────────
 
 AUDIOVISUAL_CONTENT.md
+
+# Local alertmanager binaries (S2-4 amtool runbook work)
+alertmanager-*/
+alertmanager-*.tar.gz

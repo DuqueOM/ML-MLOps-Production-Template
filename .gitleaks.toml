@@ -29,3 +29,11 @@ paths = [
     '''templates/.*\.env\.example''',
     '''examples/.*\.env\.example''',
 ]
+
+[[allowlists]]
+description = "Allow ADR-018 redaction-pipeline test fixtures — canonical synthetic patterns matching gitleaks rules but NOT real secrets (per test_memory_redaction.py docstring). Also allow the secret-history-scan runbook which documents canonical EXAMPLE patterns (AWS AKIAIOSFODNN7EXAMPLE) as bypass-test inputs."
+paths = [
+    '''.*test_memory_redaction\.py$''',
+    '''.*secret-history-scan\.md$''',
+    '''.*\.pyc$''',
+]

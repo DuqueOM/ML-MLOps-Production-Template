@@ -11,7 +11,7 @@ Opinionated, production-grade template for building and operating ML systems on 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
-[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-30%20encoded-red.svg)](#anti-patterns-encoded)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-32%20encoded-red.svg)](#anti-patterns-encoded)
 [![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Claude_Code_%7C_Cursor-blueviolet.svg)](#agentic-system)
 
 ```bash
@@ -49,8 +49,8 @@ It ships:
 - Closed-loop monitoring with prediction logging, delayed ground truth, sliced performance, champion/challenger evaluation, and retraining hooks.
 - Security controls for secrets, identity federation, SBOM generation, image signing, admission policy, and pod hardening.
 - Agentic governance through `AUTO / CONSULT / STOP`, plus dynamic risk escalation based on live signals.
-- Safe CI self-healing for low-risk failures, with bounded blast radius and mandatory verification.
-- Optional Operational Memory Plane that helps agents retrieve prior incidents, decisions, deploy regressions, and successful remediations.
+- Safe CI self-healing for low-risk failures, with bounded blast radius and mandatory verification _(policy + classifier shipped — **runtime Phase 1; shadow mode only, no writes**, see ADR-019)_.
+- Optional Operational Memory Plane that helps agents retrieve prior incidents, decisions, deploy regressions, and successful remediations _(contracts + redaction shipped — **runtime Phase 1; storage and retrieval still deferred**, see ADR-018)_.
 
 This is not a generic starter repo. It is a production template with encoded operating constraints.
 
@@ -58,20 +58,40 @@ This is not a generic starter repo. It is a production template with encoded ope
 
 ## Production-ready scope
 
-The template is positioned as a hardened open-source baseline for enterprise ML services. After scaffold and environment wiring, the following areas are treated as production-ready:
+The template is positioned as a hardened open-source baseline for enterprise ML services. The status column below uses **"Production-ready by design"** to signal:
+
+- the component is **contract-tested and scaffold-tested in this repo** (invariants live in `templates/service/tests/` and `.github/workflows/validate-templates.yml`);
+- the patterns are the ones the author operates with in production ML systems;
+- **verification against a real adopter environment (your cloud account, your cluster, your traffic) is still your responsibility** before go-live.
+
+The §"Verification status" matrix below is the honest adjunct: it separates *what's proven inside this repo's CI* from *what an adopter must execute to declare their instance production-ready*.
 
 | Area | Status | What that means |
 |------|--------|-----------------|
-| Service scaffold | Production-ready | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
-| Kubernetes runtime | Production-ready | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, and non-root runtime defaults are part of the base. |
-| Multi-cloud infrastructure | Production-ready | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. |
-| CI/CD | Production-ready | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain, and audit paths are governed and traceable. |
-| Closed-loop monitoring | Production-ready | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
-| Security and supply chain | Production-ready | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
-| Agentic controls | Production-ready | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
-| Operational Memory Plane | Optional companion | Recommended for larger teams or repos with frequent incident/release cycles. It augments decisions; it is not a required dependency for serving. |
+| Service scaffold | Production-ready by design | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
+| Kubernetes runtime | Production-ready by design | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, and non-root runtime defaults are part of the base. |
+| Multi-cloud infrastructure | Production-ready by design | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. |
+| CI/CD | Production-ready by design | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain, and audit paths are governed and traceable. |
+| Closed-loop monitoring | Production-ready by design | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
+| Security and supply chain | Production-ready by design | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
+| Agentic controls | Production-ready by design | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
+| Agentic CI self-healing | **Phase 1 — shadow / read-only** | Policy + classifier + collector ship today (ADR-019). `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py` observe CI failures and emit AUTO/CONSULT/STOP classifications without writing anything. Patch worker, verifier, and write-enabled lanes deferred to Phase 2+ pending 14 days of shadow precision data. No agent autonomously opens PRs against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan. |
+| Operational Memory Plane | **Phase 1 — contracts + redaction shipped** | Optional companion. `templates/common_utils/memory_types.py` (frozen `MemoryUnit` dataclass with 9 construction invariants), `templates/common_utils/memory_redaction.py` (gitleaks + PII redaction pipeline, idempotent), 59 contract-test invariants. Ingest worker, vector store, retrieval API deferred to Phase 2+ (gated on 30 days of contract stability). Adopters cannot call retrieval APIs today. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan. |
 
 External dependencies remain your responsibility: cloud accounts, Kubernetes clusters, MLflow backend, secret stores, and observability backends must exist before the template can operate in a real environment.
+
+### Verification status
+
+Four verification layers. Inside this repo the author can guarantee the first three; the fourth is per-adopter and cannot be asserted template-wide.
+
+| Layer | Scope | Where it runs | Evidence in this repo |
+|-------|-------|---------------|----------------------|
+| **L1 — Contract tests** | Invariants on generated service code, schemas, policies, and agentic config | `.github/workflows/validate-templates.yml`; `templates/service/tests/test_*.py`; `make validate-templates` locally | 106 passing contract tests covering memory (ADR-018), CI self-healing (ADR-019), model-routing disclaimer, Phase-0/1 disclosure, anti-pattern count consistency, Locust ↔ API parity, PR evidence policy, CI autofix policy |
+| **L2 — Scaffold smoke** | End-to-end scaffold of a fresh service + 6 overlay renders + kubeconform + binary audit | `.github/workflows/pr-smoke-lane.yml` on every PR; `make smoke` on demand (~60 s) | Green per PR; history in the Actions tab |
+| **L3 — Golden path E2E** | Full chain: scaffold → build → sign → attest → deploy to kind → smoke-test the running service | `.github/workflows/golden-path.yml` on release tags | Shipped; executed per release |
+| **L4 — Adopter production rollout** | Your cluster, your traffic, your SLOs, your compliance regime | Your CD pipeline + observability stack | **Not assertable from this repo.** Checklist lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md) §"Template for future entries" and [`docs/runbooks/`](docs/runbooks/). The R4 audit documents which runbooks are still pending execution by the author (secrets-integration-e2e, ground-truth ingestion SLA, Kyverno admission validation, secret history scan). |
+
+If you are an adopter deciding whether to stake a production service on this template: L1 + L2 + L3 are your contract; L4 is an obligation the template cannot discharge for you. The `docs/audit/ACTION_PLAN_R4.md` + `VALIDATION_LOG.md` pair is the paper trail for what has already been executed vs. what is only shipped as policy.
 
 ---
 
@@ -85,6 +105,9 @@ External dependencies remain your responsibility: cloud accounts, Kubernetes clu
 | Evaluate security posture | [SECURITY.md](SECURITY.md) | `templates/infra/`, `templates/k8s/`, `templates/cicd/` |
 | Extend agentic behavior | [AGENTS.md](AGENTS.md) | `.windsurf/`, `.cursor/`, `.claude/` |
 | Contribute to the template | [CONTRIBUTING.md](CONTRIBUTING.md) | License and governance sections below |
+| Cut a release | [docs/RELEASING.md](docs/RELEASING.md) | [CHANGELOG.md](CHANGELOG.md) |
+| Migrate from a prior version | [MIGRATION.md](MIGRATION.md) | [CHANGELOG.md](CHANGELOG.md) |
+| Verify what has actually been executed | [VALIDATION_LOG.md](VALIDATION_LOG.md) | [docs/audit/ACTION_PLAN_R4.md](docs/audit/ACTION_PLAN_R4.md) |
 
 ---
 
@@ -225,6 +248,10 @@ See [AGENTS.md](AGENTS.md) for the canonical operation matrix and invariant cata
 
 ## Operational Memory Plane
 
+> **Status — Phase 1 (contracts + redaction).** The canonical `MemoryUnit` dataclass and the gitleaks + PII redaction pipeline ship today: `templates/common_utils/memory_types.py` and `templates/common_utils/memory_redaction.py`, with 59 contract-test invariants enforcing immutability, severity normalization, sensitivity ≥ bucket-ACL minimum, single-tenant Phase 1 scope, idempotent redaction, and structural isolation from the `/predict` path. The ingest worker, the vector store, the retrieval API, and any agent-facing recall surface are **NOT yet implemented** in this template and are explicitly deferred per ADR-018 §Phase plan. Adopters cannot call retrieval APIs today; the section describes the **target shape** so the policy is reviewable before code lands. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan for the staged delivery.
+>
+> _Audit trail: Phase 0 disclosure added in response to R4 finding C2; transitioned to Phase 1 in the same audit-r4 sprint. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2 + §S2-1._
+
 The Operational Memory Plane is an optional companion capability for repos that want agents to draw on prior work without introducing hidden behavior.
 
 ### What it is
@@ -251,6 +278,10 @@ The operational rule is simple: memory can add context and escalate caution, but
 ---
 
 ## Agentic CI self-healing
+
+> **Status — Phase 1 (shadow, read-only).** The classifier and collector ship today: `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py`, governed by `templates/config/ci_autofix_policy.yaml` and `templates/config/model_routing_policy.yaml`, with 10 policy-contract invariants and 27 Phase-1 runtime invariants enforced by `test_ci_autofix_policy_contract.py` and `test_ci_classify_failure_phase1.py`. The classifier is wired into CI in **shadow mode only** — it observes failures and emits classifications, but **does NOT write code, does NOT open PRs, does NOT mutate any branch**. The patch worker, verifier, and write-enabled lanes are **NOT implemented yet** and are gated on 14 days of shadow data per ADR-019 §Phase plan. No agent will autonomously open a PR against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan for the staged delivery.
+>
+> _Audit trail: Phase 0 disclosure added in response to R4 finding C2; transitioned to Phase 1 in the same audit-r4 sprint. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2 + §S1-6._
 
 The template supports a bounded self-healing lane for CI. This is not "let the agent fix anything." It is a policy-governed repair loop with verification, audit, and branch isolation.
 
@@ -299,9 +330,15 @@ The template treats model selection as a routing problem, not a brand decision.
 
 The important part is not the provider. It is the routing policy, verification layer, and operation mode boundaries.
 
-### Recommended baseline (verified 2026-04)
+### Recommended baseline (cadence-anticipated, **NOT** vendor-verified)
 
-The canonical mapping lives in [`templates/config/model_routing_policy.yaml`](templates/config/model_routing_policy.yaml). The table below is a snapshot — model names are a moving target; verify each entry exists in the corresponding provider's stable catalog at adoption time. The ADR-019 contract test enforces structure (preview never lands on protected branches), not specific model identities.
+> **Status — Anticipated names, pending verification.** The model names in the snapshot table below follow the cadence the project's adopter requested (`gpt-5.x`, `claude-opus-4.x`, `gemini-3.x`). They have **NOT** been reconciled against the live catalog of any provider. Several names (e.g. `gpt-5.4`, `gpt-5.5`, `gemini-3.1-pro-preview`, `gemini-3-flash-preview`) may not exist at adoption time.
+>
+> Before enabling any of these names for a production-adjacent route, **verify against the provider dashboard** (see §"Verifying model availability before adoption" below) and update `verified_at` in [`templates/config/model_routing_policy.yaml`](templates/config/model_routing_policy.yaml). The ADR-019 contract test enforces routing **structure** (preview never on protected branches; AUTO mode never escalation-tier), not specific model identities.
+>
+> _Audit trail: this disclaimer was added in response to R4 finding C1 (cadence-anticipated names presented as verified). See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-1._
+
+#### Cadence-anticipated names — pending vendor verification
 
 | Role | OpenAI | Anthropic | Google | Use it for |
 |------|--------|-----------|--------|------------|
@@ -311,7 +348,11 @@ The canonical mapping lives in [`templates/config/model_routing_policy.yaml`](te
 | **Hard escalation** | `gpt-5.5` | `claude-opus-4-6` | `gemini-2.5-pro` | Multi-file RCA, refactors with ripple, rare CI failures |
 | **Frontier preview (non-prod only)** | — | — | `gemini-3.1-pro-preview`, `gemini-3-flash-preview` | Benchmarking lane, `workflow_dispatch` only — never on `main` |
 
-#### Three pre-tuned profiles
+The table above is a **structural recommendation** — four cost/quality tiers plus a non-prod preview lane. Substitute each cell with whichever model in that tier exists in your provider's catalog at adoption time.
+
+#### Three pre-tuned structural profiles
+
+The profiles below are described in cadence-anticipated names for continuity with the table above; treat the names as placeholders for tier slots, not commitments to specific models.
 
 - **Maximum simplicity** (single family): `gpt-5.4-nano` → `gpt-5.4-mini` → `gpt-5.4` → `gpt-5.5`. Cleanest cost/quality gradient.
 - **Mix cost + quality**: `gemini-2.5-flash-lite` (router) → `gpt-5.4-mini` (patcher) → `claude-sonnet-4-6` (reviewer) → `gpt-5.5` or `claude-opus-4-6` (escalation). Strong gatekeeper without paying frontier cost on every call.
@@ -323,9 +364,26 @@ The canonical mapping lives in [`templates/config/model_routing_policy.yaml`](te
 - Preview models are restricted to `workflow_dispatch` and benchmarking lanes; they cannot land on protected branches. The contract test refuses configurations that violate this.
 - Memory-plane signals (ADR-018) can route a query to a more capable model on `repeat_failure_pattern`, but never the other way around — same escalation-only discipline as ADR-010.
 
+#### Verifying model availability before adoption
+
+Before enabling any name from the table above for a production-adjacent route, verify it exists in the provider's stable catalog **on the day of adoption** and update `verified_at` in [`templates/config/model_routing_policy.yaml`](templates/config/model_routing_policy.yaml).
+
+| Provider | Where to verify | Catalog scope to confirm |
+|----------|-----------------|---------------------------|
+| OpenAI | [`platform.openai.com/docs/models`](https://platform.openai.com/docs/models) | Model name appears under "Current models" (not "Deprecated" or "Legacy"); pricing and rate-limit tier acceptable for the route's expected volume |
+| Anthropic | [`docs.anthropic.com/en/docs/about-claude/models`](https://docs.anthropic.com/en/docs/about-claude/models) | Model name appears in the active models table; check the `model_id` column matches what your client will send |
+| Google | [`ai.google.dev/gemini-api/docs/models`](https://ai.google.dev/gemini-api/docs/models) and Vertex AI Model Garden | Confirm GA vs preview status; preview models are restricted to non-protected lanes by `model_routing_policy.yaml` |
+
+**Process**:
+
+1. Open the dashboard above for each provider you intend to use.
+2. For every cell of the recommended-baseline table you plan to enable, confirm the model name still exists and is in the maturity tier the YAML expects (`stable` or `preview`).
+3. If a name no longer exists, the routing layer falls back to the next candidate in the route — it never silently switches families. Replace the missing name with a verified equivalent and bump `verified_at`.
+4. Reviewers MUST re-verify before any rollout to a protected branch.
+
 #### Honesty caveat
 
-Vendor model names rotate every 6–12 months. The `verified_at` field in `model_routing_policy.yaml` declares when the catalog was last reconciled. If a name in this table no longer exists at the provider, the routing layer falls back to the next candidate in the route — it never silently switches families. Reviewers should re-verify before any rollout to a protected branch.
+Vendor model names rotate every 6–12 months. The `verified_at` field in `model_routing_policy.yaml` declares when the catalog was last reconciled. The names in the table above are anticipated based on the project's adopter cadence and have not been reconciled against any vendor catalog at the time of writing.
 
 ---
 
@@ -624,7 +682,7 @@ This adds the required `Signed-off-by` line to your commit. No CLA is required.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution process, issue templates, and ADR conventions.
 
-Questions and discussion: open a [GitHub Discussion](https://github.com/DuqueOM/ML-MLOps-Production-Template/discussions) or file an issue.
+Questions and discussion: [file an issue](https://github.com/DuqueOM/ML-MLOps-Production-Template/issues/new/choose).
 
 ---
 

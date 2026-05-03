@@ -1,6 +1,12 @@
 # ADR-019: Agentic CI Self-Healing
 
-- **Status**: Proposed (Phase 0 — policy ratified, scripts deferred)
+- **Status**: Phase 1 (read-only classifier + collector) — shadow mode, no writes
+  - Phase 0 ratified 2026-04-28 (policy + contract test)
+  - Phase 1 shipped 2026-04-29 (`scripts/ci_collect_context.py`,
+    `scripts/ci_classify_failure.py`, `test_ci_classify_failure_phase1.py`
+    with 27 invariants). Shadow lane wired into CI per ADR-020 §S1-6.
+  - Phase 2 (write-enabled `formatter_drift` only) gated on 14 days of
+    shadow data showing acceptable precision.
 - **Date**: 2026-04-28
 - **Deciders**: @DuqueOM, AI staff engineer
 - **Related**: ADR-010 (Dynamic agent behavior),

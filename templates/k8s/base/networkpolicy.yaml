@@ -87,9 +87,25 @@ spec:
         - protocol: TCP
           port: 9091
 
-    # Allow egress to cloud storage (GCS/S3 for model download)
-    # TODO: Replace with your cloud provider's CIDR ranges or use
-    # a more permissive egress rule if using Workload Identity/IRSA
+    # -----------------------------------------------------------------
+    # Cloud storage egress (model download during init container).
+    #
+    # BASE RULE = DEV-ONLY default.
+    #
+    # `0.0.0.0/0` is the permissive default so adopters can scaffold +
+    # `kustomize build` against dev clusters without needing to
+    # hard-code GCS / S3 / ECR / Artifact Registry IP ranges.
+    #
+    # ⚠ OVERLAY-OVERRIDE REQUIRED FOR NON-DEV (R5-M3, ACTION_PLAN_R5):
+    #   overlays/gcp-staging, overlays/gcp-prod, overlays/aws-staging,
+    #   overlays/aws-prod MUST apply `patch-networkpolicy.yaml` (JSON
+    #   6902) to replace this rule with cloud-specific FQDN-backed
+    #   CIDR ranges. The contract test
+    #   `tests/test_networkpolicy_egress_hygiene.py` fails if any
+    #   non-dev overlay's kustomization.yaml omits that patch, or if
+    #   a `kustomize build` of a non-dev overlay still contains
+    #   `0.0.0.0/0` in egress.
+    # -----------------------------------------------------------------
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
