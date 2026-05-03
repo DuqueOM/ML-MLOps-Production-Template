@@ -18,7 +18,7 @@
 # TODO (operator): for a hardened deploy, do ONE of:
 #   (a) Pin the exact S3 prefix list (`pl-*`) and STS/ECR CIDRs from
 #       `ip-ranges.json` for your region and regenerate this patch
-#       quarterly — see docs/runbooks/egress-narrowing.md (TBD).
+#       quarterly — see docs/runbooks/egress-narrowing.md §A.
 #   (b) Layer a CiliumNetworkPolicy with `toFQDNs` on top of this
 #       base policy (requires Cilium CNI or EKS w/ Cilium overlay).
 - op: replace
