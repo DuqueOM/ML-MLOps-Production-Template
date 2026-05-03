@@ -50,11 +50,19 @@ jobs:
           python-version: "3.11"
 
       - name: Install kustomize
+        # Direct release tarball, pinned version (PR-R2-5). The upstream
+        # hack/install_kustomize.sh piped into bash (a) violates the
+        # toolchain-hygiene lint and (b) hit the unauthenticated GitHub
+        # releases API per-IP rate limiter on shared runners. Version is
+        # bumped via explicit PR; mirrors the pattern in validate-templates.yml
+        # and deploy-common.yml.
         run: |
           set -euo pipefail
-          curl -sSLf "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
-            | bash
-          sudo mv ./kustomize /usr/local/bin/kustomize
+          KVER=v5.4.3
+          curl -sSL -o /tmp/kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KVER}/kustomize_${KVER}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/
           kustomize version
 
       - name: Install kubeconform
