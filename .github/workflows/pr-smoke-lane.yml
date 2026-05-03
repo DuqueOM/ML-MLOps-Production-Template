@@ -142,7 +142,16 @@ jobs:
               # downstream workflows. We just check that downstream workflows
               # mention them so the PR-time signal is "your deploy YAML
               # references a binary that is not declared anywhere in CI".
-              if ! grep -REq "(install[- ]?${bin}|${bin}-action|${bin} version)" \
+              # Canonical install patterns recognised by the audit:
+              #   install-<bin>, install <bin>, <bin>-installer, <bin>-action, <bin> version
+              # Plus well-known aliases for binaries that ship under a different
+              # action name than the binary: syft is installed via
+              # `anchore/sbom-action` (produces `syft` on PATH), etc.
+              case "$bin" in
+                syft) EXTRA="|anchore/sbom-action|sbom-action" ;;
+                *)    EXTRA="" ;;
+              esac
+              if ! grep -REq "(install[- ]?${bin}|${bin}-installer|${bin}-action|${bin} version${EXTRA})" \
                    templates/cicd/ .github/workflows/ 2>/dev/null; then
                 MISSING+=("$bin")
               fi
