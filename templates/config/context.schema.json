@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/context.schema.json",
+  "title": "Agentic context files (company + project)",
+  "description": "JSON schema covering both company_context.*.yaml and project_context.*.yaml. The validator resolves which top-level key is expected by file name.",
+  "type": "object",
+  "oneOf": [
+    {
+      "required": ["version", "company"],
+      "properties": {
+        "version": { "const": 1 },
+        "company": { "$ref": "#/$defs/company" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "required": ["version", "project", "kpis"],
+      "properties": {
+        "version": { "const": 1 },
+        "project": { "$ref": "#/$defs/project" },
+        "kpis": { "$ref": "#/$defs/kpis" },
+        "agentic_policy": { "$ref": "#/$defs/agentic_policy" }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "company": {
+      "type": "object",
+      "required": [
+        "name",
+        "profile",
+        "industry",
+        "regulatory_profile",
+        "risk_appetite",
+        "monthly_budget_usd",
+        "approval_model",
+        "on_hours_utc"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "profile": {
+          "type": "string",
+          "enum": ["research_lab", "startup", "sme", "enterprise", "public_sector"]
+        },
+        "industry": {
+          "type": "string",
+          "enum": [
+            "advertising",
+            "financial_services",
+            "healthcare",
+            "industrial",
+            "public_sector",
+            "research",
+            "retail",
+            "saas",
+            "other"
+          ]
+        },
+        "regulatory_profile": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["none", "soc2", "hipaa", "gdpr", "pci_dss", "iso27001", "ffiec", "fedramp"]
+          },
+          "uniqueItems": true
+        },
+        "risk_appetite": { "type": "string", "enum": ["low", "medium", "high"] },
+        "monthly_budget_usd": { "type": "number", "minimum": 0 },
+        "approval_model": {
+          "type": "object",
+          "required": ["staging", "production"],
+          "properties": {
+            "staging": { "type": "string", "minLength": 1 },
+            "production": { "type": "string", "minLength": 1 },
+            "secret_rotation": { "type": "string", "minLength": 1 },
+            "model_promotion": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "on_hours_utc": {
+          "type": "string",
+          "pattern": "^[0-2]?[0-9]-[0-2]?[0-9]$",
+          "description": "HH-HH UTC on-hours window. Validated further by risk_context._parse_on_hours_window to reject full-day / reversed / degenerate spans."
+        }
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "business_goal", "primary_users", "criticality", "environments"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "business_goal": { "type": "string", "minLength": 5, "maxLength": 500 },
+        "primary_users": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "criticality": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "environments": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["dev", "staging", "prod"] },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "kpi_entry": {
+      "type": "object",
+      "required": ["name", "direction", "owner"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "direction": { "type": "string", "enum": ["increase", "decrease"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "minimum": { "type": ["number", "null"] },
+        "maximum": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "kpis": {
+      "type": "object",
+      "required": ["business", "ml", "platform"],
+      "properties": {
+        "business": { "type": "array", "items": { "$ref": "#/$defs/kpi_entry" } },
+        "ml": { "type": "array", "items": { "$ref": "#/$defs/kpi_entry" }, "minItems": 1 },
+        "platform": { "type": "array", "items": { "$ref": "#/$defs/kpi_entry" }, "minItems": 1 }
+      },
+      "additionalProperties": false
+    },
+    "agentic_policy": {
+      "type": "object",
+      "properties": {
+        "escalation_overrides": {
+          "type": "object",
+          "description": "Named overrides that escalate AUTO→CONSULT→STOP. Validator refuses overrides that would de-escalate.",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["AUTO", "CONSULT", "STOP"]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

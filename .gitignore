@@ -127,3 +127,12 @@ AUDIOVISUAL_CONTENT.md
 # Local alertmanager binaries (S2-4 amtool runbook work)
 alertmanager-*/
 alertmanager-*.tar.gz
+
+# ADR-023 — adopter-specific context files are NEVER committed.
+# Example files at `templates/config/*_context.example.yaml` are fine;
+# the `.local.yaml` variants contain adopter-specific business data and
+# live only on the adopter's workstation (and in Secret Manager for
+# runtime consumption).
+*_context.local.yaml
+*_context.*.local.yaml
+*_context.local.*.yaml

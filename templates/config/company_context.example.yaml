@@ -1,0 +1,63 @@
+# =============================================================================
+# Company Context — ADR-023 §context-layer.
+# =============================================================================
+# Adopter workflow:
+#   1. Copy this file to `templates/config/company_context.local.yaml`
+#      (gitignored — NEVER commit the .local variant).
+#   2. Replace every `{placeholder}` with real values.
+#   3. `python3 scripts/validate_agentic_manifest.py --strict` will
+#      validate the file against `context.schema.json` and refuse to
+#      proceed if a placeholder was left intact.
+#
+# What does NOT belong in this file (I-2 + D-18):
+#   - IAM role ARNs, service-account JSON, API tokens, webhook URLs.
+#     Those live in AWS Secrets Manager / GCP Secret Manager, mounted
+#     into pods via IRSA / Workload Identity. See rule 12-security-secrets.
+#   - Real customer data, PII, or internal identifiers that would leak
+#     regulatory information if the file were mis-committed.
+#   - Per-environment overrides with live endpoints. Use Kustomize
+#     overlays for that.
+# =============================================================================
+version: 1
+
+company:
+  # Fictional placeholder — replace with your legal entity name.
+  name: "{CompanyName}"
+
+  # Used by the risk-signal computer (ADR-010). Drives which compliance
+  # checks are enabled by default and which audits are non-blocking.
+  # One of: research_lab | startup | sme | enterprise | public_sector
+  profile: "enterprise"
+
+  # One of: advertising | financial_services | healthcare |
+  #         industrial | public_sector | research | retail | saas | other
+  industry: "financial_services"
+
+  # List of regulatory regimes the company operates under. Empty list
+  # is valid (e.g. research lab). Each entry must be a known identifier
+  # from the schema's `regulatory_profile` enum.
+  regulatory_profile:
+    - "soc2"
+    - "gdpr"
+
+  # One of: low | medium | high.
+  # Feeds the dynamic behavior protocol — `high` downgrades AUTO to
+  # CONSULT for any operation touching prod.
+  risk_appetite: "medium"
+
+  # Monthly cloud-cost ceiling for THIS service. Hitting > 1.2× this
+  # value triggers a STOP escalation per ADR-010.
+  monthly_budget_usd: 500
+
+  # Who signs off on which promotion. Names are roles, not humans.
+  approval_model:
+    staging: "tech_lead"
+    production: "platform_owner"
+    secret_rotation: "platform_owner + security_owner"
+    model_promotion: "ml_owner + business_owner"
+
+  # On-hours window (UTC) used by the dynamic behavior protocol to
+  # decide whether an operation runs in AUTO or escalates to CONSULT.
+  # Overrides `MLOPS_ON_HOURS_UTC` at runtime. Weekends are always
+  # off-hours regardless.
+  on_hours_utc: "08-18"
