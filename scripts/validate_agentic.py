@@ -33,6 +33,51 @@ WORKFLOWS_DIR = REPO_ROOT / ".windsurf" / "workflows"
 AGENTS_MD = REPO_ROOT / "AGENTS.md"
 
 
+# ---------------------------------------------------------------------------
+# Cross-platform output (R5-M2).
+#
+# Windows consoles default to cp1252 / cp437 and crash with UnicodeEncodeError
+# when this script prints "✓", "✗", "⚠", "ℹ". We do two things:
+#   1. Try to upgrade stdout/stderr to UTF-8 with `errors="replace"` so any
+#      stray glyph degrades gracefully instead of crashing the validator.
+#   2. Probe whether the (possibly upgraded) stream can encode our marker
+#      glyphs. If not, fall back to ASCII tags ("[OK]", "[X]", "[!]", "[i]").
+#
+# This keeps Linux / macOS output identical to before AND makes the
+# validator usable on Windows PowerShell / cmd.exe in the default codec.
+# ---------------------------------------------------------------------------
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except (AttributeError, OSError, ValueError):
+        # AttributeError: stream is not a TextIOWrapper (rare; e.g. pytest capture).
+        # OSError / ValueError: terminal refused the codec (rare).
+        # In all cases we fall through to the ASCII probe below.
+        pass
+
+
+def _can_encode_unicode_marks() -> bool:
+    """Return True if `sys.stdout` can encode the unicode marker glyphs we use.
+
+    The probe uses every glyph the validator emits; if any of them fails, we
+    treat the stream as ASCII-only and emit `[OK]` style tags instead.
+    """
+    enc = getattr(sys.stdout, "encoding", None) or "ascii"
+    for ch in ("\u2713", "\u2717", "\u26a0", "\u2139"):  # ✓ ✗ ⚠ ℹ
+        try:
+            ch.encode(enc)
+        except (UnicodeEncodeError, LookupError):
+            return False
+    return True
+
+
+_USE_UNICODE = _can_encode_unicode_marks()
+MARK_OK = "\u2713" if _USE_UNICODE else "[OK]"
+MARK_FAIL = "\u2717" if _USE_UNICODE else "[X]"
+MARK_WARN = "\u26a0" if _USE_UNICODE else "[!]"
+MARK_INFO = "\u2139" if _USE_UNICODE else "[i]"
+
+
 class Result:
     def __init__(self) -> None:
         self.errors: list[str] = []
@@ -289,26 +334,26 @@ def main() -> int:
     print(f"Workflows found: {len(workflow_names)}  ({', '.join(workflow_names)})")
 
     if result.infos:
-        print(f"\nℹ {len(result.infos)} informational notes (not failures):")
+        print(f"\n{MARK_INFO} {len(result.infos)} informational notes (not failures):")
         for i in result.infos:
             print(f"  - {i}")
 
     if result.warnings:
-        print(f"\n⚠ {len(result.warnings)} warnings:")
+        print(f"\n{MARK_WARN} {len(result.warnings)} warnings:")
         for w in result.warnings:
             print(f"  - {w}")
 
     if result.errors:
-        print(f"\n✗ {len(result.errors)} errors:")
+        print(f"\n{MARK_FAIL} {len(result.errors)} errors:")
         for e in result.errors:
             print(f"  - {e}")
         return 2
 
     if args.strict and result.warnings:
-        print("\n✗ Strict mode: warnings treated as failures")
+        print(f"\n{MARK_FAIL} Strict mode: warnings treated as failures")
         return 1
 
-    print("\n✓ Agentic system valid")
+    print(f"\n{MARK_OK} Agentic system valid")
     return 0
 
 

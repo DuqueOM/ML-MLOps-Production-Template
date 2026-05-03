@@ -52,7 +52,7 @@ When starting a new session:
 - **ALWAYS** compatible release pinning (`~=`) — `numpy 2.x` corrupts joblib models
 - **ALWAYS** ADR for non-trivial decisions
 
-## Anti-Patterns (D-01 to D-30)
+## Anti-Patterns (D-01 to D-32)
 
 Compact summary; full table with corrective actions in `AGENTS.md`.
 
@@ -66,10 +66,11 @@ Compact summary; full table with corrective actions in `AGENTS.md`.
 | D-23..D-25 | Probes + warmup + graceful shutdown |
 | D-26..D-27 | Promotion gates + PodDisruptionBudget |
 | D-28..D-30 | API contract semver + Pod Security Standards + SBOM attestation |
+| D-31..D-32 | Per-purpose IAM identities (ADR-017) + snake_case Python package paths in K8s manifests |
 
 The full anti-pattern table with corrective actions and file references
 lives in `AGENTS.md`. The `rule-audit` skill scans a service against
-all 30 invariants and reports file:line evidence for any failure.
+all 32 invariants and reports file:line evidence for any failure.
 
 ## Key Commands
 
@@ -91,7 +92,7 @@ kustomize build templates/k8s/base/ > /dev/null
 ## File Structure
 
 ```
-AGENTS.md              → Full architecture, invariants D-01..D-30, anti-patterns (canonical source)
+AGENTS.md              → Full architecture, invariants D-01..D-32, anti-patterns (canonical source)
 CLAUDE.md              → This file (Claude Code context, condensed)
 QUICK_START.md         → 10-minute setup guide (standalone)
 RUNBOOK.md             → Template operations reference

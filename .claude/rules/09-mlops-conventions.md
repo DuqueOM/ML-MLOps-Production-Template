@@ -34,7 +34,7 @@ Before AUTO/CONSULT ops, load `common_utils/risk_context.py` and apply:
 Signals: `incident_active`, `drift_severe`, `error_budget_exhausted`,
 `off_hours` (weekend / 18–08 UTC), `recent_rollback` (< 6h).
 
-## Anti-patterns D-01..D-30
+## Anti-patterns D-01..D-32
 See `AGENTS.md §Anti-Patterns` — authoritative table.
 Also see `.windsurf/rules/01-mlops-conventions.md` for richer narrative.
 
