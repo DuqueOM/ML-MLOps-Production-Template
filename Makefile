@@ -14,6 +14,7 @@
 .PHONY: help install-dev lint-all format-all validate-templates \
         validate-agentic bootstrap smoke \
         mcp-check mcp-doctor mcp-render-docs \
+        report-validate report-example \
         demo-minimal test-examples clean
 
 # Colors
@@ -115,6 +116,14 @@ mcp-doctor: ## Long-form MCP registry report (install matrix, skill coverage, or
 mcp-render-docs: ## Regenerate docs/agentic/mcp-portability.md from the registry YAMLs
 	@echo "$(GREEN)Rendering MCP portability docs...$(NC)"
 	python3 scripts/mcp_doctor.py --mode render-docs
+
+report-validate: ## Validate a report JSON against the schema. Usage: make report-validate FILE=ops/reports/release/<id>.json
+	@if [ -z "$(FILE)" ]; then echo "$(RED)error: FILE=<path> required$(NC)"; exit 2; fi
+	python3 scripts/generate_report.py validate $(FILE)
+
+report-example: ## Print a syntactically valid example report. Usage: make report-example TYPE={release|drift|training|incident}
+	@if [ -z "$(TYPE)" ]; then echo "$(RED)error: TYPE=<release|drift|training|incident> required$(NC)"; exit 2; fi
+	python3 scripts/generate_report.py example $(TYPE)
 
 test-scaffold: ## End-to-end test: runs new-service.sh in a tmp dir and validates output
 	@echo "$(GREEN)Testing scaffolder end-to-end...$(NC)"

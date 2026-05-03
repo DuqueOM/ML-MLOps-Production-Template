@@ -108,6 +108,16 @@ logs/
 reports/
 *.csv.gz
 
+# Reports v1 (ADR-023 F6) — track the canonical directory layout
+# (.gitkeep per type) but never commit actual report payloads.
+!ops/reports/
+!ops/reports/release/
+!ops/reports/drift/
+!ops/reports/training/
+!ops/reports/incident/
+!ops/reports/**/.gitkeep
+ops/reports/**/*.json
+
 # ─── DVC ─────────────────────────────────────────────
 /tmp/
 

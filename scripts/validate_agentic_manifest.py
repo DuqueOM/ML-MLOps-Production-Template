@@ -411,7 +411,70 @@ def run(strict: bool) -> dict:
     results["mode_enum"] = _validate_mode_enum(manifest)
     results["context_examples"] = validate_context_examples(strict=strict)
     results["context_pointers"] = validate_context_pointers()
+    results["reports_block"] = _validate_reports_block(manifest)
     return results
+
+
+def _validate_reports_block(manifest: dict) -> list[str]:
+    """Validate the `reports:` section added in ADR-023 F6.
+
+    Allowed states:
+      - block absent (back-compat for older forks)
+      - block present and structurally valid
+
+    Validations:
+      * `schema`, `library`, `cli` paths exist on disk
+      * `storage_root` is a directory that exists
+      * `types` lists exactly the four canonical types in any order
+      * each `types[].producer` references a known workflow id
+      * each `types[].mode` is AUTO|CONSULT|STOP
+    """
+    errors: list[str] = []
+    block = manifest.get("reports")
+    if block is None:
+        return errors
+    if not isinstance(block, dict):
+        return ["reports: block must be a mapping"]
+    for path_key in ("schema", "library", "cli"):
+        rel = block.get(path_key)
+        if not rel:
+            errors.append(f"reports.{path_key}: missing")
+            continue
+        if not (REPO_ROOT / rel).exists():
+            errors.append(f"reports.{path_key}: path does not exist ({rel})")
+    storage = block.get("storage_root")
+    if storage:
+        if not (REPO_ROOT / storage).is_dir():
+            errors.append(f"reports.storage_root: not a directory ({storage})")
+    types = block.get("types") or []
+    canonical = {"release", "drift", "training", "incident"}
+    seen = {t.get("id") for t in types if isinstance(t, dict)}
+    missing = canonical - seen
+    extra = seen - canonical
+    if missing:
+        errors.append(f"reports.types missing canonical entries: {sorted(missing)}")
+    if extra:
+        errors.append(f"reports.types has non-canonical entries: {sorted(extra)}")
+    workflow_ids = {w.get("id") for w in (manifest.get("workflows") or [])}
+    skill_ids = {s.get("id") for s in (manifest.get("skills") or [])}
+    known_actions = workflow_ids | skill_ids
+    for entry in types:
+        if not isinstance(entry, dict):
+            errors.append(f"reports.types[*]: not a mapping ({entry!r})")
+            continue
+        prod = entry.get("producer")
+        if prod and prod not in known_actions:
+            errors.append(
+                f"reports.types[id={entry.get('id')!r}].producer: "
+                f"references unknown skill/workflow {prod!r}"
+            )
+        mode = entry.get("mode")
+        if mode not in ("AUTO", "CONSULT", "STOP"):
+            errors.append(
+                f"reports.types[id={entry.get('id')!r}].mode: "
+                f"invalid value {mode!r}"
+            )
+    return errors
 
 
 def main() -> int:
