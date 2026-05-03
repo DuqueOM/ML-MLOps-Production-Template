@@ -385,3 +385,32 @@ context_consumers:
       - "project.criticality"
       - "project.agentic_policy.escalation_overrides"
     authority: "docs/decisions/ADR-010-dynamic-behavior-protocol.md"
+
+# -----------------------------------------------------------------------------
+# Reports v1 (ADR-023 F6) — typed report contract for the four canonical
+# producer workflows. Every entry references its producer + consumer so
+# the cross-surface picture is auditable from the manifest alone.
+# -----------------------------------------------------------------------------
+reports:
+  schema: "templates/config/report_schema.json"
+  library: "templates/common_utils/reports.py"
+  cli: "scripts/generate_report.py"
+  storage_root: "ops/reports/"
+  authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+  types:
+    - id: "release"
+      producer: "release-checklist"
+      consumers: ["github_actions", "humans"]
+      mode: "CONSULT"
+    - id: "drift"
+      producer: "drift-detection"
+      consumers: ["model-retrain", "humans"]
+      mode: "AUTO"
+    - id: "training"
+      producer: "model-retrain"
+      consumers: ["release-checklist", "humans"]
+      mode: "AUTO"
+    - id: "incident"
+      producer: "incident"
+      consumers: ["humans", "post-mortem"]
+      mode: "CONSULT"

@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/blob/main/templates/config/report_schema.json",
+  "title": "Reports v1 (ADR-023 F6)",
+  "description": "Canonical JSON Schema for the four report types produced by agentic workflows: release, drift, training, incident. The schema freezes the shape so CI, dashboards, and humans can parse reports without ad-hoc adapters. Reports are append-only: a new report is a new file; mutations require issuing a new report.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_type",
+    "report_id",
+    "service",
+    "generated_at",
+    "generated_by",
+    "mode",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema contract version. Only 1 today. Bump requires an ADR."
+    },
+    "report_type": {
+      "type": "string",
+      "enum": ["release", "drift", "training", "incident"],
+      "description": "One of four canonical types. New types require an ADR and a new enum entry."
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "minLength": 4,
+      "maxLength": 128,
+      "description": "Stable identifier, typically '<type>-<service>-<YYYYMMDDHHmmss>' or an explicit GUID."
+    },
+    "service": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{1,63}$",
+      "description": "Service slug (lowercase, underscores/dashes). Matches the directory name under templates/service/."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO8601 timestamp, with 'Z' or '+00:00'."
+    },
+    "generated_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent id (e.g., 'Agent-MLTrainer') or 'human:<username>' for manual runs."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["AUTO", "CONSULT", "STOP"],
+      "description": "Mirror of the AgentMode under which the underlying operation ran."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "staging", "production"],
+      "description": "Optional — required for release + incident, recommended for drift, irrelevant for training."
+    },
+    "approver": {
+      "type": ["string", "null"],
+      "description": "When mode is CONSULT or STOP, names the human approver; null otherwise."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Type-specific payload; exact shape governed by the payload-<type> sub-schemas below."
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "label": {"type": "string", "minLength": 1},
+          "url": {"type": "string", "format": "uri"}
+        }
+      },
+      "description": "Optional list of human-navigable links (PRs, Grafana panels, MLflow runs)."
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "report_type": {"const": "release"},
+        "environment": {"enum": ["dev", "staging", "production"]},
+        "payload": {"$ref": "#/$defs/release_payload"}
+      },
+      "required": ["environment"]
+    },
+    {
+      "properties": {
+        "report_type": {"const": "drift"},
+        "payload": {"$ref": "#/$defs/drift_payload"}
+      }
+    },
+    {
+      "properties": {
+        "report_type": {"const": "training"},
+        "payload": {"$ref": "#/$defs/training_payload"}
+      }
+    },
+    {
+      "properties": {
+        "report_type": {"const": "incident"},
+        "environment": {"enum": ["dev", "staging", "production"]},
+        "payload": {"$ref": "#/$defs/incident_payload"}
+      },
+      "required": ["environment"]
+    }
+  ],
+  "$defs": {
+    "release_payload": {
+      "type": "object",
+      "required": [
+        "version",
+        "commit_sha",
+        "images",
+        "quality_gates_passed",
+        "deploy_targets",
+        "sbom_present",
+        "images_signed",
+        "adrs_since_last_release"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {"type": "string", "pattern": "^v?[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.-]+)?$"},
+        "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+        "images": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "pattern": "^[a-z0-9./:@_-]+$"}
+        },
+        "quality_gates_passed": {"type": "boolean"},
+        "deploy_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "enum": ["gcp", "aws"]}
+        },
+        "sbom_present": {"type": "boolean"},
+        "images_signed": {"type": "boolean"},
+        "adrs_since_last_release": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^ADR-[0-9]{3}"}
+        },
+        "drift_baseline_age_days": {"type": "integer", "minimum": 0},
+        "notes": {"type": "string"}
+      }
+    },
+    "drift_payload": {
+      "type": "object",
+      "required": ["window_start", "window_end", "features", "retrain_recommendation"],
+      "additionalProperties": false,
+      "properties": {
+        "window_start": {"type": "string", "format": "date-time"},
+        "window_end": {"type": "string", "format": "date-time"},
+        "features": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "psi"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "psi": {"type": "number", "minimum": 0},
+              "threshold": {"type": "number", "minimum": 0},
+              "breached": {"type": "boolean"}
+            }
+          }
+        },
+        "alerts_fired": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "retrain_recommendation": {
+          "type": "string",
+          "enum": ["none", "soft", "hard"]
+        },
+        "root_cause_summary": {"type": "string"}
+      }
+    },
+    "training_payload": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "model_name",
+        "metrics",
+        "quality_gates",
+        "promotion_state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "model_name": {"type": "string", "minLength": 1},
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {"type": "number"},
+          "description": "Arbitrary metric_name → numeric value map."
+        },
+        "fairness_dir": {"type": "number", "minimum": 0, "description": "Disparate Impact Ratio."},
+        "feature_importance_top_k": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["feature", "importance"],
+            "additionalProperties": false,
+            "properties": {
+              "feature": {"type": "string"},
+              "importance": {"type": "number"}
+            }
+          },
+          "maxItems": 50
+        },
+        "quality_gates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["gate", "passed"],
+            "additionalProperties": false,
+            "properties": {
+              "gate": {"type": "string"},
+              "passed": {"type": "boolean"},
+              "details": {"type": "string"}
+            }
+          }
+        },
+        "promotion_state": {
+          "type": "string",
+          "enum": ["None", "Staging", "Production", "Archived"]
+        }
+      }
+    },
+    "incident_payload": {
+      "type": "object",
+      "required": [
+        "incident_id",
+        "severity",
+        "detected_at",
+        "timeline"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "incident_id": {"type": "string", "pattern": "^INC-[0-9A-Za-z]+$"},
+        "severity": {"type": "string", "enum": ["P1", "P2", "P3"]},
+        "detected_at": {"type": "string", "format": "date-time"},
+        "resolved_at": {"type": ["string", "null"], "format": "date-time"},
+        "duration_minutes": {"type": ["integer", "null"], "minimum": 0},
+        "root_cause": {"type": "string"},
+        "timeline": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["timestamp", "event"],
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {"type": "string", "format": "date-time"},
+              "event": {"type": "string", "minLength": 1},
+              "actor": {"type": "string"}
+            }
+          }
+        },
+        "action_items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["item", "owner"],
+            "additionalProperties": false,
+            "properties": {
+              "item": {"type": "string"},
+              "owner": {"type": "string"},
+              "adr_opened": {"type": "string", "pattern": "^ADR-[0-9]{3}"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
