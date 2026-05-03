@@ -193,3 +193,104 @@ To prevent over-promising:
 If your use case lives in any of these gaps, the template is still useful
 as a starting point, but expect to do additive work rather than just
 configuration.
+
+---
+
+## 6. Compliance gap analysis
+
+This section documents which controls in common compliance regimes the
+template materially supports vs. those that are organizational and out
+of scope. The template is **not certified** under any program; it
+provides evidence that organizations can compose into their own audits.
+
+Authority: R4 audit M4, ADR-020 §S2-2.
+
+### 6.1 GDPR (Regulation (EU) 2016/679)
+
+| Control area | Coverage | Evidence in template | Adopter responsibility |
+|---|---|---|---|
+| Article 5(1)(a) lawful processing | Out of scope | None | Define lawful basis per service domain |
+| Article 5(1)(c) data minimization | Partial | Pandera schema + `templates/eda/` baseline minimization heuristic | Per-service field selection review |
+| Article 5(1)(f) integrity / confidentiality | Covered | Cosign signing + Kyverno admission + IRSA / WI + secret manager | Cluster posture + key rotation cadence |
+| Article 17 right to erasure | Out of scope | None | Per-service data retention + deletion pipeline |
+| Article 25 data protection by design | Covered | `memory_redaction.py` PII pipeline; `prediction_logger.py` redaction hooks | Define which features are personal data |
+| Article 32 security of processing | Covered | Trivy + gitleaks + signed images + remote state encryption | Org-level vulnerability management program |
+| Article 33 breach notification | Out of scope | `docs/runbooks/secret-rotation.md` covers credential rotation, not subject notification | Org-level DPO + 72-hour notification process |
+
+### 6.2 SOC 2 Type II (AICPA Trust Services Criteria)
+
+| Control area | Coverage | Evidence in template | Adopter responsibility |
+|---|---|---|---|
+| CC6.1 logical access controls | Covered | IRSA / WI per-purpose identities (D-31); RBAC manifests | IdP integration + access reviews |
+| CC6.6 environmental controls | Covered | PSS labels per environment (D-29); deny-default NetworkPolicy | Cluster-level firewall + WAF |
+| CC7.1 system monitoring | Covered | Prometheus + Grafana + AlertManager wiring | 24/7 oncall rotation + escalation matrix |
+| CC7.2 change management | Covered | `docs/RELEASING.md` + branch protection + `pr-evidence-check.yml` | PR review SLA + approver matrix |
+| CC7.3 system operations | Covered | `docs/runbooks/`; audit trail (`ops/audit.jsonl`) | Auditor access to evidence |
+| CC8.1 change deployment | Covered | dev → staging → prod gate (D-26); digest pinning; signed images | Reviewer training |
+| A1.2 availability monitoring | Covered | SLO PrometheusRules + multi-window burn-rate alerts | SLO target negotiation per service |
+
+### 6.3 ISO/IEC 27001:2022
+
+| Control area | Coverage | Evidence in template | Adopter responsibility |
+|---|---|---|---|
+| A.5.7 threat intelligence | Out of scope | None | Org-level threat intel feed |
+| A.5.30 ICT readiness for business continuity | Partial | `docs/runbooks/` cover deploy + rollback; backups out of scope | DR drills + RPO / RTO targets |
+| A.8.3 information access restriction | Covered | RBAC + NetworkPolicy + IRSA / WI | IdP federation |
+| A.8.10 information deletion | Out of scope | None | Per-service retention + deletion pipeline |
+| A.8.16 monitoring activities | Covered | Prometheus + AlertManager + audit trail | Detection rule tuning |
+| A.8.24 use of cryptography | Covered | KMS-backed remote state + Sigstore signing chain | Key custodian assignment |
+| A.8.28 secure coding | Covered | bandit + mypy + pre-commit + 14 hooks | Secure coding training |
+| A.8.32 change management | Covered | `docs/RELEASING.md` + `MIGRATION.md` + ADR discipline | Change advisory board (if required) |
+
+### 6.4 HIPAA Security Rule (45 CFR §164.302–.318)
+
+| Safeguard | Coverage | Evidence in template | Adopter responsibility |
+|---|---|---|---|
+| §164.308 administrative safeguards | Out of scope | None | Workforce training + risk analysis program |
+| §164.310 physical safeguards | N/A — cloud-managed | Cluster runs in cloud-provider physical secure facilities | Cloud BAA negotiation |
+| §164.312(a) access control | Covered | Per-purpose IRSA / WI identities, RBAC, audit trail | IdP federation + role assignment |
+| §164.312(b) audit controls | Covered | `ops/audit.jsonl` append-only + GHA step summaries + `VALIDATION_LOG.md` | Long-term archival of audit logs |
+| §164.312(c) integrity | Covered | Digest pinning + Cosign signing + Kyverno admission | None |
+| §164.312(d) person / entity authentication | Out of scope at template layer | Service-level auth via OIDC; user authn is adopter problem | IdP integration + MFA |
+| §164.312(e) transmission security | Partial | Cluster mTLS via Istio recommended in roadmap; TLS at ingress | Per-cloud ingress TLS configuration |
+| §164.404 breach notification | Out of scope | None | Org-level breach response program |
+
+### 6.5 Out-of-scope by template philosophy (ADR-001)
+
+The template explicitly does **not** address:
+
+- **PCI DSS** — payment card data should not transit a generic ML service.
+  The template offers no specific PCI controls.
+- **FedRAMP** — federal authorization requires hermetic builds (SLSA L3+),
+  org-level personnel screening, and continuous monitoring beyond the
+  template's scope.
+- **HITRUST CSF** — derived framework; gaps inherited from §6.4 above.
+
+### 6.6 How adopters use this analysis
+
+1. Pick the regime your org targets.
+2. For each "Covered" row, link the cited evidence file in your audit
+   binder (`docs/runbooks/`, `ops/audit.jsonl`, contract test names).
+3. For each "Partial" / "Out of scope" row, document the organizational
+   process you have in place. The template does not pretend to cover it.
+4. Re-run this analysis at every MAJOR release per `docs/RELEASING.md` —
+   new contract changes can shift coverage.
+
+---
+
+## 7. Disclosure SLA (R4 audit M4 clarification)
+
+The vulnerability response timeline in [`SECURITY.md`](../SECURITY.md)
+is **operational** for this template:
+
+- The maintainer commits to the response times listed (Critical 48h /
+  High 7d / Medium 14d / Low 30d).
+- The maintainer is a single individual and SLA depends on
+  availability; for organizations adopting the template, **fork and
+  assign internal maintainers** so the SLA is sized to your operational
+  reality.
+- Vulnerability findings that affect already-deployed adopters trigger a
+  CVE assignment via GitHub's private vulnerability reporting before any
+  public disclosure.
+- After resolution, a redacted post-mortem is published in
+  `docs/incidents/` (existing convention).

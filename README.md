@@ -50,7 +50,7 @@ It ships:
 - Security controls for secrets, identity federation, SBOM generation, image signing, admission policy, and pod hardening.
 - Agentic governance through `AUTO / CONSULT / STOP`, plus dynamic risk escalation based on live signals.
 - Safe CI self-healing for low-risk failures, with bounded blast radius and mandatory verification _(policy + classifier shipped — **runtime Phase 1; shadow mode only, no writes**, see ADR-019)_.
-- Optional Operational Memory Plane that helps agents retrieve prior incidents, decisions, deploy regressions, and successful remediations _(contracts ratified — **runtime Phase 0; not implemented yet**, see ADR-018)_.
+- Optional Operational Memory Plane that helps agents retrieve prior incidents, decisions, deploy regressions, and successful remediations _(contracts + redaction shipped — **runtime Phase 1; storage and retrieval still deferred**, see ADR-018)_.
 
 This is not a generic starter repo. It is a production template with encoded operating constraints.
 
@@ -70,7 +70,7 @@ The template is positioned as a hardened open-source baseline for enterprise ML 
 | Security and supply chain | Production-ready | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
 | Agentic controls | Production-ready | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
 | Agentic CI self-healing | **Phase 1 — shadow / read-only** | Policy + classifier + collector ship today (ADR-019). `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py` observe CI failures and emit AUTO/CONSULT/STOP classifications without writing anything. Patch worker, verifier, and write-enabled lanes deferred to Phase 2+ pending 14 days of shadow precision data. No agent autonomously opens PRs against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan. |
-| Operational Memory Plane | **Phase 0 — runtime not implemented** | Optional companion. Contracts and threat model ratified (ADR-018). `memory_types.py`, `memory_redaction.py`, ingest worker, vector store, retrieval API deferred. Adopters cannot call retrieval APIs today. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan. |
+| Operational Memory Plane | **Phase 1 — contracts + redaction shipped** | Optional companion. `templates/common_utils/memory_types.py` (frozen `MemoryUnit` dataclass with 9 construction invariants), `templates/common_utils/memory_redaction.py` (gitleaks + PII redaction pipeline, idempotent), 59 contract-test invariants. Ingest worker, vector store, retrieval API deferred to Phase 2+ (gated on 30 days of contract stability). Adopters cannot call retrieval APIs today. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan. |
 
 External dependencies remain your responsibility: cloud accounts, Kubernetes clusters, MLflow backend, secret stores, and observability backends must exist before the template can operate in a real environment.
 
@@ -229,9 +229,9 @@ See [AGENTS.md](AGENTS.md) for the canonical operation matrix and invariant cata
 
 ## Operational Memory Plane
 
-> **Status — Phase 0 only. Runtime NOT implemented.** This section describes the contract and policy that ship today (ADR-018 ratified, threat model recorded, contract tests in place). The runtime components — `memory_types.py`, `memory_redaction.py`, ingest worker, vector store, retrieval API — are **NOT yet implemented** in this template and are explicitly deferred per ADR-018 §Phase plan. Adopters cannot call retrieval APIs today; the section describes the **target shape** so the policy is reviewable before code lands. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan for the staged delivery.
+> **Status — Phase 1 (contracts + redaction).** The canonical `MemoryUnit` dataclass and the gitleaks + PII redaction pipeline ship today: `templates/common_utils/memory_types.py` and `templates/common_utils/memory_redaction.py`, with 59 contract-test invariants enforcing immutability, severity normalization, sensitivity ≥ bucket-ACL minimum, single-tenant Phase 1 scope, idempotent redaction, and structural isolation from the `/predict` path. The ingest worker, the vector store, the retrieval API, and any agent-facing recall surface are **NOT yet implemented** in this template and are explicitly deferred per ADR-018 §Phase plan. Adopters cannot call retrieval APIs today; the section describes the **target shape** so the policy is reviewable before code lands. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan for the staged delivery.
 >
-> _Audit trail: this Phase-0 disclosure was added in response to R4 finding C2. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2._
+> _Audit trail: Phase 0 disclosure added in response to R4 finding C2; transitioned to Phase 1 in the same audit-r4 sprint. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2 + §S2-1._
 
 The Operational Memory Plane is an optional companion capability for repos that want agents to draw on prior work without introducing hidden behavior.
 

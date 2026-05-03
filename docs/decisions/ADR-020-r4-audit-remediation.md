@@ -145,13 +145,30 @@ The three runbooks (H5 / H6 / H7) ship the operational procedure but the
 #5, they are not executed inside the agent loop; their entry in
 `VALIDATION_LOG.md` will be added by Platform / Security.
 
-### Sprint 2 — open
+### Sprint 2 — closed 2026-04-29 (commit chain — see VALIDATION_LOG Entry 003)
 
-S2-1 ADR-018 Phase 1 contracts; S2-2 Compliance gap analysis; S2-3
-Fairness + PSI ADRs; S2-4 Alertmanager routing test; S2-5 secrets +
-ground-truth runbooks. See `docs/audit/ACTION_PLAN_R4.md` §6.
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| H1 (part 2/2) | Phase 1 closed | `templates/common_utils/memory_types.py`, `templates/common_utils/memory_redaction.py`, `tests/test_memory_contracts.py` (21 invariants), `tests/test_memory_redaction.py` (38 invariants). ADR-018 status: Phase 0 → Phase 1. Phase 2 gated on 30 days of Phase 1 contract stability. |
+| M3 | Closed | `docs/decisions/ADR-021-fairness-thresholds.md` — DIR ≥ 0.80 default + per-domain table + consultation band + calibration parity. |
+| M4 | Closed | `docs/ADOPTION.md` §6 — Compliance gap analysis covering GDPR / SOC 2 / ISO 27001 / HIPAA + Out-of-scope-by-philosophy section. |
+| M6 | Closed | `docs/decisions/ADR-022-psi-thresholds.md` — `psi_warn = 0.10` / `psi_alert = 0.25` defaults + per-feature override format + `drift_severe` mapping. |
+| M1 | Runbook shipped | `docs/runbooks/secrets-integration-e2e.md` — execution pending Platform / Security. |
+| M2 | Runbook shipped | `docs/runbooks/ground-truth-ingestion.md` — execution pending production deployment. |
+
+S2-4 (Alertmanager routing test / M5) deferred to Sprint 3 — paired with
+the observability-dashboard inventory work (L2). Defer rationale: M5
+requires `amtool` + a representative `alertmanager.yaml`; the existing
+template ships PrometheusRules but not a complete `alertmanager.yaml`,
+so M5 ships alongside L2.
 
 ### Sprint 3 — open
 
-L1, L2, L3 + Phase-1 → Phase-2 transition gate decision (CONSULT). See
-`docs/audit/ACTION_PLAN_R4.md` §7.
+- **M5** Alertmanager routing test + runbook (paired with L2 dashboard inventory).
+- **L1** Backfill `### Known follow-ons` blocks on `v1.0`–`v1.9` release notes.
+- **L2** `docs/observability/dashboards-inventory.md` indexing every Grafana dashboard.
+- **L3** Integrate `infracost diff` into `terraform-plan-nightly.yml`.
+- **Phase-1 → Phase-2 gate** for ADR-019 (CI Self-Healing) — requires 14 days of shadow data; CONSULT-mode review with metrics evidence.
+- **F1, F2, F3** follow-ups from `docs/agentic/red-team-log.md` (PR-level diff assertion at workflow boundary; refuse 24h `MLOPS_ON_HOURS_UTC` spans; red-team payload regression CI step).
+
+See `docs/audit/ACTION_PLAN_R4.md` §7.

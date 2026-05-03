@@ -258,12 +258,140 @@ R4 finding closure status:
 
 ---
 
+## Entry 003 — Sprint 2 close (R4 audit response, ADR-018 Phase 1 + Mediums)
+
+- **Date**: 2026-04-29
+- **Branch**: `audit-r4/sprint-0-credibility` (continuation; Sprint 2 batched on the same branch)
+- **Base commit (Sprint 2 start)**: `b85c596b659371db91e0e7b0c265fc88efe1afca`
+- **Environment**: local Linux developer workstation, Python 3.13.5
+- **Operator**: Staff/Lead engineer
+- **Scope**: ADR-018 Phase 1 contracts + redaction · Compliance gap analysis · ADR-021 fairness + ADR-022 PSI · secrets + ground-truth runbooks
+
+### What was executed
+
+#### 1. ADR-018 Phase 1 contracts + redaction — full invariant suite
+
+```
+$ python -m pytest \
+    templates/service/tests/test_memory_contracts.py \
+    templates/service/tests/test_memory_redaction.py \
+    --no-cov --noconftest -q
+collected 59 items
+templates/service/tests/test_memory_contracts.py .....................   [ 35%]
+templates/service/tests/test_memory_redaction.py ....................... [ 74%]
+...............                                                          [100%]
+============================== 59 passed in 0.97s ==============================
+```
+
+59 invariants spanning 10 categories: frozen dataclass, UUID id,
+non-empty bounded summary, enum-typed kind/severity/sensitivity,
+sensitivity ≥ bucket-ACL minimum, evidence_uri scheme requirement,
+single-tenant Phase 1 lock, ISO 8601 UTC timestamp, to_dict round-trip,
+and **structural invariant J** (no service/ Python imports the memory
+modules — Phase 1 isolation from `/predict`).
+
+Redaction suite: idempotence, no-leak guarantee for 13 secret + PII
+classes (AWS / GCP / GitHub PAT / OpenAI / Anthropic / Slack / JWT /
+Bearer / PEM / connection strings / email / SSN / phone / IBAN / IPv4),
+length-preserving placeholder, `redact_strict` raises on redactable,
+type discipline, idempotent on already-redacted output.
+
+#### 2. Aggregate R4 invariant suite — green
+
+```
+$ python -m pytest \
+    templates/service/tests/test_memory_contracts.py \
+    templates/service/tests/test_memory_redaction.py \
+    templates/service/tests/test_phase0_disclosure.py \
+    templates/service/tests/test_readme_model_names.py \
+    templates/service/tests/test_ci_classify_failure_phase1.py \
+    templates/service/tests/test_ci_autofix_policy_contract.py \
+    --no-cov --noconftest -q
+
+======================== 99 passed, 6 skipped in 8.48s =========================
+```
+
+The 6 skipped invariants are the ADR-018 + ADR-019 banner / hero /
+matrix checks that auto-skip now that both ADRs have transitioned out
+of Phase 0. The skip is structural and intentional — the test will
+re-engage if a future contributor regresses either ADR's status to
+Phase 0.
+
+#### 3. Compliance gap analysis — published
+
+`docs/ADOPTION.md` extended with §6 covering GDPR (7 controls), SOC 2
+(7 controls), ISO 27001 (8 controls), HIPAA (8 controls), with
+explicit Out-of-scope-by-philosophy section (PCI DSS, FedRAMP, HITRUST).
+Per-row `Coverage / Evidence / Adopter responsibility` triplet so every
+"Covered" row links to a specific file in the template.
+
+#### 4. ADRs ratifying numeric thresholds
+
+- `docs/decisions/ADR-021-fairness-thresholds.md` — DIR ≥ 0.80 default
+  + per-domain table (credit ≥ 0.85, healthcare ≥ 0.90, advertising ≥ 0.75)
+  + `[0.80, 0.85)` consultation band + calibration parity rule.
+- `docs/decisions/ADR-022-psi-thresholds.md` — `psi_warn = 0.10` /
+  `psi_alert = 0.25` defaults + per-feature override file format with
+  mandatory rationale + `2× alert` super-threshold mapped to
+  `drift_severe` dynamic-risk signal.
+
+#### 5. Operational runbooks for Mediums M1 / M2
+
+- `docs/runbooks/secrets-integration-e2e.md` — three procedures for
+  GSM, ASM, and `os.environ`-refusal in non-dev. CONSULT mode.
+- `docs/runbooks/ground-truth-ingestion.md` — three-tier SLA
+  (real-time / operational / long-horizon), Prometheus alert names,
+  per-tier obligations, JOIN-stable ingest schema.
+
+### Status transitions
+
+- ADR-018 Status: Phase 0 → Phase 1 (canonical contracts + redaction).
+- README §"Operational Memory Plane" banner updated to Phase 1.
+- README maturity matrix row for Memory Plane upgraded to "Phase 1 — contracts + redaction shipped".
+
+### What was NOT validated (pending)
+
+- **GSM / ASM real cloud execution** — Sprint 2 ships the runbook;
+  execution requires cloud credentials per Procedure 1/2. Tracked under M1.
+- **Ground-truth SLA evidence on a real service** — Sprint 2 ships the
+  contract; first-service evidence pending production deployment. Tracked under M2.
+- **Memory plane Phase 2 (ingest worker, vector store)** — gated on 30 days of Phase 1 contract stability per ADR-018 §Phase plan.
+- **Alertmanager routing test (S2-4 / M5)** — deferred (requires `amtool`
+  + sample alertmanager.yaml). Will land in Sprint 3 with the
+  observability-dashboard inventory work.
+
+### Conclusion (Entry 003)
+
+Sprint 2 closes 5 of 6 R4 Mediums (M1 runbook, M2 runbook, M3, M4, M6)
+plus the H1 second half (Memory Plane Phase 1 contracts). M5
+(Alertmanager routing) deferred to Sprint 3.
+
+R4 cumulative finding closure status:
+
+- C1, C2, C3, C4, C5: closed Sprint 0.
+- H1: Phase 1 closed for both ADR-018 and ADR-019.
+- H2, H3, H4: closed Sprint 1.
+- H5, H6, H7: runbooks shipped Sprint 1; **execution pending Platform / Security**.
+- M1: runbook shipped (`secrets-integration-e2e.md`); execution pending.
+- M2: runbook shipped (`ground-truth-ingestion.md`); execution pending.
+- M3: closed (`ADR-021-fairness-thresholds.md`).
+- M4: closed (`ADOPTION.md` §6 compliance gap).
+- M5: open — Sprint 3.
+- M6: closed (`ADR-022-psi-thresholds.md`).
+- L1, L2, L3: open — Sprint 3.
+
+Sprint 0 + Sprint 1 + Sprint 2 cumulative: **+~5500 lines / -~10 lines** across ~30 files. Net effect: 5 Critical + 4 High + 4 Medium closed; 3 High delegated with runbooks; 2 Medium with runbooks pending execution; 1 Medium + 3 Low open for Sprint 3.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:
 
 ```markdown
 ## Entry NNN — <short title>
+
+
 
 - **Date**: YYYY-MM-DD
 - **Branch**: <branch-name>
