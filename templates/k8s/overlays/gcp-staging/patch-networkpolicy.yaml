@@ -19,8 +19,7 @@
 # is to allow the Private Google Access CIDRs + the googleapis public
 # NAT egress range. Adopters with stricter egress (egress proxy + L7
 # policy via Cilium CNP / GKE Dataplane V2) SHOULD layer a CiliumNetworkPolicy
-# on top of this — see docs/runbooks/egress-narrowing.md (TBD, tracked
-# in ACTION_PLAN_R5 §R5-M3 follow-up).
+# on top of this — see docs/runbooks/egress-narrowing.md §B.3.
 #
 # TODO (operator): if your GKE cluster uses a VPC-native egress NAT
 # gateway with a published egress CIDR, prefer that exact CIDR over
