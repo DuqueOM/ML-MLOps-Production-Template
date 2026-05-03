@@ -160,23 +160,87 @@ def _load_file_signals(ops_dir: Path) -> RiskContext:
     )
 
 
-def _is_off_hours(now: datetime | None = None) -> bool:
-    """Return True on weekends or weekday evenings/nights (UTC).
+_DEFAULT_ON_HOURS_START = 8
+_DEFAULT_ON_HOURS_END = 18
 
-    Business default: 18:00–08:00 UTC Mon–Fri counts as off-hours.
-    Weekends are always off-hours. Override via environment variable
-    ``MLOPS_ON_HOURS_UTC`` (format "HH-HH", e.g. "06-20").
+
+def _parse_on_hours_override(span: str) -> tuple[int, int]:
+    """Parse ``MLOPS_ON_HOURS_UTC`` span into (start_hour, end_hour).
+
+    Validation (red-team F2, docs/agentic/red-team-log.md Entry 5):
+    the red-team log flagged that setting ``MLOPS_ON_HOURS_UTC=00-24``
+    (or any equivalent span covering the full day) silently suppresses
+    the ``off_hours`` signal on weekdays, weakening the AUTO → CONSULT
+    escalation path. This parser rejects spans that cover the full
+    day and falls back to the business default. Weekends remain
+    structurally off-hours regardless of this env var.
+
+    Rejected shapes (fall back to 08-18 and emit a warning):
+
+    - malformed (not two integers separated by ``-``)
+    - out of range (hour < 0 or > 24)
+    - full-day spans (``end - start >= 24``; equals cover all 24 h)
+    - degenerate spans (``start == end``; empty window → off_hours
+      always True which is also suspicious)
+    - reversed spans (``start > end``); we treat these as a config
+      error rather than guessing the operator's intent.
+
+    Accepted shapes: ``08-18``, ``06-20``, ``00-23``.
     """
-    now = now or datetime.now(timezone.utc)
-    if now.weekday() >= 5:  # Saturday / Sunday
-        return True
-    span = os.getenv("MLOPS_ON_HOURS_UTC", "08-18")
     try:
         start_s, end_s = span.split("-")
         start = int(start_s)
         end = int(end_s)
     except ValueError:
-        start, end = 8, 18
+        logger.warning(
+            "MLOPS_ON_HOURS_UTC=%r is malformed (expected 'HH-HH'); " "falling back to 08-18.",
+            span,
+        )
+        return (_DEFAULT_ON_HOURS_START, _DEFAULT_ON_HOURS_END)
+
+    if start < 0 or start > 24 or end < 0 or end > 24:
+        logger.warning(
+            "MLOPS_ON_HOURS_UTC=%r has out-of-range hour; " "falling back to 08-18.",
+            span,
+        )
+        return (_DEFAULT_ON_HOURS_START, _DEFAULT_ON_HOURS_END)
+
+    if start >= end:
+        # Includes start == end (empty window) and reversed spans.
+        logger.warning(
+            "MLOPS_ON_HOURS_UTC=%r has start >= end; this is a "
+            "configuration error (empty or reversed window); "
+            "falling back to 08-18.",
+            span,
+        )
+        return (_DEFAULT_ON_HOURS_START, _DEFAULT_ON_HOURS_END)
+
+    if (end - start) >= 24:
+        # Red-team F2: full-day spans silently suppress off_hours.
+        logger.warning(
+            "MLOPS_ON_HOURS_UTC=%r covers the full day (>= 24 h); "
+            "this would silently suppress off_hours escalation "
+            "(red-team Entry 5 / F2). Falling back to 08-18.",
+            span,
+        )
+        return (_DEFAULT_ON_HOURS_START, _DEFAULT_ON_HOURS_END)
+
+    return (start, end)
+
+
+def _is_off_hours(now: datetime | None = None) -> bool:
+    """Return True on weekends or weekday evenings/nights (UTC).
+
+    Business default: 18:00–08:00 UTC Mon–Fri counts as off-hours.
+    Weekends are always off-hours. Override via environment variable
+    ``MLOPS_ON_HOURS_UTC`` (format "HH-HH", e.g. "06-20"). Invalid
+    overrides are rejected (see :func:`_parse_on_hours_override`).
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.weekday() >= 5:  # Saturday / Sunday
+        return True
+    span = os.getenv("MLOPS_ON_HOURS_UTC", "08-18")
+    start, end = _parse_on_hours_override(span)
     return not (start <= now.hour < end)
 
 

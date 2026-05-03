@@ -76,10 +76,79 @@ class TestOffHours:
         tuesday_night = datetime(2026, 4, 28, 22, 0, tzinfo=timezone.utc)
         assert _is_off_hours(tuesday_night) is True
 
-    def test_env_override(self, monkeypatch):
+    def test_env_override_valid_window(self, monkeypatch):
+        """A valid expanded on-hours window (06-22) is honoured."""
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "06-22")
+        monday_3am = datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc)
+        monday_noon = datetime(2026, 4, 27, 12, 0, tzinfo=timezone.utc)
+        assert _is_off_hours(monday_3am) is True  # still outside 06-22
+        assert _is_off_hours(monday_noon) is False
+
+
+class TestOnHoursOverrideHardening:
+    """Red-team F2 (docs/agentic/red-team-log.md Entry 5): the
+    MLOPS_ON_HOURS_UTC parser must refuse spans that cover the whole
+    day, because they silently suppress off_hours escalation on
+    weekdays. These tests pin the hardened behaviour.
+    """
+
+    def test_full_day_span_rejected(self, monkeypatch):
+        """00-24 covers the entire day and would silently set
+        off_hours=False on weekday 03:00 UTC. F2 forces fallback
+        to 08-18 so off_hours=True at 03:00 remains detected.
+        """
         monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "00-24")
         monday_3am = datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc)
-        assert _is_off_hours(monday_3am) is False
+        assert _is_off_hours(monday_3am) is True
+
+    def test_reversed_span_rejected(self, monkeypatch):
+        """22-06 (reversed) is a config error; fall back to 08-18."""
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "22-06")
+        monday_3am = datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc)
+        assert _is_off_hours(monday_3am) is True
+
+    def test_degenerate_span_rejected(self, monkeypatch):
+        """12-12 (empty window) is a config error; fall back to 08-18."""
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "12-12")
+        monday_noon = datetime(2026, 4, 27, 12, 0, tzinfo=timezone.utc)
+        # 12:00 is inside default 08-18, so off_hours should be False.
+        assert _is_off_hours(monday_noon) is False
+
+    def test_out_of_range_rejected(self, monkeypatch):
+        """Hour > 24 is out-of-range; fall back to 08-18."""
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "08-99")
+        monday_3am = datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc)
+        assert _is_off_hours(monday_3am) is True
+
+    def test_malformed_rejected(self, monkeypatch):
+        """'garbage' is malformed; fall back to 08-18."""
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "garbage")
+        monday_3am = datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc)
+        assert _is_off_hours(monday_3am) is True
+
+    def test_weekend_still_off_hours_regardless_of_override(self, monkeypatch):
+        """Even with a valid-but-expansive override, weekends MUST remain
+        off-hours. The check is structural (weekday() >= 5) and runs
+        before the env var is consulted.
+        """
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "00-23")  # valid, wide
+        saturday = datetime(2026, 4, 25, 10, 0, tzinfo=timezone.utc)
+        assert _is_off_hours(saturday) is True
+
+    def test_warning_emitted_on_rejected_span(self, monkeypatch, caplog):
+        """The hardening is OBSERVABLE: a warning is logged when a
+        rejected span is encountered. Without a log, ops could not
+        distinguish 'config drift' from 'parser working as intended'.
+        """
+        import logging as _logging
+
+        monkeypatch.setenv("MLOPS_ON_HOURS_UTC", "00-24")
+        with caplog.at_level(_logging.WARNING, logger="common_utils.risk_context"):
+            _is_off_hours(datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc))
+        assert any(
+            "MLOPS_ON_HOURS_UTC" in rec.message and "full day" in rec.message.lower()
+            for rec in caplog.records
+        ), "Expected a warning mentioning MLOPS_ON_HOURS_UTC and 'full day'."
 
 
 class TestFileSignals:

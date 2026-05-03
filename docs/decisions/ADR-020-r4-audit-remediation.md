@@ -194,3 +194,14 @@ See `docs/audit/ACTION_PLAN_R4.md` §7 and `docs/audit/ACTION_PLAN_R5.md`.
 | R5-M3 | Closed | `templates/k8s/base/networkpolicy.yaml` carries OVERLAY-OVERRIDE-REQUIRED banner; 4 new `patch-networkpolicy.yaml` JSON 6902 patches in `overlays/{gcp,aws}-{staging,prod}` replace `0.0.0.0/0:443` with cloud-specific CIDR residuals (GCP private-googleapis VIPs; AWS 52./54. residuals with excepts). Each overlay's `kustomization.yaml` wires the patch with `target.kind: NetworkPolicy`. `test_networkpolicy_egress_hygiene.py` locks 19 invariants (14 structural + 4 kustomize-optional + 1 dev-negative). Follow-up: `docs/runbooks/egress-narrowing.md` queued for Sprint 3. |
 
 All R5 findings closed. Sprint 3 scope now: R4 Mediums/Lows (M5/L1/L2/L3) + follow-ups from red-team (F1/F2/F3) + `docs/runbooks/egress-narrowing.md` + ADR-019 Phase-1 → Phase-2 CONSULT decision.
+
+### Sprint 3 — batch 2 closure 2026-05-03
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| R4-L1 | Closed | `releases/v1.0.0.md` – `releases/v1.10.0.md` backfilled with `## Known follow-ons (scoped, not regressions)` section mirroring v1.11.0/v1.12.0 format. Each bullet points to the subsequent release that closed the item. `test_release_notes_follow_ons.py` locks 26 invariants (heading presence + non-empty body) across 13 release files (4 hotfix-note skips by design). |
+| R4-L3 | Closed | `templates/cicd/terraform-plan-nightly.yml` — new `infracost/actions/setup@v3` + `infracost breakdown` steps per cloud (gcp + aws). Guarded by `env.INFRACOST_API_KEY != ''` so forks without the secret degrade cleanly. JSON artifact (`infracost-<cloud>-<run_id>`, 14-day retention) + step summary table with `totalMonthlyCost`. Workflow header documents optional secret. `test_infracost_integration.py` locks 5 invariants (setup presence, guard, breakdown → summary + artifact, header documentation). |
+| Red-team F2 | Closed | `templates/common_utils/risk_context.py` parser hardening rejects full-day (`00-24`), reversed, degenerate, malformed, and out-of-range MLOPS_ON_HOURS_UTC spans with fallback to default `08-18` + WARNING. `templates/tests/unit/test_risk_context.py::TestOnHoursOverrideHardening` adds 7 invariants covering every rejected shape. |
+| Red-team F3 | Closed | `templates/service/tests/test_red_team_regression.py` — 6 regression invariants covering Entries 2+3 (protected_paths short-circuit precedence), Entry 2 signature lock, Entry 4 (PR-level blast-radius aggregation), Entry 5 / F2 (off_hours cannot be suppressed), and red-team-log integrity check. Direct-import of `scripts/ci_classify_failure.classify(context, policy)`, no subprocess, runtime < 1 s. |
+
+Sprint 3 remaining scope: R4-M5 (Alertmanager routing test, CONSULT — requires amtool + new alertmanager config) + ADR-019 Phase-1 → Phase-2 CONSULT decision (gated on 14 days of shadow data post-merge).
