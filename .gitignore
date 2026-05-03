@@ -136,3 +136,7 @@ alertmanager-*.tar.gz
 *_context.local.yaml
 *_context.*.local.yaml
 *_context.local.*.yaml
+
+# Codex live MCP config — adopter-specific, contains credentials.
+# Only `.codex/mcp.example.json` is tracked.
+.codex/mcp.json

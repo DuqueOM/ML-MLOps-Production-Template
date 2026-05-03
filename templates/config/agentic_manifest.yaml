@@ -203,7 +203,7 @@ skills:
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "debug-ml-inference"
     source: ".windsurf/skills/debug-ml-inference/SKILL.md"
-    surfaces: ["windsurf"]
+    surfaces: ["windsurf", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "deploy-aws"
@@ -243,7 +243,7 @@ skills:
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "release-checklist"
     source: ".windsurf/skills/release-checklist/SKILL.md"
-    surfaces: ["windsurf"]
+    surfaces: ["windsurf", "codex"]
     mode: "CONSULT"
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "rollback"
@@ -253,7 +253,7 @@ skills:
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "rule-audit"
     source: ".windsurf/skills/rule-audit/SKILL.md"
-    surfaces: ["windsurf"]
+    surfaces: ["windsurf", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "secret-breach-response"
@@ -263,7 +263,7 @@ skills:
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "security-audit"
     source: ".windsurf/skills/security-audit/SKILL.md"
-    surfaces: ["windsurf"]
+    surfaces: ["windsurf", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
 
@@ -359,10 +359,17 @@ surfaces:
       skills_index: ".claude/skills/INDEX.md"
     context_pointer: ".claude_context.md"
   codex:
-    status: "planned"
-    # Files arrive in F5. Manifest declares the slot so F5 is purely
-    # additive to this file.
-    roots: {}
+    status: "adapter"
+    # Sprint-4 F5 wired Codex with 4 skill pointers + 3 automations.
+    # Skills here are pointer-files referencing canonical Windsurf
+    # SKILL.md sources — never duplicates. The contract test
+    # `test_codex_adapter_contract.py` rejects pointer files that
+    # do not reference `.windsurf/skills/<id>/`.
+    roots:
+      readme: ".codex/README.md"
+      skills: ".codex/skills"
+      automations: ".codex/automations"
+      mcp_example: ".codex/mcp.example.json"
     context_pointer: ".codex_context.md"
 
 # -----------------------------------------------------------------------------
