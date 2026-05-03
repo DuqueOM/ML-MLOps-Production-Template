@@ -1,0 +1,42 @@
+{
+  "$schema": "https://example.com/codex-mcp-schema.json",
+  "_comment_1": "Example MCP config for Codex. Copy to .codex/mcp.json and fill credentials. NEVER commit .codex/mcp.json.",
+  "_comment_2": "Authority: docs/decisions/ADR-023-agentic-portability-and-context.md. Source of truth for MCP entries: templates/config/mcp_registry.yaml.",
+  "_comment_3": "Per ADR-023 I-3, every MCP requires user_confirmed install on Codex — this file documents intent only.",
+  "version": 1,
+  "mcpServers": {
+    "github": {
+      "_comment": "Required for: release-checklist, security-audit, rule-audit. Scope your PAT to repo:read + workflow:read; never admin:org.",
+      "transport": "streamable-http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PAT}"
+      }
+    },
+    "kubectl": {
+      "_comment": "Required for: debug-ml-inference, incident, rollback. ALWAYS pass --read-only — write paths are STOP per AGENTS.md.",
+      "transport": "stdio",
+      "command": "kubectl-mcp-server",
+      "args": ["serve", "--transport", "stdio", "--read-only"],
+      "env": {
+        "KUBECONFIG": "${HOME}/.kube/config"
+      }
+    },
+    "terraform": {
+      "_comment": "Required for: release-checklist, cost-audit. Plan/validate only; apply is STOP per ADR-015.",
+      "transport": "stdio",
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:latest"]
+    },
+    "prometheus": {
+      "_comment": "Required for: drift-detection, performance-degradation-rca, incident, performance-review.",
+      "transport": "stdio",
+      "command": "mcp-prometheus",
+      "args": ["--prometheus-url", "${PROMETHEUS_URL}"],
+      "env": {
+        "PROMETHEUS_URL": "https://prometheus.example.org"
+      }
+    }
+  },
+  "_install_invariant": "Per ADR-023 I-3, no template script installs or starts these servers. Adopter triggers MCP setup manually inside Codex; this file is documentation, not orchestration."
+}
