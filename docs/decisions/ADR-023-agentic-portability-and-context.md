@@ -206,3 +206,52 @@ without explicit human approval. The matrix:
   vs. what the context layer covers (what matters for this project).
 - Sprint 4 issues: F4 (MCP registry), F5 (Codex), F6 (Reporting), F7
   (Runtime Monitoring), F8–F9 (cloud companions).
+
+## 9. Sprint 4 closure log
+
+### F4 — MCP portability registry (shipped)
+- `templates/config/mcp_registry.yaml`, `surface_capabilities.yaml`
+- `scripts/mcp_doctor.py` — read-only diagnostics + docs renderer
+- `docs/agentic/mcp-portability.md`
+- Contract: `templates/service/tests/test_mcp_registry_contract.py`
+
+### F5 — Codex adapter (shipped)
+- `.codex/{README.md, skills/, automations/, mcp.example.json}`,
+  `.codex_context.md`
+- Skills are pointer-files referencing canonical Windsurf SKILL.md
+- Contract: `templates/service/tests/test_codex_adapter_contract.py`
+
+### F6 — Reports v1 typed contract (shipped)
+- `templates/config/report_schema.json`,
+  `templates/common_utils/reports.py`, `scripts/generate_report.py`
+- `docs/agentic/reports.md`
+- Contract: `templates/service/tests/test_reports_contract.py`
+
+### F7 — Runtime monitoring companion (shipped, docs-only)
+- `docs/agentic/runtime-monitoring-companion.md`
+- Pattern: read-only consumption of `prometheus`, `github`, `kubectl`
+  MCPs by existing skills (`debug-ml-inference`, `incident`,
+  `performance-degradation-rca`). No new skill or workflow introduced.
+- Manifest entry: `companions[].id == runtime-monitoring`.
+- Contract: `templates/service/tests/test_companions_contract.py`.
+
+### F8 — GCP Gemini Enterprise / Vertex AI Agent Builder companion (shipped, docs-only)
+- `docs/agentic/cloud-companions.md` §F8
+- Mapping table: AGENTS.md → IAM, Skill → Vertex Tool, Workflow →
+  Playbook, MCP → Extension/HTTP tool, audit → Cloud Logging,
+  reports → GCS+PubSub.
+- No vendored `google-cloud-aiplatform` SDK calls in `templates/`
+  (enforced by contract test).
+- Manifest entry: `companions[].id == gcp-gemini-enterprise`.
+
+### F9 — AWS Bedrock AgentCore companion (shipped, docs-only)
+- `docs/agentic/cloud-companions.md` §F9
+- Mapping table: AGENTS.md → IAM permission boundary, Skill → Action
+  Group, Workflow → Flow, MCP → Lambda action group, audit →
+  CloudWatch Logs, reports → S3+EventBridge.
+- No vendored `boto3.client('bedrock-agent*')` calls in `templates/`.
+- Manifest entry: `companions[].id == aws-bedrock-agentcore`.
+
+ADR-023 scope is fully delivered. Subsequent work proceeds under
+ADR-024 (single-source-of-truth + pointer generator) and ADR-025
+(versioning reset).
