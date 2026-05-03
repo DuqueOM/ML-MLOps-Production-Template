@@ -1,0 +1,130 @@
+# =============================================================================
+# Alertmanager routing config — R4-M5.
+# =============================================================================
+# Routes Prometheus alerts emitted by `templates/monitoring/alertmanager-rules.yaml`
+# to the right receiver based on severity + action labels.
+#
+# Contract (locked by `templates/monitoring/tests/test_alertmanager_routing.py`):
+#   severity=critical + action=page   → `oncall-pager`     (P1, < 2 min)
+#   severity=warning  + action=ticket → `platform-tickets` (P2, < 1 h)
+#   severity=warning  + action=retrain→ `ml-retrain`       (P3, < 24 h)
+#   severity=info     + action=heartbeat → `ops-chat`      (P4, best-effort)
+#   (default catch-all)               → `ops-chat`
+#
+# Why this file exists:
+#   R4-M5 flagged that the template shipped alert rules but NEVER exercised
+#   the routing end-to-end with a synthetic alert. That left "routing silently
+#   mis-configured" as a failure mode: an alert fires, no one gets paged,
+#   and the first signal of the regression is a post-incident review.
+#
+#   The companion pytest + `docs/runbooks/alertmanager-validation.md`
+#   close that gap: each routing invariant is asserted with `amtool`
+#   (when available) and a pure-Python fallback simulator (always).
+#
+# Integration notes (adopter-owned, out of template scope):
+#   - Replace `webhook_configs.url` placeholders with real URLs
+#     (PagerDuty integration URL, Jira webhook, Slack webhook).
+#   - Keep the `receiver:` names stable — tests match on them.
+#   - If you add a new severity/action pair, extend the `routes:` AND
+#     the pytest parametrisation together (single PR).
+# =============================================================================
+global:
+  # Resolve timeout — how long Alertmanager waits before treating an alert
+  # as resolved if no further `firing` notifications arrive. 5 m matches
+  # the default Prometheus scrape-to-notify cadence.
+  resolve_timeout: 5m
+
+# -----------------------------------------------------------------------------
+# Template bundle — placeholders for severity-aware notification bodies.
+# Out of scope for M5; adopters inline their own org-specific templates.
+# -----------------------------------------------------------------------------
+templates:
+  - "/etc/alertmanager/templates/*.tmpl"
+
+# -----------------------------------------------------------------------------
+# Routing tree — ORDER MATTERS. `amtool config routes test` walks the tree
+# top-down; the first `match{,_re}` that fires wins unless `continue: true`.
+# We set `continue: false` everywhere to keep routing deterministic for the
+# contract test.
+# -----------------------------------------------------------------------------
+route:
+  receiver: ops-chat  # catch-all default
+  group_by: ["alertname", "service"]
+  # Grouping / timing tuned for ML services: a burst of `HighErrorRate`
+  # alerts across pods should collapse into one page, not 10.
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # P1 — page on-call immediately.
+    - matchers:
+        - severity="critical"
+        - action="page"
+      receiver: oncall-pager
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: false
+
+    # P2 — file a platform ticket, paged only on repeat.
+    - matchers:
+        - severity="warning"
+        - action="ticket"
+      receiver: platform-tickets
+      group_wait: 1m
+      repeat_interval: 6h
+      continue: false
+
+    # P3 — retraining queue: drift exceeded threshold, model is stale.
+    - matchers:
+        - severity="warning"
+        - action="retrain"
+      receiver: ml-retrain
+      group_wait: 2m
+      repeat_interval: 12h
+      continue: false
+
+    # P4 — heartbeat / capacity planning. Ops chat only.
+    - matchers:
+        - severity="info"
+      receiver: ops-chat
+      group_wait: 5m
+      repeat_interval: 24h
+      continue: false
+
+# -----------------------------------------------------------------------------
+# Inhibition rules — once a P1 fires for a service, suppress P2/P3/P4
+# for the same service to avoid notification floods.
+# -----------------------------------------------------------------------------
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity=~"warning|info"
+    equal: ["service"]
+
+# -----------------------------------------------------------------------------
+# Receivers — webhook URLs are placeholders. Adopters override in their
+# own overlay / Helm values.
+# -----------------------------------------------------------------------------
+receivers:
+  - name: oncall-pager
+    webhook_configs:
+      - url: "https://events.pagerduty.com/v2/enqueue"
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+  - name: platform-tickets
+    webhook_configs:
+      - url: "https://example.atlassian.net/rest/api/2/issue"
+        send_resolved: true
+
+  - name: ml-retrain
+    webhook_configs:
+      - url: "http://retrain-controller.mlops.svc.cluster.local:8080/trigger"
+        send_resolved: false
+
+  - name: ops-chat
+    webhook_configs:
+      - url: "https://hooks.slack.com/services/XXXX/YYYY/ZZZZ"
+        send_resolved: true
