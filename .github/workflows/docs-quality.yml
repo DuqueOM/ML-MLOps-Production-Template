@@ -39,6 +39,11 @@ jobs:
           config-file: ".github/markdown-link-check.json"
           # On weekly schedule, scan everything; on PR, only changed files.
           check-modified-files-only: ${{ github.event_name == 'pull_request' && 'yes' || 'no' }}
+          # The action defaults to `master`; our default branch is `main`,
+          # so the diff resolution `git diff origin/<base>...HEAD` fails
+          # without this override (it was emitting
+          # `fatal: couldn't find remote ref master`).
+          base-branch: "main"
 
   markdown-lint:
     name: Markdown Lint (style)
