@@ -682,7 +682,7 @@ This adds the required `Signed-off-by` line to your commit. No CLA is required.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution process, issue templates, and ADR conventions.
 
-Questions and discussion: open a [GitHub Discussion](https://github.com/DuqueOM/ML-MLOps-Production-Template/discussions) or file an issue.
+Questions and discussion: [file an issue](https://github.com/DuqueOM/ML-MLOps-Production-Template/issues/new/choose).
 
 ---
 
