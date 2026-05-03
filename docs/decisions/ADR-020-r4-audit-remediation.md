@@ -184,6 +184,13 @@ See `docs/audit/ACTION_PLAN_R4.md` §7 and `docs/audit/ACTION_PLAN_R5.md`.
 | R5-M4 | Closed | `templates/service/tests/load_test.py` synced to canonical schema; new `test_load_payload_matches_schema.py` (5 invariants) blocks future drift. |
 | R5-M2 | Closed | `scripts/validate_agentic.py` reconfigure-utf-8 + ASCII probe + `MARK_*` constants; verified on Linux + simulated cp1252. |
 | R5-L1 | Closed | 6 secondary docs bumped from `D-30` to `D-32`; new `test_anti_pattern_count_consistency.py` (7 invariants) auto-derives canonical max from `AGENTS.md`. |
-| R5-H1 | Open | Maintainer wording call. |
-| R5-M1 | Open | CONSULT — gates Phase-1 → Phase-2 ADR-019 review. |
-| R5-M3 | Open | CONSULT — needs operator input on per-cloud egress allowlists. |
+
+### R5 remainder — closed 2026-05-03 (VALIDATION_LOG Entry 005)
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| R5-H1 | Closed | `README.md` §"Production-ready scope" rewritten with "Production-ready by design" wording + 3-bullet preamble + new §"Verification status" 4-layer matrix (L1 contract / L2 smoke / L3 golden-path / L4 adopter-owned). Badge bumped to `anti--patterns-32`. `test_readme_verification_status.py` locks 9 wording invariants. |
+| R5-M1 | Closed | `.github/workflows/ci-self-healing-shadow.yml` — `permissions: pull-requests: read` added; fetch-logs step does real `gh api /actions/runs/{id}/logs` with 50 MB cap + unzip + concat; `log_artifact_url` replay via `curl`; changed-files step resolves PR base via `pulls/{num}` and diffs `base...HEAD`, closing red-team F1. Step summary now carries 9 provenance fields. `test_shadow_workflow_phase1.py` locks 14 invariants including "no gh pr create / no git push". |
+| R5-M3 | Closed | `templates/k8s/base/networkpolicy.yaml` carries OVERLAY-OVERRIDE-REQUIRED banner; 4 new `patch-networkpolicy.yaml` JSON 6902 patches in `overlays/{gcp,aws}-{staging,prod}` replace `0.0.0.0/0:443` with cloud-specific CIDR residuals (GCP private-googleapis VIPs; AWS 52./54. residuals with excepts). Each overlay's `kustomization.yaml` wires the patch with `target.kind: NetworkPolicy`. `test_networkpolicy_egress_hygiene.py` locks 19 invariants (14 structural + 4 kustomize-optional + 1 dev-negative). Follow-up: `docs/runbooks/egress-narrowing.md` queued for Sprint 3. |
+
+All R5 findings closed. Sprint 3 scope now: R4 Mediums/Lows (M5/L1/L2/L3) + follow-ups from red-team (F1/F2/F3) + `docs/runbooks/egress-narrowing.md` + ADR-019 Phase-1 → Phase-2 CONSULT decision.
