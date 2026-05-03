@@ -1,0 +1,86 @@
+# =============================================================================
+# Project Context — ADR-023 §context-layer.
+# =============================================================================
+# Adopter workflow:
+#   1. Copy to `templates/config/project_context.local.yaml`
+#      (gitignored — NEVER commit the .local variant).
+#   2. Replace every `{placeholder}`. The validator rejects unreplaced
+#      placeholders before the manifest loads.
+#
+# Relationship to other layers:
+#   - `company_context` answers WHO the adopter is.
+#   - `project_context` (this file) answers WHAT this specific service
+#     does and which KPIs matter.
+#   - `ops/audit.jsonl` + ADR-018 memory plane answer WHAT HAS HAPPENED.
+#   - `AGENT_CONTEXT.md` answers WHERE TO READ FIRST.
+# =============================================================================
+version: 1
+
+project:
+  name: "{ServiceName}"
+  # Short sentence. Reviewers read this first; keep it declarative.
+  business_goal: "{One-line business outcome this service delivers}"
+
+  # Who uses the output. Agents cite this in reports so reviewers know
+  # who is affected by a degradation.
+  primary_users:
+    - "{team_or_role_1}"
+
+  # One of: low | medium | high | critical.
+  # `critical` locks the SLO burn-rate alert at 1× the default threshold
+  # and enables the P1 inhibit rule in Alertmanager.
+  criticality: "medium"
+
+  # Environments deployed for this service. Order is promotion order.
+  environments: ["dev", "staging", "prod"]
+
+# KPIs are the contract the agentic system optimizes for and gates on.
+# Three dimensions: business | ml | platform. Each KPI carries an owner
+# role (maps into company.approval_model) and either a minimum or a
+# maximum threshold. `direction: increase` means higher is better.
+kpis:
+  business:
+    - name: "{business_metric}"
+      direction: "increase"
+      owner: "business_owner"
+      # Optional floor; if set, the release gate refuses a deploy that
+      # projects a value below this number.
+      minimum: null
+
+  ml:
+    - name: "auc_roc"
+      direction: "increase"
+      owner: "ml_owner"
+      minimum: 0.82
+    - name: "disparate_impact_ratio"
+      direction: "increase"
+      owner: "ml_owner"
+      minimum: 0.80
+
+  platform:
+    - name: "p95_latency_ms"
+      direction: "decrease"
+      owner: "platform_owner"
+      maximum: 300
+    - name: "error_rate"
+      direction: "decrease"
+      owner: "platform_owner"
+      maximum: 0.01
+
+# Agentic-policy overrides. These escalate the base modes defined in
+# AGENTS.md §Agent Behavior Protocol. They can only make a mode STRICTER
+# (AUTO → CONSULT → STOP), never more permissive (enforced by validator).
+agentic_policy:
+  escalation_overrides:
+    # Fairness ratio in the grey band requires human judgment.
+    fairness_dir_between_0_80_and_0_85: "CONSULT"
+
+    # Cost overrun triggers STOP — protects monthly_budget_usd.
+    monthly_cost_over_budget_20_percent: "STOP"
+
+    # Any prod secret rotation is a human-approved operation.
+    production_secret_change: "STOP"
+
+    # Concept drift (sliced performance) beyond 2× the PSI alert
+    # threshold on any slice is a STOP — manual investigation required.
+    concept_drift_severe: "STOP"
