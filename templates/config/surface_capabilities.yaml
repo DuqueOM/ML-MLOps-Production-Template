@@ -1,0 +1,132 @@
+# =============================================================================
+# Surface Capabilities Matrix — ADR-023 F4.
+# =============================================================================
+# Declares what each agent surface can do BEYOND the canonical
+# rules/skills/workflows indexed by agentic_manifest.yaml.
+#
+# Purpose: when skill X invokes capability Y (e.g. "run shell",
+# "read file", "call MCP"), the contract test verifies that every
+# surface claiming to consume that skill supports Y. Prevents
+# "Codex adapter" shipping a skill that Codex cannot actually run.
+#
+# Extension points (not support claims): `codex.plugins`,
+# `codex.automations` — Codex-specific features NOT required for
+# canonical skill/workflow execution; they do not affect the
+# cross-surface contract.
+# =============================================================================
+version: 1
+
+capabilities:
+  read_file:
+    description: "Read a file from the repo into the agent's context"
+  write_file:
+    description: "Write a file back to the repo (edit or create)"
+  run_shell:
+    description: "Execute a shell command locally (bash/sh)"
+  run_mcp:
+    description: "Call a Model Context Protocol server"
+  slash_commands:
+    description: "User-invokable slash commands / workflows"
+  background_jobs:
+    description: "Long-running tasks outside the current session"
+  plugin_system:
+    description: "Third-party plugin / extension marketplace"
+  automations:
+    description: "Scheduled or event-triggered agent actions"
+
+surfaces:
+  windsurf:
+    supports:
+      - "read_file"
+      - "write_file"
+      - "run_shell"
+      - "run_mcp"
+      - "slash_commands"
+    config_targets:
+      rules: ".windsurf/rules/"
+      skills: ".windsurf/skills/"
+      workflows: ".windsurf/workflows/"
+      mcp_config: "~/.codeium/windsurf/mcp_config.json"
+
+  cursor:
+    supports:
+      - "read_file"
+      - "write_file"
+      - "run_shell"
+      - "run_mcp"
+      - "slash_commands"
+    config_targets:
+      rules: ".cursor/rules/"
+      commands: ".cursor/commands/"
+      skills_index: ".cursor/skills/INDEX.md"
+      mcp_config: "~/.cursor/mcp.json"
+
+  claude:
+    supports:
+      - "read_file"
+      - "write_file"
+      - "run_shell"
+      - "run_mcp"
+      - "slash_commands"
+    config_targets:
+      rules: ".claude/rules/"
+      commands: ".claude/commands/"
+      skills_index: ".claude/skills/INDEX.md"
+      mcp_config: "~/.claude.json"
+
+  codex:
+    supports:
+      - "read_file"
+      - "write_file"
+      - "run_shell"
+      - "run_mcp"
+      - "slash_commands"
+      - "plugin_system"
+      - "automations"
+    config_targets:
+      agents_md: "AGENTS.md"
+      skills: ".codex/skills/"
+      automations: ".codex/automations/"
+      mcp_config: ".codex/mcp.json"
+      mcp_example: ".codex/mcp.example.json"
+
+# -----------------------------------------------------------------------------
+# Skill → capability requirements. The contract test cross-checks:
+#   For each skill in agentic_manifest.yaml, every surface listed under
+#   `surfaces:` must support every capability in `requires:`.
+# This is how the manifest stops surfaces from claiming skills they
+# cannot execute.
+# -----------------------------------------------------------------------------
+skill_capability_requirements:
+  default:
+    requires: ["read_file"]
+    rationale: "Every skill must at minimum read the repo it operates on."
+
+  overrides:
+    security-audit:
+      requires: ["read_file", "run_shell"]
+      rationale: "Runs gitleaks, trivy, cosign verify — shell-bound."
+    rule-audit:
+      requires: ["read_file"]
+      rationale: "Pure-Python contract checks; no external calls."
+    release-checklist:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "Reads commit history, runs kubectl + helm diffs, queries GitHub PRs via MCP."
+    debug-ml-inference:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "Reads app code, runs local pytest/curl, queries Prometheus via MCP."
+    deploy-gke:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "kubectl + terraform + cloud-provider CLI calls."
+    deploy-aws:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "kubectl + terraform + cloud-provider CLI calls."
+    drift-detection:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "PSI computation + Prometheus query via MCP."
+    incident:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "kubectl logs + Prometheus + GitHub issue + rollback chain."
+    rollback:
+      requires: ["read_file", "run_shell", "run_mcp"]
+      rationale: "kubectl rollout undo + Argo Rollouts abort + MLflow revert."

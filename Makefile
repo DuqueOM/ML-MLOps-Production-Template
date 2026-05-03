@@ -13,6 +13,7 @@
 
 .PHONY: help install-dev lint-all format-all validate-templates \
         validate-agentic bootstrap smoke \
+        mcp-check mcp-doctor mcp-render-docs \
         demo-minimal test-examples clean
 
 # Colors
@@ -100,6 +101,20 @@ validate-tf: ## Validate Terraform syntax (no init — backends are partial conf
 validate-agentic: ## Validate agentic system (rules, skills, workflows, AGENTS.md refs)
 	@echo "$(GREEN)Validating agentic system...$(NC)"
 	python3 scripts/validate_agentic.py
+	@echo "$(GREEN)Validating agentic manifest + context layer (ADR-023)...$(NC)"
+	python3 scripts/validate_agentic_manifest.py --strict
+
+mcp-check: ## Read-only pass/fail check of MCP registry + surface capabilities (ADR-023 F4)
+	@echo "$(GREEN)Validating MCP portability registry...$(NC)"
+	python3 scripts/mcp_doctor.py --mode check
+
+mcp-doctor: ## Long-form MCP registry report (install matrix, skill coverage, orphans)
+	@echo "$(GREEN)MCP doctor — full report$(NC)"
+	python3 scripts/mcp_doctor.py --mode doctor
+
+mcp-render-docs: ## Regenerate docs/agentic/mcp-portability.md from the registry YAMLs
+	@echo "$(GREEN)Rendering MCP portability docs...$(NC)"
+	python3 scripts/mcp_doctor.py --mode render-docs
 
 test-scaffold: ## End-to-end test: runs new-service.sh in a tmp dir and validates output
 	@echo "$(GREEN)Testing scaffolder end-to-end...$(NC)"
