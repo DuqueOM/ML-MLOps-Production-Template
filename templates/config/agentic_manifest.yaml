@@ -414,3 +414,42 @@ reports:
       producer: "incident"
       consumers: ["humans", "post-mortem"]
       mode: "CONSULT"
+
+# -----------------------------------------------------------------------------
+# Companions (ADR-023 F7 / F8 / F9) — docs-only integration patterns.
+#
+# A companion is NOT a new surface and does NOT introduce skills or workflows.
+# It is a documented wiring pattern that lets an existing surface
+# (or a managed-agent platform like Vertex AI / AgentCore) consume the
+# canonical agentic stack defined above.
+#
+# Contract test: `templates/service/tests/test_companions_contract.py`.
+# -----------------------------------------------------------------------------
+companions:
+  - id: "runtime-monitoring"
+    feature: "F7"
+    kind: "consumption-pattern"
+    doc: "docs/agentic/runtime-monitoring-companion.md"
+    requires_mcps: ["prometheus", "github", "kubectl"]
+    write_capable: false
+    surfaces: ["windsurf", "cursor", "claude", "codex"]
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+    status: "shipped"
+  - id: "gcp-gemini-enterprise"
+    feature: "F8"
+    kind: "cloud-companion"
+    doc: "docs/agentic/cloud-companions.md"
+    provider: "gcp"
+    write_capable: false
+    surfaces_native: []
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+    status: "shipped (docs-only)"
+  - id: "aws-bedrock-agentcore"
+    feature: "F9"
+    kind: "cloud-companion"
+    doc: "docs/agentic/cloud-companions.md"
+    provider: "aws"
+    write_capable: false
+    surfaces_native: []
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+    status: "shipped (docs-only)"
