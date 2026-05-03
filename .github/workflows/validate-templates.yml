@@ -42,9 +42,17 @@ jobs:
         run: |
           set -euo pipefail
           # Exclude this workflow file (matches its own greps as strings) and
-          # the rule files that DOCUMENT the patterns to refuse.
+          # the rule files that DOCUMENT the patterns to refuse. Also
+          # exclude legitimate test fixtures and runbooks that SHIP
+          # canonical EXAMPLE patterns (AKIAIOSFODNN7EXAMPLE is the
+          # AWS-documented synthetic) precisely because they validate
+          # the redaction/detection pipeline. These paths carry the
+          # same allowlist in .gitleaks.toml.
           EXCLUDE='--exclude-dir=.git --exclude-dir=node_modules
-                   --exclude=*.lock --exclude=*.png --exclude=*.gif'
+                   --exclude-dir=tests
+                   --exclude=*.lock --exclude=*.png --exclude=*.gif
+                   --exclude=secret-history-scan.md
+                   --exclude=test_memory_redaction.py'
           if grep -rEI $EXCLUDE \
                  "AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}" \
                  --include="*.py" --include="*.yaml" --include="*.yml" \
