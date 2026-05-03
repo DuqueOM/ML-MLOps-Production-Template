@@ -1,0 +1,42 @@
+# JSON 6902 patch — R5-M3 egress narrowing for AWS staging.
+#
+# Replaces the base NetworkPolicy's wildcard `0.0.0.0/0:443` egress
+# (index 3 in templates/k8s/base/networkpolicy.yaml) with an AWS-focused
+# allowlist. Staging + prod MUST use this patch; dev keeps the wildcard.
+#
+# Target egress destinations on AWS:
+#   - ECR (Elastic Container Registry) — `*.dkr.ecr.<region>.amazonaws.com`.
+#   - S3 for model + DVC artifacts — `*.s3.<region>.amazonaws.com`.
+#   - STS for IRSA token exchange — `sts.amazonaws.com` / `sts.<region>.amazonaws.com`.
+#   - Secrets Manager — `secretsmanager.<region>.amazonaws.com`.
+#
+# NetworkPolicy ipBlock cannot express FQDNs. AWS publishes per-service
+# JSON CIDR ranges at https://ip-ranges.amazonaws.com/ip-ranges.json;
+# the pragmatic choice below uses `52.0.0.0/8` (covers S3 + ECR in most
+# regions) + `54.0.0.0/8` (STS, Secrets Manager residual).
+#
+# TODO (operator): for a hardened deploy, do ONE of:
+#   (a) Pin the exact S3 prefix list (`pl-*`) and STS/ECR CIDRs from
+#       `ip-ranges.json` for your region and regenerate this patch
+#       quarterly — see docs/runbooks/egress-narrowing.md (TBD).
+#   (b) Layer a CiliumNetworkPolicy with `toFQDNs` on top of this
+#       base policy (requires Cilium CNI or EKS w/ Cilium overlay).
+- op: replace
+  path: /spec/egress/3
+  value:
+    to:
+      # S3 + ECR reside primarily in 52.0.0.0/8 across regions.
+      - ipBlock:
+          cidr: 52.0.0.0/8
+      # STS + Secrets Manager residual (tighten with ip-ranges.json
+      # per region before go-live).
+      - ipBlock:
+          cidr: 54.0.0.0/8
+          except:
+            # Exclude us-east-1 EC2 broad ranges to keep this scoped
+            # to service endpoints; adopters should replace with the
+            # exact prefix-list CIDRs for their region.
+            - 54.64.0.0/11
+    ports:
+      - protocol: TCP
+        port: 443

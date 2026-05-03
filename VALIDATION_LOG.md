@@ -501,6 +501,163 @@ ADR-018 and ADR-019 are Phase 1) + 1 locust env probe.
 
 ---
 
+## Entry 005 — R5 remainder close (May 2026)
+
+- **Date**: 2026-05-03
+- **Branch**: `audit-r4/sprint-0-credibility` (continuation).
+- **Base commit (R5 remainder start)**: `39c6f1de9e800b308192ddd3c84791cfd786cff7`
+- **Operator**: Staff/Lead engineer.
+- **Scope**: Close the remaining 3 R5 findings — H1 (README softening +
+  Verification status matrix), M3 (NetworkPolicy egress per overlay),
+  M1 (shadow workflow real log fetch + PR-base diff). All on same
+  branch per user direction.
+
+### What was executed
+
+#### 1. R5-H1 — README wording softening + Verification status matrix
+
+- `README.md` §"Production-ready scope" — status column rewritten to
+  **"Production-ready by design"** with a 3-bullet preamble making
+  three claims explicit:
+  - contract-tested and scaffold-tested in THIS repo,
+  - the patterns the author operates with in production,
+  - adopter verification against their environment remains their
+    responsibility.
+- NEW §"Verification status" sub-matrix with 4 layers L1–L4:
+  - L1 Contract tests (`validate-templates.yml`, 144 tests today)
+  - L2 Scaffold smoke (`pr-smoke-lane.yml` + `make smoke`)
+  - L3 Golden-path E2E (`golden-path.yml` on release tags)
+  - L4 Adopter production rollout — **explicitly not assertable
+    from this repo** (honesty anchor)
+- Badge: `anti--patterns-30` → `anti--patterns-32` (R5-L1 leftover).
+- NEW `templates/service/tests/test_readme_verification_status.py`
+  with 9 invariants: status-column discipline, §Verification status
+  presence, 4-layer coverage (L1…L4 parametrized), L4 "Not assertable"
+  disclaimer, badge count matches canonical D-32.
+
+#### 2. R5-M3 — NetworkPolicy egress per overlay
+
+- `templates/k8s/base/networkpolicy.yaml` — banner added on the
+  `0.0.0.0/0:443` cloud-storage egress rule flagging it as
+  DEV-ONLY with explicit "OVERLAY-OVERRIDE REQUIRED" marker and
+  reference to this test.
+- 4 NEW `patch-networkpolicy.yaml` files (JSON 6902):
+  - `overlays/gcp-staging`, `overlays/gcp-prod`: replace egress[3]
+    with `199.36.153.4/30` (restricted.googleapis.com) +
+    `199.36.153.8/30` (private.googleapis.com) + `34.0.0.0/8` residual.
+  - `overlays/aws-staging`, `overlays/aws-prod`: replace egress[3]
+    with `52.0.0.0/8` (S3+ECR) + `54.0.0.0/8 except 54.64.0.0/11`
+    (STS+Secrets Manager residual).
+- 4 `kustomization.yaml` files wired: patch referenced with
+  `target.kind: NetworkPolicy` + `target.name: "{service-name}-
+  network-policy"`.
+- NEW `templates/service/tests/test_networkpolicy_egress_hygiene.py`
+  with 19 invariants (14 structural + 4 kustomize-optional + 1
+  dev-negative):
+  - base banner present (+ "R5-M3" + "non-dev" tokens),
+  - each non-dev overlay ships the patch file,
+  - each patch body does NOT contain `0.0.0.0/0` on non-comment lines,
+  - each `kustomization.yaml` wires the patch with correct `target`,
+  - `kustomize build` render check (skips when kustomize binary
+    absent; CI covers this path),
+  - dev overlays are NOT required to carry the patch (avoids false
+    regressions in the permissive local dev flow).
+
+#### 3. R5-M1 — Shadow workflow real log fetch + PR-base diff
+
+- `.github/workflows/ci-self-healing-shadow.yml`:
+  - `permissions:` — added `pull-requests: read` (needed to resolve
+    PR base SHA); all three scopes remain strictly `read`.
+  - Fetch-logs step rewritten: 3 paths — `log_artifact_url` replay
+    via `curl`; upstream `workflow_run` via `gh api /repos/.../
+    actions/runs/{id}/logs` with 50 MB size cap + unzip + concat;
+    fallback empty log. Emits `fetch_source` / `fetch_bytes` outputs
+    for provenance.
+  - Changed-files step rewritten: resolves `pulls/${PR_NUMBER}`
+    via gh api to get `base.sha`, runs `git fetch` on the base,
+    and diffs `base...HEAD` instead of `HEAD~1`. Falls back to
+    the previous heuristic when no PR context. Closes red-team F1
+    inline (shadow lane now sees the full PR diff).
+  - Step summary upgraded to a table with 9 provenance fields
+    (upstream run, workflow, fetch source, fetch bytes, diff mode,
+    PR number, base SHA, head SHA, changed files).
+  - Phase-1 invariant `writes_allowed != false` verifier preserved.
+  - `python` → `python3` in the 3 script steps for portability.
+- NEW `templates/service/tests/test_shadow_workflow_phase1.py`
+  with 14 invariants: read-only permissions (3 scopes), no write
+  perms anywhere (regex), triggers + inputs present,
+  real gh api log fetch regex (backslash-continuation aware),
+  `log_artifact_url` replay path, `fetch_source` output declared,
+  PR-base diff path present, outputs `diff_mode` / `pr_number` /
+  `base_sha` declared, invariant check preserved, no `gh pr create`
+  / `git push` / create-pull-request action anywhere.
+
+### Aggregate test run
+
+```
+$ python -m pytest \
+    test_memory_contracts test_memory_redaction \
+    test_phase0_disclosure test_readme_model_names \
+    test_readme_verification_status \
+    test_ci_classify_failure_phase1 \
+    test_ci_autofix_policy_contract \
+    test_anti_pattern_count_consistency \
+    test_load_payload_matches_schema \
+    test_networkpolicy_egress_hygiene \
+    test_shadow_workflow_phase1 \
+    --no-cov --noconftest -q
+================== 144 passed, 11 skipped, 1 warning in 8.21s ==================
+```
+
+Skips breakdown (all intentional): 6 Phase-0 banner auto-skips +
+1 locust env probe + 4 kustomize-binary-optional.
+
+### Status transitions
+
+- ADR-020 §"Progress log": new "R5 remainder" closure table appended.
+- R5 closure status (final):
+  - R5-H1: **closed** — README softened + §Verification status shipped.
+  - R5-M1: **closed** — real gh api log fetch + PR-base diff + 14
+    contract invariants.
+  - R5-M2: **closed** (Entry 004) — Windows fallback.
+  - R5-M3: **closed** — 4 patch files + 4 kustomization wires + 19
+    contract invariants.
+  - R5-M4: **closed** (Entry 004) — Locust schema sync.
+  - R5-L1: **closed** (Entry 004) — D-32 drift sweep.
+  - R5-L4: **closed** (Entry 004) — scaffold smoke off pre-commit.
+
+Every R5 finding is now either:
+- shipped with a contract test enforcing the invariant (7 of 7), or
+- explicitly documented as pending operator action (0 of 7).
+
+### Follow-ups recorded
+
+- **R5-M3 follow-up**: create `docs/runbooks/egress-narrowing.md`
+  describing how adopters should replace the coarse CIDR residuals
+  with their region's exact AWS IP-ranges.json prefix lists or GCP
+  Private Google Access VIPs. Dev+CI does not need the runbook;
+  adopters planning staging/prod rollouts do. Tracked as a new
+  "runbook shipped" row in Sprint 3.
+- **R5-M1 follow-up (Phase-2 gate)**: the shadow workflow's
+  expanded provenance output unblocks the 14-day precision study.
+  Phase-1 → Phase-2 transition decision remains CONSULT per
+  ADR-019 §Phase plan; this commit does not close it.
+
+### What was NOT validated (acknowledged deltas)
+
+- **CI run of the shadow workflow against a real failing upstream
+  run** — requires a failed CI to observe; best done during the
+  Phase-2 precision study on main post-merge.
+- **`kustomize build` of the 4 non-dev overlays** — requires
+  kustomize binary (absent in local env); CI covers this via the
+  existing validate-templates lane + the new contract test's
+  optional kustomize path.
+- **Adopter-side egress allowlist** — the CIDR choices are
+  residual; adopters deploying into regulated environments MUST
+  tighten them via `docs/runbooks/egress-narrowing.md` (above).
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

@@ -11,7 +11,7 @@ Opinionated, production-grade template for building and operating ML systems on 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
-[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-30%20encoded-red.svg)](#anti-patterns-encoded)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-32%20encoded-red.svg)](#anti-patterns-encoded)
 [![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Claude_Code_%7C_Cursor-blueviolet.svg)](#agentic-system)
 
 ```bash
@@ -58,21 +58,40 @@ This is not a generic starter repo. It is a production template with encoded ope
 
 ## Production-ready scope
 
-The template is positioned as a hardened open-source baseline for enterprise ML services. After scaffold and environment wiring, the following areas are treated as production-ready:
+The template is positioned as a hardened open-source baseline for enterprise ML services. The status column below uses **"Production-ready by design"** to signal:
+
+- the component is **contract-tested and scaffold-tested in this repo** (invariants live in `templates/service/tests/` and `.github/workflows/validate-templates.yml`);
+- the patterns are the ones the author operates with in production ML systems;
+- **verification against a real adopter environment (your cloud account, your cluster, your traffic) is still your responsibility** before go-live.
+
+The §"Verification status" matrix below is the honest adjunct: it separates *what's proven inside this repo's CI* from *what an adopter must execute to declare their instance production-ready*.
 
 | Area | Status | What that means |
 |------|--------|-----------------|
-| Service scaffold | Production-ready | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
-| Kubernetes runtime | Production-ready | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, and non-root runtime defaults are part of the base. |
-| Multi-cloud infrastructure | Production-ready | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. |
-| CI/CD | Production-ready | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain, and audit paths are governed and traceable. |
-| Closed-loop monitoring | Production-ready | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
-| Security and supply chain | Production-ready | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
-| Agentic controls | Production-ready | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
+| Service scaffold | Production-ready by design | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
+| Kubernetes runtime | Production-ready by design | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, and non-root runtime defaults are part of the base. |
+| Multi-cloud infrastructure | Production-ready by design | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. |
+| CI/CD | Production-ready by design | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain, and audit paths are governed and traceable. |
+| Closed-loop monitoring | Production-ready by design | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
+| Security and supply chain | Production-ready by design | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
+| Agentic controls | Production-ready by design | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
 | Agentic CI self-healing | **Phase 1 — shadow / read-only** | Policy + classifier + collector ship today (ADR-019). `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py` observe CI failures and emit AUTO/CONSULT/STOP classifications without writing anything. Patch worker, verifier, and write-enabled lanes deferred to Phase 2+ pending 14 days of shadow precision data. No agent autonomously opens PRs against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan. |
 | Operational Memory Plane | **Phase 1 — contracts + redaction shipped** | Optional companion. `templates/common_utils/memory_types.py` (frozen `MemoryUnit` dataclass with 9 construction invariants), `templates/common_utils/memory_redaction.py` (gitleaks + PII redaction pipeline, idempotent), 59 contract-test invariants. Ingest worker, vector store, retrieval API deferred to Phase 2+ (gated on 30 days of contract stability). Adopters cannot call retrieval APIs today. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan. |
 
 External dependencies remain your responsibility: cloud accounts, Kubernetes clusters, MLflow backend, secret stores, and observability backends must exist before the template can operate in a real environment.
+
+### Verification status
+
+Four verification layers. Inside this repo the author can guarantee the first three; the fourth is per-adopter and cannot be asserted template-wide.
+
+| Layer | Scope | Where it runs | Evidence in this repo |
+|-------|-------|---------------|----------------------|
+| **L1 — Contract tests** | Invariants on generated service code, schemas, policies, and agentic config | `.github/workflows/validate-templates.yml`; `templates/service/tests/test_*.py`; `make validate-templates` locally | 106 passing contract tests covering memory (ADR-018), CI self-healing (ADR-019), model-routing disclaimer, Phase-0/1 disclosure, anti-pattern count consistency, Locust ↔ API parity, PR evidence policy, CI autofix policy |
+| **L2 — Scaffold smoke** | End-to-end scaffold of a fresh service + 6 overlay renders + kubeconform + binary audit | `.github/workflows/pr-smoke-lane.yml` on every PR; `make smoke` on demand (~60 s) | Green per PR; history in the Actions tab |
+| **L3 — Golden path E2E** | Full chain: scaffold → build → sign → attest → deploy to kind → smoke-test the running service | `.github/workflows/golden-path.yml` on release tags | Shipped; executed per release |
+| **L4 — Adopter production rollout** | Your cluster, your traffic, your SLOs, your compliance regime | Your CD pipeline + observability stack | **Not assertable from this repo.** Checklist lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md) §"Template for future entries" and [`docs/runbooks/`](docs/runbooks/). The R4 audit documents which runbooks are still pending execution by the author (secrets-integration-e2e, ground-truth ingestion SLA, Kyverno admission validation, secret history scan). |
+
+If you are an adopter deciding whether to stake a production service on this template: L1 + L2 + L3 are your contract; L4 is an obligation the template cannot discharge for you. The `docs/audit/ACTION_PLAN_R4.md` + `VALIDATION_LOG.md` pair is the paper trail for what has already been executed vs. what is only shipped as policy.
 
 ---
 

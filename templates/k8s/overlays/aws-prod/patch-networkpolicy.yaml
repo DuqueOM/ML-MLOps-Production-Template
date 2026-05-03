@@ -1,0 +1,17 @@
+# JSON 6902 patch — R5-M3 egress narrowing for AWS production.
+# See overlays/aws-staging/patch-networkpolicy.yaml for rationale.
+# Separate file kept so prod can diverge (e.g., dedicated NAT CIDR)
+# without touching staging.
+- op: replace
+  path: /spec/egress/3
+  value:
+    to:
+      - ipBlock:
+          cidr: 52.0.0.0/8                 # S3 + ECR residual
+      - ipBlock:
+          cidr: 54.0.0.0/8                 # STS + Secrets Manager residual
+          except:
+            - 54.64.0.0/11
+    ports:
+      - protocol: TCP
+        port: 443

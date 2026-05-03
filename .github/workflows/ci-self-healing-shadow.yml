@@ -35,8 +35,9 @@ on:
         type: string
 
 permissions:
-  contents: read
-  actions: read
+  contents: read        # git checkout, repo reads
+  actions: read         # read workflow_run logs + artifacts for the failed run
+  pull-requests: read   # resolve base SHA for PR-diff context (R5-M1)
 
 jobs:
   shadow-classify:
@@ -65,54 +66,159 @@ jobs:
           # Classifier needs ONLY pyyaml.
           pip install pyyaml
 
-      - name: Download upstream failure logs
-        # We download the upstream workflow logs via the actions/download-artifact
-        # API. In Phase 1 the simplest signal is the workflow_run conclusion;
-        # log fetching is best-effort. If we can't fetch, we still classify
-        # against the empty log (which produces a no-signature → STOP result,
-        # which is the correct conservative default).
+      - name: Download upstream failure logs (R5-M1 — real fetch)
+        # R5-M1 replaces the Phase-1 stub with a real log fetch. Three
+        # paths:
+        #   (a) workflow_dispatch + log_artifact_url input → curl the URL
+        #       (incident replay against a historical log).
+        #   (b) workflow_run trigger → `gh api` against
+        #       /repos/{owner}/{repo}/actions/runs/{id}/logs to download
+        #       the upstream run's zipped log and concatenate it to a
+        #       single failure.log for the classifier.
+        #   (c) neither → leave failure.log empty and let the classifier's
+        #       no-signature → STOP default apply (covered by
+        #       test_ci_classify_failure_phase1.py).
+        # In all cases this step is strictly READ-ONLY; `gh api` here
+        # uses the default GITHUB_TOKEN with the permissions block above
+        # (actions: read), which cannot write anything.
         id: fetch-logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOG_ARTIFACT_URL: ${{ inputs.log_artifact_url }}
         run: |
           set -euo pipefail
           mkdir -p ./_shadow
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "upstream_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
-            echo "upstream_workflow=${{ github.event.workflow_run.name }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "upstream_run_id=manual" >> "$GITHUB_OUTPUT"
-            echo "upstream_workflow=workflow_dispatch" >> "$GITHUB_OUTPUT"
-          fi
-          # Phase 1 keeps log retrieval simple: an empty log is acceptable.
-          # The classifier's behavior on empty input (no signature → STOP)
-          # is the correct conservative default and is itself a covered
-          # invariant in test_ci_classify_failure_phase1.py.
           : > ./_shadow/failure.log
 
-      - name: Resolve changed files
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            UPSTREAM_RUN_ID="${{ github.event.workflow_run.id }}"
+            UPSTREAM_WORKFLOW="${{ github.event.workflow_run.name }}"
+          else
+            UPSTREAM_RUN_ID="manual"
+            UPSTREAM_WORKFLOW="workflow_dispatch"
+          fi
+          echo "upstream_run_id=${UPSTREAM_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "upstream_workflow=${UPSTREAM_WORKFLOW}" >> "$GITHUB_OUTPUT"
+
+          FETCH_SOURCE="none"
+          FETCH_BYTES=0
+
+          # Path (a): explicit replay URL.
+          if [ -n "${LOG_ARTIFACT_URL:-}" ]; then
+            echo "Fetching replay log from log_artifact_url..."
+            if curl --fail --silent --show-error --location \
+                --max-time 60 \
+                --output ./_shadow/failure.log \
+                "${LOG_ARTIFACT_URL}"; then
+              FETCH_SOURCE="log_artifact_url"
+            else
+              echo "::warning::log_artifact_url fetch failed; falling back to empty log"
+              : > ./_shadow/failure.log
+            fi
+          # Path (b): upstream workflow_run — real GH API fetch.
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "Fetching logs for upstream run ${UPSTREAM_RUN_ID} via gh api..."
+            # /actions/runs/{id}/logs returns a zip of job logs. Size
+            # cap at 50 MB guards against OOM on pathological runs.
+            if gh api \
+                "/repos/${{ github.repository }}/actions/runs/${UPSTREAM_RUN_ID}/logs" \
+                -H "Accept: application/vnd.github+json" \
+                --cache 10m \
+                > ./_shadow/logs.zip 2> ./_shadow/fetch.err; then
+              if [ "$(stat -c%s ./_shadow/logs.zip)" -gt 52428800 ]; then
+                echo "::warning::Upstream log zip > 50 MB; truncating"
+                : > ./_shadow/failure.log
+              else
+                # Unzip and concat every job log into a single stream for
+                # the classifier. Silently ignore zip errors — they only
+                # mean gh returned JSON instead of a zip, which is normal
+                # when a run has no logs yet.
+                unzip -q -o ./_shadow/logs.zip -d ./_shadow/logs/ 2>/dev/null \
+                  && find ./_shadow/logs/ -type f -name '*.txt' -print0 \
+                       | xargs -0 cat > ./_shadow/failure.log 2>/dev/null \
+                  || : > ./_shadow/failure.log
+                FETCH_SOURCE="gh_api_runs_logs"
+              fi
+              rm -rf ./_shadow/logs.zip ./_shadow/logs
+            else
+              echo "::warning::gh api call failed: $(cat ./_shadow/fetch.err 2>/dev/null || echo unknown)"
+              : > ./_shadow/failure.log
+            fi
+          fi
+
+          FETCH_BYTES="$(stat -c%s ./_shadow/failure.log || echo 0)"
+          echo "fetch_source=${FETCH_SOURCE}" >> "$GITHUB_OUTPUT"
+          echo "fetch_bytes=${FETCH_BYTES}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Shadow log source=${FETCH_SOURCE}, bytes=${FETCH_BYTES}"
+
+      - name: Resolve changed files (R5-M1 — PR-base diff)
         id: changed-files
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Use the head SHA from the upstream run if available; otherwise
-          # the current HEAD. Read-only git command.
+          # HEAD_SHA: the SHA the upstream CI actually ran against.
           if [ -n "${{ github.event.workflow_run.head_sha }}" ]; then
             HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
           else
             HEAD_SHA="$(git rev-parse HEAD)"
           fi
           echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
-          # Best effort: list files in last commit. Real Phase-2 implementation
-          # would use the PR diff API.
-          git diff --name-only "${HEAD_SHA}~1...${HEAD_SHA}" > ./_shadow/changed_files.txt 2>/dev/null \
-            || echo "" > ./_shadow/changed_files.txt
+
+          # BASE_SHA: the PR-base if the upstream run was triggered by a
+          # pull_request; otherwise the previous commit on the branch.
+          # This closes red-team F1 — the shadow lane now sees the full
+          # PR diff, not just the last commit on the branch.
+          BASE_SHA=""
+          DIFF_MODE="head-1"
+
+          PR_NUMBER="$(jq -r '.workflow_run.pull_requests[0].number // empty' \
+            <<<'${{ toJSON(github.event) }}' 2>/dev/null || true)"
+
+          if [ -n "${PR_NUMBER:-}" ] && [ "${PR_NUMBER}" != "null" ]; then
+            # Resolve PR base SHA via the API.
+            BASE_SHA="$(gh api \
+              "/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
+              --jq '.base.sha' 2>/dev/null || true)"
+            if [ -n "${BASE_SHA:-}" ] && [ "${BASE_SHA}" != "null" ]; then
+              DIFF_MODE="pr-base"
+            fi
+          fi
+
+          if [ "${DIFF_MODE}" = "pr-base" ]; then
+            # Need the base in the local checkout to compute the diff.
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}" 2>/dev/null || true
+            git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+              > ./_shadow/changed_files.txt 2>/dev/null \
+              || git diff --name-only "${HEAD_SHA}~1...${HEAD_SHA}" \
+                  > ./_shadow/changed_files.txt 2>/dev/null \
+              || echo "" > ./_shadow/changed_files.txt
+          else
+            git diff --name-only "${HEAD_SHA}~1...${HEAD_SHA}" \
+              > ./_shadow/changed_files.txt 2>/dev/null \
+              || echo "" > ./_shadow/changed_files.txt
+          fi
+
+          echo "base_sha=${BASE_SHA:-}" >> "$GITHUB_OUTPUT"
+          echo "diff_mode=${DIFF_MODE}" >> "$GITHUB_OUTPUT"
+          echo "pr_number=${PR_NUMBER:-}" >> "$GITHUB_OUTPUT"
           echo "changed_count=$(wc -l < ./_shadow/changed_files.txt)" >> "$GITHUB_OUTPUT"
+          echo "::notice::Shadow diff mode=${DIFF_MODE}, pr=${PR_NUMBER:-none}, base=${BASE_SHA:-none}, files=$(wc -l < ./_shadow/changed_files.txt)"
 
       - name: Collect context (read-only)
         run: |
           set -euo pipefail
-          python scripts/ci_collect_context.py \
+          # R5-M1: forward the resolved PR number if available so
+          # downstream classification sees PR-scoped context, not just
+          # a branch-scoped heuristic.
+          PR_NUM="${{ steps.changed-files.outputs.pr_number }}"
+          if [ -z "${PR_NUM:-}" ] || [ "${PR_NUM}" = "null" ]; then
+            PR_NUM=0
+          fi
+          python3 scripts/ci_collect_context.py \
             --job-name "${{ steps.fetch-logs.outputs.upstream_workflow }}" \
             --workflow "${{ steps.fetch-logs.outputs.upstream_workflow }}" \
-            --pr-number 0 \
+            --pr-number "${PR_NUM}" \
             --log-file ./_shadow/failure.log \
             --changed-files-from-stdin \
             --changed-files-file ./_shadow/changed_files.txt \
@@ -123,17 +229,27 @@ jobs:
         id: classify
         run: |
           set -euo pipefail
-          python scripts/ci_classify_failure.py \
+          python3 scripts/ci_classify_failure.py \
             --policy templates/config/ci_autofix_policy.yaml \
             --context-file ./_shadow/context.json \
             > ./_shadow/classification.json
-          # Echo to step summary for human review.
+          # Echo to step summary for human review. R5-M1 expands the
+          # provenance block with fetch source, diff mode, and PR SHAs
+          # so the Phase-1 → Phase-2 decision gate has full context.
           {
             echo "## ADR-019 Phase 1 — shadow classification"
             echo
-            echo "Upstream run: \`${{ steps.fetch-logs.outputs.upstream_run_id }}\`"
-            echo "Upstream workflow: \`${{ steps.fetch-logs.outputs.upstream_workflow }}\`"
-            echo "HEAD SHA: \`${{ steps.changed-files.outputs.head_sha }}\`"
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Upstream run | \`${{ steps.fetch-logs.outputs.upstream_run_id }}\` |"
+            echo "| Upstream workflow | \`${{ steps.fetch-logs.outputs.upstream_workflow }}\` |"
+            echo "| Log fetch source | \`${{ steps.fetch-logs.outputs.fetch_source }}\` |"
+            echo "| Log bytes | \`${{ steps.fetch-logs.outputs.fetch_bytes }}\` |"
+            echo "| Diff mode | \`${{ steps.changed-files.outputs.diff_mode }}\` |"
+            echo "| PR number | \`${{ steps.changed-files.outputs.pr_number }}\` |"
+            echo "| Base SHA | \`${{ steps.changed-files.outputs.base_sha }}\` |"
+            echo "| HEAD SHA | \`${{ steps.changed-files.outputs.head_sha }}\` |"
+            echo "| Changed files | \`${{ steps.changed-files.outputs.changed_count }}\` |"
             echo
             echo '```json'
             cat ./_shadow/classification.json
@@ -147,7 +263,7 @@ jobs:
       - name: Verify Phase 1 invariant — writes_allowed is false
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import sys
           with open("./_shadow/classification.json", "r", encoding="utf-8") as fh:
