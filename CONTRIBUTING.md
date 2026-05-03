@@ -29,6 +29,30 @@ The allowlist that triggers this requirement:
 
 Typical doc-only or refactor PRs that don't introduce a new component are exempt; the evidence section can be deleted from the PR body in that case.
 
+## Local validation cadence
+
+Pre-commit hooks are kept fast (target < 10 s) so they don't get bypassed
+with `--no-verify`. Slow integration checks live in CI and as on-demand
+Make targets, per [`docs/audit/ACTION_PLAN_R5.md`](docs/audit/ACTION_PLAN_R5.md) §R5-L4.
+
+| Cadence | Cost | Entry point | What it covers |
+|---|---|---|---|
+| every commit | < 10 s | pre-commit hooks (auto) | format, lint, gitleaks, contract tests on changed files |
+| on demand | ~60 s | `make smoke` | scaffold a fresh service end-to-end (catches scaffolder + dependency-graph regressions) |
+| on demand | ~3 min | `make validate-templates` | lint + K8s render + agentic + scaffold + EDA |
+| every PR | ~3–10 min | [`pr-smoke-lane.yml`](.github/workflows/pr-smoke-lane.yml) | scaffold + 6 overlay renders + kubeconform + binary audit |
+| every PR | varies | other CI workflows | full unit tests, contract tests, security scans, signing |
+
+When you touch any of the following, **run `make smoke` locally before push**:
+
+- `templates/scripts/new-service.sh`
+- `templates/service/requirements.txt`
+- any `{placeholder}` introduced into `templates/`
+- `templates/k8s/base/` or `templates/k8s/overlays/`
+- `templates/cicd/`
+
+CI will catch the same class of bug, but the local feedback loop is faster.
+
 ## How to contribute
 
 1. Fork the repository.
@@ -37,24 +61,29 @@ Typical doc-only or refactor PRs that don't introduce a new component are exempt
 
    ```bash
    pip install pre-commit
-   pre-commit install --hook-type pre-commit --hook-type pre-push
+   pre-commit install
    ```
 
-   This installs:
-   - **pre-commit hooks**: black, isort, flake8, gitleaks (fast, run on every commit)
-   - **pre-push hook**: scaffold smoke test (~60s, runs before push to catch dependency graph and placeholder substitution regressions)
+   This installs the pre-commit hooks (black, isort, flake8, mypy,
+   bandit, gitleaks, fast contract tests). Total runtime is targeted
+   at < 10 s on a no-op commit.
 
-   **Without both hook types installed, your commits will fail CI.** The CI runs the exact same pre-commit configuration, so local pre-commit failures predict CI failures.
+   **Without pre-commit installed, your commits will fail CI.** The CI runs the exact same pre-commit configuration, so local failures predict CI failures.
+
+   The slower scaffold smoke test (~60 s) was retired from pre-push in R5-L4 because it was duplicating [`pr-smoke-lane.yml`](.github/workflows/pr-smoke-lane.yml). Run it on demand via `make smoke` per the *Local validation cadence* table above.
 
 4. Make your changes.
 5. Run the relevant quality gates locally:
 
    ```bash
-   # Run all commit-stage hooks manually (if you need to check before committing)
+   # Run all commit-stage hooks manually
    pre-commit run --all-files
 
-   # Run the pre-push hook manually (if you need to verify before pushing)
-   pre-commit run --hook-stage pre-push --all-files
+   # Run the scaffold smoke (replaces the retired pre-push hook; ~60 s)
+   make smoke
+
+   # Or the full local validation chain (lint + render + agentic + scaffold + EDA)
+   make validate-templates
    ```
 
 6. Commit with sign-off:

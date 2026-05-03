@@ -17,7 +17,7 @@ arguments:
   - service-name
 authorization_mode:
   collect_traces: AUTO           # logs, metrics, kubectl describe
-  diagnose: AUTO                 # apply heuristics from D-01..D-30 table
+  diagnose: AUTO                 # apply heuristics from D-01..D-32 table
   propose_fix: AUTO              # produce a diff or runbook step in chat
   apply_fix_dev: AUTO            # reversible — dev cluster only
   apply_fix_staging: CONSULT     # staging change requires reviewer
@@ -159,7 +159,7 @@ SchemaError means input data violates the Pandera schema → upstream data chang
 The skill is complete when ALL of the following hold:
 
 - [ ] Root cause identified — every claim has command + output as evidence
-- [ ] If an anti-pattern (D-01..D-30) was violated, the specific ID is cited
+- [ ] If an anti-pattern (D-01..D-32) was violated, the specific ID is cited
 - [ ] Either:
   * (dev) the fix has been applied AND the symptom no longer reproduces, OR
   * (staging/prod) a remediation plan with concrete commands is written

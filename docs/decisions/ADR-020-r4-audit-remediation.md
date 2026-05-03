@@ -162,13 +162,28 @@ requires `amtool` + a representative `alertmanager.yaml`; the existing
 template ships PrometheusRules but not a complete `alertmanager.yaml`,
 so M5 ships alongside L2.
 
-### Sprint 3 — open
+### Sprint 3 — open (R4 + R5 merged)
 
 - **M5** Alertmanager routing test + runbook (paired with L2 dashboard inventory).
 - **L1** Backfill `### Known follow-ons` blocks on `v1.0`–`v1.9` release notes.
 - **L2** `docs/observability/dashboards-inventory.md` indexing every Grafana dashboard.
 - **L3** Integrate `infracost diff` into `terraform-plan-nightly.yml`.
-- **Phase-1 → Phase-2 gate** for ADR-019 (CI Self-Healing) — requires 14 days of shadow data; CONSULT-mode review with metrics evidence.
-- **F1, F2, F3** follow-ups from `docs/agentic/red-team-log.md` (PR-level diff assertion at workflow boundary; refuse 24h `MLOPS_ON_HOURS_UTC` spans; red-team payload regression CI step).
+- **Phase-1 → Phase-2 gate** for ADR-019 (CI Self-Healing) — requires 14 days of shadow data; gated on R5-M1 landing.
+- **F1, F2, F3** follow-ups from `docs/agentic/red-team-log.md`.
+- **R5-H1** README "Production-ready by design" wording softening + new §"Verification status" mini-matrix.
+- **R5-M1** Shadow workflow real log fetch + `log_artifact_url` wiring + PR-base diff (closes red-team F1 inline).
+- **R5-M3** NetworkPolicy egress per cloud overlay + non-dev-overlay contract test.
 
-See `docs/audit/ACTION_PLAN_R4.md` §7.
+See `docs/audit/ACTION_PLAN_R4.md` §7 and `docs/audit/ACTION_PLAN_R5.md`.
+
+### R5 AUTO batch — closed 2026-05-03 (commit chain — see VALIDATION_LOG Entry 004)
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| R5-L4 | Closed | `.pre-commit-config.yaml` retired pre-push scaffold smoke; `Makefile` `smoke` alias; `CONTRIBUTING.md` §"Local validation cadence". |
+| R5-M4 | Closed | `templates/service/tests/load_test.py` synced to canonical schema; new `test_load_payload_matches_schema.py` (5 invariants) blocks future drift. |
+| R5-M2 | Closed | `scripts/validate_agentic.py` reconfigure-utf-8 + ASCII probe + `MARK_*` constants; verified on Linux + simulated cp1252. |
+| R5-L1 | Closed | 6 secondary docs bumped from `D-30` to `D-32`; new `test_anti_pattern_count_consistency.py` (7 invariants) auto-derives canonical max from `AGENTS.md`. |
+| R5-H1 | Open | Maintainer wording call. |
+| R5-M1 | Open | CONSULT — gates Phase-1 → Phase-2 ADR-019 review. |
+| R5-M3 | Open | CONSULT — needs operator input on per-cloud egress allowlists. |

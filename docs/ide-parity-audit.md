@@ -2,7 +2,7 @@
 
 Date: 2026-04-24 (v1.9.0)
 
-AGENTS.md §IDE Parity Matrix claims the template's invariants (D-01..D-30)
+AGENTS.md §IDE Parity Matrix claims the template's invariants (D-01..D-32)
 are mirrored across three IDE-specific rule directories:
 
 - `.windsurf/rules/` — 15 files, primary source
@@ -58,7 +58,7 @@ Legend: ✓ = canonical coverage, · = reference/link to canonical, — = not in
    `.md` rules are deliberately short — they carry the invariant IDs
    and a one-line fix; full details are in AGENTS.md + windsurf.
 3. **Anti-pattern table coverage**: ONLY AGENTS.md and
-   `.windsurf/rules/01-mlops-conventions.md` carry the full D-01..D-30
+   `.windsurf/rules/01-mlops-conventions.md` carry the full D-01..D-32
    table; the Cursor `01-mlops-conventions.mdc` duplicates it
    (Cursor users lose AGENTS.md globbing); Claude rules reference the
    table in AGENTS.md.

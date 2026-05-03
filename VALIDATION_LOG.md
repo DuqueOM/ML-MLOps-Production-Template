@@ -384,6 +384,123 @@ Sprint 0 + Sprint 1 + Sprint 2 cumulative: **+~5500 lines / -~10 lines** across 
 
 ---
 
+## Entry 004 — R5 AUTO batch close (May 2026)
+
+- **Date**: 2026-05-03
+- **Branch**: `audit-r4/sprint-0-credibility` (continuation; R5 closures batched on the same branch).
+- **Base commit (R5 batch start)**: `0505551b0756b1772c00fc21c0acb431ab8b716f`
+- **Operator**: Staff/Lead engineer.
+- **Scope**: 4 R5 AUTO findings + R5 plan publication. CONSULT findings (R5-M1, R5-M3) and the documentation-only High (R5-H1) tracked in remaining todos.
+
+### What was executed
+
+#### 1. ACTION_PLAN_R5 published
+- `docs/audit/ACTION_PLAN_R5.md` — engineering judgement on pre-commit
+  scaffold smoke friction, 6 R5 findings (1 H + 4 M + 1 L) plus R5-L4
+  on pre-commit cardinality. Sprint plan integration table folds R5
+  items into existing R4 Sprint 3.
+
+#### 2. R5-L4 — scaffold smoke off pre-commit
+- `.pre-commit-config.yaml`: removed `scaffold-smoke` pre-push hook
+  (was 60 s on every push); replaced with a comment block citing R5-L4
+  rationale + redirect to `make smoke` and `pr-smoke-lane.yml`.
+- `default_install_hook_types` reduced from `[pre-commit, pre-push]` to
+  `[pre-commit]`; header rewritten.
+- `Makefile`: `smoke` target added as alias of `test-scaffold`.
+- `CONTRIBUTING.md`: new §"Local validation cadence" with cost table
+  (commit < 10 s · `make smoke` ~60 s · `make validate-templates`
+  ~3 min · CI per-PR 3-10 min). Install instructions updated to drop
+  `--hook-type pre-push` and point at `make smoke`.
+
+#### 3. R5-M4 — Locust schema sync
+- `templates/service/tests/load_test.py`: `SAMPLE_PAYLOAD` rewritten to
+  match `app.schemas.PredictionRequest` (`entity_id`, `slice_values`,
+  `feature_a/b/c`); `BATCH_PAYLOAD` switched from `instances` →
+  `customers` with unique `entity_id` per batch entry (D-20 join key).
+- NEW `templates/service/tests/test_load_payload_matches_schema.py` —
+  5 contract tests asserting payload validates against the live
+  Pydantic models, batch uses `customers` (not `instances`), batch
+  entity_ids are unique, and SAMPLE_PAYLOAD carries `entity_id`. Test
+  module gracefully skips when `locust` is unavailable so contributors
+  without the dev extras are not blocked.
+
+#### 4. R5-M2 — Windows ASCII fallback in validator
+- `scripts/validate_agentic.py`: try `sys.stdout.reconfigure(utf-8,
+  errors=replace)` with safe fallback; probe whether the (possibly
+  upgraded) stream can encode `✓ ✗ ⚠ ℹ` and substitute `[OK] [X] [!]
+  [i]` if not. All five literal glyph occurrences replaced with
+  `MARK_*` constants.
+- Verified two paths locally:
+  - Linux default → `_USE_UNICODE = True`, glyphs preserved (regression
+    suite `python scripts/validate_agentic.py` exits 0 with `✓`).
+  - Simulated cp1252 stream that refuses `reconfigure` → `_USE_UNICODE
+    = False`, `MARK_OK = "[OK]"`, `MARK_FAIL = "[X]"`, etc.
+
+#### 5. R5-L1 — D-32 catalog drift sweep
+- Bumped `D-01..D-30` → `D-01..D-32` (and "30 invariants" → "32") in:
+  - `CLAUDE.md` (3 sites + new D-31..D-32 partition row in summary table).
+  - `.claude/rules/01-serving.md` (1 site).
+  - `.claude/rules/09-mlops-conventions.md` (1 site).
+  - `.windsurf/skills/debug-ml-inference/SKILL.md` (2 sites — heuristic
+    table + success criteria checklist).
+  - `docs/decisions/ADR-014-gap-remediation-plan.md` (1 site).
+  - `docs/ide-parity-audit.md` (2 sites).
+- Left `AUDIOVISUAL_CONTENT.md` unchanged (creative video scripts,
+  flagged as separate doc-cleanup item; not invariant reference).
+- NEW `templates/service/tests/test_anti_pattern_count_consistency.py`
+  — parses `AGENTS.md` for the highest `D-NN` row id and asserts
+  every catalog-size range citation in 6 secondary docs cites the
+  canonical max. Markdown table partition rows (e.g.
+  `| D-01..D-08 | Serving |`) are excluded via `_is_in_partition_row`
+  helper. 7 invariants (6 parametrized + 1 floor-≥-32 sanity).
+
+### Aggregate test run
+
+```
+$ python -m pytest \
+    templates/service/tests/test_memory_contracts.py \
+    templates/service/tests/test_memory_redaction.py \
+    templates/service/tests/test_phase0_disclosure.py \
+    templates/service/tests/test_readme_model_names.py \
+    templates/service/tests/test_ci_classify_failure_phase1.py \
+    templates/service/tests/test_ci_autofix_policy_contract.py \
+    templates/service/tests/test_anti_pattern_count_consistency.py \
+    templates/service/tests/test_load_payload_matches_schema.py \
+    --no-cov --noconftest -q
+================== 106 passed, 7 skipped, 1 warning in 7.04s ======================
+```
+
+The 7 skips: 6 Phase-0 banner enforcers correctly auto-skipped (both
+ADR-018 and ADR-019 are Phase 1) + 1 locust env probe.
+
+### Status transitions
+
+- ADR-020 §"Progress log": new R5 closure section appended.
+- R5 closure status:
+  - R5-H1: **open** — README softening + Verification status mini-matrix.
+  - R5-M1: **open** — shadow workflow real log fetch (CONSULT).
+  - R5-M2: **closed** — Windows fallback + dual-codec verification.
+  - R5-M3: **open** — NetworkPolicy egress per overlay (CONSULT).
+  - R5-M4: **closed** — schema sync + 5-invariant contract test.
+  - R5-L1: **closed** — 6 doc sites bumped + 7-invariant guard test.
+  - R5-L4: **closed** — scaffold smoke off pre-commit + `make smoke` + CONTRIBUTING.
+
+### What was NOT validated (pending)
+
+- **R5-H1** README softening — needs maintainer judgement on "Production-
+  ready by design" wording across 7 maturity matrix rows; AUTO scope but
+  high-impact wording so deferred to next batch with explicit reviewer
+  approval.
+- **R5-M1** shadow log fetch — CONSULT mode; touches CI surface and gates
+  the Phase-1 → Phase-2 ADR-019 decision. Needs separate PR for review.
+- **R5-M3** NetworkPolicy egress — CONSULT mode; per-cloud allowlists
+  require operator input on representative GCS / S3 prefix-list IDs.
+- **Windows CI lane** — separate PR adding `windows-latest` runner job
+  to validate `scripts/validate_agentic.py --strict`. Unblocks proof of
+  R5-M2 cross-platform claim in CI.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:
