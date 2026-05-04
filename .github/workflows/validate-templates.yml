@@ -584,6 +584,26 @@ jobs:
       - name: Check baseline entry expiries
         run: python3 scripts/check_baselines_expiry.py
 
+  test-clock-isolation:
+    name: Test Clock Isolation Contract
+    runs-on: ubuntu-latest
+    # Hardening lesson from the 2026-05-04 feedback triage:
+    # a behavioral test broke when the user ran the suite at 20:52 UTC
+    # because a test helper (transitively) read the wall clock. This
+    # contract scans test files for direct datetime.now / time.time
+    # calls and gates them through a curated allowlist with one-line
+    # justifications. Cheap signal that prevents the same shape of
+    # bug from reaching main again. See
+    # docs/audit/feedback-may-2026-triage.md §"Closure summary".
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check test clock isolation
+        run: python3 scripts/check_test_clock_isolation.py
+
   agentic-adapter-drift:
     name: Agentic Adapter Drift Gate
     runs-on: ubuntu-latest
@@ -622,6 +642,22 @@ jobs:
           python-version: "3.11"
       - name: Check dashboard inventory
         run: python3 scripts/check_dashboard_inventory.py
+
+  common-utils-drift:
+    name: common_utils Drift Gate (ADR-025 Option A)
+    runs-on: ubuntu-latest
+    # ADR-025 Option A: until common_utils is distributed as a proper
+    # package, templates/common_utils/ MUST remain placeholder-free.
+    # new-service.sh copies it verbatim and then runs a global sed pass;
+    # any placeholder here would silently fork adopters' scaffolded copies.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check common_utils for scaffold-rewriteable placeholders
+        run: python3 scripts/check_common_utils_drift.py
 
   scaffold-e2e:
     name: Scaffolder End-to-End Test

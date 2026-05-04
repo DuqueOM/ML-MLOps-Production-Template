@@ -6,20 +6,20 @@ Background (ADR-016 PR-R2-4)
 Three call sites consume the same training-time DataFrame schema today,
 but only one of them actually validates against it:
 
-    1. ``src/{service}/training/train.py``  — calls ``ServiceInputSchema.validate``
+    1. ``src/<slug>/training/train.py``  — calls ``ServiceInputSchema.validate``
     2. ``app/fastapi_app.py`` (``/predict``, ``/predict_batch``) — historically did NOT,
        relied on Pydantic alone.
-    3. ``src/{service}/monitoring/drift_detection.py`` — historically did NOT;
+    3. ``src/<slug>/monitoring/drift_detection.py`` — historically did NOT;
        a missing or renamed column would silently look like real drift.
 
 Pydantic (in :mod:`app.schemas`) catches type / range issues per field.
-Pandera (in :mod:`{service}.schemas`) catches DataFrame-level invariants:
+Pandera (in :mod:`<slug>.schemas`) catches DataFrame-level invariants:
 required columns, allowed categoricals, cross-column rules, and the
 *coercion* policy that training depends on.
 
 These two layers are complementary, not duplicative. PR-R2-4 wires the
 Pandera layer into serving + drift so a divergence between
-``app/schemas.py`` and ``src/{service}/schemas.py`` fails loudly on the
+``app/schemas.py`` and ``src/<slug>/schemas.py`` fails loudly on the
 first request rather than producing a corrupted prediction or a phantom
 drift alert.
 
