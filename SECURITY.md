@@ -124,6 +124,24 @@ This template targets **SLSA Level 2** out of the box:
 - `.windsurf/rules/12-security-secrets.md` — always_on rule enforcing D-17/D-18/D-19
 - `.windsurf/skills/security-audit/SKILL.md` — pre-build/pre-deploy audit procedure
 
+## Historical security disclosures
+
+> Defensive transparency for adopters who forked or copied template
+> patterns from earlier releases. Each entry below was a real issue
+> that has been remediated in the version listed; if you forked
+> before that version, audit your downstream copy for the same
+> pattern.
+
+| ID | Disclosed | Versions affected | Issue | Remediation in template |
+|----|-----------|-------------------|-------|-------------------------|
+| HD-001 | 2026-04 | < v0.10 | `GCP_SA_KEY` JSON service account key was the documented auth pattern in deploy workflows | Replaced with Workload Identity Federation (no static keys). Earlier forks should rotate any leaked key via `/secret-breach` and migrate to WIF. (D-18) |
+| HD-002 | 2026-05 | < v0.15.0 | Prometheus scraping over plain HTTP, no Bearer auth, no CA verification | `risk_context.py` now requires Bearer token + TLS verification; `INSECURE_SKIP_VERIFY` refused outside dev/local. Forks should add the same controls. (HIGH-9 in ADR-024) |
+| HD-003 | 2026-05 | < v0.15.0 | `argo-rollout.yaml` shipped without PSS-restricted `securityContext` while the canonical `deployment.yaml` had it | Both manifests now have full security parity (CRIT-3 in ADR-024). Forks that enabled progressive delivery before v0.15.0 should re-render. |
+| HD-004 | 2026-05 | < v0.15.0 | `tfsec` / `checkov` / `trivy` ran with `soft_fail: true`, silently passing CRITICAL findings | Hard-fail with explicit per-finding baselines + expiry annotations; `security-baseline-expiry` CI gate forces ADR-backed extensions. (HIGH-1 in ADR-024) |
+
+If you find an issue NOT listed here, please follow the Reporting a
+Vulnerability section above so it can be added.
+
 ## Security Contacts
 
 - **Lead**: Duque Ortega Mutis
@@ -132,4 +150,5 @@ This template targets **SLSA Level 2** out of the box:
 
 ---
 
-**Last Updated**: April 2026
+**Last Updated**: May 2026 — added Historical security disclosures
+section (HD-001..HD-004) per external-feedback gap 4.2.

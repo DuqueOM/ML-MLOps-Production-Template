@@ -42,6 +42,8 @@ beyond the next release.
 | 8. Estratégicos | 5 | 0 | 0 | 5 | 0 | 0 |
 | **Total** | **38** | **1** | **16** | **8** | **12** | **1** |
 
+**Update 2026-05-04 (afternoon)**: 12 of 12 🔧 items SHIPPED across 5 PRs (`feedback-PR-1` through `feedback-PR-5`). All ✅ in this revision are post-shipment status; the original triage column is preserved in commit history. See § "Closure summary" at the end of this document.
+
 **The 12 🔧 items are the actionable shortlist.** They are clustered
 into ~5 PRs that each take < 1 day. Estimated total work: 3–4 days.
 
@@ -497,3 +499,51 @@ The **net new actionable surface from this feedback** is:
 
 Everything else is either already done, already disclosed, or
 out-of-scope by ADR-001.
+
+---
+
+## Closure summary (2026-05-04 afternoon)
+
+All 12 🔧 items from the original triage SHIPPED in 5 PRs across
+a single working session.
+
+| PR | Items closed | Commit | Verification |
+|----|--------------|--------|--------------|
+| feedback-PR-1 | 3.1, 5.4, 6.4 | `c589b02` | Releases visible at `/releases`; CI gate `dashboard-inventory` green |
+| feedback-PR-2 | 2.4, 5.1 (×3) | `7ee29d0` | 214 unit tests pass (was 112); +69 new tests; preexisting Prometheus-mock regression also fixed |
+| feedback-PR-3 | 6.2, 7.2, 7.3 | `3c8217f` | New `docs/PROGRESSION.md`, `docs/runbooks/progressive-delivery.md`; QUICK_START Track A/B; README "Optional: Progressive delivery" section |
+| feedback-PR-4 | 1.4 | `b8f0251` | New `kyverno-smoke.yml` workflow; `scripts/test_kyverno_admission.sh` validated locally with `bash -n` |
+| feedback-PR-5 | 1.2, 4.1, 4.2, 6.1 (DRAFT), 6.3 | `<this commit>` | Closed-loop SLA runbook; informal compliance crosswalk; SECURITY HD-001..HD-004; ADR-025 DRAFT; agentic-adapter-drift CI gate |
+
+### What this changes about the project's posture
+
+- **External credibility**: tags v0.15.0 / v0.15.1 now have GitHub
+  Releases. Future tags auto-publish via `release-on-tag.yml`.
+- **Test discipline**: D-17 (never log secret) and D-18 (no
+  os.environ fallback in staging/prod) are now enforced by unit
+  tests, not just code-review vigilance. Behavioral risk-mode
+  matrix is exercised end-to-end.
+- **Supply-chain enforcement**: Kyverno digest-pinning policy is
+  PROVEN to reject `:latest` in a real cluster (kind-based smoke).
+  Signature verification still requires L4 evidence.
+- **Discoverability**: PROGRESSION.md is the new on-ramp;
+  Argo Rollouts is no longer hidden in a kustomization comment.
+- **CI completeness**: agentic adapter drift, security baseline
+  expiry, and Grafana dashboard inventory now all have CI gates.
+  Pre-existing structural validators were already wired.
+- **Honest disclosures**: SECURITY.md now lists 4 historical
+  vulnerabilities so early-fork adopters can self-audit.
+
+### What is still gated to v1.0.0
+
+Unchanged from the original triage: the **L4 real-cluster
+evidence** for GKE + EKS. No amount of local + kind + CI work
+closes it. Items 🟡 in this triage that map to L4 (1.1, 1.3, 5.3,
+6.5, 6.6) remain L4-gated.
+
+### What ADR-025 unblocks (later)
+
+The `common_utils/` distribution debate is now structured (Option
+A/B/C with honest cost/benefit). Ratification is a separate audit
+cycle. Until then, the dual-source pattern remains the de-facto
+state, but no longer silent debt.
