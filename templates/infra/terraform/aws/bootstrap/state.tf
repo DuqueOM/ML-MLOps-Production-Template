@@ -80,7 +80,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "tfstate" {
 # Pay-per-request: state lock acquisitions are infrequent (handful per day),
 # so on-demand pricing wins over provisioned capacity for this workload.
 resource "aws_dynamodb_table" "tfstate_locks" {
-  name         = "${var.project_name}-tfstate-locks"
+  name         = "${var.project_name}-tfstate-lock-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 
@@ -102,7 +102,7 @@ resource "aws_dynamodb_table" "tfstate_locks" {
   }
 
   tags = {
-    Name    = "${var.project_name}-tfstate-locks"
+    Name    = "${var.project_name}-tfstate-lock-${var.environment}"
     purpose = "tfstate-lock"
   }
 

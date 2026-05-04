@@ -7,8 +7,7 @@ correctly:
    ``status=BLOCKED`` — the load-bearing rule.
 2. Lets training proceed when the report is PASSED.
 3. Lets training proceed (with a warning) when the artifacts directory
-   does not exist — the back-compat path for services that haven't yet
-   adopted the canonical EDA contract.
+   does not exist only when ``require_eda_artifacts=false``.
 4. Refuses to construct when ``feature_catalog.yaml`` is malformed
    (missing rationale on any transform — D-16 violation).
 
@@ -25,6 +24,7 @@ import importlib
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -65,8 +65,9 @@ class _GateOnlyTrainer:
     to a minimal namespace and calls it.
     """
 
-    def __init__(self, eda_artifacts_dir: str | Path | None) -> None:
+    def __init__(self, eda_artifacts_dir: str | Path | None, *, require_eda_artifacts: bool = False) -> None:
         self.eda_artifacts_dir = str(eda_artifacts_dir) if eda_artifacts_dir is not None else None
+        self.gates = SimpleNamespace(require_eda_artifacts=require_eda_artifacts)
 
     _enforce_eda_gate = train_module.Trainer._enforce_eda_gate
 
@@ -148,11 +149,24 @@ def test_missing_artifacts_dir_skips_gate_with_warning(tmp_path: Path, caplog: p
     assert any("does not exist" in r.message for r in caplog.records)
 
 
+def test_missing_artifacts_dir_blocks_when_required(tmp_path: Path) -> None:
+    nonexistent = tmp_path / "no_eda_yet"
+    trainer = _GateOnlyTrainer(eda_artifacts_dir=nonexistent, require_eda_artifacts=True)
+    with pytest.raises(train_module.EDAGateError, match="does not exist"):
+        trainer._enforce_eda_gate()
+
+
 def test_disabled_gate_via_none(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     trainer = _GateOnlyTrainer(eda_artifacts_dir=None)
     with caplog.at_level("INFO"):
         trainer._enforce_eda_gate()
     assert any("explicitly disabled" in r.message for r in caplog.records)
+
+
+def test_disabled_gate_blocks_when_required() -> None:
+    trainer = _GateOnlyTrainer(eda_artifacts_dir=None, require_eda_artifacts=True)
+    with pytest.raises(train_module.EDAGateError, match="explicitly disabled"):
+        trainer._enforce_eda_gate()
 
 
 def test_malformed_feature_catalog_blocks(tmp_path: Path) -> None:

@@ -12,7 +12,7 @@ Opinionated, production-grade template for building and operating ML systems on 
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
 [![Anti-Patterns](https://img.shields.io/badge/anti--patterns-32%20encoded-red.svg)](#anti-patterns-encoded)
-[![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Claude_Code_%7C_Cursor-blueviolet.svg)](#agentic-system)
+[![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Cursor_%7C_Claude_%7C_Codex-blueviolet.svg)](#agentic-system)
 
 ```bash
 # scaffold a new ML service in under a minute
@@ -27,7 +27,9 @@ cd ML-MLOps-Production-Template
 
 ## Who this is for
 
-This template is designed for ML engineers and platform teams that are past the experimentation phase and ready to operate models with production discipline. It fits:
+This template is designed for ML engineers and platform teams that are past the experimentation phase and ready to operate models with production discipline. The active public release line is `v0.x` hardening; `v1.0.0` is reserved for the first release with real cloud E2E evidence on GKE and EKS.
+
+It fits:
 
 - a **team shipping its first production ML service** that wants strong defaults without building a platform from scratch
 - a **platform team** standardizing how ML services are built, deployed, monitored, and governed across multiple squads
@@ -58,7 +60,7 @@ This is not a generic starter repo. It is a production template with encoded ope
 
 ## Production-ready scope
 
-The template is positioned as a hardened open-source baseline for enterprise ML services. The status column below uses **"Production-ready by design"** to signal:
+The template is positioned as a hardened open-source baseline for enterprise-style ML services. The status column below uses **"Production-ready by design"** to signal:
 
 - the component is **contract-tested and scaffold-tested in this repo** (invariants live in `templates/service/tests/` and `.github/workflows/validate-templates.yml`);
 - the patterns are the ones the author operates with in production ML systems;
@@ -88,10 +90,26 @@ Four verification layers. Inside this repo the author can guarantee the first th
 |-------|-------|---------------|----------------------|
 | **L1 — Contract tests** | Invariants on generated service code, schemas, policies, and agentic config | `.github/workflows/validate-templates.yml`; `templates/service/tests/test_*.py`; `make validate-templates` locally | 106 passing contract tests covering memory (ADR-018), CI self-healing (ADR-019), model-routing disclaimer, Phase-0/1 disclosure, anti-pattern count consistency, Locust ↔ API parity, PR evidence policy, CI autofix policy |
 | **L2 — Scaffold smoke** | End-to-end scaffold of a fresh service + 6 overlay renders + kubeconform + binary audit | `.github/workflows/pr-smoke-lane.yml` on every PR; `make smoke` on demand (~60 s) | Green per PR; history in the Actions tab |
-| **L3 — Golden path E2E** | Full chain: scaffold → build → sign → attest → deploy to kind → smoke-test the running service | `.github/workflows/golden-path.yml` on release tags | Shipped; executed per release |
+| **L3 — Golden path E2E** | Full chain: scaffold → build → sign → attest → deploy to kind → rollout Available → `/health` + `/ready` + `/predict` 2xx + metrics smoke | `.github/workflows/golden-path.yml` on release tags / schedule | Shipped; uses an explicit CI-only synthetic model fallback so runtime checks do not depend on cloud buckets |
 | **L4 — Adopter production rollout** | Your cluster, your traffic, your SLOs, your compliance regime | Your CD pipeline + observability stack | **Not assertable from this repo.** Checklist lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md) §"Template for future entries" and [`docs/runbooks/`](docs/runbooks/). The R4 audit documents which runbooks are still pending execution by the author (secrets-integration-e2e, ground-truth ingestion SLA, Kyverno admission validation, secret history scan). |
 
 If you are an adopter deciding whether to stake a production service on this template: L1 + L2 + L3 are your contract; L4 is an obligation the template cannot discharge for you. The `docs/audit/ACTION_PLAN_R4.md` + `VALIDATION_LOG.md` pair is the paper trail for what has already been executed vs. what is only shipped as policy.
+
+---
+
+### Enterprise adoption delta
+
+The `v0.14.0` hardening pass closes the most immediate first-adopter gaps found in the Staff-level enterprise audit: scaffolded CI/CD now follows the documented single-service root layout, deploy workflows use the same kebab-case image vocabulary as Kustomize, the Python package is discoverable under `src/`, inference fails fast unless the training `FeatureEngineer` is available, and non-agentic runbook references resolve to real files.
+
+Current audit score after local validation:
+
+| Dimension | Before | After |
+|-----------|-------:|------:|
+| Overall template readiness | 8.1/10 | 8.7/10 |
+| Staff MLOps portfolio signal | 9.0/10 | 9.3/10 |
+| Immediate enterprise adoption | 7.4/10 | 8.4/10 |
+
+The score is still not a production L4 claim. It reflects repo-local evidence, scaffold contracts, workflow static checks, and documentation integrity; real GKE/EKS rollout evidence remains the `v1.0.0` gate.
 
 ---
 
@@ -103,7 +121,7 @@ If you are an adopter deciding whether to stake a production service on this tem
 | Understand the operating model | [AGENTS.md](AGENTS.md) | [docs/decisions/](docs/decisions/) |
 | Review deployment and rollback flow | [RUNBOOK.md](RUNBOOK.md) | `templates/cicd/` and `templates/k8s/` |
 | Evaluate security posture | [SECURITY.md](SECURITY.md) | `templates/infra/`, `templates/k8s/`, `templates/cicd/` |
-| Extend agentic behavior | [AGENTS.md](AGENTS.md) | `.windsurf/`, `.cursor/`, `.claude/` |
+| Extend agentic behavior | [AGENTS.md](AGENTS.md) | `templates/config/agentic_manifest.yaml`, `.windsurf/`, generated adapters |
 | Contribute to the template | [CONTRIBUTING.md](CONTRIBUTING.md) | License and governance sections below |
 | Cut a release | [docs/RELEASING.md](docs/RELEASING.md) | [CHANGELOG.md](CHANGELOG.md) |
 | Migrate from a prior version | [MIGRATION.md](MIGRATION.md) | [CHANGELOG.md](CHANGELOG.md) |
@@ -211,6 +229,15 @@ flowchart TD
 ## Agentic system
 
 The template treats agent behavior as an engineering surface, not a prompt configuration.
+
+The governance pattern is now single-source:
+
+- `AGENTS.md` is the behavioral authority.
+- `.windsurf/` stores canonical rule, skill, and workflow bodies.
+- `templates/config/agentic_manifest.yaml` declares which surfaces consume each asset.
+- `.cursor/`, `.claude/`, and `.codex/` contain generated pointer adapters only.
+
+Run `make agentic-sync` after changing the manifest or canonical Windsurf files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 15 rule files, 16 skills, and 12 workflows to Windsurf, Cursor, Claude, and Codex. The project shorthand "14 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
 
 ### Static decision protocol
 
@@ -630,7 +657,7 @@ For platform reviewers asking *"is this ready for our org?"* and teams that want
 - **Non-agentic on-ramp**: every `/slash` workflow has a `make` equivalent or runbook reference; teams that don't use AI assistants get the same safety guarantees through `make` targets and contract tests
 - **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference)
 
-The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-31) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
+The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-32) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
 
 ---
 

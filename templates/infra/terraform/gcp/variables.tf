@@ -123,13 +123,28 @@ variable "services_cidr" {
 variable "enable_private_endpoint" {
   description = <<-EOT
     Lock the GKE control plane to PRIVATE access only (no public endpoint).
-    Default false to preserve backwards compatibility — adopters with
-    bastion/VPN access flip this to true for prod. When true, kubectl
+    Default true so staging/prod are secure by default. Dev environments
+    without bastion/VPN access may explicitly set this to false and rely
+    on master_authorized_networks. When true, kubectl
     must reach the master via the VPC (Cloud SQL Auth Proxy / IAP /
     bastion / VPN). PR-A3.
   EOT
   type        = bool
-  default     = false
+  default     = true
+}
+
+variable "node_oauth_scopes" {
+  description = <<-EOT
+    Minimal OAuth scopes for GKE node pools. Workload Identity is the
+    pod-level auth mechanism; nodes only need logging/monitoring by
+    default. Avoid cloud-platform unless a documented legacy dependency
+    requires it.
+  EOT
+  type        = list(string)
+  default = [
+    "https://www.googleapis.com/auth/logging.write",
+    "https://www.googleapis.com/auth/monitoring",
+  ]
 }
 
 variable "master_authorized_networks" {

@@ -25,8 +25,9 @@ Cross-check consistency
     surface_capabilities.yaml.
   * Every MCP's install_mode covers every surface declared in
     surface_capabilities.yaml (missing surface → skill orphan).
-  * Every skill's requires (surface_capabilities.skill_capability_requirements)
-    is supported by every surface claiming the skill in
+  * Every skill/workflow's requires
+    (surface_capabilities.skill_capability_requirements) is supported
+    by every surface claiming the action in
     agentic_manifest.yaml.
 
 Usage
@@ -125,8 +126,8 @@ def _collect_errors(
                     f"surface {s!r}"
                 )
 
-    # 4) Every skill's required capabilities are supported by every
-    #    surface that claims the skill.
+    # 4) Every skill/workflow's required capabilities are supported by
+    #    every surface that claims the action.
     overrides = (
         surfaces.get("skill_capability_requirements", {}).get("overrides") or {}
     )
@@ -140,10 +141,17 @@ def _collect_errors(
         s: set((spec.get("supports") or []))
         for s, spec in (surfaces.get("surfaces") or {}).items()
     }
-    for skill in manifest.get("skills") or []:
-        sid = skill.get("id")
+    actions = [
+        ("skills", item)
+        for item in (manifest.get("skills") or [])
+    ] + [
+        ("workflows", item)
+        for item in (manifest.get("workflows") or [])
+    ]
+    for kind, action in actions:
+        sid = action.get("id")
         reqs = set((overrides.get(sid) or {}).get("requires") or default_req)
-        for surface in skill.get("surfaces") or []:
+        for surface in action.get("surfaces") or []:
             supports = surface_supports.get(surface)
             if supports is None:
                 # Caught by surface_symmetry; avoid double-reporting.
@@ -151,7 +159,7 @@ def _collect_errors(
             missing = reqs - supports
             if missing:
                 errors["capability_support"].append(
-                    f"skills.{sid}: surface {surface!r} does not support "
+                    f"{kind}.{sid}: surface {surface!r} does not support "
                     f"required capabilities {sorted(missing)}"
                 )
 

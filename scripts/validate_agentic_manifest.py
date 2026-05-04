@@ -70,6 +70,7 @@ CONTEXT_POINTERS = [
     REPO_ROOT / ".windsurf_context.md",
     REPO_ROOT / ".cursor_context.md",
     REPO_ROOT / ".claude_context.md",
+    REPO_ROOT / ".codex_context.md",
 ]
 CONTEXT_POINTER_MAX_LINES = 150
 CONTEXT_POINTER_MAX_TABLE_ROWS = 10
@@ -220,6 +221,70 @@ def _validate_mode_enum(manifest: dict) -> list[str]:
                     f"{bucket}:{entry.get('id')}: invalid mode {mode!r}; "
                     f"must be one of {list(MODE_STRICTNESS)}"
                 )
+    return errors
+
+
+def _adapter_path(surface: str, roots: dict, bucket: str, item_id: str) -> Path | None:
+    """Return the expected adapter pointer path for a surface item."""
+    if bucket == "rules":
+        root = roots.get("rules")
+        if not root:
+            return None
+        suffix = ".mdc" if surface == "cursor" else ".md"
+        return REPO_ROOT / root / f"{item_id}{suffix}"
+    if bucket == "skills":
+        root = roots.get("skills")
+        if not root:
+            return None
+        return REPO_ROOT / root / f"{item_id}.md"
+    if bucket == "workflows":
+        root = roots.get("workflows") or roots.get("commands")
+        if not root:
+            return None
+        return REPO_ROOT / root / f"{item_id}.md"
+    return None
+
+
+def _validate_adapter_pointers(manifest: dict) -> list[str]:
+    """Validate adapter files are thin pointers to canonical sources."""
+    errors: list[str] = []
+    surfaces = manifest.get("surfaces") or {}
+    for bucket in ("rules", "skills", "workflows"):
+        for entry in manifest.get(bucket, []) or []:
+            item_id = entry.get("id")
+            source = entry.get("source")
+            for surface in entry.get("surfaces") or []:
+                spec = surfaces.get(surface) or {}
+                if spec.get("status") == "authoritative":
+                    continue
+                if spec.get("status") != "adapter":
+                    errors.append(
+                        f"{bucket}:{item_id}: surface {surface!r} is not an adapter/authoritative surface"
+                    )
+                    continue
+                path = _adapter_path(surface, spec.get("roots") or {}, bucket, item_id)
+                if path is None:
+                    errors.append(
+                        f"{bucket}:{item_id}: surfaces.{surface}.roots missing {bucket} adapter root"
+                    )
+                    continue
+                if not path.exists():
+                    errors.append(
+                        f"{bucket}:{item_id}: adapter pointer missing for {surface}: "
+                        f"{path.relative_to(REPO_ROOT)}"
+                    )
+                    continue
+                body = path.read_text(encoding="utf-8")
+                if source and source not in body:
+                    errors.append(
+                        f"{bucket}:{item_id}: adapter {path.relative_to(REPO_ROOT)} "
+                        f"does not reference canonical source {source}"
+                    )
+                if "AGENTS.md" not in body:
+                    errors.append(
+                        f"{bucket}:{item_id}: adapter {path.relative_to(REPO_ROOT)} "
+                        "does not reference AGENTS.md authority"
+                    )
     return errors
 
 
@@ -408,6 +473,7 @@ def run(strict: bool) -> dict:
     results["authority_chain"] = validate_authority_chain(manifest)
     results["source_paths"] = _validate_source_paths(manifest)
     results["surface_roots"] = _validate_surface_roots(manifest)
+    results["adapter_pointers"] = _validate_adapter_pointers(manifest)
     results["mode_enum"] = _validate_mode_enum(manifest)
     results["context_examples"] = validate_context_examples(strict=strict)
     results["context_pointers"] = validate_context_pointers()

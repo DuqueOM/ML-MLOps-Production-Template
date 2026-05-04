@@ -44,6 +44,7 @@ SURFACE_POINTERS = [
     REPO_ROOT / ".windsurf_context.md",
     REPO_ROOT / ".cursor_context.md",
     REPO_ROOT / ".claude_context.md",
+    REPO_ROOT / ".codex_context.md",
 ]
 
 

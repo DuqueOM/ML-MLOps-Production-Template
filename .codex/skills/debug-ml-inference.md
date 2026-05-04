@@ -1,29 +1,13 @@
-# debug-ml-inference (Codex pointer)
+# debug-ml-inference
 
-**Canonical**: `.windsurf/skills/debug-ml-inference/SKILL.md`
+**Adapter surface**: `codex`
 **Authority**: `AGENTS.md#Agent Behavior Protocol`
-**Manifest entry**: `agentic_manifest.yaml#skills[id=debug-ml-inference]`
+**Mode**: `AUTO`
+**Canonical source**: `.windsurf/skills/debug-ml-inference/SKILL.md`
 
-## When to invoke from Codex
+Read `.windsurf/skills/debug-ml-inference/SKILL.md` in full before invoking this skill. The canonical
+skill body, trigger conditions, escalation rules, and success criteria
+live there.
 
-- Latency spike alert in Grafana / Alertmanager.
-- Wrong predictions reported by a downstream consumer.
-- Event-loop blocking suspected (high p99 with low CPU).
-- "Why is the inference path slow on staging?" type questions.
-
-## Mode
-
-- AUTO. Read-only diagnostic walking the inference path: app code,
-  HPA + pod limits, recent Prometheus metrics, recent traces if
-  available.
-
-## Codex-specific notes
-
-- Required MCPs: `kubectl` (read-only `get/describe/logs`),
-  `prometheus` (query latency histograms, error rates, throughput).
-  Both must be `--read-only` in the Codex MCP config; the skill
-  never asks for write access.
-- Invariants the skill watches: D-01 (uvicorn workers), D-03
-  (`run_in_executor`), D-23 (`/ready` gating), D-25 (model warm-up
-  in lifespan). The full inspection sequence is in the canonical
-  SKILL.md — this pointer does not duplicate it.
+This file exists only so `codex` can discover the skill without
+forking `.windsurf/skills/`.
