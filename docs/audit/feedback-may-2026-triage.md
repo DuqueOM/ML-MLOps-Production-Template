@@ -153,17 +153,20 @@ not a feedback-driven one.
 
 ## 3. Credibilidad & Releases
 
-### 3.1 Cero GitHub Releases publicados 🔧 (TRIVIAL, HIGH IMPACT)
-- **Status**: 11 git tags (`v1.0.0`–`v1.12.0`) exist as snapshots
-  but ZERO are exposed as GitHub Releases. Adopters scanning the
-  repo see "no releases" and infer abandonment. CHANGELOG.md is
-  1,400+ lines but is invisible to anyone using GitHub's release
-  UI.
-- **Action 🔧**: publish a GitHub Release for v0.14.0, v0.15.0, and
-  v0.15.1 from existing tags + CHANGELOG sections. Future releases:
-  add `gh release create` step to `templates/cicd/deploy-*.yml`.
-- **Estimated effort**: 1 hour. **This is the single highest
-  external-perception ROI fix in the entire feedback list.**
+### 3.1 Cero GitHub Releases publicados ✅ CLOSED in feedback-PR-1
+- **Reality after audit**: 11 of the v1.x tags WERE published as
+  Releases; v0.13.0 and v0.14.0 also already had Releases. The
+  perception gap was real for v0.15.0 and v0.15.1 only (no Release
+  for either).
+- **Closure (feedback-PR-1)**:
+  - Created git tags `v0.15.0` and `v0.15.1` over the right commits.
+  - Published Releases for both with CHANGELOG-derived bodies.
+  - Added `.github/workflows/release-on-tag.yml` to AUTO-publish
+    every future tag, extracting the matching CHANGELOG section
+    and flagging `v0.x` as prerelease until L4 evidence ratifies
+    `v1.0.0`.
+- **Outcome**: zero manual steps for future releases; v0.15.0 and
+  v0.15.1 visible at github.com/DuqueOM/ML-MLOps-Production-Template/releases.
 
 ### 3.2 README desalineado (cache vs actual) ✅ → action 🔧
 - **Status**: the v0.15.0 commit DID update README. If GitHub still
