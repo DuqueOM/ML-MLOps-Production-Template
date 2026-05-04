@@ -44,6 +44,38 @@ fi
 SERVICE_NAME="$1"
 SERVICE_SLUG="$2"
 SERVICE_UPPER=$(echo "$SERVICE_SLUG" | tr '[:lower:]' '[:upper:]')
+
+# May 2026 audit MED-10: substitute {ORG}/{REPO} placeholders in
+# Kyverno + cosign-related manifests so adopters do not silently ship
+# `subjectRegExp: "https://github.com/{ORG}/{REPO}/..."` to production.
+# Without substitution, Kyverno would accept signatures from a literal
+# repo path that does not exist — effectively bypassing image
+# verification.
+#
+# Resolution priority:
+#   1. CLI args $3 ($4)
+#   2. ML_TEMPLATE_ORG / ML_TEMPLATE_REPO env vars
+#   3. `git remote get-url origin` parse (HTTPS or SSH)
+#   4. Final fallback: ORG=YOUR_ORG REPO=YOUR_REPO with a loud warning
+GH_ORG="${3:-${ML_TEMPLATE_ORG:-}}"
+GH_REPO="${4:-${ML_TEMPLATE_REPO:-}}"
+if [[ -z "$GH_ORG" || -z "$GH_REPO" ]]; then
+    if origin_url=$(git -C "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" config --get remote.origin.url 2>/dev/null); then
+        # https://github.com/<org>/<repo>(.git)?
+        # git@github.com:<org>/<repo>(.git)?
+        slug=$(echo "$origin_url" | sed -E 's#^(https?://[^/]+/|git@[^:]+:)([^/]+/[^/]+?)(\.git)?$#\2#')
+        if [[ "$slug" == */* ]]; then
+            GH_ORG="${GH_ORG:-${slug%%/*}}"
+            GH_REPO="${GH_REPO:-${slug##*/}}"
+        fi
+    fi
+fi
+GH_ORG="${GH_ORG:-YOUR_ORG}"
+GH_REPO="${GH_REPO:-YOUR_REPO}"
+if [[ "$GH_ORG" == "YOUR_ORG" || "$GH_REPO" == "YOUR_REPO" ]]; then
+    warn "Could not resolve {ORG}/{REPO}; substituted YOUR_ORG/YOUR_REPO."
+    warn "Edit Kyverno policies before deploying to production OR re-run with: $0 $SERVICE_NAME $SERVICE_SLUG <org> <repo>"
+fi
 # PR-A5b (ADR-015) — `{service-name}` is the kebab-case variant used
 # in any context that must satisfy RFC 1123 (Kubernetes resource
 # names, namespaces, labels, image refs, IRSA/WI annotations, URL
@@ -215,6 +247,9 @@ find "$TARGET_DIR" -type f \( -name "*.py" -o -name "*.yaml" -o -name "*.yml" \
     sed -i "s/{ServiceName}/$SERVICE_NAME/g" "$file"
     sed -i "s/{service-name}/$SERVICE_KEBAB/g" "$file"
     sed -i "s/{service}/$SERVICE_SLUG/g" "$file"
+    # GitHub org/repo for Kyverno + cosign trust roots (May 2026 audit MED-10).
+    sed -i "s|{ORG}|$GH_ORG|g" "$file"
+    sed -i "s|{REPO}|$GH_REPO|g" "$file"
     # Do not rewrite shell variables like `${SERVICE}`; only the literal
     # template placeholder `{SERVICE}` should become the upper snake value.
     perl -0pi -e "s/(?<!\\\$)\\{SERVICE\\}/$SERVICE_UPPER/g" "$file"

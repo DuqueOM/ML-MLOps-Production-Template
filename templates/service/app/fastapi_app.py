@@ -150,10 +150,47 @@ class _SyntheticGoldenPathModel:
 
 # ---------------------------------------------------------------------------
 # Thread pool for CPU-bound inference — NEVER block the event loop
-# max_workers=4 is a safe default for ML inference; K8s HPA handles scale-out
+#
+# Sizing (May 2026 audit MED-2 / .windsurf/rules/04a-python-serving.md):
+# the pool size is bounded by the K8s CPU limit so 4 hot threads do not
+# fight for the GIL on a 1-vCPU pod. The CPU limit is read from
+# INFERENCE_CPU_LIMIT (set in the Deployment manifest from the container
+# resource limits at deploy time) with a sane fallback to os.cpu_count().
+# Operators can override with INFERENCE_THREADPOOL_WORKERS for profiling
+# experiments; the override is logged so the choice is auditable.
 # ---------------------------------------------------------------------------
+def _resolve_inference_workers() -> int:
+    """Compute the ThreadPoolExecutor size from env + cpu detection."""
+    explicit = os.getenv("INFERENCE_THREADPOOL_WORKERS")
+    if explicit:
+        try:
+            value = int(explicit)
+            if value >= 1:
+                return value
+        except ValueError:
+            pass
+    detected = os.cpu_count() or 1
+    cpu_limit_raw = os.getenv("INFERENCE_CPU_LIMIT")
+    if cpu_limit_raw:
+        try:
+            cpu_limit = int(float(cpu_limit_raw))
+            if cpu_limit >= 1:
+                return min(cpu_limit, detected)
+        except ValueError:
+            pass
+    return max(1, detected)
+
+
+_INFERENCE_WORKERS = _resolve_inference_workers()
+logger.info(
+    "Inference ThreadPoolExecutor size=%d (INFERENCE_CPU_LIMIT=%s, INFERENCE_THREADPOOL_WORKERS=%s, os.cpu_count=%s)",
+    _INFERENCE_WORKERS,
+    os.getenv("INFERENCE_CPU_LIMIT"),
+    os.getenv("INFERENCE_THREADPOOL_WORKERS"),
+    os.cpu_count(),
+)
 _inference_executor = ThreadPoolExecutor(
-    max_workers=4,
+    max_workers=_INFERENCE_WORKERS,
     thread_name_prefix="ml-infer",
 )
 
@@ -231,10 +268,28 @@ def load_model_artifacts() -> None:
     except FileNotFoundError:
         if os.getenv("ALLOW_MODELLESS_STARTUP", "false").lower() != "true":
             raise
+        # ----------------------------------------------------------------
+        # May 2026 audit HIGH-6: refuse the modelless fallback in
+        # staging / production / any non-dev environment. The synthetic
+        # `_SyntheticGoldenPathModel` returns deterministic dummy scores;
+        # if a misconfigured deploy leaves ALLOW_MODELLESS_STARTUP=true
+        # in staging or prod, real traffic would silently be served by
+        # a fake model. Only `dev` and `local` are allowed to opt in.
+        # ----------------------------------------------------------------
+        env_label = os.getenv("ENVIRONMENT", "").strip().lower()
+        if env_label not in {"", "dev", "development", "local"}:
+            raise RuntimeError(
+                "ALLOW_MODELLESS_STARTUP=true is not permitted in "
+                f"ENVIRONMENT={env_label!r}. The synthetic golden-path "
+                "model would serve dummy scores to real traffic. "
+                "Provide MODEL_PATH or move this pod to a dev environment."
+            )
         logger.warning(
             "MODEL_PATH=%s missing but ALLOW_MODELLESS_STARTUP=true; "
-            "using synthetic CI-only model. Never enable this in production.",
+            "using synthetic CI-only model in ENVIRONMENT=%s. "
+            "Never enable this in staging/production.",
             model_path,
+            env_label or "<unset>",
         )
         _model_pipeline = _SyntheticGoldenPathModel()
         _feature_names = ["feature_a", "feature_b"]
@@ -731,5 +786,17 @@ async def predict_batch(request: BatchPredictionRequest) -> BatchPredictionRespo
 
 @router.get("/metrics")
 async def metrics() -> Response:
-    """Prometheus metrics endpoint — scraped by prometheus.io/scrape annotation."""
+    """Prometheus metrics endpoint — scraped by prometheus.io/scrape annotation.
+
+    Access control (May 2026 audit MED-4): `/metrics` is intentionally
+    NOT behind `verify_api_key`. Adding token auth here would break
+    Prometheus scraping (the upstream prom client does not authenticate
+    by default). Network-level restriction is the correct layer:
+    `templates/k8s/base/networkpolicy.yaml` only allows ingress on this
+    port from pods labeled `app: prometheus` in the `monitoring`
+    namespace. Adopters running a multi-tenant cluster MUST keep that
+    NetworkPolicy enforced; if Prometheus runs in a different namespace
+    or under a different pod label, patch the NetworkPolicy in their
+    overlay rather than removing it.
+    """
     return Response(content=generate_latest(), media_type="text/plain")

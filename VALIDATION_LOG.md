@@ -761,6 +761,161 @@ Real cloud evidence remains the future `v1.0.0` gate.
 
 ---
 
+## Entry 007 — v0.15.0 May 2026 Staff audit remediation
+
+- **Date**: 2026-05-04
+- **Branch**: `main`
+- **Base commit (pre-remediation)**: `v0.14.0`
+- **Environment**: local Linux developer workstation, no cloud credentials,
+  no Kubernetes cluster. Static-only validation; every manifest, workflow,
+  and Python module edited was validated against its contract test but
+  NOT deployed to a real cluster.
+- **Operator**: Staff MLOps Engineer (audit persona) + template maintainer
+- **Scope**: remediation of the 23 findings surfaced by the Staff-level
+  audit (see ADR-024). Every CRIT/HIGH/MED finding was closed in this
+  release; the entry records the per-file evidence.
+
+### What was executed
+
+#### 1. CRIT-class remediation (file-level evidence)
+
+- **CRIT-1** — `templates/k8s/base/kustomization.yaml`: added
+  `slo-prometheusrule.yaml` to `resources`. Now `kustomize build
+  templates/k8s/base/` emits the SLO burn-rate `PrometheusRule`.
+- **CRIT-2** — `templates/k8s/base/cronjob-drift.yaml`: added PSS-
+  restricted `securityContext` at pod + container level (runAsNonRoot,
+  runAsUser: 10001, allowPrivilegeEscalation: false, readOnlyRootFilesystem,
+  capabilities drop ALL, seccompProfile RuntimeDefault), plus
+  workload-pool tolerations and container resource limits.
+- **CRIT-3** — same file: added two init containers
+  (`fetch-reference-data`, `fetch-production-data`) using the symbolic
+  `cloud-cli-image` reference and an `emptyDir` shared volume mounted
+  at `/data` for the detector container.
+- **CRIT-4** — `templates/k8s/base/argo-rollout.yaml`: full rewrite
+  with security parity to `deployment.yaml`. File kept OUT of base
+  `kustomization.yaml` `resources` (opt-in only) to avoid Deployment
+  collision.
+
+#### 2. HIGH-class remediation
+
+- **HIGH-1** — `.github/workflows/validate-templates.yml`: tfsec,
+  checkov, and trivy flipped from `soft_fail: true` to hard-fail with
+  baseline files (`.security-baselines/tfsec.yml`, `checkov.yml`,
+  `.trivyignore`) + `README.md` documenting the baseline contract.
+- **HIGH-2** — `.github/CODEOWNERS`, `templates/cicd/deploy-gcp.yml`,
+  `templates/cicd/deploy-aws.yml`: maintainership disclosure (bus
+  factor = 1, 2-reviewer rule aspirational).
+- **HIGH-3/4/5** — `README.md`: "Production-ready by design" →
+  "Designed-ready (L1+L2+L3)"; numeric self-rating removed; Memory
+  Plane and CI self-healing demoted in hero copy.
+- **HIGH-6** — `templates/service/app/fastapi_app.py`:
+  `ALLOW_MODELLESS_STARTUP=true` refused in staging/production;
+  `RuntimeError` at startup with explicit remediation message.
+- **HIGH-7** — `templates/cicd/retrain-service.yml`: `Emit audit entry`
+  step with `if: always()` runs on success, failure, and halt; writes
+  to `ops/audit.jsonl` with model SHA256 + C/C decision + approver.
+- **HIGH-8** — same workflow: `Sign model with cosign` step produces
+  `model.joblib.sig` + `.pem`; upload step publishes them alongside
+  the model. Verify command documented in `docs/runbooks/deploy-gke.md`.
+- **HIGH-9** — `templates/common_utils/risk_context.py`: Prometheus
+  URL scheme validation, Bearer auth via `PROMETHEUS_BEARER_TOKEN`,
+  CA bundle via `PROMETHEUS_CA_BUNDLE`, `PROMETHEUS_INSECURE_SKIP_VERIFY`
+  refused outside `dev`/`local`.
+
+#### 3. MED-class remediation
+
+- **MED-1** — `templates/service/tests/integration/test_train_serve_drift_e2e.py`:
+  new real-integration test (no mocks) exercising train → persist →
+  serve → predict → PSI. Runtime < 5 s on a laptop.
+- **MED-2** — `fastapi_app.py` `_build_executor()`: sizing derived from
+  `INFERENCE_CPU_LIMIT` + `os.cpu_count()` with `INFERENCE_THREADPOOL_WORKERS`
+  override; logs final sizing at startup.
+- **MED-3** — `templates/service/app/main.py`: `/model/info` gated by
+  `Depends(verify_api_key)`.
+- **MED-4** — `/metrics` docstring + NetworkPolicy comment pair explicitly
+  documents that access control is enforced at the L4 layer (not at the
+  handler).
+- **MED-5** — `templates/service/constraints.txt`: pip-compile contract
+  + regeneration workflow documented for adopters needing bit-identical
+  builds.
+- **MED-6** — `templates/common_utils/tracing.py` + `app/main.py` import:
+  opt-in OpenTelemetry middleware; no-op when `OTEL_ENABLED` unset;
+  warning log when OTel packages not installed; never breaks startup.
+- **MED-7** — `templates/config/quality_gates.example.yaml` already
+  shipped with defaults in v0.14.0 (verified — no action needed).
+- **MED-8** — `templates/service/pyproject.toml`: `version = "1.0.0"`
+  → `"0.1.0"` with comment explaining that scaffolded services own
+  their version, template is on the v0.x hardening line.
+- **MED-9** — `examples/minimal/serve.py`: warm-up function + `/ready`
+  endpoint + `_warmed_up` gating in `/predict` (pattern mirrors
+  `templates/service/app/fastapi_app.py::warm_up_model`).
+- **MED-10** — `templates/scripts/new-service.sh`: `{ORG}/{REPO}`
+  resolution from CLI args → env vars → `git remote get-url origin`
+  → explicit warning on `YOUR_ORG/YOUR_REPO` fallback.
+- **MED-11** — `templates/k8s/base/networkpolicy.yaml` default-deny
+  egress; `overlays/{gcp,aws}-dev/patch-networkpolicy.yaml` (new)
+  adds permissive rule for dev; `overlays/{gcp,aws}-{staging,prod}/patch-networkpolicy.yaml`
+  changed from `op: replace /spec/egress/3` (non-existent index) to
+  `op: add /spec/egress/-` (append).
+
+#### 4. LOW-class remediation
+
+- **LOW-4** — `docs/audit/ACTION_PLAN_R4.md` already present; stub
+  was a stale snapshot artifact.
+- **LOW-5** — `docs/runbooks/{rollback,deploy-gke,deploy-aws,secret-breach}.md`:
+  expanded from ~10 lines of prose each to full runbooks with trigger
+  criteria, pre-flight, procedure, verification table, audit + comms,
+  exit criteria, failure paths, and anti-patterns.
+
+#### 5. Documentation
+
+- `CHANGELOG.md` — v0.15.0 section with Added / Changed / Security /
+  Fixed / Documentation subsections.
+- `VERSION` — bumped `0.14.0` → `0.15.0`.
+- `docs/decisions/ADR-024-audit-may-2026-remediation.md` — new ADR
+  recording the decision rationale, alternatives, and per-finding
+  evidence table.
+
+### What was NOT validated (pending)
+
+- **L4 real-cluster execution**. Every manifest change validated at
+  the `kustomize build` contract level only; no GKE / EKS
+  deployment evidence. Owner: template maintainer. Tracking: this
+  is the explicit `v1.0.0` gate (ADR-024 §"Review").
+- **End-to-end integration test not executed in CI**. The new
+  `test_train_serve_drift_e2e.py` runs locally (sklearn-gated import
+  skip) but has not been wired into `validate-templates.yml`. Owner:
+  template maintainer. Tracking: follow-up in v0.15.1.
+- **Cosign model-signature verification at deploy time**. The retrain
+  workflow now signs the model blob; the deploy-side verification
+  contract is documented in `deploy-gke.md` but NOT enforced by an
+  init container or Kyverno policy yet. Owner: template maintainer.
+  Tracking: follow-up in v0.16.0.
+- **OpenTelemetry wiring under load**. The opt-in middleware was
+  imported and smoke-tested statically; no trace was actually shipped
+  to an OTLP collector. Owner: adopter (first to enable `OTEL_ENABLED=true`).
+- **Baseline drift over time**. `.security-baselines/` files ship
+  empty; first adopter that accepts a finding creates the first real
+  baseline entry. Review cadence is not yet automated (no expiry alert).
+  Owner: template maintainer. Tracking: follow-up in v0.16.0.
+
+### Conclusion (Entry 007)
+
+v0.15.0 closes the full 23-finding audit backlog and corrects the
+template's public posture from "Production-ready by design" to
+"Designed-ready (L1+L2+L3)". Every CRIT and HIGH finding has per-
+file evidence in this entry; the L4 gap (real-cluster validation)
+remains the explicit `v1.0.0` gate.
+
+The template is now in a state where an adopter who reads the README
+and runs `new-service.sh` gets a scaffold whose claims match what
+the template actually ships: hardened manifests, signed supply chain,
+audit trail on every state-mutating workflow, and runbooks usable
+under incident pressure — with no false claims about L4 validation
+that the maintainer has not performed.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

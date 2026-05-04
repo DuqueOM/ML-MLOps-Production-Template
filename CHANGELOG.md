@@ -8,6 +8,149 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.15.0] - 2026-05-04
+
+May 2026 enterprise-audit remediation release. Closes **4 critical,
+9 high, 8 medium, and 2 low** findings from the Staff-level audit.
+Template posture tightens from "Production-ready by design" to
+**"Designed-ready (L1+L2+L3)"** with an honest L4 gap disclosure.
+
+### Added
+
+- `.security-baselines/` directory with `tfsec.yml`, `checkov.yml`,
+  `.trivyignore`, and `README.md`. Baselines enforce the flip from
+  `soft_fail: true` to hard-fail for supply-chain scans (HIGH-1).
+- `templates/common_utils/tracing.py` — opt-in OpenTelemetry FastAPI
+  middleware, wired from `app/main.py`; no-op + warning log when OTel
+  packages are not installed (MED-6).
+- `templates/service/constraints.txt` — optional pip-compile lockfile
+  contract for adopters requiring bit-identical builds (MED-5).
+- `templates/service/tests/integration/test_train_serve_drift_e2e.py`
+  — real end-to-end integration test (LogisticRegression + FastAPI
+  TestClient + real PSI) covering the train → serve → drift chain
+  without mocks (MED-1).
+- Drift `CronJob` init-containers that fetch `reference.csv` and
+  `latest.csv` from the cloud bucket into a shared `emptyDir` before
+  the detector runs (CRIT-3).
+- Cosign blob signing of `model.joblib` + companion `.sig`/`.pem`
+  publication to the model bucket in `retrain-service.yml`;
+  verification command documented (HIGH-8).
+- `Emit audit entry` step on every retrain run (success/failure/halt),
+  with model SHA256, archive stamp, and C/C decision in the audit
+  entry (HIGH-7).
+- PSS-restricted `securityContext`, workload-pool `tolerations`, and
+  per-container resource limits on `cronjob-drift.yaml` (CRIT-2).
+- `{ORG}/{REPO}` placeholder substitution in `new-service.sh`
+  (resolves from CLI args → env vars → `git remote get-url origin`
+  → explicit warning) so Kyverno `subjectRegExp` policies render
+  with a real GitHub identity, not a literal placeholder (MED-10).
+- Maintainership disclosure in `.github/CODEOWNERS`, plus aligned
+  notes in `deploy-gcp.yml` and `deploy-aws.yml` on the
+  "2 reviewers" production gate being aspirational with a single
+  CODEOWNER (HIGH-2).
+- Dev overlay NetworkPolicy patch files (`gcp-dev/patch-networkpolicy.yaml`,
+  `aws-dev/patch-networkpolicy.yaml`) so the base NetworkPolicy can
+  default-deny public egress without breaking dev scaffolding (MED-11).
+
+### Changed
+
+- `templates/k8s/base/kustomization.yaml` now includes
+  `slo-prometheusrule.yaml` in `resources:` — previously shipped under
+  `base/` but never rendered. SLO burn-rate alerts now ship with every
+  scaffolded service (CRIT-1).
+- `templates/k8s/base/argo-rollout.yaml` rewritten with full security
+  parity to `deployment.yaml`: PSS-restricted pod + container
+  `securityContext`, workload-pool tolerations, `DEPLOYMENT_ID` via
+  Downward API, `SERVICE_METRIC_PREFIX`, symbolic `cloud-cli-image`
+  init container (no more literal `google/cloud-sdk:slim`), probes
+  split. The file remains OPT-IN (not in base kustomization) so it
+  does not collide with the Deployment — header documents the
+  enablement patch (CRIT-4).
+- `templates/k8s/base/networkpolicy.yaml` default-deny egress: the
+  permissive `0.0.0.0/0` fallback moved from base into the dev
+  overlays. Staging/prod overlays now APPEND their narrow CIDR rule
+  (previously replaced index 3 which no longer exists). Contract
+  test updated (MED-11).
+- `.github/workflows/validate-templates.yml`: tfsec, checkov, trivy
+  flipped from `soft_fail: true` to hard-fail with baseline config
+  files (HIGH-1).
+- `templates/service/app/fastapi_app.py`:
+  - `ThreadPoolExecutor` size now derived from `INFERENCE_CPU_LIMIT`
+    and `os.cpu_count()` with explicit override via
+    `INFERENCE_THREADPOOL_WORKERS`; sizing logged at startup
+    (MED-2).
+  - `ALLOW_MODELLESS_STARTUP=true` is REFUSED in `staging`,
+    `production`, and any non-dev `ENVIRONMENT`. Misconfigured
+    deploys fail fast instead of serving a synthetic model to real
+    traffic (HIGH-6).
+  - `/metrics` endpoint carries explicit documentation about its
+    NetworkPolicy-based access control (MED-4).
+- `templates/service/app/main.py`: `/model/info` protected by
+  `verify_api_key` so model type/path/version are not publicly
+  fingerprintable when `API_AUTH_ENABLED=true` (MED-3).
+- `templates/common_utils/risk_context.py`: Prometheus query now
+  requires scheme validation (http/https only), optional Bearer auth
+  via `PROMETHEUS_BEARER_TOKEN`, optional custom CA bundle via
+  `PROMETHEUS_CA_BUNDLE`, and explicit opt-in for
+  `PROMETHEUS_INSECURE_SKIP_VERIFY` (refused outside dev/local)
+  (HIGH-9).
+- `templates/service/pyproject.toml` version bumped from `1.0.0` down
+  to `0.1.0` to match the `v0.x` template posture; scaffolded
+  services own their own version (MED-8).
+- `examples/minimal/serve.py` now implements the canonical warm-up +
+  `/ready` gating pattern (D-23) with CPU-aware ThreadPool sizing,
+  aligning the example with the full template (MED-9).
+- README "Production-ready by design" wording replaced with "Designed-
+  ready (L1+L2+L3)" across the maturity matrix. Numeric self-rating
+  table removed. Memory Plane and CI self-healing demoted from hero
+  capabilities to "Roadmap — Phase 1 contracts only" (HIGH-3/4/5).
+
+### Security
+
+- Baselines in `.security-baselines/` document accepted findings with
+  rationale + expiry. Every exception is reviewable in a PR; the path
+  to zero-baseline is explicit.
+- Model artifacts now carry a cosign signature chain verifiable via
+  Rekor; bucket compromise no longer silently substitutes a model.
+- Dynamic-risk protocol queries Prometheus over authenticated TLS;
+  an attacker cannot downgrade the agent's risk posture by
+  misconfiguring the signal source (the fallthrough always escalates,
+  never relaxes).
+
+### Fixed
+
+- Drift detection `CronJob` no longer crash-loops in PSS-restricted
+  namespaces — missing `securityContext` caused admission rejection,
+  the `DriftDetectionHeartbeatMissing` alert fired forever, and
+  operators chased a phantom "drift pipeline broken" incident instead
+  of the real "the manifest was always broken" cause (CRIT-2/3).
+- Staging/prod NetworkPolicy patches no longer reference the removed
+  index `/spec/egress/3`; they now APPEND their narrow rule using
+  `op: add /spec/egress/-`.
+- Deploy workflow comments no longer imply a 2-reviewer gate that
+  the single-CODEOWNER setup cannot actually satisfy (HIGH-2).
+
+### Documentation
+
+- `README.md` §"Production-ready scope" completely rewritten with
+  the L1/L2/L3/L4 layer matrix and an honest L4-gap disclosure.
+- `README.md` §"Recent hardening" replaces the numeric self-rating
+  with per-release, file-level evidence against the most recent
+  audit.
+- Runbooks expanded: `docs/runbooks/rollback.md`,
+  `docs/runbooks/deploy-gke.md`, `docs/runbooks/deploy-aws.md`,
+  `docs/runbooks/secret-breach.md` — each now includes trigger
+  criteria, pre-flight, procedure, verification table, audit + comms,
+  exit criteria, failure paths, and anti-patterns (LOW-5).
+- `docs/decisions/ADR-024-audit-may-2026-remediation.md` — ADR
+  recording the 23-finding remediation, the move from
+  "Production-ready by design" to "Designed-ready", and the
+  baseline-to-zero roadmap.
+- `VALIDATION_LOG.md` Entry 005 records the per-file evidence for
+  every CRIT/HIGH fix in this release.
+
+---
+
 ## [0.14.0] - 2026-05-03
 
 Enterprise adoption remediation release. This closes the highest-impact

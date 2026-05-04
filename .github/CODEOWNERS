@@ -3,6 +3,31 @@
 # Lines below are evaluated top-to-bottom; the LAST match wins per
 # GitHub's CODEOWNERS semantics. A more specific path overrides a
 # broader one, so we list the broad default first and tighten as we go.
+#
+# Maintainership disclosure (May 2026 audit HIGH-2)
+# ===============================================
+# This template is currently maintained by a SINGLE person (@DuqueOM).
+# Adopters must understand the implications:
+#
+#   * Bus factor = 1: the entire governance surface (AGENTS.md, ADRs,
+#     CI/CD, K8s, Terraform, security configs) is owned by one human.
+#   * Environment Protection Rules in `templates/cicd/deploy-*.yml`
+#     reference "1 reviewer (staging)" / "2 reviewers (production)".
+#     With one CODEOWNER, the production-2-reviewer claim is aspirational
+#     until a co-maintainer is onboarded. Adopters configuring their
+#     fork SHOULD set `required_reviewers: 1` for production until
+#     they add a second human, or accept that the second reviewer is
+#     a peer-team handle (NOT this template's CODEOWNER).
+#   * Single-person review concentrates risk for security-relevant
+#     changes (`/SECURITY.md`, `/templates/k8s/policies/`,
+#     `/.security-baselines/`, `/.github/workflows/`). Adopters with
+#     compliance obligations (SOC 2 separation of duties, HIPAA,
+#     financial services) MUST replace this CODEOWNERS with their own
+#     team handles before treating the repo as governed.
+#
+# Path forward: open a PR adding a co-maintainer's handle to the most
+# critical paths first (security, ADRs, CI). Track in
+# `docs/decisions/ADR-024-multi-maintainer-onboarding.md` (TBD).
 
 # Default owner
 *                                       @DuqueOM

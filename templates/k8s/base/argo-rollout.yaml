@@ -1,9 +1,25 @@
 # =============================================================================
 # Argo Rollouts — Canary Deployment for {ServiceName}
 # =============================================================================
+# OPT-IN. Not included in `templates/k8s/base/kustomization.yaml` because
+# Argo Rollouts and Deployment cannot both manage the same selector
+# (`app: {service-name}`) — name collision. To enable the progressive-
+# delivery path, in your overlay's `kustomization.yaml`:
+#
+#   resources:
+#     - ../../base                    # but exclude deployment.yaml via patch
+#     - ../../base/argo-rollout.yaml
+#   patches:
+#     - patch: |-
+#         $patch: delete
+#         apiVersion: apps/v1
+#         kind: Deployment
+#         metadata:
+#           name: {service-name}-predictor
+#
 # Progressive delivery: sends traffic to the new model version incrementally
-# while monitoring Prometheus metrics. Automatically rolls back if error rate
-# or latency exceeds thresholds.
+# while monitoring Prometheus metrics via the AnalysisTemplate (champion/
+# challenger online proxies — see analysistemplate-champion-challenger.yaml).
 #
 # Canary steps:
 #   1. 10% traffic → pause 2 min (observe metrics)
@@ -11,14 +27,26 @@
 #   3. 60% traffic → pause 2 min
 #   4. 100% traffic → fully promoted
 #
+# Security parity contract (May 2026 audit CRIT-4): this manifest MUST stay
+# in lock-step with `deployment.yaml` for:
+#   - PSS 'restricted' pod-level + container-level securityContext
+#   - tolerations for the workload-type=ml-services taint
+#   - DEPLOYMENT_ID via Downward API
+#   - SERVICE_METRIC_PREFIX env var (audit Critical-3)
+#   - terminationGracePeriodSeconds = 30 + uvicorn --timeout-graceful-shutdown=20
+#   - probes split: startup/readiness/liveness
+#   - init container by symbolic image name (rewritten per overlay; never
+#     `:latest` and never `google/cloud-sdk:slim` literally — staging/prod
+#     overlays pin by digest via `images:` mapping).
+# A divergence here is a regression. The contract test
+# `tests/test_argo_rollout_security_parity.py` enforces it.
+#
 # Prerequisites:
-#   - Argo Rollouts controller installed: kubectl apply -n argo-rollouts -f https://...
+#   - Argo Rollouts controller installed:
+#     `kubectl create namespace argo-rollouts && \`
+#     `kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/download/v1.6.6/install.yaml`
 #   - Prometheus configured as AnalysisTemplate metric provider
 #   - Istio/Nginx TrafficRouting for weighted traffic splitting
-#
-# TODO: Replace {service} with your actual service name.
-# TODO: Adjust canary step weights and pause durations for your SLA.
-# TODO: Configure trafficRouting for your ingress controller.
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -26,6 +54,7 @@ metadata:
   name: "{service-name}-predictor"
   labels:
     app: "{service-name}"
+    managed-by: kustomize
 spec:
   replicas: 2
   revisionHistoryLimit: 3
@@ -36,26 +65,66 @@ spec:
     metadata:
       labels:
         app: "{service-name}"
+        version: v1.0.0
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
+        # PR-C1 (ADR-015): correlation id for the deploy that produced this Pod.
+        # Patched by `deploy-common.yml` at apply time. See deployment.yaml.
+        windsurf.io/deployment-id: "local"
     spec:
       serviceAccountName: "{service-name}-sa"
 
+      # Pod-level securityContext — PSS 'restricted' (parity with deployment.yaml).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Workload pool toleration (ADR-015 PR-A3). Same key/value as deployment.yaml.
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: ml-services
+          effect: NoSchedule
+
+      # Init container — model download. Image is the symbolic
+      # `cloud-cli-image` placeholder rewritten per overlay (gsutil for
+      # GCP, aws-cli for AWS) and pinned by digest in staging/prod.
+      # NEVER `google/cloud-sdk:slim` literal here.
       initContainers:
         - name: model-downloader
-          image: google/cloud-sdk:slim
-          command: ["gsutil", "cp", "gs://{MODEL_BUCKET}/{service-name}/model.joblib", "/models/model.joblib"]
+          image: cloud-cli-image:placeholder
+          command:
+            - gsutil
+            - cp
+            - gs://{MODEL_BUCKET}/{service-name}/model.joblib
+            - /models/model.joblib
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
           volumeMounts:
             - name: model-storage
               mountPath: /models
 
-      # Graceful shutdown (D-25)
+      # Graceful shutdown (D-25) — coordinated with uvicorn --timeout-graceful-shutdown=20.
       terminationGracePeriodSeconds: 30
 
       containers:
         - name: "{service-name}-predictor"
+          # Image is patched by Kustomize overlay (`images:` mapping) — never
+          # leave `:latest` rendered in staging/prod (the validate-templates
+          # workflow lints the rendered overlay).
           image: "{service-name}-predictor:latest"
           command: ["uvicorn"]
           args:
@@ -65,13 +134,21 @@ spec:
             - "--timeout-graceful-shutdown=20"
           ports:
             - containerPort: 8000
+              protocol: TCP
           env:
             - name: MODEL_PATH
               value: /models/model.joblib
             - name: MODEL_VERSION
+              value: "v1.0.0"
+            - name: BACKGROUND_DATA_PATH
+              value: /app/data/reference/background.csv
+            - name: SERVICE_METRIC_PREFIX
+              value: "{service}"
+            # PR-C1 — DEPLOYMENT_ID via Downward API. See deployment.yaml.
+            - name: DEPLOYMENT_ID
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.labels['version']
+                  fieldPath: metadata.annotations['windsurf.io/deployment-id']
           resources:
             requests:
               cpu: "500m"
@@ -79,7 +156,14 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1024Mi"
-          # Probe split (D-23): see deployment.yaml for full explanation
+          # Container-level PSS 'restricted'.
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+          # Probe split (D-23): see deployment.yaml for full explanation.
           startupProbe:
             httpGet:
               path: /health
@@ -91,6 +175,7 @@ spec:
             httpGet:
               path: /ready
               port: 8000
+            initialDelaySeconds: 0
             periodSeconds: 5
             failureThreshold: 3
           livenessProbe:
@@ -99,6 +184,7 @@ spec:
               port: 8000
             initialDelaySeconds: 30
             periodSeconds: 15
+            failureThreshold: 5
           volumeMounts:
             - name: model-storage
               mountPath: /models

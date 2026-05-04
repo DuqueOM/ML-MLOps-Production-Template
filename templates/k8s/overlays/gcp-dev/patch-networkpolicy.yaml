@@ -1,0 +1,21 @@
+# JSON 6902 patch — May 2026 audit MED-11.
+#
+# The base NetworkPolicy now defaults to ZERO public egress (was
+# previously a permissive 0.0.0.0/0 fallback). The dev overlay
+# explicitly opts in to the permissive rule for scaffolding /
+# kustomize-build smoke. Staging and prod overlays apply
+# cloud-specific FQDN-backed CIDR ranges (see those overlays'
+# patch-networkpolicy.yaml).
+- op: add
+  path: /spec/egress/-
+  value:
+    to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+    ports:
+      - protocol: TCP
+        port: 443

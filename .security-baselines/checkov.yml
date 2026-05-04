@@ -1,0 +1,30 @@
+# Checkov baseline — May 2026 audit HIGH-1.
+#
+# Format: https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html#-checkov-options
+# Each skip-check MUST carry an inline `# checkov:skip=CKV_XXX:reason`
+# comment next to the resource being skipped, AND be listed here for
+# centralized review.
+#
+# Frameworks scanned: terraform, kubernetes, dockerfile.
+
+framework:
+  - terraform
+  - kubernetes
+  - dockerfile
+
+quiet: true
+compact: true
+soft-fail: false
+
+# Per-check skips — populated as findings are triaged. Empty initial list
+# means hard-fail on every Checkov rule until each finding gets a fix or
+# an explicit, justified entry here. The README in this directory
+# documents the add/remove workflow.
+skip-check: []
+
+# Severity floor — anything LOW/INFO can be addressed in batches; CI
+# fails on MEDIUM and above so the PR signal stays focused.
+check:
+  - SEVERITY=HIGH
+  - SEVERITY=CRITICAL
+  - SEVERITY=MEDIUM

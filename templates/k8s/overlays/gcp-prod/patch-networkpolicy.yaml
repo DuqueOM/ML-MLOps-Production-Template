@@ -3,8 +3,9 @@
 # Prod uses the same CIDR scope as staging; separate files exist so
 # per-environment CIDRs can diverge without a kustomize components
 # redesign (e.g., prod may later get a dedicated egress NAT CIDR).
-- op: replace
-  path: /spec/egress/3
+# May 2026 audit MED-11: base now default-deny; APPEND instead of replacing.
+- op: add
+  path: /spec/egress/-
   value:
     to:
       - ipBlock:

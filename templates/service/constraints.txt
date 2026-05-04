@@ -1,0 +1,28 @@
+# Reproducibility constraints — May 2026 audit MED-5.
+#
+# `requirements.txt` uses `~=` (compatible-release) for all ML packages so
+# patch-level updates are picked up automatically while major bumps are
+# still reviewed. This file is the OPTIONAL constraints layer that pins
+# exact versions for reproducibility-critical pods (production deploys
+# where bit-identical artifacts matter).
+#
+# Usage:
+#
+#   pip install -r requirements.txt -c constraints.txt
+#
+# How to regenerate (run after every requirements.txt change):
+#
+#   pip install pip-tools
+#   pip-compile --output-file=constraints.txt requirements.txt
+#
+# CI does NOT enforce this file by default — that would defeat the
+# purpose of the `~=` policy in requirements.txt. Adopters who need
+# bit-identical reproducibility (regulated industries, model audit
+# trails) should:
+#   1. Run `pip-compile` after each release.
+#   2. Bake `pip install -c constraints.txt` into their Dockerfile build.
+#   3. Track this file in their fork's git history so `Dockerfile`
+#      builds remain reproducible across runners and dates.
+#
+# Empty initial state — adopters generate their own pinning. The
+# template ships only the contract + the workflow, not the pin set.

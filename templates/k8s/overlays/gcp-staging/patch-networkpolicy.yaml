@@ -24,8 +24,12 @@
 # TODO (operator): if your GKE cluster uses a VPC-native egress NAT
 # gateway with a published egress CIDR, prefer that exact CIDR over
 # `0.0.0.0/0 except rfc1918` below.
-- op: replace
-  path: /spec/egress/3
+# May 2026 audit MED-11: base NetworkPolicy now ships with default-deny
+# egress (no `0.0.0.0/0` fallback rule at index 3). This patch APPENDS
+# the GCP-narrow rule via `op: add /spec/egress/-` instead of replacing
+# a non-existent index.
+- op: add
+  path: /spec/egress/-
   value:
     # Private Google Access virtual IPs (fixed by GCP, safe to hardcode):
     #   199.36.153.4/30 — restricted.googleapis.com

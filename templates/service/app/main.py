@@ -34,7 +34,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 try:
-    from common_utils.auth import require_admin
+    from common_utils.auth import require_admin, verify_api_key
 except ImportError:
     # See parallel guard in app/fastapi_app.py for rationale; the
     # /model/reload route still mounts but its dependency hides it
@@ -43,6 +43,12 @@ except ImportError:
         from fastapi import HTTPException, status
 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+
+    def verify_api_key() -> str:  # type: ignore[misc]
+        # When common_utils is not on PYTHONPATH (stripped scaffolder
+        # smoke), fall through without enforcement. Production images
+        # ALWAYS ship common_utils, and the auth tests verify it.
+        return "stripped"
 
 
 # Warm-up completion flag — /health returns "degraded" until warm-up completes
@@ -136,6 +142,16 @@ except ImportError:
     # Dockerfile and Phase 1.1 import smoke ensure prod always has it.
     logger.warning("common_utils.errors unavailable — falling back to FastAPI default error shape")
 
+# --- OpenTelemetry tracing (May 2026 audit MED-6) ---
+# Opt-in via OTEL_ENABLED=true. No-op + warning log when the OTel
+# packages are not installed; never breaks startup.
+try:
+    from common_utils.tracing import install_tracing
+
+    install_tracing(app)
+except ImportError:
+    pass
+
 app.include_router(router)
 
 
@@ -187,9 +203,15 @@ async def ready():
 # ---------------------------------------------------------------------------
 # Model management
 # ---------------------------------------------------------------------------
-@app.get("/model/info")
+@app.get("/model/info", dependencies=[Depends(verify_api_key)])
 async def model_info() -> dict:
-    """Return model metadata."""
+    """Return model metadata.
+
+    Auth (May 2026 audit MED-3): protected by `verify_api_key` so model
+    type, path, and version are not freely fingerprintable from the
+    public surface. When `API_AUTH_ENABLED=false` (dev default), the
+    dependency is a no-op so local exploration is unchanged.
+    """
     from app.fastapi_app import _model_pipeline
 
     return {
