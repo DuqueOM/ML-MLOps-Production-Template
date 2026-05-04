@@ -65,6 +65,8 @@ class ComparisonConfig:
     non_inferiority_margin: float = 0.005  # challenger may be up to 0.5% worse
     superiority_margin: float = 0.005  # challenger must beat champion by this
     random_state: int = 42
+    champion_threshold: float = 0.5
+    challenger_threshold: float = 0.5
 
 
 def load_config(path: str | None) -> ComparisonConfig:
@@ -77,6 +79,8 @@ def load_config(path: str | None) -> ComparisonConfig:
         non_inferiority_margin=raw.get("non_inferiority_margin", 0.005),
         superiority_margin=raw.get("superiority_margin", 0.005),
         random_state=raw.get("random_state", 42),
+        champion_threshold=raw.get("champion_threshold", raw.get("decision_threshold", 0.5)),
+        challenger_threshold=raw.get("challenger_threshold", raw.get("decision_threshold", 0.5)),
     )
 
 
@@ -233,10 +237,8 @@ def compare_models(
     p_champion = champion.predict_proba(X_holdout)[:, 1]
     p_challenger = challenger.predict_proba(X_holdout)[:, 1]
 
-    # Use each model's optimal threshold if stored, else 0.5
-    threshold = 0.5
-    pred_champion = (p_champion >= threshold).astype(int)
-    pred_challenger = (p_challenger >= threshold).astype(int)
+    pred_champion = (p_champion >= config.champion_threshold).astype(int)
+    pred_challenger = (p_challenger >= config.challenger_threshold).astype(int)
 
     mcnemar = mcnemar_test(y_holdout, pred_champion, pred_challenger)
     bootstrap = bootstrap_delta_auc(
@@ -254,6 +256,8 @@ def compare_models(
             "n_bootstrap": config.n_bootstrap,
             "non_inferiority_margin": config.non_inferiority_margin,
             "superiority_margin": config.superiority_margin,
+            "champion_threshold": config.champion_threshold,
+            "challenger_threshold": config.challenger_threshold,
         },
         "holdout_size": int(len(X_holdout)),
         "mcnemar": mcnemar,

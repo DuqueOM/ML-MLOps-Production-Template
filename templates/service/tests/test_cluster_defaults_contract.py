@@ -2,8 +2,9 @@
 
 Three orthogonal invariants enforced across both clouds:
 
-1. **Private endpoint is opt-in** — `enable_private_endpoint` is a
-   variable, default false (backwards-compat). Operators flip per env.
+1. **Private endpoint is configurable and secure by default** —
+   `enable_private_endpoint` is a variable, default true. Dev can relax
+   it explicitly when no private control-plane path exists.
 2. **System / workload node pool split** — two pools with the workload
    pool tainted `workload-type=ml-services:NoSchedule`. System pods
    (kube-system, monitoring) cannot accidentally land on the workload
@@ -79,6 +80,14 @@ def test_gcp_private_endpoint_is_a_variable() -> None:
     assert cluster_section, "GCP cluster must wire enable_private_endpoint"
     value = cluster_section.group(1).strip()
     assert value.startswith("var."), f"GCP cluster.enable_private_endpoint must reference var.* (got: {value!r})"
+
+
+def test_gcp_nodes_do_not_default_to_cloud_platform_scope() -> None:
+    content = _tf_files("gcp")
+    assert "https://www.googleapis.com/auth/cloud-platform" not in content, (
+        "GCP node pools must not default to broad cloud-platform OAuth scope; "
+        "use workload identity plus minimal node_oauth_scopes."
+    )
 
 
 def test_aws_public_endpoint_is_opt_in() -> None:

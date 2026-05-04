@@ -126,6 +126,26 @@ _background_data: Optional[np.ndarray] = None
 # (see ADR-006 and .windsurf/rules/13-closed-loop-monitoring.md, D-21)
 _prediction_logger: Optional["PredictionLogger"] = None
 
+
+class _SyntheticGoldenPathModel:
+    """Tiny deterministic model used only when CI explicitly opts in.
+
+    Real deployments must provide MODEL_PATH. This fallback is guarded by
+    ALLOW_MODELLESS_STARTUP=true so the golden-path workflow can prove
+    readiness, /predict, and metrics wiring in kind without reaching a
+    cloud bucket.
+    """
+
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
+        numeric = X.select_dtypes(include=[np.number])
+        if numeric.empty:
+            probs = np.full(len(X), 0.5)
+        else:
+            raw = numeric.fillna(0.0).sum(axis=1).to_numpy(dtype=float)
+            probs = 1.0 / (1.0 + np.exp(-np.clip(raw / 100000.0, -10.0, 10.0)))
+        return np.column_stack([1.0 - probs, probs])
+
+
 # ---------------------------------------------------------------------------
 # Thread pool for CPU-bound inference — NEVER block the event loop
 # max_workers=4 is a safe default for ML inference; K8s HPA handles scale-out
@@ -202,7 +222,22 @@ def load_model_artifacts() -> None:
     global _model_pipeline, _explainer, _feature_names, _background_data
 
     model_path = os.getenv("MODEL_PATH", "models/model.joblib")
-    _model_pipeline = joblib.load(model_path)
+    try:
+        _model_pipeline = joblib.load(model_path)
+    except FileNotFoundError:
+        if os.getenv("ALLOW_MODELLESS_STARTUP", "false").lower() != "true":
+            raise
+        logger.warning(
+            "MODEL_PATH=%s missing but ALLOW_MODELLESS_STARTUP=true; "
+            "using synthetic CI-only model. Never enable this in production.",
+            model_path,
+        )
+        _model_pipeline = _SyntheticGoldenPathModel()
+        _feature_names = ["feature_a", "feature_b"]
+        _background_data = np.array([[42.0, 50000.0]])
+        version = os.getenv("MODEL_VERSION", "0.1.0")
+        model_loaded_info.labels(version=version).set(1)
+        return
 
     # Load background data for SHAP KernelExplainer (50 representative samples)
     bg_path = os.getenv("BACKGROUND_DATA_PATH", "data/reference/background.csv")

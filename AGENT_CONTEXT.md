@@ -35,7 +35,7 @@ promotion, monitoring, drift detection, and agentic governance.
 ### Training (pipelines, MLflow, quality gates)
 
 - `.windsurf/rules/04b-python-training.md`
-- `templates/service/train/` and `templates/config/model_routing_policy.yaml`
+- `templates/service/src/{service}/training/` and `templates/config/model_routing_policy.yaml`
 - Invariants to watch: D-05, D-06, D-09, D-14
 
 ### Kubernetes (manifests, HPA, overlays, NetworkPolicy)
@@ -48,7 +48,7 @@ promotion, monitoring, drift detection, and agentic governance.
 
 - `.windsurf/rules/03-terraform.md`
 - `templates/infra/terraform/{gcp,aws}/`
-- Invariants to watch: D-18 (no literal creds), D-20 (remote state)
+- Invariants to watch: D-10 (remote state), D-18 (no literal creds)
 
 ### Agentic system (rules, skills, workflows, modes)
 

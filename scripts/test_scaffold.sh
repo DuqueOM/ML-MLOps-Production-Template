@@ -254,7 +254,9 @@ fi
 # not just what files it has. They are guarded by SCAFFOLD_SMOKE=1 so
 # the lightweight structural checks above stay fast for local runs.
 # CI (validate-templates.yml) sets the flag to enable the full chain.
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+SMOKE_REQUESTED="${SCAFFOLD_SMOKE:-0}"
+
+if [[ "$SMOKE_REQUESTED" == "1" ]]; then
   info "Running smoke chain (install + snapshot + pytest)..."
 
   # Use a venv to avoid PEP-668 friction on Ubuntu 22.04+ runners.
@@ -263,28 +265,27 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
     source "$TEMP_ROOT/venv/bin/activate"
     pass "Created venv: $TEMP_ROOT/venv"
   else
-    echo -e "${YELLOW}⚠${NC} venv unavailable — skipping smoke chain"
-    SCAFFOLD_SMOKE=0
+    fail "SCAFFOLD_SMOKE=1 but python3 -m venv failed; smoke chain is mandatory"
   fi
 fi
 
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # 8a. Install scaffolded service deps. Bound by 5 min to fail fast on
-  # network outages. Warning-only: dep resolution failure is not a
-  # scaffolder bug per se.
+  # network outages. In SCAFFOLD_SMOKE mode this is a hard gate: a
+  # scaffold that cannot install its own dependencies is not a validated
+  # end-to-end scaffold.
   info "Installing scaffolded service dependencies (timeout 300s)..."
   if (cd "$SERVICE_DIR" && timeout 300 pip install --quiet --upgrade pip \
         && timeout 300 pip install --quiet -r requirements.txt) 2>"$TEMP_ROOT/pip.log"; then
     pass "Dependencies installed"
   else
-    echo -e "${YELLOW}⚠${NC} pip install failed — skipping rest of smoke chain"
-    echo "    log tail:"
+    echo "pip install log tail:" >&2
     tail -5 "$TEMP_ROOT/pip.log" >&2 || true
-    SCAFFOLD_SMOKE=0
+    fail "SCAFFOLD_SMOKE=1 but dependency installation failed"
   fi
 fi
 
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # 8b. Bootstrap the OpenAPI contract snapshot (D-28). Required by
   # tests/contract/test_openapi_snapshot.py::test_snapshot_file_exists.
   info "Generating openapi.snapshot.json via refresh_contract.py..."
@@ -301,7 +302,7 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
   fi
 fi
 
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # 8c. Run the real test suite. Validates that the scaffolded service
   # is testable AND its tests pass against a freshly-generated snapshot.
   # `test_quality_gates_config.py` was added by PR-R2-7 (audit R2 §4.2)
@@ -380,7 +381,7 @@ echo ""
 if [[ "$FAILURES" -eq 0 ]]; then
   echo -e "${GREEN}━━━ SCAFFOLD TEST PASSED ━━━${NC}"
   echo "  new-service.sh produces a valid service structure."
-  [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]] && echo "  Smoke chain: install + snapshot + pytest all green."
+  [[ "$SMOKE_REQUESTED" == "1" ]] && echo "  Smoke chain: install + snapshot + pytest all green."
   exit 0
 else
   echo -e "${RED}━━━ SCAFFOLD TEST FAILED ━━━${NC}"

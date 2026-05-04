@@ -26,10 +26,9 @@ resource "google_container_cluster" "gke" {
   }
 
   # ADR-015 PR-A3 — control-plane reachability.
-  # `enable_private_endpoint` is now opt-in (default false). When flipped
-  # to true, kubectl reaches the master via VPC only — bastion / IAP /
-  # VPN required. `master_authorized_networks_config` gates ALL public
-  # control-plane access (relevant when enable_private_endpoint=false).
+  # `enable_private_endpoint` defaults true for secure staging/prod
+  # posture. Dev environments may explicitly set it false and constrain
+  # access with `master_authorized_networks_config`.
   private_cluster_config {
     enable_private_nodes    = true
     enable_private_endpoint = var.enable_private_endpoint
@@ -105,9 +104,7 @@ resource "google_container_node_pool" "system" {
       mode = "GKE_METADATA"
     }
 
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform",
-    ]
+    oauth_scopes = var.node_oauth_scopes
 
     labels = {
       environment   = var.environment
@@ -143,9 +140,7 @@ resource "google_container_node_pool" "workload" {
       mode = "GKE_METADATA"
     }
 
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform",
-    ]
+    oauth_scopes = var.node_oauth_scopes
 
     labels = {
       environment   = var.environment

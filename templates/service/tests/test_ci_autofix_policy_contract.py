@@ -25,6 +25,7 @@ Authority: ADR-019.
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 import pytest
@@ -159,6 +160,20 @@ def test_failure_class_verifiers_resolve(autofix: dict) -> None:
             if v not in verifier_groups:
                 bad.append(f"{cls_name} -> {v!r}")
     assert not bad, f"ADR-019 violation: failure_classes.*.verifiers reference unknown " f"verifier_groups: {bad}"
+
+
+def test_verifier_commands_reference_existing_repo_scripts(autofix: dict) -> None:
+    """Repo-local verifier commands must point at scripts that exist."""
+
+    missing: list[str] = []
+    for group_name, commands in autofix["verifier_groups"].items():
+        for command in commands:
+            parts = shlex.split(command)
+            if len(parts) >= 2 and parts[0] in {"python", "python3", "bash"}:
+                candidate = REPO_ROOT / parts[1]
+                if parts[1].startswith("scripts/") and not candidate.exists():
+                    missing.append(f"{group_name}: {parts[1]}")
+    assert not missing, f"ADR-019 violation: verifier commands reference missing scripts: {missing}"
 
 
 # ---------------------------------------------------------------------------

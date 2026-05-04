@@ -5,10 +5,9 @@ Authority: `docs/decisions/ADR-023-agentic-portability-and-context.md`.
 Locks the structural invariants that distinguish "adapter" from "fork":
 
 Skill pointers, never copies
-  Each `.codex/skills/<id>.md` MUST reference its canonical
-  Windsurf source (`.windsurf/skills/<id>/SKILL.md`). Without this
-  rule the Codex directory drifts into a parallel skill set with
-  no propagation contract.
+  Each `.codex/{rules,skills,workflows}/<id>.md` MUST reference its
+  canonical Windsurf source. Without this rule the Codex directory
+  drifts into a parallel agentic surface with no propagation contract.
 
 Manifest declares the pointer
   Every skill listed in `agentic_manifest.yaml` with `codex` in
@@ -44,8 +43,12 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CODEX_DIR = REPO_ROOT / ".codex"
 SKILLS_DIR = CODEX_DIR / "skills"
+RULES_DIR = CODEX_DIR / "rules"
+WORKFLOWS_DIR = CODEX_DIR / "workflows"
 AUTOMATIONS_DIR = CODEX_DIR / "automations"
 WINDSURF_SKILLS = REPO_ROOT / ".windsurf/skills"
+WINDSURF_RULES = REPO_ROOT / ".windsurf/rules"
+WINDSURF_WORKFLOWS = REPO_ROOT / ".windsurf/workflows"
 MANIFEST = REPO_ROOT / "templates/config/agentic_manifest.yaml"
 MCP_EXAMPLE = CODEX_DIR / "mcp.example.json"
 MCP_LIVE = CODEX_DIR / "mcp.json"
@@ -60,7 +63,9 @@ def test_codex_dir_layout() -> None:
     """Sanity — adapter directory has the expected shape."""
     assert CODEX_DIR.exists() and CODEX_DIR.is_dir()
     assert (CODEX_DIR / "README.md").exists()
+    assert RULES_DIR.exists() and RULES_DIR.is_dir()
     assert SKILLS_DIR.exists() and SKILLS_DIR.is_dir()
+    assert WORKFLOWS_DIR.exists() and WORKFLOWS_DIR.is_dir()
     assert AUTOMATIONS_DIR.exists() and AUTOMATIONS_DIR.is_dir()
     assert MCP_EXAMPLE.exists()
     assert CONTEXT_POINTER.exists()
@@ -73,7 +78,7 @@ def test_manifest_codex_surface_is_adapter() -> None:
     assert codex is not None, "manifest missing surfaces.codex"
     assert codex.get("status") == "adapter", f"surfaces.codex.status must be 'adapter' (got {codex.get('status')!r})"
     roots = codex.get("roots") or {}
-    for required_root in ("readme", "skills", "automations", "mcp_example"):
+    for required_root in ("readme", "rules", "skills", "workflows", "automations", "mcp_example"):
         assert required_root in roots, f"surfaces.codex.roots missing key {required_root!r}"
 
 
@@ -114,6 +119,30 @@ def test_codex_skills_match_manifest_surfaces_codex() -> None:
     )
 
 
+def test_codex_rules_match_manifest_surfaces_codex() -> None:
+    """Codex consumes every canonical rule through a generated pointer."""
+    doc = _load_manifest()
+    declared = {r["id"] for r in (doc.get("rules") or []) if "codex" in (r.get("surfaces") or [])}
+    pointers = {p.stem for p in RULES_DIR.glob("*.md")}
+    assert pointers == declared
+    for rid in pointers:
+        body = (RULES_DIR / f"{rid}.md").read_text(encoding="utf-8")
+        assert f".windsurf/rules/{rid}.md" in body
+        assert "AGENTS.md" in body
+
+
+def test_codex_workflows_match_manifest_surfaces_codex() -> None:
+    """Codex consumes every canonical workflow through a generated pointer."""
+    doc = _load_manifest()
+    declared = {w["id"] for w in (doc.get("workflows") or []) if "codex" in (w.get("surfaces") or [])}
+    pointers = {p.stem for p in WORKFLOWS_DIR.glob("*.md")}
+    assert pointers == declared
+    for wid in pointers:
+        body = (WORKFLOWS_DIR / f"{wid}.md").read_text(encoding="utf-8")
+        assert f".windsurf/workflows/{wid}.md" in body
+        assert "AGENTS.md" in body
+
+
 def test_canonical_skill_files_exist() -> None:
     """Every Codex pointer's canonical Windsurf SKILL.md exists.
 
@@ -129,17 +158,25 @@ def test_canonical_skill_files_exist() -> None:
             f"canonical SKILL.md at {canonical.relative_to(REPO_ROOT)}"
         )
 
+    for ptr in RULES_DIR.glob("*.md"):
+        rid = ptr.stem
+        canonical = WINDSURF_RULES / f"{rid}.md"
+        assert canonical.exists(), f"missing canonical rule for {ptr.name}"
+
+    for ptr in WORKFLOWS_DIR.glob("*.md"):
+        wid = ptr.stem
+        canonical = WINDSURF_WORKFLOWS / f"{wid}.md"
+        assert canonical.exists(), f"missing canonical workflow for {ptr.name}"
+
 
 def test_mcp_example_parses_and_lists_required_servers() -> None:
-    """The example MCP config is valid JSON and lists every server
-    required by the four Sprint-4 skills (security-audit, rule-audit,
-    release-checklist, debug-ml-inference)."""
+    """The example MCP config is valid JSON and lists required servers."""
     raw = MCP_EXAMPLE.read_text(encoding="utf-8")
     doc = json.loads(raw)
     servers = doc.get("mcpServers") or {}
     required = {"github", "kubectl", "terraform", "prometheus"}
     missing = required - set(servers.keys())
-    assert not missing, f"mcp.example.json missing servers required by Sprint-4 " f"skills: {sorted(missing)}"
+    assert not missing, f"mcp.example.json missing required servers: {sorted(missing)}"
 
 
 def test_live_mcp_json_is_not_tracked() -> None:

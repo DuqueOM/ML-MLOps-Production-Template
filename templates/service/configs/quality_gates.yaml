@@ -33,6 +33,8 @@
 #   * fairness_threshold      (0.80 — Equal Opportunity Commission "four-fifths" rule)
 #   * latency_sla_ms          (100.0)
 #   * promotion_threshold     (0.0 — disables baseline-comparison auto-promote)
+#   * require_eda_artifacts   (true for new services; set false only during
+#                              explicit legacy migration windows)
 # =============================================================================
 
 # --- Primary metric ----------------------------------------------------------
@@ -85,6 +87,16 @@ latency_sla_ms: 100.0
 # (every promotion requires a human review, the safer default for
 # brand-new services).
 promotion_threshold: 0.0
+
+# --- EDA evidence gate ------------------------------------------------------
+# New services fail closed unless the EDA pipeline has produced the
+# canonical artifact packet consumed by training, drift, and promotion:
+#   eda_summary.json, schema_ranges.json, baseline_distributions.parquet,
+#   feature_catalog.yaml, leakage_report.json.
+#
+# Set false only when migrating an existing service that has not adopted
+# the EDA packet yet, and document the exception in an ADR.
+require_eda_artifacts: true
 
 # --- Train/test split (PR-B3) ----------------------------------------------
 # Choice of split strategy is a CORRECTNESS contract, not a hyperparameter.

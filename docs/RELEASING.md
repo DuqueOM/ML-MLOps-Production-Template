@@ -103,22 +103,30 @@ Examples from the R3 / R4 audit window that were misclassified:
   been MAJOR because the workflow's request payload changed shape).
 
 The discipline is forward-looking: existing tags `v1.0.0` through
-`v1.12.0` remain immutable. The next breaking change will go to
-`v2.0.0`.
+`v1.12.0` remain immutable historical audit snapshots. Public releases
+resume on a pre-GA hardening channel (`v0.x.0`) until the template has
+one verified cloud golden path across bootstrap, train, build, sign,
+deploy, smoke, metrics, drift, retrain, and decision evidence.
 
 ---
 
-## 2. Re-anchoring at `v1.12.0`
+## 2. Pre-GA hardening channel
 
-Per ADR-020 §"Hard rules", `v1.12.0` is the **GA hardening anchor**.
-Existing tags are not re-numbered. The release line resumes from
-`v1.12.0` with this policy in force.
+Per the post-audit versioning reset, `v1.0.0` through `v1.12.0` are
+kept as immutable historical tags, but they are no longer treated as a
+GA stability signal. The active public channel is:
 
-The next release that touches any item in §1.3 — even by a single
-character — bumps to `v2.0.0`. The next release that adds a feature
-without breaking anything bumps to `v1.13.0`. PATCHes (`v1.12.1`,
-`v1.12.2`, …) are reserved for defects that do not touch any contract
-in §1.1.
+- `v0.x.0` — hardening releases for adopter-visible template work.
+- `v0.x.y` — hardening patch releases.
+- `v1.0.0` — reserved for the first release with real cloud E2E
+  evidence across at least one GKE path and one EKS path, including
+  remote state bootstrap, least-privilege identity, signed digest
+  deploy, active policies, smoke, metrics, drift/retrain dry-run, and
+  rollback evidence.
+
+The reset is intentionally explicit: the template is serious and
+production-oriented, but it should not imply GA enterprise stability
+before the full cloud golden path is proven.
 
 ---
 
