@@ -98,6 +98,36 @@ ownership chain.
 | Error rate < 1% | Grafana `<service>` dashboard | flat near zero for ≥ 10 min |
 | Drift heartbeat alive | `kubectl --context <prod> get cronjob -n "<service-name>-prod" <service-name>-drift-detection` | `LAST SCHEDULE` within last 24 h |
 | Audit entry | `tail -1 ops/audit.jsonl` | `"operation":"gcp-production-deploy","result":"success"` |
+| Model signature verified | `kubectl --context <prod> -n "<service-name>-prod" logs deploy/<service-name>-predictor -c model-verifier` | `[model-verifier] OK: model signature verified.` |
+
+### Model signature verification (init container)
+
+Production pods run a `model-verifier` init container that calls
+`cosign verify-blob` against the model artifact downloaded by
+`model-downloader`. The verifier matches the signing identity to:
+
+```
+--certificate-identity-regexp "https://github.com/<ORG>/<REPO>/.github/workflows/retrain-service\.yml@.*"
+--certificate-oidc-issuer    "https://token.actions.githubusercontent.com"
+```
+
+Modes (`MODEL_SIGNATURE_VERIFY` env var):
+
+- `warn` (base default): missing signature emits a warning and the
+  pod still starts. Used in dev / staging unless explicitly raised.
+- `true` / `enforce` (gcp-prod overlay default): missing signature
+  OR signature mismatch FAILS the init container, the pod stays in
+  `Init:Error`, the deploy never serves traffic.
+
+If the verifier fails:
+
+1. Check `kubectl logs <pod> -c model-verifier` for the cosign error.
+2. If "no matching signatures": the model in the bucket was not produced
+   by this repo's `retrain-service.yml`. Treat as `secret-breach.md`
+   trigger — run that runbook and rotate any model-bucket credentials.
+3. If "signature missing": the `Sign model with cosign` step in the
+   retrain workflow failed silently. Re-run retrain with verbose
+   logging.
 
 ## Exit criteria
 

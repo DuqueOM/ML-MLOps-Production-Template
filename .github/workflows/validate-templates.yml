@@ -567,6 +567,23 @@ jobs:
           bash -n scripts/test_scaffold.sh
           echo "✓ All shell scripts parse cleanly"
 
+  security-baseline-expiry:
+    name: Security Baseline Expiry Gate
+    runs-on: ubuntu-latest
+    # May 2026 audit ADR-024 follow-up to HIGH-1.
+    # Every accepted finding in `.security-baselines/` must carry an
+    # `# expiry: YYYY-MM-DD` annotation. This job fails the PR when an
+    # entry is past due OR missing the annotation, forcing either a
+    # fresh ADR + extension or a real fix. Path to zero-baseline by v1.0.0.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check baseline entry expiries
+        run: python3 scripts/check_baselines_expiry.py
+
   scaffold-e2e:
     name: Scaffolder End-to-End Test
     runs-on: ubuntu-latest

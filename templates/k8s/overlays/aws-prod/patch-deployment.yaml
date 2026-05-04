@@ -20,15 +20,24 @@ spec:
           # Image is set by the overlay's `images:` mapping in
           # kustomization.yaml (PR-R2-2). Setting `image:` here would
           # bypass digest pinning enforced by the CI lint.
+          # Production downloads model + signature + cert (May 2026
+          # audit ADR-024 follow-up to HIGH-8). The verifier init
+          # container fails the pod if any are missing.
           command:
-            - aws
-            - s3
-            - cp
-            - "s3://{MODEL_BUCKET}/{service-name}/model.joblib"
-            - /models/model.joblib
+            - sh
+            - -ec
+            - |
+              aws s3 cp s3://{MODEL_BUCKET}/{service-name}/model.joblib     /models/model.joblib
+              aws s3 cp s3://{MODEL_BUCKET}/{service-name}/model.joblib.sig /models/model.joblib.sig
+              aws s3 cp s3://{MODEL_BUCKET}/{service-name}/model.joblib.pem /models/model.joblib.pem
           volumeMounts:
             - name: model-storage
               mountPath: /models
+        # Production overrides: force enforce mode (May 2026 audit).
+        - name: model-verifier
+          env:
+            - name: MODEL_SIGNATURE_VERIFY
+              value: "true"
       containers:
         - name: "{service-name}-predictor"
           resources:

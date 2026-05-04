@@ -916,6 +916,103 @@ that the maintainer has not performed.
 
 ---
 
+## Entry 008 — v0.15.1 pending-item closure
+
+- **Date**: 2026-05-04
+- **Branch**: `main`
+- **Base commit**: `fc4e734` (`v0.15.0`)
+- **Environment**: local Linux developer workstation, no cloud credentials,
+  no Kubernetes cluster.
+- **Operator**: Template maintainer
+- **Scope**: closes 3 of the 5 pending items recorded in Entry 007
+  ("E2E integration test not executed in CI", "Cosign model-signature
+  verification at deploy time", "Baseline drift over time"). The two
+  remaining pending items (L4 real-cluster execution; OTel tracing
+  under load) remain explicit and are NOT closed by this entry.
+
+### What was executed
+
+#### 1. E2E integration test wired in CI
+
+- `scripts/test_scaffold.sh` line 413: added `tests/integration/` to
+  the `SCAFFOLD_SMOKE=1` pytest invocation. The
+  `test_train_serve_drift_e2e.py` test now runs against the freshly-
+  scaffolded service in `validate-templates.yml`.
+- Validated locally that the `pytest.skip` fallback in the FastAPI
+  client fixture activates cleanly when the scaffolded service's
+  `PredictionRequest` schema does not match the synthetic
+  `feature_a/feature_b/feature_c` payload — the test still asserts
+  the train + PSI invariants without coupling to the request shape.
+
+#### 2. Cosign verify-blob init container
+
+- `templates/k8s/base/deployment.yaml`:
+  - `model-downloader.command` rewritten as a `sh -ec` block that
+    fetches `model.joblib`, `.sig`, and `.pem` (signature files are
+    best-effort here; verifier is the enforcement gate).
+  - New init container `model-verifier` runs cosign with
+    `--certificate-identity-regexp` matching the
+    `retrain-service.yml` workflow OIDC identity.
+  - Mode-gated via `MODEL_SIGNATURE_VERIFY` env var: `warn` in base
+    (default), `true|enforce` in prod overlays.
+- `templates/k8s/overlays/{gcp,aws}-prod/patch-deployment.yaml`:
+  rewritten downloader to fetch the 3 artifacts; added an
+  override on `model-verifier` setting `MODEL_SIGNATURE_VERIFY=true`.
+- `docs/runbooks/deploy-gke.md`: new section "Model signature
+  verification (init container)" documents commands, modes, and
+  failure-path triage chaining to `secret-breach.md` on
+  `no matching signatures` (treats as a model-bucket compromise).
+
+#### 3. Baseline expiry script + CI gate
+
+- `scripts/check_baselines_expiry.py`: new tool that scans
+  `.security-baselines/{tfsec.yml,checkov.yml,.trivyignore}` for
+  entries missing an `# expiry: YYYY-MM-DD` annotation OR with an
+  expiry in the past. Returns non-zero on either case with a clear
+  resolution message.
+- Validated parser locally with synthetic fixtures (1 expired + 1
+  missing annotation each in YAML and trivy formats — both correctly
+  flagged).
+- `.github/workflows/validate-templates.yml`: new
+  `security-baseline-expiry` job runs the script on every push.
+  Job is independent of tfsec/checkov/trivy runs so adopters get a
+  fast, dedicated signal when an exception expires.
+- `.security-baselines/README.md`: expanded "Adding a finding" section
+  with the canonical `# expiry:` annotation styles for YAML and trivy.
+
+#### 4. Documentation
+
+- `CHANGELOG.md` v0.15.1 section.
+- `VERSION` 0.15.0 → 0.15.1.
+
+### What was NOT validated (pending after v0.15.1)
+
+- **L4 real-cluster execution**. Gates `v1.0.0`. Same status as
+  Entry 007.
+- **OpenTelemetry under load**. Adopter-side; opt-in middleware
+  shipped in v0.15.0 has not been exercised against a real OTLP
+  collector in this entry.
+
+### Conclusion (Entry 008)
+
+The v0.15.0 audit-remediation backlog now has only 2 pending items
+left, both explicitly outside the template maintainer's local
+validation scope:
+
+- L4 cluster validation (waits on real GKE/EKS access).
+- OTel under load (waits on first adopter to enable
+  `OTEL_ENABLED=true`).
+
+The cosign verifier closes the supply-chain story end to end: image
+digests + SBOM attestations + model blob signatures are all now
+verified at deploy time, with a documented runbook chaining a
+verifier failure into `secret-breach.md`. The baseline expiry gate
+forecloses the silent-degradation risk of accepted findings sitting
+forever in `.security-baselines/`. The wired E2E integration test
+makes the train→serve→drift contract executable in every PR.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

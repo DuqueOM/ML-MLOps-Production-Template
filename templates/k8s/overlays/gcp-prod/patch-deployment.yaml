@@ -22,14 +22,25 @@ spec:
           # Image is set by the overlay's `images:` mapping in
           # kustomization.yaml (PR-R2-2). Setting `image:` here would
           # bypass digest pinning enforced by the CI lint.
+          # Production downloads model + signature + cert (May 2026
+          # audit ADR-024 follow-up to HIGH-8). The verifier init
+          # container fails the pod if any are missing.
           command:
-            - gsutil
-            - cp
-            - "gs://{MODEL_BUCKET}/{service-name}/model.joblib"
-            - /models/model.joblib
+            - sh
+            - -ec
+            - |
+              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib     /models/model.joblib
+              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib.sig /models/model.joblib.sig
+              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib.pem /models/model.joblib.pem
           volumeMounts:
             - name: model-storage
               mountPath: /models
+        # Production overrides: force enforce mode so any signature
+        # mismatch / missing artifact fails the pod at init time.
+        - name: model-verifier
+          env:
+            - name: MODEL_SIGNATURE_VERIFY
+              value: "true"
       containers:
         - name: "{service-name}-predictor"
           resources:
