@@ -29,7 +29,7 @@ Each capability is rated **per environment**. Definitions:
 | GKE cluster + node pool split (system / workload) | ready | ready | ready | PR-A3 cluster defaults; workload taint enforced |
 | EKS cluster + node group split (system / workload) | ready | ready | ready | Mirrors GCP; same taint contract |
 | VPC networking (custom-mode + private subnets) | ready | ready | ready | `network_mode = "managed" \| "existing"` |
-| Private GKE/EKS API endpoint | ready | ready | ready | `enable_private_endpoint` defaults to false in dev for ergonomics; flip to true in staging/prod |
+| Private GKE/EKS API endpoint | ready | ready | ready | GCP `enable_private_endpoint` and AWS private endpoint defaults are secure; dev may relax explicitly with authorized CIDRs |
 | Workload Identity (GCP) / IRSA (AWS) | ready | ready | ready | D-18 enforced by contract tests; 5-identity split per ADR-017 |
 | Deny-default NetworkPolicy | ready | ready | ready | `k8s/base/networkpolicy-deny-default.yaml` selects all pods |
 | Cilium / advanced eBPF policies | roadmap | roadmap | roadmap | Out of scope; bring your own CNI overlay |
@@ -87,7 +87,7 @@ Each capability is rated **per environment**. Definitions:
 |---|---|---|---|---|
 | ADRs for non-trivial decisions | ready | ready | ready | 17 ADRs cover all design choices |
 | Audit trail (append-only `ops/audit.jsonl`) | ready | ready | ready | ADR-014; CLI `scripts/audit_record.py` |
-| Anti-pattern policy tests on scaffolded output | ready | ready | ready | PR-R2-11; D-01..D-31 enforced |
+| Anti-pattern policy tests on scaffolded output | ready | ready | ready | PR-R2-11; D-01..D-32 enforced |
 | Agent risk-context dynamic mode (AUTO→CONSULT→STOP) | ready | ready | ready | ADR-014; risk signals from Prometheus |
 | SOC2 / HIPAA controls | roadmap | roadmap | roadmap | Organizational, not template (ADR-001) |
 
@@ -136,7 +136,7 @@ underlying CLI tool plus the corresponding human runbook:
 | `cost-audit` | `make cost-review` + `docs/runbooks/cost-review.md` |
 | `security-audit` | `make security-audit` (gitleaks + bandit + trivy) |
 | `secret-breach-response` | `make secret-breach-check` + `docs/runbooks/secret-breach.md` |
-| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-31 are documented) |
+| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-32 are documented) |
 | `debug-ml-inference` | `docs/runbooks/debug-ml-inference.md` (manual procedure; no CLI equivalent — pure RCA reasoning) |
 | `performance-degradation-rca` | `docs/runbooks/performance-degradation-rca.md` (manual RCA procedure) |
 | `concept-drift-analysis` | `make performance-review` + `docs/runbooks/concept-drift-analysis.md` |
@@ -155,7 +155,7 @@ If your team adopts the template **without agents**, you lose:
 
 You **do not** lose:
 
-- any of the production invariants (D-01..D-31 are codified in tests, not
+- any of the production invariants (D-01..D-32 are codified in tests, not
   agent behavior)
 - contract tests (run on every PR via the same CI workflows)
 - supply-chain security (Cosign + SBOM + Kyverno are pipeline, not agent)

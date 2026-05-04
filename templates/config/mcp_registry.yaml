@@ -197,6 +197,6 @@ diagnostics:
     description: "Full report: missing configs per surface, orphaned required_for entries, skill coverage, install-mode matrix."
     risk: "AUTO"
   - id: "mcp-render-docs"
-    command: "python3 scripts/mcp_doctor.py --render docs"
+    command: "python3 scripts/mcp_doctor.py --mode render-docs"
     description: "Regenerate docs/agentic/mcp-portability.md tables from this registry. Writes the docs file only; NEVER writes an MCP config."
     risk: "AUTO"

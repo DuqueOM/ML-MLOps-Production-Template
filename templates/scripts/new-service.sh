@@ -96,7 +96,19 @@ cp -r "$TEMPLATE_ROOT/monitoring" "$TARGET_DIR/monitoring"
 
 # --- Copy documentation templates ---
 info "Copying documentation templates..."
-cp -r "$TEMPLATE_ROOT/docs" "$TARGET_DIR/docs"
+mkdir -p "$TARGET_DIR/docs"
+cp -r "$TEMPLATE_ROOT/docs/." "$TARGET_DIR/docs/"
+if [[ -d "$PROJECT_ROOT/docs/runbooks" ]]; then
+    mkdir -p "$TARGET_DIR/docs/runbooks"
+    # Merge repo-level Day-2 runbooks so the scaffolded Makefile and
+    # non-agentic adoption docs never point at missing files. Template-native
+    # files win when both surfaces define the same path.
+    for runbook in "$PROJECT_ROOT/docs/runbooks/"*.md; do
+        [[ -f "$runbook" ]] || continue
+        dest="$TARGET_DIR/docs/runbooks/$(basename "$runbook")"
+        [[ -e "$dest" ]] || cp "$runbook" "$dest"
+    done
+fi
 
 # --- Copy operational scripts ---
 info "Copying scripts..."
@@ -203,7 +215,9 @@ find "$TARGET_DIR" -type f \( -name "*.py" -o -name "*.yaml" -o -name "*.yml" \
     sed -i "s/{ServiceName}/$SERVICE_NAME/g" "$file"
     sed -i "s/{service-name}/$SERVICE_KEBAB/g" "$file"
     sed -i "s/{service}/$SERVICE_SLUG/g" "$file"
-    sed -i "s/{SERVICE}/$SERVICE_UPPER/g" "$file"
+    # Do not rewrite shell variables like `${SERVICE}`; only the literal
+    # template placeholder `{SERVICE}` should become the upper snake value.
+    perl -0pi -e "s/(?<!\\\$)\\{SERVICE\\}/$SERVICE_UPPER/g" "$file"
 done
 
 # --- Create standard directories ---

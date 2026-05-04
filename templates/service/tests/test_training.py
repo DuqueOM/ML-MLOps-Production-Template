@@ -13,6 +13,7 @@ TODO: Set realistic thresholds for quality gates and latency SLA.
 """
 
 import time
+from importlib import import_module
 
 import numpy as np
 import pandas as pd
@@ -199,29 +200,18 @@ class TestFeatureEngineering:
 
         Train/inference feature drift is one of the most common silent
         failure modes in production. This test catches it at PR time.
-
-        Skipped until the scaffolded service implements FeatureEngineer.
-        To enable:
-            1. Implement `src.{service}.training.features.FeatureEngineer`
-               with `transform(df)` and `transform_inference(df)` methods.
-            2. Uncomment the assertion below.
         """
-        pytest.skip(
-            "Service-specific: enable after implementing FeatureEngineer in "
-            "src.{service}.training.features. Required by D-04 (SHAP feature "
-            "space consistency) and ADR-006 (training/serving parity)."
-        )
-        # When ready, replace the skip with:
-        #     from src.{service}.training.features import FeatureEngineer
-        #     X_df, y_series = sample_data
-        #     full_df = pd.concat([X_df, y_series.rename("target")], axis=1)
-        #     fe = FeatureEngineer()
-        #     X_train, _ = fe.transform(full_df)
-        #     X_infer = fe.transform_inference(full_df.drop(columns=["target"]))
-        #     assert list(X_train.columns) == list(X_infer.columns), (
-        #         "Train/inference feature drift detected: "
-        #         f"train={list(X_train.columns)} vs infer={list(X_infer.columns)}"
-        #     )
+        FeatureEngineer = import_module("{service}.training.features").FeatureEngineer
+
+        X_df, y_series = sample_data
+        full_df = pd.concat([X_df, y_series.rename("target")], axis=1)
+        fe = FeatureEngineer()
+        X_train, _ = fe.transform(full_df)
+        X_infer = fe.transform_inference(full_df.drop(columns=["target"]))
+
+        assert list(X_train.columns) == list(
+            X_infer.columns
+        ), f"Train/inference feature drift detected: train={list(X_train.columns)} vs infer={list(X_infer.columns)}"
 
 
 # ---------------------------------------------------------------------------

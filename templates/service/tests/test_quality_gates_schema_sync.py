@@ -70,6 +70,7 @@ _CASES: list[tuple[str, dict[str, Any], bool]] = [
             "latency_sla_ms": 250.0,
             "protected_attributes": ["gender", "age_group"],
             "promotion_threshold": 0.02,
+            "require_eda_artifacts": True,
         },
         True,
     ),

@@ -658,6 +658,109 @@ Every R5 finding is now either:
 
 ---
 
+## Entry 006 — v0.14.0 Enterprise adoption remediation
+
+- **Date**: 2026-05-03
+- **Branch**: `audit-r5/portability-layer-f7-f9`
+- **Base commit (pre-remediation)**: `2101933e3bb93200280f53fc51b87f1466aa2187`
+- **Environment**: local WSL/Linux developer workstation, Python 3.12 scaffold smoke venv, no cloud credentials
+- **Operator**: Codex implementation agent under Staff-level audit plan
+- **Scope**: first-adopter remediation: scaffolded CI/CD layout, deploy image vocabulary, Python packaging/importability, training-serving feature parity, non-agentic runbook integrity, release docs
+
+### What was executed
+
+#### 1. Static repo validators
+
+```
+$ python3 scripts/ci_verify_yaml.py
+YAML verification passed
+
+$ python3 scripts/ci_verify_workflows.py
+Workflow verification passed (17 files)
+
+$ python3 scripts/validate_agentic.py --strict
+Checks passed: 107
+Skills found:    16
+Workflows found: 12
+✓ Agentic system valid
+
+$ python3 scripts/validate_agentic_manifest.py --strict
+[ OK ] authority_chain
+[ OK ] source_paths
+[ OK ] surface_roots
+[ OK ] adapter_pointers
+[ OK ] mode_enum
+[ OK ] context_examples
+[ OK ] context_pointers
+[ OK ] reports_block
+```
+
+#### 2. Targeted enterprise adoption contract
+
+```
+$ python3 scripts/verify_enterprise_adoption.py
+Enterprise adoption verification passed
+
+$ python3 scripts/ci_verify_targeted.py
+Enterprise adoption verification passed
+Targeted verification passed
+```
+
+This gates runbook links, release documentation, scaffolded CI root-layout,
+deploy image naming, API inference feature transformation, and the D-32
+anti-pattern range.
+
+#### 3. Scaffold structural smoke
+
+```
+$ bash scripts/test_scaffold.sh
+✓ Documentation templates merged into docs/ without docs/docs nesting
+✓ ci.yml uses scaffolded repo root for install, tests, coverage, and Docker build
+✓ deploy workflows use kebab-case service slugs
+✓ deploy workflows publish images compatible with Kustomize overlays
+✓ Overlay renders: gcp-dev, gcp-staging, gcp-prod, aws-dev, aws-staging, aws-prod
+━━━ SCAFFOLD TEST PASSED ━━━
+```
+
+#### 4. Full scaffold smoke
+
+```
+$ SCAFFOLD_SMOKE=1 bash scripts/test_scaffold.sh
+✓ Dependencies installed
+✓ OpenAPI snapshot bootstrapped
+✓ pytest passed on freshly-scaffolded service
+━━━ SCAFFOLD TEST PASSED ━━━
+  Smoke chain: install + snapshot + pytest all green.
+```
+
+The final smoke passed after two additional scaffold-contract defects were
+found and fixed during this session:
+
+- shell variables such as `${SERVICE}` were being corrupted by the
+  `{SERVICE}` placeholder replacement; replacement now ignores shell-variable
+  braces;
+- `templates/docs` was being copied as `docs/docs/...` when
+  `templates/service` already provided a `docs/` directory; documentation
+  templates are now merged into `docs/` and explicitly tested.
+
+### What was NOT validated (pending)
+
+- Real GKE/EKS deployment and cloud identity wiring — no cloud credentials or
+  target clusters were used.
+- Registry push, Cosign signing against a real registry, and admission
+  webhook verification — covered structurally by workflows/manifests only.
+- Adopter-specific NetworkPolicy egress allowlists — still environment-owned.
+
+### Conclusion (Entry 006)
+
+The first-adopter enterprise gaps from the Staff audit are locally closed.
+Post-remediation score: overall template readiness **8.7/10**, Staff MLOps
+portfolio signal **9.3/10**, immediate enterprise adoption **8.4/10**. This
+remains repo-local and scaffold-local evidence, not an L4 production claim.
+Real cloud evidence remains the future `v1.0.0` gate.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

@@ -62,6 +62,11 @@
       "default": 0.0,
       "description": "Minimum delta over the current production baseline required to auto-promote. 0.0 disables baseline-comparison promotion."
     },
+    "require_eda_artifacts": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, training fails closed unless the canonical EDA artifact packet exists. Use false only during explicit legacy migration windows."
+    },
     "split": {
       "type": "object",
       "additionalProperties": false,

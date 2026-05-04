@@ -81,6 +81,7 @@ trap cleanup EXIT
 # The scaffolder resolves PROJECT_ROOT as $TEMPLATE_ROOT/.. — so we place
 # templates/ inside TEMP_ROOT/, and the service will be created in TEMP_ROOT/.
 cp -r "$REPO_ROOT/templates" "$TEMP_ROOT/templates"
+cp -r "$REPO_ROOT/docs" "$TEMP_ROOT/docs"
 
 pass "Temp environment: $TEMP_ROOT"
 
@@ -115,6 +116,10 @@ CRITICAL_FILES=(
   "requirements.txt"
   "pyproject.toml"
   "Makefile"
+  ".github/workflows/ci.yml"
+  ".github/workflows/deploy-gcp.yml"
+  ".github/workflows/deploy-aws.yml"
+  ".github/workflows/deploy-common.yml"
   "src/$SERVICE_SLUG"
   "app"
   "k8s/base"
@@ -122,6 +127,9 @@ CRITICAL_FILES=(
   "tests"
   "monitoring"
   "infra/terraform"
+  "docs/runbooks/day-2-operations.md"
+  "docs/runbooks/drift-detection.md"
+  "docs/runbooks/model-retrain.md"
   "eda/eda_pipeline.py"
   "eda/requirements.txt"
   "eda/reports"
@@ -150,8 +158,9 @@ info "Checking for unreplaced placeholders..."
 # that the literal forms differ at the closing brace (`-name}` vs `}`)
 # so the leftmost-match wouldn't actually swallow the kebab placeholder
 # either way; the order is purely code hygiene.
+PLACEHOLDER_REGEX='\{ServiceName\}|\{service-name\}|\{service\}|(^|[^$])\{SERVICE\}'
 PLACEHOLDER_HITS=$({
-  grep -rE "\{ServiceName\}|\{service-name\}|\{service\}|\{SERVICE\}" \
+  grep -rE "$PLACEHOLDER_REGEX" \
     "$SERVICE_DIR" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="*.json" \
@@ -163,7 +172,7 @@ if [[ "$PLACEHOLDER_HITS" -eq 0 ]]; then
   pass "Zero unreplaced placeholders ({ServiceName}, {service-name}, {service}, {SERVICE})"
 else
   fail "$PLACEHOLDER_HITS lines still contain placeholders:"
-  grep -rEn "\{ServiceName\}|\{service-name\}|\{service\}|\{SERVICE\}" \
+  grep -rEn "$PLACEHOLDER_REGEX" \
     "$SERVICE_DIR" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="Dockerfile" \
@@ -194,6 +203,41 @@ done < <(find "$SERVICE_DIR" -name "*.py" -print0)
 
 if [[ "$PY_ERRORS" -eq 0 ]]; then
   pass "All Python files parse"
+fi
+
+if [[ -d "$SERVICE_DIR/docs/docs" ]]; then
+  fail "Documentation templates were nested under docs/docs instead of merged into docs/"
+else
+  pass "Documentation templates merged into docs/ without docs/docs nesting"
+fi
+
+# ════════════════════════════════════════════════
+# Validation 5b — Generated CI/CD expects root-service layout
+# ════════════════════════════════════════════════
+info "Checking generated CI/CD layout contract..."
+CI_FILE="$SERVICE_DIR/.github/workflows/ci.yml"
+GCP_FILE="$SERVICE_DIR/.github/workflows/deploy-gcp.yml"
+AWS_FILE="$SERVICE_DIR/.github/workflows/deploy-aws.yml"
+COMMON_FILE="$SERVICE_DIR/.github/workflows/deploy-common.yml"
+
+if grep -qE '\$\{\{ matrix\.service \}\}/(requirements\.txt|results|coverage\.xml)|cd \$\{\{ matrix\.service \}\}|docker build .* \$\{\{ matrix\.service \}\}/' "$CI_FILE"; then
+  fail "ci.yml still assumes a nested service directory instead of the scaffolded repo root"
+else
+  pass "ci.yml uses scaffolded repo root for install, tests, coverage, and Docker build"
+fi
+
+SERVICE_KEBAB=$(echo "$SERVICE_SLUG" | tr '_' '-')
+if grep -q "$SERVICE_NAME" "$GCP_FILE" "$AWS_FILE" "$COMMON_FILE"; then
+  fail "deploy workflows still use PascalCase service names where kebab-case image/K8s slugs are required"
+else
+  pass "deploy workflows use kebab-case service slugs"
+fi
+
+if grep -Fq '${SERVICE}-predictor' "$GCP_FILE" "$AWS_FILE" && \
+   grep -q "${SERVICE_KEBAB}-predictor" "$SERVICE_DIR/k8s/overlays/gcp-dev/kustomization.yaml"; then
+  pass "deploy workflows publish images compatible with Kustomize overlays"
+else
+  fail "deploy workflows do not reference ${SERVICE_KEBAB}-predictor image names"
 fi
 
 # ════════════════════════════════════════════════
@@ -237,7 +281,7 @@ fi
 info "Testing pytest collection..."
 if command -v pytest >/dev/null 2>&1; then
   # pytest --collect-only validates test files parse without running them
-  if (cd "$SERVICE_DIR" && pytest --collect-only -q tests/ > /dev/null 2>&1); then
+  if (cd "$SERVICE_DIR" && PYTHONPATH=.:src pytest --collect-only -q tests/ > /dev/null 2>&1); then
     pass "pytest can collect tests/"
   else
     # This is a warning not a failure — scaffolded tests may require unmet deps
@@ -254,7 +298,9 @@ fi
 # not just what files it has. They are guarded by SCAFFOLD_SMOKE=1 so
 # the lightweight structural checks above stay fast for local runs.
 # CI (validate-templates.yml) sets the flag to enable the full chain.
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+SMOKE_REQUESTED="${SCAFFOLD_SMOKE:-0}"
+
+if [[ "$SMOKE_REQUESTED" == "1" ]]; then
   info "Running smoke chain (install + snapshot + pytest)..."
 
   # Use a venv to avoid PEP-668 friction on Ubuntu 22.04+ runners.
@@ -263,32 +309,31 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
     source "$TEMP_ROOT/venv/bin/activate"
     pass "Created venv: $TEMP_ROOT/venv"
   else
-    echo -e "${YELLOW}⚠${NC} venv unavailable — skipping smoke chain"
-    SCAFFOLD_SMOKE=0
+    fail "SCAFFOLD_SMOKE=1 but python3 -m venv failed; smoke chain is mandatory"
   fi
 fi
 
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # 8a. Install scaffolded service deps. Bound by 5 min to fail fast on
-  # network outages. Warning-only: dep resolution failure is not a
-  # scaffolder bug per se.
+  # network outages. In SCAFFOLD_SMOKE mode this is a hard gate: a
+  # scaffold that cannot install its own dependencies is not a validated
+  # end-to-end scaffold.
   info "Installing scaffolded service dependencies (timeout 300s)..."
   if (cd "$SERVICE_DIR" && timeout 300 pip install --quiet --upgrade pip \
         && timeout 300 pip install --quiet -r requirements.txt) 2>"$TEMP_ROOT/pip.log"; then
     pass "Dependencies installed"
   else
-    echo -e "${YELLOW}⚠${NC} pip install failed — skipping rest of smoke chain"
-    echo "    log tail:"
+    echo "pip install log tail:" >&2
     tail -5 "$TEMP_ROOT/pip.log" >&2 || true
-    SCAFFOLD_SMOKE=0
+    fail "SCAFFOLD_SMOKE=1 but dependency installation failed"
   fi
 fi
 
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # 8b. Bootstrap the OpenAPI contract snapshot (D-28). Required by
   # tests/contract/test_openapi_snapshot.py::test_snapshot_file_exists.
   info "Generating openapi.snapshot.json via refresh_contract.py..."
-  if (cd "$SERVICE_DIR" && PYTHONPATH=. python scripts/refresh_contract.py) \
+  if (cd "$SERVICE_DIR" && PYTHONPATH=.:src python scripts/refresh_contract.py) \
         > "$TEMP_ROOT/refresh.log" 2>&1; then
     if [[ -f "$SERVICE_DIR/tests/contract/openapi.snapshot.json" ]]; then
       pass "OpenAPI snapshot bootstrapped"
@@ -301,7 +346,7 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
   fi
 fi
 
-if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
+if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # 8c. Run the real test suite. Validates that the scaffolded service
   # is testable AND its tests pass against a freshly-generated snapshot.
   # `test_quality_gates_config.py` was added by PR-R2-7 (audit R2 §4.2)
@@ -345,7 +390,7 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
   #   - Every Trainer.run() writes a versioned training_manifest.json
   #     with content hashes, dependency versions, EDA cross-reference,
   #     and quality-gate verdict — even on rejected runs.
-  if (cd "$SERVICE_DIR" && PYTHONPATH=. timeout 180 pytest \
+  if (cd "$SERVICE_DIR" && PYTHONPATH=.:src timeout 240 pytest \
         tests/test_api.py tests/test_training.py \
         tests/test_quality_gates_config.py \
         tests/test_quality_gates_schema_sync.py \
@@ -365,7 +410,7 @@ if [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]]; then
         tests/test_day2_artifacts_contract.py \
         tests/test_data_paths.py \
         tests/contract/ \
-        -q --tb=short --no-cov) > "$TEMP_ROOT/pytest.log" 2>&1; then
+        -q --tb=short --no-cov --capture=no) > "$TEMP_ROOT/pytest.log" 2>&1; then
     pass "pytest passed on freshly-scaffolded service"
   else
     fail "pytest failed:"
@@ -380,7 +425,7 @@ echo ""
 if [[ "$FAILURES" -eq 0 ]]; then
   echo -e "${GREEN}━━━ SCAFFOLD TEST PASSED ━━━${NC}"
   echo "  new-service.sh produces a valid service structure."
-  [[ "${SCAFFOLD_SMOKE:-0}" == "1" ]] && echo "  Smoke chain: install + snapshot + pytest all green."
+  [[ "$SMOKE_REQUESTED" == "1" ]] && echo "  Smoke chain: install + snapshot + pytest all green."
   exit 0
 else
   echo -e "${RED}━━━ SCAFFOLD TEST FAILED ━━━${NC}"

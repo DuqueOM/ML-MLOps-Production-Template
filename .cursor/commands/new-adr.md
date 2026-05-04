@@ -1,60 +1,13 @@
----
-description: Create a new Architecture Decision Record with proper structure and numbering
-allowed-tools:
-  - Read
-  - Edit
-  - Bash(ls:*)
----
+# new-adr
 
-# /new-adr
+**Adapter surface**: `cursor`
+**Authority**: `AGENTS.md#Agent Behavior Protocol`
+**Mode**: `AUTO`
+**Canonical source**: `.windsurf/workflows/new-adr.md`
 
-Create an ADR whenever a decision involves trade-offs, alternatives
-considered, or a posture that might be revisited later.
+Execute this workflow by reading the canonical Windsurf workflow in
+full, then applying the same AUTO/CONSULT/STOP protocol and audit
+requirements from `AGENTS.md`.
 
-## When to use
-- Architectural choice (framework, pattern, topology)
-- "Buy vs build" decision
-- Rejected option worth recording (CarVision removal, Airflow not adopted)
-- Deferred decision with explicit revisit triggers (like ADR-013)
-
-## Format
-```
-docs/decisions/ADR-NNN-short-slug.md
-
-## Status
-Accepted | Proposed | Superseded by ADR-XXX
-
-## Date
-YYYY-MM-DD
-
-## Context
-What problem? What constraints? What measurements justified this?
-
-## Options considered
-- Option A (pros, cons)
-- Option B (pros, cons)
-- Option C (why rejected)
-
-## Decision
-Chosen option + WHY the others don't fit TODAY.
-
-## Revisit triggers
-Measurable signals that would cause re-evaluation.
-
-## Consequences
-- Positive
-- Negative
-- Mitigations
-
-## Related
-ADRs, skills, workflows that depend on or reference this.
-```
-
-## Numbering
-Next number = last ADR + 1. As of v1.9.0: next is **ADR-014**.
-```bash
-ls docs/decisions/ADR-*.md | sort | tail -1
-```
-
-**Canonical**: `.windsurf/workflows/new-adr.md`. Examples: ADR-010 (dynamic
-behavior), ADR-013 (GitOps deferred).
+This file is generated as an adapter pointer. Do not add workflow
+logic here.

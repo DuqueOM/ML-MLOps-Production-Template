@@ -102,8 +102,14 @@ validate-tf: ## Validate Terraform syntax (no init — backends are partial conf
 validate-agentic: ## Validate agentic system (rules, skills, workflows, AGENTS.md refs)
 	@echo "$(GREEN)Validating agentic system...$(NC)"
 	python3 scripts/validate_agentic.py
+	@echo "$(GREEN)Checking generated agentic adapters...$(NC)"
+	python3 scripts/sync_agentic_adapters.py --check
 	@echo "$(GREEN)Validating agentic manifest + context layer (ADR-023)...$(NC)"
 	python3 scripts/validate_agentic_manifest.py --strict
+
+agentic-sync: ## Regenerate thin Cursor/Claude/Codex adapter pointers from manifest
+	@echo "$(GREEN)Syncing agentic adapters from manifest...$(NC)"
+	python3 scripts/sync_agentic_adapters.py
 
 mcp-check: ## Read-only pass/fail check of MCP registry + surface capabilities (ADR-023 F4)
 	@echo "$(GREEN)Validating MCP portability registry...$(NC)"

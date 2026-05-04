@@ -4,7 +4,112 @@ All notable changes to the ML-MLOps Production Template are documented in this f
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
-> **Versioning policy is now governed by [`docs/RELEASING.md`](docs/RELEASING.md).** Adopter migration guidance lives in [`MIGRATION.md`](MIGRATION.md). Verified-execution evidence lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md). Tags `v1.0.0`–`v1.12.0` remain immutable; the `### Breaking for adopters (post-R4 audit re-classification)` blocks below document, after the fact, the contract changes that under the new policy would have required a MAJOR bump. The next breaking change goes to `v2.0.0`.
+> **Versioning policy is now governed by [`docs/RELEASING.md`](docs/RELEASING.md).** Adopter migration guidance lives in [`MIGRATION.md`](MIGRATION.md). Verified-execution evidence lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md). Tags `v1.0.0`–`v1.12.0` remain immutable historical audit snapshots. The active public line is now `v0.x` hardening; `v1.0.0` is reserved for the first real cloud E2E validation across GKE and EKS.
+
+---
+
+## [0.14.0] - 2026-05-03
+
+Enterprise adoption remediation release. This closes the highest-impact
+gaps from the Staff-level audit without changing the template's public
+positioning: production-ready by design, pre-GA until real cloud L4
+evidence is captured.
+
+### Added
+
+- Runbooks referenced by the non-agentic adoption guide and scaffolded
+  Makefile: drift detection, model retrain, release checklist, rollback,
+  incident response, performance review, cost review, secret breach,
+  inference debugging, performance RCA, concept drift analysis, and
+  GKE/AWS deploy procedures.
+- Enterprise adoption verifier in `scripts/verify_enterprise_adoption.py`
+  covering runbook links, release documentation, scaffolded CI/CD layout,
+  and train/inference parity contract text.
+
+### Changed
+
+- Generated CI now treats the scaffolded service as a single-service repo
+  rooted at `app/`, `src/`, `requirements.txt`, and `Dockerfile`.
+- GCP/AWS deploy workflows now build from repo root and publish
+  `{service-name}-predictor` images, matching the Kustomize overlay
+  vocabulary and digest-pinning reusable workflow.
+- Python packaging now discovers packages under `src/`; pytest also gets
+  `pythonpath = [".", "src"]` for scaffolded test ergonomics.
+- Template pre-commit versions now match the root quality chain.
+- README now records the post-remediation score delta and explicitly keeps
+  the L4 cloud rollout caveat.
+
+### Fixed
+
+- First scaffold CI no longer points at a non-existent `${ServiceName}/`
+  subdirectory.
+- Deploy image names no longer mix PascalCase service names with
+  kebab-case Kubernetes image names.
+- API inference now loads the training `FeatureEngineer` and applies
+  `transform_inference()` before prediction unless an operator explicitly
+  opts out with `FEATURE_ENGINEERING_REQUIRED=false`.
+- The skipped train/inference feature parity test is now an executable
+  contract in scaffolded services.
+- D-01..D-32 documentation references are reconciled in README,
+  adoption docs, and policy workflow summaries.
+
+### Known follow-ons
+
+- Real GKE/EKS cloud golden-path execution remains the release gate for
+  future `v1.0.0`.
+- Adopter-specific egress allowlists and cloud credentials still require
+  environment-local validation.
+
+## [0.13.0] - 2026-05-03
+
+Pre-GA hardening release. This release deliberately moves the public
+signal back to a `v0.x` channel while preserving historical `v1.x` tags.
+The template remains production-oriented, but GA enterprise readiness is
+reserved for the first verified cloud golden path.
+
+### Added
+
+- `scripts/sync_agentic_adapters.py` renders Cursor, Claude, and Codex
+  as thin manifest-driven adapter pointers instead of hand-maintained
+  rule/skill/workflow forks.
+- Codex parity now covers the full canonical set: 15 rule files, 16
+  skills, and 12 workflows through `.codex/{rules,skills,workflows}/`.
+- `make agentic-sync` and targeted CI verification now check adapter
+  drift with `scripts/sync_agentic_adapters.py --check`.
+- Root Day-2 operations runbook index in `docs/runbooks/day-2-operations.md`.
+- Strict CI verifier scripts for YAML, workflows, and targeted policy
+  gates used by the autofix policy.
+
+### Changed
+
+- Agentic manifest surfaces now include `codex` for all canonical rules,
+  skills, and workflows.
+- `AGENTS.md`, `docs/ide-parity-audit.md`, `.codex/README.md`, and
+  ADR-023 now describe the enterprise adapter pattern: `AGENTS.md` as
+  authority, `.windsurf/` as canonical body store, YAML as index, and
+  generated pointers as IDE adapters.
+- Golden-path workflows are stricter: scaffold smoke must fail on
+  skipped install/test/snapshot paths, and deploy smoke requires real
+  `/health`, `/ready`, `/predict`, and metrics evidence.
+- Quality gates can require EDA artifacts before training/promotion.
+- GCP/AWS infra defaults were tightened around private endpoints,
+  node OAuth scopes, state-lock naming, artifact IAM, and bucket-scoped
+  runtime identities.
+- Codex MCP example includes the optional Playwright MCP entry.
+
+### Fixed
+
+- Missing CI autofix verifier commands are now real scripts.
+- `mcp_doctor.py` validates workflow MCP capabilities, not only skills.
+- `AGENT_CONTEXT.md` stale training path and ADR references were corrected.
+
+### Known follow-ons
+
+- Terraform MCP uses Docker; this workstation could not pull
+  `hashicorp/terraform-mcp-server:latest` because the Docker daemon was
+  not running.
+- Real cloud GKE/EKS E2E validation remains the release gate for
+  future `v1.0.0`.
 
 ---
 
@@ -54,11 +159,11 @@ Result: **14 hooks** (was 9), all 14 green on `main`.
 
 ### Known follow-ons (scoped, not regressions)
 
-- MEDIUM `require_eda_artifacts=true` default for new services (touches `train.py` + scaffolder — needs a migration plan for existing services).
+- MEDIUM legacy-service migration guide for adopters that need to temporarily set `require_eda_artifacts=false`.
 - MEDIUM Windows CI matrix for `validate_agentic.py` (new lane; script currently works on Linux/WSL/macOS).
 - MEDIUM NetworkPolicy egress allowlist by cloud (per-overlay work).
 - MEDIUM `load_test.py` schema sync to `feature_a/b/c` (low-risk but clean review as separate PR).
-- ADR-018/019 runtime implementation remains explicit Phase 0 / policy only — status already accurate in CHANGELOG and ADRs.
+- ADR-018/019 runtime implementation remains staged: Phase 1 shadow/read-only capabilities are shipped; write-enabled runtime remains deferred pending shadow precision evidence.
 
 ---
 
@@ -90,7 +195,7 @@ Under the versioning policy in `docs/RELEASING.md`, the following items in this 
 - **GCP gets** secrets.tf, logging.tf, kms.tf at the live layer with bootstrap-tier KMS key separation. Mirrors the AWS surface introduced in 1.10.0.
 - **NEW** `test_terraform_cloud_parity.py` (14 tests) enforces semantic parity: same secret-store usage, logging retention, budget alert wiring, CMEK across both clouds.
 - **GCP IAM** parity rationale documented inline in `gcp/iam.tf`: GCP doesn't need an `iam-roles-split.tf` equivalent because per-service identities don't exist on GCP — Workload Identity bindings per-secret/per-bucket already partition responsibilities.
-- **Cluster defaults** (PR-A3): private endpoint opt-in, system/workload node pool split with taint, deny-default `NetworkPolicy`. Enforced by `test_cluster_defaults_contract.py` (11 tests).
+- **Cluster defaults** (PR-A3): private endpoint configurable and secure by default, system/workload node pool split with taint, deny-default `NetworkPolicy`. Enforced by `test_cluster_defaults_contract.py`.
 - **Bootstrap split**: state bucket, KMS, registry tiers separated from live layer per ADR. Enforced by `test_terraform_bootstrap_contract.py` (~7 tests).
 
 ### NEW agent capabilities (Phase 0 only — runtime deferred)

@@ -321,6 +321,15 @@ class QualityGatesConfig(BaseModel):
         ),
     )
 
+    require_eda_artifacts: bool = Field(
+        False,
+        description=(
+            "When true, training fails closed unless the canonical EDA "
+            "artifact directory exists and includes leakage_report.json. "
+            "Use false only for legacy migration windows or throwaway demos."
+        ),
+    )
+
     # PR-B3: train/test split policy. Defaults to a SplitConfig with
     # ``strategy=random`` and ``acknowledge_iid=False`` — that combination
     # raises in `validate_against_data` so a service that doesn't
