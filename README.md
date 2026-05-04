@@ -124,10 +124,21 @@ L4 production rollout evidence remains the adopter's responsibility and the `v1.
 
 ---
 
+### Optional: Progressive delivery (Argo Rollouts)
+
+`argo-rollout.yaml` ships in `templates/k8s/base/` with full security parity to `deployment.yaml` (PSS restricted, init containers, `model-verifier`), but it is **opt-in** — it is intentionally NOT in `kustomization.yaml#resources` because it and `deployment.yaml` cannot coexist (they own the same Pods). Enabling is a deliberate swap.
+
+Enable when you need canary deploys with metric-gated rollback, want to exercise the shipped champion/challenger `AnalysisTemplate`, or have an SRE rotation that cannot be paged for a metric regression a Rollout could have caught at 30 % traffic. Do not enable for single-replica, low-traffic services.
+
+See [`docs/runbooks/progressive-delivery.md`](docs/runbooks/progressive-delivery.md) for the full enable procedure (base swap, overlay patch rename, verification steps, failure paths).
+
+---
+
 ## Quick navigation
 
 | If you want to... | Read first | Then |
 |-------------------|------------|------|
+| Orient yourself — Day 1 to Month 2 | [docs/PROGRESSION.md](docs/PROGRESSION.md) | [QUICK_START.md](QUICK_START.md) |
 | Scaffold a new ML service | [QUICK_START.md](QUICK_START.md) | `./templates/scripts/new-service.sh` |
 | Understand the operating model | [AGENTS.md](AGENTS.md) | [docs/decisions/](docs/decisions/) |
 | Review deployment and rollback flow | [RUNBOOK.md](RUNBOOK.md) | `templates/cicd/` and `templates/k8s/` |
