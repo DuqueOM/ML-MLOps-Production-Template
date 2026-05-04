@@ -145,20 +145,42 @@ Revisit Option B at the FIRST of:
 Submodules (Option C) explicitly REJECTED — submodule UX cost
 exceeds the benefit for the project's audience.
 
-## Implementation sketch (if Option A is ratified)
+## Validation strategy
 
-```python
-# scripts/check_common_utils_drift.py
-# Runs in CI:
-# 1. scaffolds a fresh service into a tmpdir
-# 2. diffs scaffolded common_utils/ vs templates/common_utils/
-# 3. fails on any non-templated divergence
-```
+Two implementations were considered:
 
-Wire into `validate-templates.yml` as a new job
-`common-utils-drift` (parallel to the existing
+1. **End-to-end scaffold + diff.** Run `new-service.sh` into a
+   tmpdir and byte-diff the scaffolded `common_utils/` against the
+   template (with substitutions applied). Rejected for CI: the
+   scaffolder transitively copies `templates/infra/terraform/` which
+   currently carries ~1.6 GB of untracked `.terraform/` provider
+   caches, pushing the job past 5 min. End-to-end scaffolding is
+   already covered by the slower `scripts/test_scaffold.sh`.
+
+2. **Static placeholder scan (SHIPPED).** `new-service.sh` rewrites
+   `common_utils/` via a single global `sed` pass over a known
+   placeholder set (`{ServiceName}`, `{service-name}`, `{service}`,
+   `{SERVICE}`, `{ORG}`, `{REPO}`). The scaffolded copy can therefore
+   diverge from the template **iff** one of those placeholders
+   appears inside `common_utils/`. Scanning for the placeholder set
+   catches the entire drift class deterministically in ~100 ms,
+   without running the scaffolder.
+
+Implementation: `scripts/check_common_utils_drift.py`, wired into
+`.github/workflows/validate-templates.yml` as the
+`common-utils-drift` job (parallel to the existing
 `agentic-adapter-drift` job introduced in PR-5 of the May 2026
 triage).
+
+First-run result (captured the exact bug class this ADR predicted):
+the gate caught `reports.py::_default_report_id` whose f-string
+parameter was named `service`, producing a literal `{service}`
+token that `sed` would rewrite at scaffold time — corrupting the
+scaffolded f-string. Fixed by renaming the internal parameter; the
+public `build_*_report(service=...)` API is unchanged. A
+documentation-only hit in `input_validation.py` (docstring
+references to `src/{service}/...`) was rewritten to the generic
+`src/<slug>/...` notation.
 
 ## Consequences (if Option A is ratified)
 

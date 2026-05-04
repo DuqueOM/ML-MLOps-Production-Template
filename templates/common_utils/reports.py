@@ -445,9 +445,12 @@ def _now_utc_iso() -> str:
     return _dt.datetime.now(tz=_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S%z").replace("+0000", "Z")
 
 
-def _default_report_id(report_type: str, service: str, suffix: str = "") -> str:
+def _default_report_id(report_type: str, service_name: str, suffix: str = "") -> str:
+    # Param name deliberately avoids the literal token "service" because
+    # new-service.sh rewrites the snake-case slug placeholder globally via
+    # sed (see ADR-025 Option A and scripts/check_common_utils_drift.py).
     ts = _dt.datetime.now(tz=_dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
-    base = f"{report_type}-{service}-{ts}"
+    base = f"{report_type}-{service_name}-{ts}"
     if suffix:
         return f"{base}-{suffix}"
     return base
