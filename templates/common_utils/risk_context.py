@@ -262,27 +262,85 @@ def _query_prometheus_scalar(prom_url: str, query: str, timeout: float) -> bool 
         True  — query returned a non-empty `vector` or `scalar` with a value
                 that is truthy (interpreted as "the condition is active").
         False — query succeeded but returned an empty vector or value 0.
-        None  — HTTP, parsing, or auth failure. Caller treats as UNAVAILABLE.
+        None  — HTTP, parsing, or auth failure. Caller treats as UNAVAILABLE
+                so the dynamic-risk protocol falls back to the static
+                AGENTS.md mapping. Critically: signal source returning
+                None can ONLY escalate the final mode (per ADR-010), it
+                can NEVER relax it. So a misconfigured Prometheus does
+                not let an attacker downgrade risk.
 
-    Uses stdlib `urllib` only — no new template dependency. Timeout is a
-    hard cap; all signal sources combined must fit within
+    Auth + TLS contract (May 2026 audit HIGH-9):
+        * Schemes are restricted to ``http`` (in-cluster, dev only) and
+          ``https`` (staging/production). Anything else → ``None``.
+        * If ``PROMETHEUS_BEARER_TOKEN`` is set, an ``Authorization:
+          Bearer`` header is attached. The token is read from env so it
+          can be wired through the K8s ServiceAccount projected token
+          volume or `common_utils.secrets.get_secret`.
+        * If ``PROMETHEUS_CA_BUNDLE`` is set (path to a PEM bundle), TLS
+          verification uses that bundle (in-cluster CAs typically live at
+          ``/run/secrets/kubernetes.io/serviceaccount/ca.crt``).
+        * If ``PROMETHEUS_INSECURE_SKIP_VERIFY=true``, verification is
+          disabled — explicitly opt-in, refused outside dev/local
+          (``ENVIRONMENT`` env). The opt-in is logged at WARNING.
+
+    Uses stdlib `urllib` + `ssl` only — no new template dependency.
+    Timeout is a hard cap; all signal sources combined must fit within
     ``_CACHE_TTL_SECONDS`` (60s) so the agent never blocks on signals.
     """
+    import ssl
     import urllib.error
     import urllib.parse
     import urllib.request
 
+    parsed = urllib.parse.urlparse(prom_url)
+    if parsed.scheme not in ("http", "https"):
+        logger.debug("Refusing Prometheus URL with scheme %r", parsed.scheme)
+        return None
+
     base = prom_url.rstrip("/")
     qs = urllib.parse.urlencode({"query": query})
     url = f"{base}/api/v1/query?{qs}"
+
+    # Build request with optional Bearer auth.
+    req = urllib.request.Request(url)  # noqa: S310, # nosec B310
+    bearer = os.getenv("PROMETHEUS_BEARER_TOKEN", "").strip()
+    if bearer:
+        req.add_header("Authorization", f"Bearer {bearer}")
+
+    # TLS verification — default to system CAs; allow custom bundle; refuse
+    # insecure-skip-verify outside dev unless explicitly enabled.
+    ssl_ctx: ssl.SSLContext | None = None
+    if parsed.scheme == "https":
+        ca_bundle = os.getenv("PROMETHEUS_CA_BUNDLE", "").strip()
+        skip_verify = os.getenv("PROMETHEUS_INSECURE_SKIP_VERIFY", "").lower() == "true"
+        env_label = os.getenv("ENVIRONMENT", "").strip().lower()
+        if skip_verify:
+            if env_label and env_label not in {"dev", "development", "local"}:
+                logger.warning(
+                    "PROMETHEUS_INSECURE_SKIP_VERIFY=true ignored in ENVIRONMENT=%s "
+                    "(refused outside dev/local). Falling back to system CAs.",
+                    env_label,
+                )
+                ssl_ctx = ssl.create_default_context(cafile=ca_bundle or None)
+            else:
+                logger.warning(
+                    "PROMETHEUS_INSECURE_SKIP_VERIFY=true — TLS verification disabled. " "Acceptable in dev/local only."
+                )
+                # Bandit B323: intentional — gated by BOTH an explicit opt-in env var
+                # (PROMETHEUS_INSECURE_SKIP_VERIFY=true) AND an ENVIRONMENT=dev|local
+                # refusal above. Production env values force the else branch.
+                ssl_ctx = ssl._create_unverified_context()  # type: ignore[attr-defined]  # nosec B323
+        else:
+            ssl_ctx = ssl.create_default_context(cafile=ca_bundle or None)
+
     try:
-        # Bandit B310: urlopen permitted-schemes audit. The URL is built
-        # from `prom_url` which comes from deployment config (env var or
-        # ServiceAccount-mounted ConfigMap), never from request input.
-        # Schemes are constrained to http(s) by Prometheus deployment.
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310, # nosec B310
+        # Bandit B310: urlopen permitted-schemes audit. URL scheme is
+        # validated above, the URL is built from deployment-supplied
+        # config (never request input), and TLS verification + Bearer
+        # auth are wired through ssl_ctx + Authorization header.
+        with urllib.request.urlopen(req, timeout=timeout, context=ssl_ctx) as resp:  # noqa: S310, # nosec B310
             payload = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError) as exc:
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, ssl.SSLError) as exc:
         logger.debug("Prometheus query failed (%s): %s", query, exc)
         return None
 

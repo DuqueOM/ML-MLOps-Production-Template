@@ -34,6 +34,13 @@ resources:
   - cronjob-drift.yaml
   - cronjob-performance.yaml
   - performance-prometheusrule.yaml
+  # SLO recording + multi-window/multi-burn-rate alerts (Google SRE workbook).
+  # Wired in May 2026 audit response: previously the file shipped under
+  # base/ but was NOT in `resources:`, so `kustomize build` produced a
+  # stack without burn-rate alerts even though the file existed. The
+  # contract test `test_kustomization_includes_slo_prometheusrule` now
+  # enforces this entry.
+  - slo-prometheusrule.yaml
   - analysistemplate-champion-challenger.yaml
   - networkpolicy.yaml
   - networkpolicy-deny-default.yaml

@@ -21,3 +21,14 @@ images:
 patches:
   - path: patch-deployment.yaml
   - path: patch-serviceaccount.yaml
+  # NetworkPolicy egress (May 2026 audit MED-11): the base NetworkPolicy
+  # now defaults to ZERO public egress, so the dev overlay explicitly
+  # opts in to the permissive 0.0.0.0/0 rule needed for the init
+  # container model download. Staging/prod overlays patch a cloud-
+  # specific narrow CIDR set instead.
+  - path: patch-networkpolicy.yaml
+    target:
+      group: networking.k8s.io
+      version: v1
+      kind: NetworkPolicy
+      name: "{service-name}-network-policy"

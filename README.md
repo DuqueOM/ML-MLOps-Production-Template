@@ -51,8 +51,13 @@ It ships:
 - Closed-loop monitoring with prediction logging, delayed ground truth, sliced performance, champion/challenger evaluation, and retraining hooks.
 - Security controls for secrets, identity federation, SBOM generation, image signing, admission policy, and pod hardening.
 - Agentic governance through `AUTO / CONSULT / STOP`, plus dynamic risk escalation based on live signals.
-- Safe CI self-healing for low-risk failures, with bounded blast radius and mandatory verification _(policy + classifier shipped — **runtime Phase 1; shadow mode only, no writes**, see ADR-019)_.
-- Optional Operational Memory Plane that helps agents retrieve prior incidents, decisions, deploy regressions, and successful remediations _(contracts + redaction shipped — **runtime Phase 1; storage and retrieval still deferred**, see ADR-018)_.
+
+The template ALSO includes two **Phase 1 / contracts-only** capabilities — they are explicitly NOT runtime today, and the runtime work is gated on adopter feedback before opening Phase 2:
+
+- Safe CI self-healing — see ADR-019. Today: classifier + policy contracts ship; runtime is shadow-only and writes nothing.
+- Operational Memory Plane — see ADR-018. Today: `MemoryUnit` dataclass + redaction pipeline ship; ingest worker, vector store, and retrieval API are deferred.
+
+If your adoption decision depends on either capability being live, the answer is "not yet" — they are roadmap items shipped as reviewable contracts, not as production features.
 
 This is not a generic starter repo. It is a production template with encoded operating constraints.
 
@@ -60,25 +65,24 @@ This is not a generic starter repo. It is a production template with encoded ope
 
 ## Production-ready scope
 
-The template is positioned as a hardened open-source baseline for enterprise-style ML services. The status column below uses **"Production-ready by design"** to signal:
+This is a hardened open-source baseline for enterprise-style ML services. The matrix below reports two distinct things:
 
-- the component is **contract-tested and scaffold-tested in this repo** (invariants live in `templates/service/tests/` and `.github/workflows/validate-templates.yml`);
-- the patterns are the ones the author operates with in production ML systems;
-- **verification against a real adopter environment (your cloud account, your cluster, your traffic) is still your responsibility** before go-live.
+1. **Designed-ready (verified L1+L2+L3)**: the patterns are contract-tested in this repo, render cleanly through `kustomize build`, and pass the golden-path E2E in kind. This is what every entry below means by default.
+2. **Verified end-to-end (L4)**: the component has been exercised against a real cloud account, real cluster, real traffic. **Today, no entry below claims L4.** The L4 paper trail is owned by the adopter — see `VALIDATION_LOG.md`.
 
-The §"Verification status" matrix below is the honest adjunct: it separates *what's proven inside this repo's CI* from *what an adopter must execute to declare their instance production-ready*.
+The previous wording ("Production-ready by design") was reworked in the May 2026 audit because reviewers consistently read the row as "production-ready, full stop," which over-promised the L4 gap.
 
 | Area | Status | What that means |
 |------|--------|-----------------|
-| Service scaffold | Production-ready by design | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
-| Kubernetes runtime | Production-ready by design | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, and non-root runtime defaults are part of the base. |
-| Multi-cloud infrastructure | Production-ready by design | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. |
-| CI/CD | Production-ready by design | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain, and audit paths are governed and traceable. |
-| Closed-loop monitoring | Production-ready by design | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
-| Security and supply chain | Production-ready by design | Secret scanning, SBOM, image signing, admission policy, and least-privilege cloud identity are part of the deploy contract. |
-| Agentic controls | Production-ready by design | Static operation modes, dynamic risk escalation, typed handoffs, and auditable decisions are all encoded. |
-| Agentic CI self-healing | **Phase 1 — shadow / read-only** | Policy + classifier + collector ship today (ADR-019). `scripts/ci_collect_context.py` and `scripts/ci_classify_failure.py` observe CI failures and emit AUTO/CONSULT/STOP classifications without writing anything. Patch worker, verifier, and write-enabled lanes deferred to Phase 2+ pending 14 days of shadow precision data. No agent autonomously opens PRs against your CI today. See [`ADR-019`](docs/decisions/ADR-019-agentic-ci-self-healing.md) §Phase plan. |
-| Operational Memory Plane | **Phase 1 — contracts + redaction shipped** | Optional companion. `templates/common_utils/memory_types.py` (frozen `MemoryUnit` dataclass with 9 construction invariants), `templates/common_utils/memory_redaction.py` (gitleaks + PII redaction pipeline, idempotent), 59 contract-test invariants. Ingest worker, vector store, retrieval API deferred to Phase 2+ (gated on 30 days of contract stability). Adopters cannot call retrieval APIs today. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan. |
+| Service scaffold | Designed-ready (L1+L2+L3) | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
+| Kubernetes runtime | Designed-ready (L1+L2+L3) | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, drift CronJob with PSS-restricted securityContext + init-container data fetch (May 2026 audit), and non-root runtime defaults are part of the base. |
+| Multi-cloud infrastructure | Designed-ready (L1+L2+L3) | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. L4 cluster rollout is the adopter's responsibility. |
+| CI/CD | Designed-ready (L1+L2+L3) | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain (with audit trail + cosign blob signing of model artifacts after the May 2026 audit), and audit paths are governed and traceable. |
+| Closed-loop monitoring | Designed-ready (L1+L2+L3) | Prediction logging, ground-truth ingestion, sliced performance analysis, drift heartbeat, and champion/challenger comparisons are part of the standard operating model. |
+| Security and supply chain | Designed-ready (L1+L2+L3) | Secret scanning, SBOM, image signing, admission policy, **hard-fail tfsec/checkov/trivy with explicit baselines** (May 2026 audit HIGH-1), and least-privilege cloud identity are part of the deploy contract. |
+| Agentic controls | Designed-ready (L1+L2+L3) | Static operation modes, dynamic risk escalation (with auth+TLS-pinned Prometheus signal source after May 2026 audit), typed handoffs, and auditable decisions are all encoded. |
+| Agentic CI self-healing | Roadmap — Phase 1 contracts only | Classifier + policy contracts ship in shadow / read-only mode (ADR-019). NO writes, NO PRs, NO branch mutations today. Patch worker / verifier / write-enabled lanes are NOT implemented and are gated on 14 days of shadow precision data. |
+| Operational Memory Plane | Roadmap — Phase 1 contracts only | `MemoryUnit` dataclass + 13-class redaction pipeline ship (ADR-018). Ingest worker, vector store, retrieval API are NOT implemented. Adopters cannot call retrieval APIs today; the section describes the target shape, not a live capability. |
 
 External dependencies remain your responsibility: cloud accounts, Kubernetes clusters, MLflow backend, secret stores, and observability backends must exist before the template can operate in a real environment.
 
@@ -97,19 +101,26 @@ If you are an adopter deciding whether to stake a production service on this tem
 
 ---
 
-### Enterprise adoption delta
+### Recent hardening (v0.14.0 → v0.15.0)
 
-The `v0.14.0` hardening pass closes the most immediate first-adopter gaps found in the Staff-level enterprise audit: scaffolded CI/CD now follows the documented single-service root layout, deploy workflows use the same kebab-case image vocabulary as Kustomize, the Python package is discoverable under `src/`, inference fails fast unless the training `FeatureEngineer` is available, and non-agentic runbook references resolve to real files.
+Each release reports the gaps it closed against the most recent enterprise audit, with file-level evidence rather than a self-given numeric score.
 
-Current audit score after local validation:
+`v0.14.0` (R5 hardening): scaffolded CI/CD now follows the documented single-service root layout, deploy workflows use the same kebab-case image vocabulary as Kustomize, the Python package is discoverable under `src/`, inference fails fast unless the training `FeatureEngineer` is available, and non-agentic runbook references resolve to real files.
 
-| Dimension | Before | After |
-|-----------|-------:|------:|
-| Overall template readiness | 8.1/10 | 8.7/10 |
-| Staff MLOps portfolio signal | 9.0/10 | 9.3/10 |
-| Immediate enterprise adoption | 7.4/10 | 8.4/10 |
+`v0.15.0` (May 2026 audit response — this release): closed 4 critical, 9 high, 8 medium, and 2 low audit findings. Highlights:
 
-The score is still not a production L4 claim. It reflects repo-local evidence, scaffold contracts, workflow static checks, and documentation integrity; real GKE/EKS rollout evidence remains the `v1.0.0` gate.
+- Drift `CronJob` now ships with PSS-restricted `securityContext` AND init-containers that fetch reference + production data into a shared volume (previously the file existed but lacked both, making the canonical kustomize stack fail-closed in any restricted namespace).
+- `slo-prometheusrule.yaml` is now actually included in the base kustomization; previous releases shipped the file but left it out of `resources:`, so SLO burn-rate alerts never reached deployed clusters.
+- Self-audit (tfsec/checkov/trivy) flipped from `soft_fail: true` to **hard-fail with explicit baselines** under `.security-baselines/`. The previous behaviour made CRITICAL findings silently green.
+- `retrain-service.yml` now writes `audit_record` entries on every promotion AND signs `model.joblib` with cosign blob signing.
+- `risk_context.py` now requires Bearer auth + TLS verification for the Prometheus signal query (previously plain HTTP, no auth).
+- `ALLOW_MODELLESS_STARTUP=true` is now refused in `staging`/`production` environments.
+- `argo-rollout.yaml` rewritten with full security parity to `deployment.yaml` (was previously a regression vector if enabled).
+- README "Production-ready by design" wording softened to "Designed-ready (verified L1+L2+L3)" with explicit L4 gap call-out; numeric self-rating tables removed.
+
+The full per-finding evidence is in [`VALIDATION_LOG.md`](VALIDATION_LOG.md) Entry 005.
+
+L4 production rollout evidence remains the adopter's responsibility and the `v1.0.0` gate.
 
 ---
 

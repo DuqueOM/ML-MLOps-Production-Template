@@ -1,0 +1,13 @@
+# tfsec baseline — May 2026 audit HIGH-1.
+#
+# Format: https://aquasecurity.github.io/tfsec/v1.28/guides/configuration/config/
+# Each excluded check_id MUST have a comment citing the ADR/issue + expiry date.
+# Audit `docs/audit/baseline-review.md` quarterly.
+
+# Baseline starts empty. The first CI run with hard-fail will surface the
+# real findings; each one then gets either a fix or an `exclude:` entry
+# below with a citation. The README in this directory documents the
+# add/remove workflow.
+exclude: []
+
+minimum_severity: HIGH

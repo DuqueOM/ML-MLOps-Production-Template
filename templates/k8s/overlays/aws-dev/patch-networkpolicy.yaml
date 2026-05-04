@@ -1,0 +1,19 @@
+# JSON 6902 patch — May 2026 audit MED-11.
+#
+# Mirror of overlays/gcp-dev/patch-networkpolicy.yaml. See header there
+# for rationale. Dev opts in to the permissive 0.0.0.0/0 egress so
+# `kustomize build overlays/aws-dev` produces a working init container
+# without manual cloud CIDR pinning.
+- op: add
+  path: /spec/egress/-
+  value:
+    to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+    ports:
+      - protocol: TCP
+        port: 443

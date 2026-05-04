@@ -9,6 +9,10 @@ name: "Deploy — AWS (dev → staging → prod)"
 #   * aws-production  — required_reviewers: 2, wait_timer: 5m,
 #                       deployment_branches: main + version tags only
 #
+# Maintainership note (May 2026 audit HIGH-2): see deploy-gcp.yml header
+# and `.github/CODEOWNERS`. The "required_reviewers: 2" claim is
+# aspirational while the template has a single CODEOWNER.
+#
 # Required Environment SECRETS per environment:
 #   * AWS_ROLE_ARN (OIDC federated role for this env)
 # Required Environment VARS:

@@ -75,38 +75,55 @@ jobs:
           fi
 
       # 3. tfsec — Terraform security checks against the template's own IaC.
+      #    May 2026 audit HIGH-1: flipped from `soft_fail: true` to hard-fail
+      #    so the supply-chain story is enforced, not advisory. The baseline
+      #    file `.security-baselines/tfsec.json` lists ALLOWED findings with
+      #    explicit rationale; new findings outside the baseline break CI.
       - name: tfsec (Terraform IaC — GCP)
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: templates/infra/terraform/gcp
-          soft_fail: true   # warn-only on first run; flip to false after triage
+          soft_fail: false
           format: lovely
+          additional_args: >-
+            --config-file ${{ github.workspace }}/.security-baselines/tfsec.yml
 
       - name: tfsec (Terraform IaC — AWS)
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: templates/infra/terraform/aws
-          soft_fail: true
+          soft_fail: false
           format: lovely
+          additional_args: >-
+            --config-file ${{ github.workspace }}/.security-baselines/tfsec.yml
 
       # 4. Checkov — broader IaC checks (Terraform + K8s + Dockerfile).
+      #    May 2026 audit HIGH-1: hard-fail with `--check` against the
+      #    repo's enforced rule set in `.security-baselines/checkov.yml`.
+      #    `--skip-check` items must each carry a `# checkov:skip=` comment
+      #    documenting the why next to the resource (NOT in the workflow).
       - name: Checkov (IaC + K8s + Dockerfile)
         uses: bridgecrewio/checkov-action@v12.3101.0
         with:
           directory: templates/
           framework: terraform,kubernetes,dockerfile
           quiet: true
-          soft_fail: true   # warn-only initially; remove after first clean run
+          soft_fail: false
+          config_file: .security-baselines/checkov.yml
 
       # 5. Trivy filesystem scan — catches CVEs in committed manifests
       #    (e.g. base images referenced in Dockerfile, requirements.txt).
+      #    May 2026 audit HIGH-1: exit-code: 1 on CRITICAL/HIGH; baseline
+      #    of accepted CVEs lives in `.security-baselines/.trivyignore`.
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: templates/
           severity: CRITICAL,HIGH
-          exit-code: "0"   # warn-only initially; flip to "1" after first clean run
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .security-baselines/.trivyignore
           format: table
 
       # 6. Toolchain-install hygiene (PR-R2-5, audit R2 §5).

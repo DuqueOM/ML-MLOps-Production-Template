@@ -21,6 +21,13 @@ name: "Deploy — GCP (dev → staging → prod)"
 #   * gcp-staging     — required_reviewers: 1 (tech lead)
 #   * gcp-production  — required_reviewers: 2, wait_timer: 5m,
 #                       deployment_branches: main + version tags only
+#
+# Maintainership note (May 2026 audit HIGH-2): this template currently
+# ships with a single CODEOWNER. The "required_reviewers: 2" claim on
+# `gcp-production` is aspirational. Adopters with one-person ownership
+# MUST either (a) set `required_reviewers: 1` until a co-maintainer is
+# onboarded, or (b) include a peer-team handle that is NOT the template
+# CODEOWNER as the second required reviewer. See `.github/CODEOWNERS`.
 
 on:
   push:

@@ -20,6 +20,135 @@ spec:
         spec:
           serviceAccountName: "{service-name}-sa"
           restartPolicy: Never
+
+          # ------------------------------------------------------------------
+          # PSS 'restricted' (May 2026 audit CRIT-2). The drift CronJob runs
+          # in the same namespace as the predictor pod and therefore must
+          # satisfy the same Pod Security Standard. Without this block the
+          # job is rejected at admission in any namespace labeled
+          # `pod-security.kubernetes.io/enforce=restricted` and the
+          # heartbeat alert (DriftDetectionHeartbeatMissing) fires forever.
+          # ------------------------------------------------------------------
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+
+          # ------------------------------------------------------------------
+          # Workload pool toleration — same taint as the predictor (D-31, ADR-017).
+          # Without it the job pod is unschedulable on dedicated ml-services nodes.
+          # ------------------------------------------------------------------
+          tolerations:
+            - key: workload-type
+              operator: Equal
+              value: ml-services
+              effect: NoSchedule
+
+          # ------------------------------------------------------------------
+          # Init containers (May 2026 audit CRIT-3). The drift detector reads
+          # `data/reference/reference.csv` and `data/production/latest.csv`,
+          # but those files are NOT in the predictor image. Two init steps
+          # populate them into a shared emptyDir before the detector runs:
+          #
+          #   1. reference-fetch — downloads the canonical reference window
+          #      from the cloud bucket the operator pinned. Image is the
+          #      symbolic `cloud-cli-image` placeholder so each overlay
+          #      rewrites to gsutil (GCP) or aws-cli (AWS) by digest.
+          #
+          #   2. production-fetch — downloads the latest scoring window the
+          #      production loader writes to the same bucket.
+          #
+          # Both init containers respect ADR-014 §3.6: skip-fail when the
+          # bucket env vars are unset (dev clusters) so the CronJob still
+          # runs and writes a clear "data missing" log line, instead of
+          # crash-looping silently.
+          # ------------------------------------------------------------------
+          initContainers:
+            - name: reference-fetch
+              image: cloud-cli-image:placeholder   # rewritten per overlay
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  if [ -z "${DATA_BUCKET:-}" ] || [ -z "${DATA_BUCKET_KIND:-}" ]; then
+                    echo "::warning::DATA_BUCKET / DATA_BUCKET_KIND unset — skipping reference fetch (dev only)"
+                    exit 0
+                  fi
+                  case "$DATA_BUCKET_KIND" in
+                    gcs) gsutil cp "gs://${DATA_BUCKET}/{service-name}/reference/reference.csv" /data/reference/reference.csv ;;
+                    s3)  aws s3 cp "s3://${DATA_BUCKET}/{service-name}/reference/reference.csv" /data/reference/reference.csv ;;
+                    *)   echo "::error::Unsupported DATA_BUCKET_KIND=${DATA_BUCKET_KIND}"; exit 1 ;;
+                  esac
+              env:
+                - name: DATA_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: "{service-name}-drift-config"
+                      key: data_bucket
+                      optional: true
+                - name: DATA_BUCKET_KIND
+                  valueFrom:
+                    configMapKeyRef:
+                      name: "{service-name}-drift-config"
+                      key: data_bucket_kind
+                      optional: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: "50m", memory: "64Mi" }
+                limits:   { cpu: "300m", memory: "256Mi" }
+              volumeMounts:
+                - name: data-volume
+                  mountPath: /data
+            - name: production-fetch
+              image: cloud-cli-image:placeholder
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  if [ -z "${DATA_BUCKET:-}" ] || [ -z "${DATA_BUCKET_KIND:-}" ]; then
+                    echo "::warning::DATA_BUCKET / DATA_BUCKET_KIND unset — skipping production fetch (dev only)"
+                    exit 0
+                  fi
+                  case "$DATA_BUCKET_KIND" in
+                    gcs) gsutil cp "gs://${DATA_BUCKET}/{service-name}/latest.csv" /data/production/latest.csv ;;
+                    s3)  aws s3 cp "s3://${DATA_BUCKET}/{service-name}/latest.csv" /data/production/latest.csv ;;
+                    *)   echo "::error::Unsupported DATA_BUCKET_KIND=${DATA_BUCKET_KIND}"; exit 1 ;;
+                  esac
+              env:
+                - name: DATA_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: "{service-name}-drift-config"
+                      key: data_bucket
+                      optional: true
+                - name: DATA_BUCKET_KIND
+                  valueFrom:
+                    configMapKeyRef:
+                      name: "{service-name}-drift-config"
+                      key: data_bucket_kind
+                      optional: true
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: "50m", memory: "64Mi" }
+                limits:   { cpu: "300m", memory: "256Mi" }
+              volumeMounts:
+                - name: data-volume
+                  mountPath: /data
+
           containers:
             - name: drift-detector
               image: "{service-name}-predictor:latest"
@@ -32,15 +161,23 @@ spec:
                 # (fraud-detector is not a valid Python package name).
                 - src/{service}/monitoring/drift_detection.py
                 - --reference
-                - data/reference/reference.csv
+                - /data/reference/reference.csv
                 - --current
-                - data/production/latest.csv
+                - /data/production/latest.csv
                 - --output
                 - /tmp/drift_report.json
                 - --push-metrics
               env:
                 - name: PUSHGATEWAY_URL
                   value: "pushgateway:9091"
+              # Container-level securityContext — PSS 'restricted' parity with
+              # the predictor (May 2026 audit CRIT-2).
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop: ["ALL"]
               resources:
                 requests:
                   cpu: "200m"
@@ -48,3 +185,17 @@ spec:
                 limits:
                   cpu: "500m"
                   memory: "512Mi"
+              volumeMounts:
+                - name: data-volume
+                  mountPath: /data
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+
+          volumes:
+            - name: data-volume
+              emptyDir:
+                sizeLimit: 1Gi
+            - name: tmp
+              emptyDir:
+                sizeLimit: 256Mi

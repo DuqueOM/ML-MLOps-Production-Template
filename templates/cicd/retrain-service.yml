@@ -187,6 +187,18 @@ jobs:
           print('95% CI:', [b.get('delta_auc_ci_lower'), b.get('delta_auc_ci_upper')])
           " >> "$GITHUB_STEP_SUMMARY"
 
+      # Cosign installer (May 2026 audit HIGH-8). Required by the
+      # blob-signing step below so each promoted `model.joblib` carries
+      # a Cosign signature + timestamp registered with the public Rekor
+      # transparency log. Without this, only container images are signed
+      # and a compromised bucket could substitute the model artifact
+      # without detection.
+      - name: Install Cosign
+        if: steps.gates.outcome == 'success' && (steps.champion.outputs.found == 'false' || steps.cvsc.outputs.exit_code == '0')
+        uses: sigstore/cosign-installer@v3.7.0
+        with:
+          cosign-release: v2.4.0
+
       - name: Promote model (if gates pass AND C/C == promote OR no champion)
         id: promote
         if: steps.gates.outcome == 'success' && (steps.champion.outputs.found == 'false' || steps.cvsc.outputs.exit_code == '0')
@@ -194,6 +206,7 @@ jobs:
           KIND: ${{ vars.MODEL_BUCKET_KIND }}
           BUCKET: ${{ vars.MODEL_BUCKET }}
           SERVICE: ${{ env.SERVICE }}
+          COSIGN_EXPERIMENTAL: "true"
         run: |
           set -euo pipefail
           if [ -z "${KIND:-}" ] || [ -z "${BUCKET:-}" ]; then
@@ -203,18 +216,52 @@ jobs:
           cd "${SERVICE}"
           SHA=$(sha256sum models/model.joblib | awk '{print $1}')
           echo "Promoting models/model.joblib (sha256:${SHA:0:16}…) to ${KIND}://${BUCKET}/${SERVICE}/production/"
+
+          # ----------------------------------------------------------------
+          # Cosign blob-sign the model artifact BEFORE upload (HIGH-8).
+          # The `.sig` and `.pem` companions go into the same prefix so
+          # the deploy chain can verify the model on pod startup before
+          # `joblib.load()` runs. Verification command for adopters:
+          #   cosign verify-blob \
+          #     --certificate model.joblib.pem \
+          #     --signature   model.joblib.sig \
+          #     --certificate-identity-regexp \
+          #         "https://github.com/<ORG>/<REPO>/.github/workflows/retrain-service\\.yml@.*" \
+          #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+          #     model.joblib
+          # ----------------------------------------------------------------
+          cosign sign-blob --yes \
+            --output-signature   models/model.joblib.sig \
+            --output-certificate models/model.joblib.pem \
+            models/model.joblib
+
           # Upload TWO copies: timestamped (audit trail) + current (for next champion fetch)
           STAMP=$(date -u +%Y%m%dT%H%M%SZ)
           case "$KIND" in
             gcs)
-              gcloud storage cp models/model.joblib "gs://${BUCKET}/${SERVICE}/production/model.joblib"
-              gcloud storage cp models/model.joblib "gs://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib"
+              gcloud storage cp models/model.joblib       "gs://${BUCKET}/${SERVICE}/production/model.joblib"
+              gcloud storage cp models/model.joblib.sig   "gs://${BUCKET}/${SERVICE}/production/model.joblib.sig"
+              gcloud storage cp models/model.joblib.pem   "gs://${BUCKET}/${SERVICE}/production/model.joblib.pem"
+              gcloud storage cp models/model.joblib       "gs://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib"
+              gcloud storage cp models/model.joblib.sig   "gs://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib.sig"
+              gcloud storage cp models/model.joblib.pem   "gs://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib.pem"
               ;;
             s3)
-              aws s3 cp models/model.joblib "s3://${BUCKET}/${SERVICE}/production/model.joblib"
-              aws s3 cp models/model.joblib "s3://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib"
+              aws s3 cp models/model.joblib       "s3://${BUCKET}/${SERVICE}/production/model.joblib"
+              aws s3 cp models/model.joblib.sig   "s3://${BUCKET}/${SERVICE}/production/model.joblib.sig"
+              aws s3 cp models/model.joblib.pem   "s3://${BUCKET}/${SERVICE}/production/model.joblib.pem"
+              aws s3 cp models/model.joblib       "s3://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib"
+              aws s3 cp models/model.joblib.sig   "s3://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib.sig"
+              aws s3 cp models/model.joblib.pem   "s3://${BUCKET}/${SERVICE}/archive/model-${STAMP}.joblib.pem"
               ;;
           esac
+
+          # Outputs for the audit step below.
+          echo "model_sha256=${SHA}"  >> "$GITHUB_OUTPUT"
+          echo "stamp=${STAMP}"        >> "$GITHUB_OUTPUT"
+          echo "bucket=${BUCKET}"      >> "$GITHUB_OUTPUT"
+          echo "kind=${KIND}"          >> "$GITHUB_OUTPUT"
+
           # MLflow registry transition (if MLFLOW_TRACKING_URI is set).
           # The `--alias production` mark is the contract the deploy chain
           # reads when fetching the model on next pod startup.
@@ -260,3 +307,68 @@ jobs:
           path: |
             ${{ env.SERVICE }}/training_output.json
             ${{ env.SERVICE }}/models/model_metadata.json
+            ${{ env.SERVICE }}/models/model.joblib.sig
+            ${{ env.SERVICE }}/models/model.joblib.pem
+            ${{ env.SERVICE }}/reports/champion_challenger.json
+
+      # ---------------------------------------------------------------------
+      # Audit trail — append-only entry on every retrain run, success or fail.
+      # May 2026 audit HIGH-7: previously this workflow only opened GitHub
+      # issues on failure. The retrain operation is a STOP-class event in
+      # AGENTS.md (model promotion) and MUST land in `ops/audit.jsonl` along
+      # with the model digest, the C/C decision, and the approver.
+      # ---------------------------------------------------------------------
+      - name: Emit audit entry
+        if: always()
+        env:
+          # Reason from workflow_dispatch is free-form; keep it short in the
+          # JSON inputs blob.
+          REASON: ${{ github.event.inputs.reason }}
+        run: |
+          set -euo pipefail
+          # Map job-level outcomes to the audit `result` enum.
+          if [ "${{ steps.gates.outcome }}" != "success" ]; then
+            RESULT=failure
+          elif [ "${{ steps.promote.outcome }}" = "success" ]; then
+            RESULT=success
+          elif [ "${{ steps.cvsc.outputs.exit_code }}" = "2" ]; then
+            RESULT=halted
+          else
+            RESULT=skipped
+          fi
+          MODEL_SHA="${{ steps.promote.outputs.model_sha256 }}"
+          STAMP="${{ steps.promote.outputs.stamp }}"
+          BUCKET="${{ steps.promote.outputs.bucket }}"
+          BUCKET_KIND="${{ steps.promote.outputs.kind }}"
+          # Promotion to MLflow `Production` alias is a STOP operation per
+          # AGENTS.md. Even if the workflow itself runs unattended (cron),
+          # the audit entry records the workflow run as the approver
+          # surrogate so the chain stays reviewable.
+          python scripts/audit_record.py \
+            --agent "Agent-RetrainingAgent" \
+            --operation "retrain-${SERVICE_SLUG}" \
+            --environment "production" \
+            --base-mode "STOP" \
+            --final-mode "STOP" \
+            --result "$RESULT" \
+            --inputs "$(jq -nc \
+              --arg svc "${{ env.SERVICE }}" \
+              --arg reason "$REASON" \
+              --arg trials "${{ github.event.inputs.optuna_trials }}" \
+              '{service:$svc, reason:$reason, optuna_trials:$trials}')" \
+            --outputs "$(jq -nc \
+              --arg sha "$MODEL_SHA" \
+              --arg stamp "$STAMP" \
+              --arg bucket_kind "$BUCKET_KIND" \
+              --arg bucket "$BUCKET" \
+              --arg cc_exit "${{ steps.cvsc.outputs.exit_code }}" \
+              '{model_sha256:$sha, archive_stamp:$stamp, bucket_kind:$bucket_kind, bucket:$bucket, cc_exit_code:$cc_exit, signed:true}')" \
+            --approver "${{ github.actor }}@workflow_run_${{ github.run_id }}"
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ env.SERVICE }}-${{ github.run_number }}
+          path: ops/audit.jsonl
+          if-no-files-found: warn

@@ -61,9 +61,19 @@ _explainer = None
 _feature_names: list[str] = []
 _background_data: Optional[np.ndarray] = None
 
-# Thread pool for CPU-bound inference — NEVER block the event loop
-# max_workers=4 is safe for ML; K8s HPA handles horizontal scale-out
-_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ml-infer")
+# Warm-up flag (D-23) — /ready returns 503 until True so K8s does not
+# route the first cold-cache request and violate the P95 SLO. Aligned
+# with the canonical pattern in templates/service/app/main.py
+# (May 2026 audit MED-9: minimal example was missing this gate).
+_warmed_up: bool = False
+
+# Thread pool for CPU-bound inference — NEVER block the event loop.
+# max_workers is bounded by the K8s CPU limit so the demo mirrors the
+# CPU-aware sizing used in the full template.
+_executor = ThreadPoolExecutor(
+    max_workers=min(int(os.getenv("INFERENCE_CPU_LIMIT", "4")), os.cpu_count() or 4),
+    thread_name_prefix="ml-infer",
+)
 
 # ---------------------------------------------------------------------------
 # Prometheus metrics
@@ -173,14 +183,49 @@ def _sync_predict(input_dict: dict, explain: bool) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Warm-up (D-23/D-24) — execute throwaway predict + SHAP at startup so the
+# first real request is served with hot caches. Mirrors the canonical
+# pattern in templates/service/app/fastapi_app.py::warm_up_model.
+# ---------------------------------------------------------------------------
+def warm_up() -> dict:
+    if _pipeline is None or _background_data is None:
+        return {"status": "skipped"}
+    report: dict = {"status": "ok"}
+    sample_df = pd.DataFrame(_background_data[:1], columns=_feature_names)
+    start = time.perf_counter()
+    try:
+        _ = _pipeline.predict_proba(sample_df)[:, 1]
+        report["predict_warmup_ms"] = round((time.perf_counter() - start) * 1000, 2)
+    except Exception as e:  # noqa: BLE001 - best-effort
+        report["predict_warmup_error"] = str(e)
+    if _explainer is not None:
+        start = time.perf_counter()
+        try:
+            _ = _explainer.shap_values(sample_df.values, nsamples=50, silent=True)
+            report["shap_warmup_ms"] = round((time.perf_counter() - start) * 1000, 2)
+        except Exception as e:  # noqa: BLE001
+            report["shap_warmup_error"] = str(e)
+    return report
+
+
+# ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Load model artifacts → warm up → flip _warmed_up; drain at shutdown."""
+    global _warmed_up
     logger.info("Starting Fraud Detection API...")
     load_artifacts()
+    try:
+        report = warm_up()
+        logger.info("Warm-up complete: %s", report)
+    except Exception as e:  # noqa: BLE001 - best-effort
+        logger.warning("Warm-up raised unexpectedly (continuing): %s", e)
+    _warmed_up = True
     yield
     logger.info("Shutting down.")
+    _warmed_up = False  # K8s will stop sending traffic via readiness
 
 
 app = FastAPI(
@@ -193,16 +238,33 @@ app = FastAPI(
 
 @app.get("/health")
 async def health():
+    """Liveness probe — always 200 if the event loop is alive."""
     return {
-        "status": "healthy" if _pipeline is not None else "degraded",
-        "model_loaded": _pipeline is not None,
+        "status": "healthy",
+        "version": os.getenv("MODEL_VERSION", "0.1.0"),
     }
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe — 503 until model loaded AND warm-up complete (D-23)."""
+    from fastapi.responses import JSONResponse
+
+    model_loaded = _pipeline is not None
+    is_ready = model_loaded and _warmed_up
+    body = {
+        "status": "ready" if is_ready else "not_ready",
+        "model_loaded": model_loaded,
+        "warmed_up": _warmed_up,
+        "version": os.getenv("MODEL_VERSION", "0.1.0"),
+    }
+    return JSONResponse(content=body, status_code=200 if is_ready else 503)
 
 
 @app.post("/predict", response_model=FraudResponse)
 async def predict(req: FraudRequest, explain: bool = False):
-    if _pipeline is None:
-        raise HTTPException(503, "Model not loaded")
+    if _pipeline is None or not _warmed_up:
+        raise HTTPException(503, "Service not ready")
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(_executor, partial(_sync_predict, req.model_dump(), explain))
     return FraudResponse(**result)
