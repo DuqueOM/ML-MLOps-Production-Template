@@ -1,0 +1,144 @@
+{
+  "__comment": "DORA metrics Grafana dashboard. Companion to scripts/dora_metrics.py which writes ops/dora/{YYYY-MM}-metrics.json. To populate Prometheus, an adopter cron job MUST push the JSON values to a Pushgateway with the metric names below. See templates/monitoring/grafana/INDEX.md and docs/runbooks/performance-review.md for the full pipeline.",
+  "dashboard": {
+    "title": "{ServiceName} — DORA Metrics",
+    "tags": ["dora", "delivery", "{service}"],
+    "timezone": "utc",
+    "refresh": "1h",
+    "schemaVersion": 38,
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "constant",
+          "query": "{service}",
+          "hide": 0
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "Deployment Frequency (per week)",
+        "type": "stat",
+        "description": "Successful production deploys per week. Source: ops/dora/*.json::deploy_frequency_per_week, pushed to Prometheus as dora_deploy_frequency_per_week.",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red",    "value": null},
+                {"color": "orange", "value": 1},
+                {"color": "yellow", "value": 3},
+                {"color": "green",  "value": 7}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "targets": [
+          {
+            "expr": "dora_deploy_frequency_per_week{service=\"$service\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Lead Time for Changes (hours, p50)",
+        "type": "stat",
+        "description": "Median PR merge -> first prod deploy. Source: dora_lead_time_hours_p50.",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green",  "value": null},
+                {"color": "yellow", "value": 24},
+                {"color": "orange", "value": 168},
+                {"color": "red",    "value": 720}
+              ]
+            },
+            "unit": "h"
+          }
+        },
+        "targets": [
+          {
+            "expr": "dora_lead_time_hours_p50{service=\"$service\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Change Failure Rate (%)",
+        "type": "stat",
+        "description": "Rollback-tagged issues / total prod deploys. Source: dora_change_failure_rate_percent.",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green",  "value": null},
+                {"color": "yellow", "value": 5},
+                {"color": "orange", "value": 15},
+                {"color": "red",    "value": 30}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "targets": [
+          {
+            "expr": "dora_change_failure_rate_percent{service=\"$service\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "MTTR (minutes, p50)",
+        "type": "stat",
+        "description": "Median seconds between rollback trigger and incident close, divided by 60. Source: dora_mttr_minutes_p50.",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green",  "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "orange", "value": 120},
+                {"color": "red",    "value": 480}
+              ]
+            },
+            "unit": "m"
+          }
+        },
+        "targets": [
+          {
+            "expr": "dora_mttr_minutes_p50{service=\"$service\"}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Deploys vs Rollbacks (last 90d)",
+        "type": "timeseries",
+        "description": "Weekly cadence of successful deploys vs rollback events. Helps spot a deploy/rollback ratio shift before CFR crosses threshold.",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "increase(dora_deploys_total{service=\"$service\"}[7d])",
+            "legendFormat": "deploys/week",
+            "refId": "A"
+          },
+          {
+            "expr": "increase(dora_rollbacks_total{service=\"$service\"}[7d])",
+            "legendFormat": "rollbacks/week",
+            "refId": "B"
+          }
+        ]
+      }
+    ]
+  }
+}

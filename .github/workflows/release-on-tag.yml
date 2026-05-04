@@ -1,0 +1,93 @@
+---
+# Auto-publish a GitHub Release whenever a new `v*` tag is pushed.
+#
+# External-feedback triage gap 3.1 (May 2026):
+# tags existed (v1.0.0..v1.12.0, v0.13.0, v0.14.0) but several of
+# the recent ones never became GitHub Releases. The CHANGELOG.md is
+# 1,400+ lines yet invisible to anyone using GitHub's Releases UI,
+# producing the "no releases = abandoned" perception.
+#
+# This workflow extracts the matching CHANGELOG section for the
+# pushed tag and creates a Release with that body. If the section
+# cannot be found (e.g. the tag was created before the matching
+# changelog entry was written), the Release is created with a
+# fallback body pointing to CHANGELOG.md.
+#
+# Mode (per AGENTS.md): AUTO. Releases are additive and reversible
+# (a Release can be deleted without affecting tags or the repo).
+
+name: Release on Tag
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # required for `gh release create`
+
+jobs:
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract CHANGELOG section for this tag
+        id: changelog
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          # Strip the leading 'v' for the section header lookup.
+          version="${TAG#v}"
+          # CHANGELOG sections are: ## [X.Y.Z] - YYYY-MM-DD
+          # Capture from that header to the next "## [" header.
+          if grep -qE "^## \[${version}\] " CHANGELOG.md; then
+            awk -v v="${version}" '
+              $0 ~ "^## \\["v"\\] " {capture=1; print; next}
+              capture && /^## \[/ {capture=0}
+              capture {print}
+            ' CHANGELOG.md > /tmp/release-body.md
+            echo "Extracted $(wc -l < /tmp/release-body.md) line(s) for ${TAG}."
+          else
+            echo "No CHANGELOG section for ${TAG}; using fallback body."
+            cat > /tmp/release-body.md <<'EOF'
+          Auto-published from tag. See `CHANGELOG.md` for the full change list.
+          EOF
+          fi
+
+      - name: Determine if this is a prerelease
+        id: prerelease
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # 0.x is the active hardening line; v1.0.0 is the L4-validated
+          # cut. Until v1.0.0 is reached, every 0.x tag is flagged as
+          # prerelease so the GitHub UI surfaces 0.x clearly while the
+          # historical v1.x snapshots remain Latest=v1.12.0 unless a new
+          # v1.x is cut.
+          if [[ "${TAG}" =~ ^v0\. ]]; then
+            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRE: ${{ steps.prerelease.outputs.flag }}
+        run: |
+          set -eu
+          # --notes-file uses the extracted CHANGELOG section as body.
+          # --verify-tag asserts the tag exists in the repo (defense in
+          # depth, since the trigger already implies it).
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${TAG}" \
+            --notes-file /tmp/release-body.md \
+            --verify-tag \
+            ${PRE}

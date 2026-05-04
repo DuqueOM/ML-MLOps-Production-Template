@@ -584,6 +584,21 @@ jobs:
       - name: Check baseline entry expiries
         run: python3 scripts/check_baselines_expiry.py
 
+  dashboard-inventory:
+    name: Grafana Dashboard Inventory Gate
+    runs-on: ubuntu-latest
+    # May 2026 feedback triage gap 6.4. Every dashboard JSON shipped
+    # under templates/monitoring/grafana/ must be registered in
+    # INDEX.md. Prevents drift between "shipped" and "documented".
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check dashboard inventory
+        run: python3 scripts/check_dashboard_inventory.py
+
   scaffold-e2e:
     name: Scaffolder End-to-End Test
     runs-on: ubuntu-latest
