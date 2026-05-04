@@ -6,6 +6,7 @@ under its own assertion so failure messages are unambiguous.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -43,8 +44,14 @@ def test_scaffold_replaces_placeholders(scaffold_dir: Path) -> None:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        for token in ("{ServiceName}", "{SERVICE}"):
-            if token in text:
+        # Use negative lookbehind so shell variables like ${SERVICE}
+        # (legitimate in scaffolded CI workflow scripts) are not flagged.
+        # Only bare {ServiceName} / {SERVICE} not preceded by $ are placeholders.
+        for pattern, token in (
+            (r"(?<![$])\{ServiceName\}", "{ServiceName}"),
+            (r"(?<![$])\{SERVICE\}", "{SERVICE}"),
+        ):
+            if re.search(pattern, text):
                 bad.append(f"{rel}: contains {token!r}")
 
     assert not bad, "Unsubstituted placeholders found:\n  " + "\n  ".join(bad[:20])
