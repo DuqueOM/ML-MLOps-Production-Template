@@ -35,9 +35,9 @@ on:
         required: true
         type: string
       services:
-        description: "JSON array of service dirnames, e.g. '[\"billing\",\"fraud\"]'. Scaffolder substitutes {ServiceName} for single-service repos."
+        description: "JSON array of service slugs, e.g. '[\"billing\",\"fraud\"]'. Scaffolder substitutes kebab-case {service-name} for single-service repos."
         required: false
-        default: '["{ServiceName}"]'
+        default: '["{service-name}"]'
         type: string
       image_digests:
         description: "JSON object mapping service name → image digest (sha256:...). Required for staging/prod (D-19 + Kyverno digest gate). Falls back to overlay's tag if empty (dev only)."
@@ -125,7 +125,7 @@ jobs:
           NS="${{ inputs.namespace }}"
           if [ -z "$NS" ]; then
             # Default: first service name + env (matches overlay's namespace.yaml)
-            FIRST_SVC=$(echo '${{ inputs.services }}' | jq -r '.[0]' | tr 'A-Z' 'a-z')
+            FIRST_SVC=$(echo '${{ inputs.services }}' | jq -r '.[0]' | tr 'A-Z' 'a-z' | tr '_' '-')
             ENV_SUFFIX="${{ inputs.environment }}"
             # Map 'production' to 'prod' to align with overlay names
             [ "$ENV_SUFFIX" = "production" ] && ENV_SUFFIX="prod"
@@ -213,7 +213,7 @@ jobs:
             # kustomize edit set image NAME=NEWNAME@DIGEST replaces the image.
             # The image NAME (left side) must match what overlays/<env>/kustomization.yaml
             # has under `images: - name:` — the scaffolder uses "<svc>-predictor".
-            IMG_NAME="$(echo $svc | tr 'A-Z' 'a-z')-predictor"
+            IMG_NAME="$(echo "$svc" | tr 'A-Z' 'a-z' | tr '_' '-')-predictor"
             # Get the current newName (registry path) from kustomization
             NEW_NAME=$(yq '.images[] | select(.name == "'"$IMG_NAME"'") | .newName' kustomization.yaml)
             if [ -z "$NEW_NAME" ] || [ "$NEW_NAME" = "null" ]; then
@@ -245,7 +245,7 @@ jobs:
         run: |
           set -euo pipefail
           for svc in $(echo '${{ inputs.services }}' | jq -r '.[]'); do
-            DEPLOY="$(echo $svc | tr 'A-Z' 'a-z')-predictor"
+            DEPLOY="$(echo "$svc" | tr 'A-Z' 'a-z' | tr '_' '-')-predictor"
             echo "→ Stamping $DEPLOY with deployment_id=$DEPLOYMENT_ID"
             kubectl patch deployment "$DEPLOY" -n "$NAMESPACE" \
               --patch '{"spec":{"template":{"metadata":{"annotations":{"windsurf.io/deployment-id":"'"$DEPLOYMENT_ID"'"}}}}}'
@@ -256,7 +256,7 @@ jobs:
           NAMESPACE: ${{ steps.ns.outputs.namespace }}
         run: |
           for svc in $(echo '${{ inputs.services }}' | jq -r '.[]'); do
-            DEPLOY="$(echo $svc | tr 'A-Z' 'a-z')-predictor"
+            DEPLOY="$(echo "$svc" | tr 'A-Z' 'a-z' | tr '_' '-')-predictor"
             kubectl rollout status "deployment/${DEPLOY}" -n "${NAMESPACE}" --timeout=600s
           done
 
@@ -271,7 +271,7 @@ jobs:
           NAMESPACE: ${{ steps.ns.outputs.namespace }}
         run: |
           for svc in $(echo '${{ inputs.services }}' | jq -r '.[]'); do
-            LOWER=$(echo $svc | tr 'A-Z' 'a-z')
+            LOWER=$(echo "$svc" | tr 'A-Z' 'a-z' | tr '_' '-')
             FQDN="${LOWER}-service.${NAMESPACE}.svc.cluster.local"
             POD="smoke-${LOWER}-${GITHUB_RUN_ID}"
             echo "→ Smoke test: GET http://${FQDN}/ready"
