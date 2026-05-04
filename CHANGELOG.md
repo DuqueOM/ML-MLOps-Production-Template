@@ -8,6 +8,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.15.1] - 2026-05-04
+
+Patch release that closes 3 of the 5 pending items from the v0.15.0
+audit-remediation entry (VALIDATION_LOG.md Entry 007).
+
+### Added
+
+- `scripts/check_baselines_expiry.py` — enforces that every entry in
+  `.security-baselines/{tfsec.yml,checkov.yml,.trivyignore}` carries an
+  `# expiry: YYYY-MM-DD` annotation AND that no entry is past due.
+  Wired into `validate-templates.yml` as the `security-baseline-expiry`
+  job. Closes the v0.15.0 pending item "baseline drift over time".
+- `model-verifier` init container in `templates/k8s/base/deployment.yaml`:
+  cosign keyless `verify-blob` of `model.joblib` against the workflow
+  identity used by `retrain-service.yml`. Two modes:
+  `MODEL_SIGNATURE_VERIFY=warn` (base default) and `=true|enforce`
+  (production overlays). Closes the v0.15.0 pending item "cosign
+  verification at deploy time".
+
+### Changed
+
+- `scripts/test_scaffold.sh` (`SCAFFOLD_SMOKE=1` path) now runs
+  `tests/integration/` against the freshly-scaffolded service.
+  `test_train_serve_drift_e2e.py` ships in CI. Closes the v0.15.0
+  pending item "E2E integration test not executed in CI".
+- `templates/k8s/overlays/{gcp,aws}-prod/patch-deployment.yaml`:
+  `model-downloader` now also fetches `model.joblib.sig` and `.pem`;
+  `model-verifier` patched to `MODEL_SIGNATURE_VERIFY=true` (enforce).
+  Production pods that find a missing or tampered model fail at init
+  rather than serving an unsigned model.
+- `docs/runbooks/deploy-gke.md`: new "Model signature verification
+  (init container)" section with the verifier commands, modes, and
+  failure-path triage that chains to `secret-breach.md` on
+  `no matching signatures`.
+
+### Pending after v0.15.1
+
+- L4 real-cluster execution (gates `v1.0.0`).
+- OpenTelemetry tracing under load (adopter-side; opt-in middleware
+  ships with the template).
+
+---
+
 ## [0.15.0] - 2026-05-04
 
 May 2026 enterprise-audit remediation release. Closes **4 critical,

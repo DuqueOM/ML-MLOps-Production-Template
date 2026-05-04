@@ -18,11 +18,35 @@ directory.
    patched release, an IaC pattern explicitly required by another invariant,
    or an upstream-only false positive.
 2. **Open an ADR or issue** documenting the rationale and the expiry date.
-   Baseline entries are time-bounded; the goal is zero baseline by
-   `v1.0.0`.
-3. **Add the entry** to the appropriate file with a line comment citing the
-   ADR/issue.
+   Baseline entries are time-bounded; the goal is zero baseline by `v1.0.0`.
+3. **Add the entry** with a `# expiry: YYYY-MM-DD` annotation **adjacent**
+   to the entry. Two accepted styles:
+
+   ```yaml
+   # tfsec.yml / checkov.yml
+   exclude:
+     # expiry: 2026-08-01  reason: ADR-024 §"Review"
+     - "AWS001"
+   ```
+
+   ```text
+   # .trivyignore
+   CVE-2026-12345  # expiry: 2026-08-01  vendor advisory: GHSA-xxxx
+   ```
+
 4. **Update `docs/audit/baseline-review.md`** (next quarterly review).
+
+The `expiry:` annotation is enforced by
+`scripts/check_baselines_expiry.py`, which runs as the
+`security-baseline-expiry` job in
+`.github/workflows/validate-templates.yml`. CI fails when:
+
+- an entry is missing the `# expiry: YYYY-MM-DD` annotation, OR
+- the annotated date is in the past.
+
+Both failure modes have a clear resolution path: extend the expiry
+with a fresh ADR justification, OR remove the entry by fixing the
+underlying issue.
 
 ## Removing a finding
 

@@ -410,6 +410,7 @@ if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
         tests/test_day2_artifacts_contract.py \
         tests/test_data_paths.py \
         tests/contract/ \
+        tests/integration/ \
         -q --tb=short --no-cov --capture=no) > "$TEMP_ROOT/pytest.log" 2>&1; then
     pass "pytest passed on freshly-scaffolded service"
   else

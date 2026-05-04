@@ -67,11 +67,27 @@ spec:
       initContainers:
         - name: model-downloader
           image: cloud-cli-image:placeholder   # rewritten per overlay
+          # Downloads model.joblib AND its companion cosign signature
+          # (model.joblib.sig + model.joblib.pem). The signature files
+          # are produced by the retrain-service.yml workflow's
+          # "Sign model with cosign" step (HIGH-8 from the May 2026
+          # audit, ADR-024). Verification happens in `model-verifier`
+          # below, NOT here — this container runs as the cloud CLI
+          # which does not include cosign. Two-container split keeps
+          # each image minimal and lets readOnlyRootFilesystem: true
+          # apply uniformly.
           command:
-            - gsutil
-            - cp
-            - gs://{MODEL_BUCKET}/{service-name}/model.joblib
-            - /models/model.joblib
+            - sh
+            - -ec
+            - |
+              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib /models/model.joblib
+              # Signature files are best-effort here; the verifier
+              # init container fails the pod fast if they are required
+              # but missing.
+              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib.sig /models/model.joblib.sig 2>/dev/null || \
+                echo "[model-downloader] WARNING: signature file not found in bucket"
+              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib.pem /models/model.joblib.pem 2>/dev/null || \
+                echo "[model-downloader] WARNING: certificate file not found in bucket"
           securityContext:
             # PSS restricted: init container must also pass the gate.
             allowPrivilegeEscalation: false
@@ -81,6 +97,72 @@ spec:
           resources:
             requests: { cpu: "50m", memory: "64Mi" }
             limits:   { cpu: "500m", memory: "256Mi" }
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+
+        # Init container 2 — Cosign keyless verify-blob (May 2026 audit
+        # ADR-024 follow-up to HIGH-8). Verifies that the model artifact
+        # downloaded by `model-downloader` was signed by THIS repo's
+        # retrain workflow via Sigstore keyless OIDC.
+        #
+        # OPT-IN: gated by MODEL_SIGNATURE_VERIFY=true. Default is
+        # "warn-only" so adopters without a signing pipeline can
+        # scaffold and run without friction. Production overlays
+        # MUST set MODEL_SIGNATURE_VERIFY=true (enforce mode); the
+        # missing signature files then fail the pod at init time
+        # rather than serving an unsigned model.
+        #
+        # The verification rules (--certificate-identity-regexp +
+        # --certificate-oidc-issuer) match the workflow identity the
+        # retrain-service.yml job uses. Adopters MUST update the regexp
+        # if they fork to a different org/repo/workflow path —
+        # `templates/scripts/new-service.sh` substitutes {ORG} and
+        # {REPO} at scaffold time (May 2026 audit MED-10).
+        - name: model-verifier
+          image: gcr.io/projectsigstore/cosign:v2.4.1@sha256:placeholder
+          # Image digest is a placeholder until the first overlay sets
+          # the real one via `kustomize edit set image`. Production
+          # overlays MUST pin by digest — see PR-R2-2.
+          command:
+            - sh
+            - -ec
+            - |
+              set -eu
+              MODE="${MODEL_SIGNATURE_VERIFY:-warn}"
+              if [ ! -f /models/model.joblib.sig ] || [ ! -f /models/model.joblib.pem ]; then
+                if [ "$MODE" = "true" ] || [ "$MODE" = "enforce" ]; then
+                  echo "[model-verifier] FATAL: signature or certificate missing from /models/ (enforce mode)"
+                  ls -la /models/
+                  exit 1
+                fi
+                echo "[model-verifier] WARNING: signature missing; running in warn mode (set MODEL_SIGNATURE_VERIFY=true to enforce)"
+                exit 0
+              fi
+              echo "[model-verifier] Verifying model signature with cosign keyless..."
+              cosign verify-blob \
+                --certificate /models/model.joblib.pem \
+                --signature  /models/model.joblib.sig \
+                --certificate-identity-regexp "https://github.com/{ORG}/{REPO}/.github/workflows/retrain-service\.yml@.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                /models/model.joblib
+              echo "[model-verifier] OK: model signature verified."
+          env:
+            # Default: warn-only. Production overlays MUST patch this
+            # to "true" so unsigned/unverifiable models fail the pod
+            # at init time. See overlays/<cloud>-prod/patch-deployment.yaml.
+            - name: MODEL_SIGNATURE_VERIFY
+              value: "warn"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "300m", memory: "192Mi" }
           volumeMounts:
             - name: model-storage
               mountPath: /models
