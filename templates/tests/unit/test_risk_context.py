@@ -261,7 +261,10 @@ class TestPrometheusSignals:
 
         it = iter(responses)
 
-        def fake_urlopen(_url, timeout=None):
+        def fake_urlopen(_url, timeout=None, context=None):
+            # `context=` kwarg added by HIGH-9 (v0.15.0) when the
+            # Prometheus loader started passing an SSL context for
+            # auth + CA bundle support. Mock accepts it for parity.
             r = next(it)
             if isinstance(r, Exception):
                 raise r
