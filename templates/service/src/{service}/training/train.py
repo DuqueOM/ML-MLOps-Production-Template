@@ -146,7 +146,7 @@ class Trainer:
     def _enforce_eda_gate(self) -> None:
         """Refuse to train when EDA artifacts say we shouldn't.
 
-        Two checks, both fail-soft:
+        Two checks:
           1. ``leakage_report.json`` — if present and ``status=BLOCKED``,
              raise ``EDAGateError``. This is the LOAD-BEARING check
              that makes "you cannot train on a leaky feature set" a
@@ -156,34 +156,56 @@ class Trainer:
              the D-16 rationale invariant on the way in, so a malformed
              catalog ALSO blocks training (raises during load).
 
-        Services that haven't run the new EDA pipeline yet have no
-        artifacts on disk; the gate logs a warning and lets training
-        proceed. PR-B4 will tighten this to mandatory for services
-        with `quality_gates.require_eda_artifacts: true`.
+        Services with ``quality_gates.require_eda_artifacts=true`` fail
+        closed when artifacts are missing. Legacy services may keep the
+        field false during migration; they still get warnings so the
+        missing evidence is visible in logs and review artifacts.
         """
+        require_eda = bool(
+            getattr(
+                getattr(self, "gates", None),
+                "require_eda_artifacts",
+                False,
+            )
+        )
         if load_leakage_report is None or load_feature_catalog is None:
-            logger.warning(
+            msg = (
                 "EDA gate skipped: common_utils.eda_artifacts not importable "
                 "(legacy training path). PR-B2 wiring deferred."
             )
+            if require_eda:
+                raise EDAGateError(msg)
+            logger.warning(msg)
             return
         if self.eda_artifacts_dir is None:
-            logger.info("EDA gate skipped: eda_artifacts_dir explicitly disabled")
+            msg = "EDA gate skipped: eda_artifacts_dir explicitly disabled"
+            if require_eda:
+                raise EDAGateError(msg)
+            logger.info(msg)
             return
 
         artifacts_dir = Path(self.eda_artifacts_dir)
         if not artifacts_dir.exists():
-            logger.warning(
-                "EDA gate skipped: %s does not exist. Run " "`python -m eda.eda_pipeline` to enable the leakage gate.",
-                artifacts_dir,
+            msg = (
+                f"EDA gate required but {artifacts_dir} does not exist. "
+                "Run `python -m eda.eda_pipeline` before training."
             )
+            if require_eda:
+                raise EDAGateError(msg)
+            logger.warning(msg)
             return
 
         try:
             report = load_leakage_report(artifacts_dir)
         except EDAArtifactNotFoundError:
+            msg = (
+                f"EDA gate required but leakage_report.json is missing under {artifacts_dir}. "
+                "Run the EDA pipeline and commit the resulting artifact packet."
+            )
+            if require_eda:
+                raise EDAGateError(msg)
             logger.warning(
-                "EDA gate: leakage_report.json missing under %s — " "treat as PR-B2-not-yet-adopted and continue.",
+                "EDA gate: leakage_report.json missing under %s — treat as PR-B2-not-yet-adopted and continue.",
                 artifacts_dir,
             )
         else:

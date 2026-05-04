@@ -43,27 +43,9 @@ env:
   # Single source of truth for service names used across this workflow.
   # Mirrors the placeholder substitution that new-service.sh would do.
   #
-  # IMPORTANT: SERVICE_SLUG is a single word (`goldenpath`), NOT
-  # snake_case (`golden_path`). Why:
-  #
-  # Run 24953521843 surfaced a latent template bug: when SERVICE_SLUG
-  # contains underscores, the scaffolder substitutes `{service}` →
-  # `golden_path` everywhere, including K8s overlay namespace fields
-  # (`name: golden_path-dev`). K8s rejects this with:
-  #
-  #   Namespace "golden_path-dev" is invalid: metadata.name: Invalid
-  #   value [...] regex used for validation is
-  #   '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
-  #
-  # The fix is structural (introduce a `{service-name}` placeholder
-  # for kebab-case contexts; keep `{service}` for snake-case contexts
-  # like Python imports and Prometheus metric names). It touches ~50
-  # files across templates/k8s/** and templates/monitoring/**.
-  # Tracked as PR-A5b in ADR-015.
-  #
-  # Until then, single-word slugs work because no underscore needs
-  # converting. The workflow's purpose is to prove the chain
-  # end-to-end; using a single-word slug is sufficient validation.
+  # SERVICE_SLUG intentionally stays single-word here to keep the
+  # workflow output readable. Snake-to-kebab rendering is covered by
+  # scripts/test_scaffold.sh and test_k8s_name_vocabulary.py.
   SERVICE_NAME: GoldenPath
   SERVICE_SLUG: goldenpath
   KIND_VERSION: v0.24.0
@@ -110,6 +92,33 @@ jobs:
             test -f "k8s/overlays/$o/namespace.yaml" || { echo "::error::missing namespace.yaml in $o"; exit 1; }
           done
           echo "✓ All 6 overlays + namespace.yaml present"
+
+      - name: Patch dev overlay for synthetic CI model
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/${{ env.SERVICE_NAME }}/k8s/overlays/gcp-dev"
+          cat <<'EOF' >> kustomization.yaml
+
+            # Golden Path CI only: remove cloud model download and allow
+            # the app's guarded synthetic model fallback. Production
+            # overlays keep the real init container and MODEL_PATH contract.
+            - target:
+                kind: Deployment
+                name: goldenpath-predictor
+              patch: |-
+                - op: remove
+                  path: /spec/template/spec/initContainers
+                - op: add
+                  path: /spec/template/spec/containers/0/env/-
+                  value:
+                    name: ALLOW_MODELLESS_STARTUP
+                    value: "true"
+                - op: add
+                  path: /spec/template/spec/containers/0/env/-
+                  value:
+                    name: ENVIRONMENT
+                    value: "ci"
+          EOF
 
       - name: Upload scaffolded service for downstream jobs
         uses: actions/upload-artifact@v4
@@ -312,29 +321,7 @@ jobs:
             -l app.kubernetes.io/part-of=kyverno \
             -n kyverno --timeout=180s
 
-      - name: Apply minimal digest-enforcement ClusterPolicy
-        # The template ships a production Kyverno policy at
-        # templates/k8s/policies/kyverno-image-verification.yaml that
-        # verifies BOTH (a) digest-pinning AND (b) Cosign keyless
-        # signatures signed by a GH identity matching
-        # `github.com/<org>/<repo>/.../refs/heads/main`.
-        #
-        # In this workflow we are on an ad-hoc workflow_dispatch ref
-        # (not refs/heads/main). The production signature regex would
-        # reject our keyless signature. Relaxing the regex in-place
-        # via sed is fragile (run 24953388443 proved this) and also
-        # off-topic: the AUDIT CLOSED THE DIGEST-PIN INVARIANT (D-19),
-        # not the trust-regex, which was already in place.
-        #
-        # We test the contract the audit actually established: no
-        # image may be admitted unless its reference contains a
-        # SHA-256 digest. The production policy keeps enforcing
-        # signature trust on real deploys via deploy-gcp.yml /
-        # deploy-aws.yml \u2014 which run on refs/heads/main.
-        #
-        # The scaffolder does NOT copy templates/k8s/policies/ into
-        # per-service trees because policies are cluster-primitives,
-        # not service assets. That's correct and by design.
+      - name: Apply digest-enforcement ClusterPolicy
         run: |
           set -euo pipefail
           cat <<'EOF' > /tmp/golden-path-digest-policy.yaml
@@ -414,10 +401,17 @@ jobs:
         run: |
           set +e
           OVERLAY="${{ env.SERVICE_NAME }}/k8s/overlays/gcp-dev"
-          kubectl apply -k "$OVERLAY"
+          kubectl apply -k "$OVERLAY" 2> /tmp/apply.err
           APPLY_RC=$?
           set -e
-          echo "→ kubectl apply exit code: $APPLY_RC (non-zero may be CRD-only failures)"
+          cat /tmp/apply.err
+          if [ "$APPLY_RC" -ne 0 ]; then
+            if grep -Ev 'no matches for kind "(AnalysisTemplate|PrometheusRule)"' /tmp/apply.err | grep -q .; then
+              echo "::error::kubectl apply failed for reasons other than known missing CRDs"
+              exit "$APPLY_RC"
+            fi
+          fi
+          echo "→ kubectl apply exit code: $APPLY_RC (known missing CRDs only)"
           echo "→ Namespaces:"
           kubectl get ns | grep -E "(NAME|${{ env.SERVICE_SLUG }})"
           echo "→ Workload state:"
@@ -436,23 +430,35 @@ jobs:
           set -euo pipefail
           NAMESPACE="${{ env.SERVICE_SLUG }}-dev"
           DEPLOY="${{ env.SERVICE_SLUG }}-predictor"
-          # The init container needs a model file that doesn't exist in
-          # the demo path, so the deployment may not become Ready in this
-          # synthetic environment. We accept "Progressing" as success
-          # signal that admission accepted the manifest. The audit gates
-          # we care about (digest pin, signature, namespace, PSS) all
-          # fire BEFORE the init container runs.
-          for i in {1..60}; do
-            STATUS=$(kubectl get deploy "$DEPLOY" -n "$NAMESPACE" \
-              -o jsonpath='{.status.conditions[?(@.type=="Progressing")].status}' 2>/dev/null || echo "")
-            if [ "$STATUS" = "True" ]; then
-              echo "✓ Deployment is progressing (admitted)"
-              break
-            fi
+          kubectl rollout status "deployment/${DEPLOY}" -n "$NAMESPACE" --timeout=180s
+          echo "✓ Deployment is Available"
+
+      - name: Smoke /health, /ready and /predict
+        run: |
+          set -euo pipefail
+          NAMESPACE="${{ env.SERVICE_SLUG }}-dev"
+          kubectl -n "$NAMESPACE" port-forward "svc/${{ env.SERVICE_SLUG }}-service" 18000:80 >/tmp/portfwd.log 2>&1 &
+          echo $! > /tmp/portfwd.pid
+          trap 'kill $(cat /tmp/portfwd.pid) 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:18000/health >/dev/null 2>&1 && break
             sleep 2
           done
-          # Show final state for the audit log
-          kubectl describe deploy "$DEPLOY" -n "$NAMESPACE" | head -50
+          curl -fsS http://localhost:18000/health >/dev/null
+          curl -fsS http://localhost:18000/ready >/dev/null
+          code=$(curl -sS -o /tmp/predict.json -w '%{http_code}' \
+            -X POST http://localhost:18000/predict \
+            -H 'Content-Type: application/json' \
+            -d '{"entity_id":"golden-path-1","slice_values":{"country":"MX"},"feature_a":42.0,"feature_b":50000.0,"feature_c":"category_A"}')
+          test "$code" = "200" || {
+            echo "::error::expected /predict 200, got ${code}"
+            cat /tmp/predict.json
+            cat /tmp/portfwd.log
+            exit 1
+          }
+          jq -e '.prediction_id and .prediction_score and .risk_level and .model_version' /tmp/predict.json >/dev/null
+          curl -fsS http://localhost:18000/metrics | grep -E '^${{ env.SERVICE_SLUG }}_(prediction_log_total|predictions_total)'
+          echo "✓ Runtime smoke passed with real 2xx inference"
 
       - name: Verify PSS namespace label was applied
         run: |

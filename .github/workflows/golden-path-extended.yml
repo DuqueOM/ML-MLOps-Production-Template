@@ -115,6 +115,33 @@ jobs:
           bash templates/scripts/new-service.sh "${SERVICE_NAME}" "${SERVICE_SLUG}"
           test -d "${SERVICE_NAME}"
 
+      - name: Patch dev overlay for synthetic CI model
+        run: |
+          set -euo pipefail
+          cd "${SERVICE_NAME}/k8s/overlays/gcp-dev"
+          cat <<'EOF' >> kustomization.yaml
+
+            # Golden Path CI only: remove cloud model download and allow
+            # the app's guarded synthetic model fallback. Production
+            # overlays keep the real init container and MODEL_PATH contract.
+            - target:
+                kind: Deployment
+                name: goldenpath-predictor
+              patch: |-
+                - op: remove
+                  path: /spec/template/spec/initContainers
+                - op: add
+                  path: /spec/template/spec/containers/0/env/-
+                  value:
+                    name: ALLOW_MODELLESS_STARTUP
+                    value: "true"
+                - op: add
+                  path: /spec/template/spec/containers/0/env/-
+                  value:
+                    name: ENVIRONMENT
+                    value: "ci"
+          EOF
+
       # ---------------------------------------------------------------------
       # Build a minimal image. Same Dockerfile path as golden-path.yml
       # but without cosign signing — we only need a working binary for
@@ -159,15 +186,20 @@ jobs:
         working-directory: ${{ env.SERVICE_NAME }}
         run: |
           set -euo pipefail
-          # Tolerate platform CRDs absent in synthetic kind cluster
-          # (Argo Rollouts AnalysisTemplate, Prometheus Operator
-          # PrometheusRule). The closed-loop verification only needs
-          # the Deployment + Service.
+          # Tolerate only the known platform CRDs absent in synthetic
+          # kind (AnalysisTemplate, PrometheusRule). Any other apply
+          # error is a real regression.
           set +e
-          kustomize build k8s/overlays/gcp-dev | kubectl apply -f -
+          kustomize build k8s/overlays/gcp-dev | kubectl apply -f - 2> /tmp/apply.err
           apply_rc=$?
           set -e
-          echo "kubectl apply exit code: ${apply_rc} (CRD-mapping errors are non-fatal)"
+          cat /tmp/apply.err
+          if [ "${apply_rc}" -ne 0 ]; then
+            if grep -Ev 'no matches for kind "(AnalysisTemplate|PrometheusRule)"' /tmp/apply.err | grep -q .; then
+              echo "::error::kubectl apply failed for reasons other than known missing CRDs"
+              exit "${apply_rc}"
+            fi
+          fi
           # Hard requirement: namespace + predictor exist
           kubectl get ns "${SERVICE_SLUG}-dev" >/dev/null
           kubectl -n "${SERVICE_SLUG}-dev" get deployment "${SERVICE_SLUG}-predictor" >/dev/null
@@ -175,22 +207,7 @@ jobs:
       - name: Wait for predictor rollout
         run: |
           set -euo pipefail
-          # Init container fetches model from a non-existent bucket in
-          # this synthetic cluster. The verification below only needs
-          # the predictor pod to BE schedulable + Service to route to
-          # SOMETHING returning HTTP. Skip strict Ready wait; rely on
-          # /health probe instead.
-          for _ in $(seq 1 60); do
-            phase=$(kubectl -n "${SERVICE_SLUG}-dev" get pods \
-              -l "app=${SERVICE_SLUG}-predictor" \
-              -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "")
-            if [ "${phase}" = "Running" ]; then
-              echo "Predictor pod Running"
-              break
-            fi
-            echo "Phase: ${phase} — waiting…"
-            sleep 5
-          done
+          kubectl rollout status "deployment/${SERVICE_SLUG}-predictor" -n "${SERVICE_SLUG}-dev" --timeout=180s
           kubectl -n "${SERVICE_SLUG}-dev" get pods,svc
 
       # ---------------------------------------------------------------------
@@ -248,12 +265,9 @@ jobs:
               -X POST "http://localhost:${PORT}/predict" \
               -H 'Content-Type: application/json' \
               -d "${VALID_BODY}" || echo "000")
-            # Accept any 2xx OR 422 (schema rejection from a
-            # fresh-init service whose schema is still placeholder).
-            # The point of this stage is the LOGGER counter — even
-            # 422 paths increment it via prediction_log_errors_total.
             case "${code}" in
-              2*|4*) ok=$((ok + 1)) ;;
+              2*) ok=$((ok + 1)) ;;
+              *) echo "::error::expected 2xx from valid /predict request, got ${code}"; exit 1 ;;
             esac
           done
           for i in $(seq 1 5); do
@@ -263,10 +277,8 @@ jobs:
               -d "${INVALID_BODY}" || true
           done
           echo "Posted 100 valid (acked: ${ok}) + 5 invalid"
-          # If fewer than 50 of the "valid" requests got an HTTP
-          # response at all, the service is broken — fail.
-          if [ "${ok}" -lt 50 ]; then
-            echo "::error::Only ${ok}/100 valid requests got an HTTP response — service likely broken"
+          if [ "${ok}" -ne 100 ]; then
+            echo "::error::Only ${ok}/100 valid requests returned 2xx"
             exit 1
           fi
 
@@ -282,36 +294,18 @@ jobs:
           echo "${metrics}" | grep -E "^${SERVICE_SLUG}_(prediction_log_total|requests_total|prediction_log_errors_total)" \
             | head -20 || true
 
-          # The exact metric name uses the snake-case service slug as
-          # prefix (D-A5b vocabulary split). Two metrics:
-          #   <svc>_prediction_log_total              (preferred — closed-loop)
-          #   <svc>_requests_total{status="2xx|422|..."}  (fallback)
-          # The requests_total counter has ONLY a `status` label (see
-          # templates/service/app/fastapi_app.py:176). The previous
-          # version of this workflow looked for endpoint="/predict"
-          # which matched NOTHING and silently false-passed. We sum
-          # ALL non-5xx responses (200/422 are both expected — 422 if
-          # the scaffolded schema rejects the placeholder feature_c
-          # value, 200 if the model accepts it).
+          # Closed-loop proof requires prediction_log_total. A request
+          # counter alone proves HTTP traffic, not prediction logging.
           predlog=$(echo "${metrics}" | awk -v svc="${SERVICE_SLUG}" '
             $1 ~ "^"svc"_prediction_log_total" {sum += $NF}
             END {print sum+0}')
-          reqs=$(echo "${metrics}" | awk -v svc="${SERVICE_SLUG}" '
-            $1 ~ "^"svc"_requests_total" && /status="(2[0-9][0-9]|4[0-9][0-9])"/ {sum += $NF}
-            END {print sum+0}')
 
-          echo "prediction_log_total           = ${predlog}"
-          echo "requests_total{status=2xx|4xx} = ${reqs}"
+          echo "prediction_log_total = ${predlog}"
 
-          # PR-R2-9 audit contract: at least 100 prediction events
-          # logged. The fallback (requests_total) covers the case
-          # where the scaffolded schema rejects all 100 (status=422)
-          # — that's still proof the request path + counter wiring
-          # works, even if the closed-loop logger never fires for
-          # rejected requests by design.
+          # PR-R2-9 audit contract: at least 100 prediction events logged.
           floor=100
-          if [ "${predlog}" -lt "${floor}" ] && [ "${reqs}" -lt "${floor}" ]; then
-            echo "::error::Closed-loop counter < ${floor}: prediction_log=${predlog}, requests=${reqs}"
+          if [ "${predlog}" -lt "${floor}" ]; then
+            echo "::error::Closed-loop prediction_log_total < ${floor}: ${predlog}"
             echo "Full metrics dump:"
             echo "${metrics}"
             exit 1

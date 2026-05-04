@@ -29,7 +29,7 @@ Each capability is rated **per environment**. Definitions:
 | GKE cluster + node pool split (system / workload) | ready | ready | ready | PR-A3 cluster defaults; workload taint enforced |
 | EKS cluster + node group split (system / workload) | ready | ready | ready | Mirrors GCP; same taint contract |
 | VPC networking (custom-mode + private subnets) | ready | ready | ready | `network_mode = "managed" \| "existing"` |
-| Private GKE/EKS API endpoint | ready | ready | ready | `enable_private_endpoint` defaults to false in dev for ergonomics; flip to true in staging/prod |
+| Private GKE/EKS API endpoint | ready | ready | ready | GCP `enable_private_endpoint` and AWS private endpoint defaults are secure; dev may relax explicitly with authorized CIDRs |
 | Workload Identity (GCP) / IRSA (AWS) | ready | ready | ready | D-18 enforced by contract tests; 5-identity split per ADR-017 |
 | Deny-default NetworkPolicy | ready | ready | ready | `k8s/base/networkpolicy-deny-default.yaml` selects all pods |
 | Cilium / advanced eBPF policies | roadmap | roadmap | roadmap | Out of scope; bring your own CNI overlay |

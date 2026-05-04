@@ -378,67 +378,47 @@ When starting a new session in a project derived from this template:
 
 ## Multi-IDE Support
 
-The template supports **3 IDEs** with equivalent invariant coverage. Windsurf is
-the canonical source (full rules + skills + workflows); Cursor and Claude Code
-receive the rules condensed for their native formats (they don't natively support
-skills/workflows — those are invoked via conversation in any IDE).
+The template supports **4 agent surfaces** with equivalent invariant coverage: Windsurf, Cursor, Claude Code, and Codex. `AGENTS.md` is the behavior authority, `.windsurf/` is the canonical body store, and `templates/config/agentic_manifest.yaml` is the cross-surface index.
 
-```
-.claude/rules/          # Claude Code — 14 path-scoped rules
-├── 01-serving.md            # paths: **/app/*.py, **/api/*.py — D-01/03/04/24
-├── 02-training.md           # paths: **/training/*.py, **/models/*.py — D-05/06/12
-├── 03-kubernetes.md         # paths: k8s/**/*.yaml — D-02/11/23/25/26/27/29/30
-├── 04-terraform.md          # paths: **/*.tf — D-10
-├── 05-examples.md           # paths: examples/**/* — demo scope only
-├── 06-data-eda.md           # paths: eda/**/*, **/notebooks/**/*.ipynb — D-13/16
-├── 07-security-secrets.md   # paths: **/* (always) — D-17/D-18/D-19
-├── 08-closed-loop.md        # paths: prediction_logger/ground_truth/perf monitor — D-20/21/22
-├── 09-mlops-conventions.md  # paths: **/* (always) — stack + Behavior Protocol
-├── 10-docker.md             # paths: **/Dockerfile* — D-11/19
-├── 11-monitoring.md         # paths: monitoring/**/* — metrics catalog
-├── 12-data-validation.md    # paths: **/schemas.py, **/dvc*.yaml — D-14/15
-├── 13-api-contracts.md      # paths: **/app/*.py, **/tests/contract/** — D-28
-└── 14-github-actions.md     # paths: .github/workflows/*.yml — D-26/30, OIDC
+Adapter directories are generated pointers, not forks:
 
-.cursor/rules/          # Cursor IDE — 12 glob-scoped .mdc rules
-├── 01-mlops-conventions.mdc  # globs: **/* (always) — D-01..D-32 + Behavior Protocol (static + dynamic ADR-010)
-├── 02-kubernetes.mdc         # globs: k8s/**/*.yaml — HPA CPU-only, init container, probes split, PDB
-├── 03-python-serving.mdc     # globs: **/app/*.py — async, SHAP KernelExplainer, /health vs /ready
-├── 04-python-training.mdc    # globs: **/training/*.py — pipeline, quality gates, fairness
-├── 05-docker.mdc             # globs: **/Dockerfile* — multi-stage, non-root, init container, signed
-├── 06-data-eda.mdc           # globs: eda/**/*, **/notebooks/**/*.ipynb — leakage gate, baseline
-├── 07-security-secrets.mdc   # globs: **/* (always) — D-17/D-18/D-19, no static cloud creds
-├── 08-closed-loop.mdc        # globs: prediction_logger/ground_truth/perf monitor — D-20/21/22
-├── 09-monitoring.mdc         # globs: monitoring/**/*, **/grafana/** — alerts, dashboards
-├── 10-data-validation.mdc    # globs: **/schemas.py, **/dvc*.yaml — Pandera schemas, DVC
-├── 11-api-contracts.mdc      # globs: **/app/*.py, **/tests/contract/** — OpenAPI snapshot + semver
-└── 12-github-actions.mdc     # globs: .github/workflows/*.yml — env promotion + signing
+```bash
+python3 scripts/sync_agentic_adapters.py
+python3 scripts/sync_agentic_adapters.py --check
+python3 scripts/validate_agentic_manifest.py --strict
 ```
 
-**Slash commands and skills indices** (multi-IDE parity):
-- `.cursor/commands/*.md` (12 files) and `.claude/commands/*.md` (12 files): pointers to canonical workflows
-- `.cursor/skills/INDEX.md` and `.claude/skills/INDEX.md`: pointers to canonical `.windsurf/skills/<name>/SKILL.md`
-- The IDE Parity Matrix below confirms invariant coverage across all three IDEs.
+```
+.windsurf/rules/       # authoritative rules: 15 files
+.windsurf/skills/      # authoritative skills: 16 SKILL.md files
+.windsurf/workflows/   # authoritative workflows: 12 files
 
-### IDE Parity Matrix (invariant coverage)
+.cursor/rules/         # generated rule pointers: 15 .mdc files
+.cursor/skills/        # generated skill pointers + INDEX.md: 16 skills
+.cursor/commands/      # generated workflow pointers: 12 commands
 
-| Invariant group | Windsurf | Cursor | Claude |
-|-----------------|----------|--------|--------|
-| Core + D-01→D-32 | `01-mlops-conventions.md` (always_on) | `01-mlops-conventions.mdc` | `01-serving.md` + `02-training.md` |
-| Closed-loop (D-20→D-22) | `13-closed-loop-monitoring.md` | `08-closed-loop.mdc` | `08-closed-loop.md` |
-| Kubernetes (D-02) | `02-kubernetes.md` | `02-kubernetes.mdc` | `03-kubernetes.md` |
-| Terraform | `03-terraform.md` | — (covered in 01) | `04-terraform.md` |
-| Serving (D-01/03/04) | `04a-python-serving.md` | `03-python-serving.mdc` | `01-serving.md` |
-| Training (D-05/06/12) | `04b-python-training.md` | `04-python-training.mdc` | `02-training.md` |
-| Docker (D-11) | `07-docker.md` | `05-docker.mdc` | (in training/serving) |
-| Data validation (D-14) | `08-data-validation.md` | — | — |
-| EDA (D-13→D-16) | `11-data-eda.md` | `06-data-eda.mdc` | `06-data-eda.md` |
-| Security (D-17→D-19) | `12-security-secrets.md` (always_on) | `07-security-secrets.mdc` (always) | `07-security-secrets.md` (always) |
-| Skills (procedures) | `skills/**/SKILL.md` (16 skills) | `.cursor/skills/INDEX.md` pointers | `.claude/skills/INDEX.md` pointers |
-| Workflows (slash cmds) | `workflows/*.md` (12 workflows) | `.cursor/commands/*.md` pointers | `.claude/commands/*.md` pointers |
+.claude/rules/         # generated rule pointers: 15 .md files
+.claude/skills/        # generated skill pointers + INDEX.md: 16 skills
+.claude/commands/      # generated workflow pointers: 12 commands
 
-All three IDEs enforce the same **Agent Behavior Protocol** (AUTO/CONSULT/STOP) —
-it is referenced from `AGENTS.md` which all IDEs read first per the session protocol.
+.codex/rules/          # generated rule pointers: 15 .md files
+.codex/skills/         # generated skill pointers: 16 skills
+.codex/workflows/      # generated workflow pointers: 12 workflows
+.codex/automations/    # Codex-specific schedules/events, never STOP writes
+```
+
+Note: the project often says "14 rules" because rule 04 is split into `04a-python-serving` and `04b-python-training`. The on-disk canonical set is therefore 15 files.
+
+### IDE Parity Matrix (manifest-enforced)
+
+| Asset | Windsurf | Cursor | Claude | Codex |
+|-------|----------|--------|--------|-------|
+| Rules | `.windsurf/rules/*.md` canonical | `.cursor/rules/*.mdc` pointers | `.claude/rules/*.md` pointers | `.codex/rules/*.md` pointers |
+| Skills | `.windsurf/skills/**/SKILL.md` canonical | `.cursor/skills/*.md` pointers | `.claude/skills/*.md` pointers | `.codex/skills/*.md` pointers |
+| Workflows | `.windsurf/workflows/*.md` canonical | `.cursor/commands/*.md` pointers | `.claude/commands/*.md` pointers | `.codex/workflows/*.md` pointers |
+| Context | `.windsurf_context.md` | `.cursor_context.md` | `.claude_context.md` | `.codex_context.md` |
+
+Every surface inherits the same **Agent Behavior Protocol** (AUTO/CONSULT/STOP) from `AGENTS.md`; `scripts/validate_agentic_manifest.py --strict` rejects adapter pointers that omit the canonical source or authority chain.
 
 ## Template System
 

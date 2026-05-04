@@ -51,6 +51,11 @@ locals {
     "repo:${var.github_repo}:ref:refs/tags/*",
     "repo:${var.github_repo}:environment:${var.environment}",
   ] : []
+
+  service_ecr_repository_arns = [
+    for name in var.service_names :
+    "arn:aws:ecr:${var.region}:*:repository/${var.project_name}/${name}-predictor"
+  ]
 }
 
 # ---------------------------------------------------------------------------
@@ -107,10 +112,17 @@ resource "aws_iam_policy" "ci" {
         Resource = "*"
       },
       {
-        Sid    = "EcrPush"
+        Sid    = "EcrAuthToken"
         Effect = "Allow"
         Action = [
           "ecr:GetAuthorizationToken",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "EcrPush"
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -119,7 +131,7 @@ resource "aws_iam_policy" "ci" {
           "ecr:CompleteLayerUpload",
           "ecr:PutImage",
         ]
-        Resource = "*"
+        Resource = local.service_ecr_repository_arns
       },
       {
         Sid    = "TerraformStateBucket"
@@ -128,18 +140,17 @@ resource "aws_iam_policy" "ci" {
           "s3:GetObject",
           "s3:PutObject",
           "s3:ListBucket",
-          "s3:DeleteObject",
         ]
         Resource = [
-          "arn:aws:s3:::${var.project_name}-tfstate-*",
-          "arn:aws:s3:::${var.project_name}-tfstate-*/*",
+          "arn:aws:s3:::${var.project_name}-tfstate-${var.environment}",
+          "arn:aws:s3:::${var.project_name}-tfstate-${var.environment}/*",
         ]
       },
       {
         Sid      = "TerraformStateLocks"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-        Resource = "arn:aws:dynamodb:${var.region}:*:table/${var.project_name}-tfstate-locks"
+        Resource = "arn:aws:dynamodb:${var.region}:*:table/${var.project_name}-tfstate-lock-${var.environment}"
       },
     ]
   })
@@ -194,10 +205,17 @@ resource "aws_iam_policy" "deploy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EcrPush"
+        Sid    = "EcrAuthToken"
         Effect = "Allow"
         Action = [
           "ecr:GetAuthorizationToken",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "EcrPush"
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
@@ -206,7 +224,7 @@ resource "aws_iam_policy" "deploy" {
           "ecr:BatchGetImage",
           "ecr:GetDownloadUrlForLayer",
         ]
-        Resource = "*"
+        Resource = local.service_ecr_repository_arns
       },
       {
         Sid      = "EksDescribeForKubeconfig"

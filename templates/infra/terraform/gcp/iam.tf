@@ -56,10 +56,12 @@ resource "google_project_iam_member" "ci_storage_admin" {
   member  = "serviceAccount:${google_service_account.ci.email}"
 }
 
-resource "google_project_iam_member" "ci_artifact_registry" {
-  project = var.project_id
-  role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${google_service_account.ci.email}"
+resource "google_artifact_registry_repository_iam_member" "ci_artifact_registry" {
+  project    = var.project_id
+  location   = google_artifact_registry_repository.ml_images.location
+  repository = google_artifact_registry_repository.ml_images.repository_id
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.ci.email}"
 }
 
 resource "google_project_iam_member" "ci_sa_user" {
@@ -79,10 +81,12 @@ resource "google_service_account" "deploy" {
   description  = "Push images + apply K8s manifests. Used by deploy-gcp.yml."
 }
 
-resource "google_project_iam_member" "deploy_artifact_registry" {
-  project = var.project_id
-  role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${google_service_account.deploy.email}"
+resource "google_artifact_registry_repository_iam_member" "deploy_artifact_registry" {
+  project    = var.project_id
+  location   = google_artifact_registry_repository.ml_images.location
+  repository = google_artifact_registry_repository.ml_images.repository_id
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.deploy.email}"
 }
 
 resource "google_project_iam_member" "deploy_container_developer" {
@@ -101,16 +105,16 @@ resource "google_service_account" "runtime" {
   description  = "Pod runtime: read secrets + read storage. Bound to KSA via Workload Identity."
 }
 
-resource "google_project_iam_member" "runtime_secret_accessor" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.runtime.email}"
+resource "google_storage_bucket_iam_member" "runtime_models_viewer" {
+  bucket = google_storage_bucket.models.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.runtime.email}"
 }
 
-resource "google_project_iam_member" "runtime_storage_object_viewer" {
-  project = var.project_id
-  role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${google_service_account.runtime.email}"
+resource "google_storage_bucket_iam_member" "runtime_mlflow_viewer" {
+  bucket = google_storage_bucket.mlflow_artifacts.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.runtime.email}"
 }
 
 # Workload Identity binding: K8s SA in `ml-services` namespace impersonates this GSA.
@@ -136,19 +140,19 @@ resource "google_project_iam_member" "drift_monitoring_viewer" {
   member  = "serviceAccount:${google_service_account.drift.email}"
 }
 
-resource "google_project_iam_member" "drift_storage_object_creator" {
+resource "google_storage_bucket_iam_member" "drift_logs_creator" {
   # Drift writes reports to a dedicated bucket; can create new objects but
   # not overwrite (object versioning + retention enforce immutability).
-  project = var.project_id
-  role    = "roles/storage.objectCreator"
-  member  = "serviceAccount:${google_service_account.drift.email}"
+  bucket = google_storage_bucket.logs.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.drift.email}"
 }
 
-resource "google_project_iam_member" "drift_storage_object_viewer" {
+resource "google_storage_bucket_iam_member" "drift_data_viewer" {
   # Read reference distributions for PSI calculation.
-  project = var.project_id
-  role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${google_service_account.drift.email}"
+  bucket = google_storage_bucket.data.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.drift.email}"
 }
 
 resource "google_service_account_iam_member" "drift_workload_identity" {
@@ -166,16 +170,16 @@ resource "google_service_account" "retrain" {
   description  = "Retrain workflow: read data + write models. Bound to KSA via Workload Identity."
 }
 
-resource "google_project_iam_member" "retrain_storage_object_viewer" {
-  project = var.project_id
-  role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${google_service_account.retrain.email}"
+resource "google_storage_bucket_iam_member" "retrain_data_viewer" {
+  bucket = google_storage_bucket.data.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.retrain.email}"
 }
 
-resource "google_project_iam_member" "retrain_storage_object_creator" {
-  project = var.project_id
-  role    = "roles/storage.objectCreator"
-  member  = "serviceAccount:${google_service_account.retrain.email}"
+resource "google_storage_bucket_iam_member" "retrain_models_creator" {
+  bucket = google_storage_bucket.models.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.retrain.email}"
 }
 
 resource "google_service_account_iam_member" "retrain_workload_identity" {

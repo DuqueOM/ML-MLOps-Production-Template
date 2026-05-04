@@ -43,9 +43,9 @@ We introduce three perpendicular layers, each solving one failure mode:
    `*_context.local.yaml` (gitignored) to specialize without forking.
 
 2. **Agentic manifest** (`templates/config/agentic_manifest.yaml`)
-   — a **read-only index** that enumerates canonical agents, skills,
-   workflows, rules, and the surfaces that consume them. The manifest
-   validates coherence; it does NOT render files.
+   — the machine-readable index that enumerates canonical agents,
+   skills, workflows, rules, and the surfaces that consume them. The
+   manifest validates coherence and drives thin adapter rendering.
 
 3. **MCP portability registry** (`templates/config/mcp_registry.yaml`,
    deferred to F4) — capability-centric registry of MCP servers used
@@ -103,7 +103,22 @@ without explicit human approval. The matrix:
 | Install MCP requiring tokens / cluster access | CONSULT or STOP by risk |
 | Configure access to production | STOP |
 
-## 4. Scope of this ADR (v1 deliverables)
+### I-4 — Adapters are generated pointers, never forks
+
+`.windsurf/` remains the canonical body store for rules, skills, and
+workflows. Adapter surfaces (`.cursor/`, `.claude/`, `.codex/`) contain
+only discoverability files that point back to the canonical source and
+`AGENTS.md`. The sync command:
+
+```bash
+python3 scripts/sync_agentic_adapters.py
+```
+
+is allowed to write adapter files, but it is forbidden from copying
+full canonical bodies. The strict validator rejects adapter pointers
+that omit the canonical source or the `AGENTS.md` authority chain.
+
+## 4. Scope of this ADR (current deliverables)
 
 **In scope** (F1–F3, single PR):
 
@@ -113,24 +128,22 @@ without explicit human approval. The matrix:
 - `templates/config/context.schema.json`
 - `docs/agentic/contextualization.md`
 - `.gitignore` entries for `*_context.local*`
-- `templates/config/agentic_manifest.yaml` (index only, no renderer)
+- `templates/config/agentic_manifest.yaml` (cross-surface source of truth)
+- `scripts/sync_agentic_adapters.py` (manifest → thin adapter pointers)
 - `scripts/validate_agentic_manifest.py --strict`
 - `AGENT_CONTEXT.md` (canonical entry point)
-- `.windsurf_context.md`, `.cursor_context.md`, `.claude_context.md`
+- `.windsurf_context.md`, `.cursor_context.md`, `.claude_context.md`,
+  `.codex_context.md`
   (compact pointers to `AGENT_CONTEXT.md`)
 - Contract tests that enforce I-1, I-2, and the format validator
   (max 150 lines per context pointer, no date-led lines, no tables
   with > 10 rows).
 
-**Explicitly OUT of scope** (v1):
+**Explicitly OUT of scope**:
 
-- A manifest **renderer** that generates surface files from YAML.
-  Deferred to v2 when a second surface (Codex) actually diverges.
-  Until then the validator is sufficient — it catches drift without
-  the maintenance cost of a code generator.
-- MCP registry (F4), Codex adapter (F5), Reporting v1 (F6), Runtime
-  monitoring companion (F7), GCP / AWS companions (F8, F9).
-  All covered by their own ADRs / PRs.
+- A generator that translates canonical bodies into surface-specific
+  syntax. The current renderer emits pointers only.
+- Automatic MCP installation or credential wiring.
 - Antigravity adapter — parked until the platform publishes a stable
   configuration format (revisit trigger below).
 
@@ -143,15 +156,16 @@ without explicit human approval. The matrix:
 - Adopters specialize the template by editing 2 YAML files, not by
   forking rules and skills.
 - Adding a new surface (Codex, Vertex, AgentCore) becomes an additive
-  change to `agentic_manifest.yaml` + one `*_context.md` pointer,
-  instead of 15-rule paraphrase.
+  change to `agentic_manifest.yaml` + one `*_context.md` pointer + one
+  adapter-root entry, then `scripts/sync_agentic_adapters.py`.
 - Drift between `.windsurf/`, `.cursor/`, `.claude/` becomes a CI
   failure with a specific anchor, not a silent review-time catch.
 
 ### Negative
 
 - One more YAML to maintain (`agentic_manifest.yaml`). Mitigated by
-  keeping it **read-only** — it describes, it does not generate.
+  making it the single manifest that both validators and adapter sync
+  consume.
 - Validator has to resolve anchors into `AGENTS.md` and ADR headings;
   brittle if someone renames a heading. Mitigated by the validator
   emitting line-accurate error messages and by the headings already
@@ -169,9 +183,9 @@ without explicit human approval. The matrix:
 
 ## 6. Revisit triggers
 
-- **Second surface diverges from Windsurf structurally** (not just
-  wording) → introduce the renderer. Move from "validator only" to
-  "render + validate".
+- **Second surface requires non-pointer native syntax** → extend the
+  renderer with a surface-specific adapter backend. Do not fork
+  canonical bodies.
 - **Antigravity publishes stable config spec** → add
   `companions/antigravity/` and `surfaces.antigravity` to the manifest.
 - **An adopter's `company_context.local.yaml` needs a field not in
@@ -188,7 +202,7 @@ without explicit human approval. The matrix:
 | Alternative | Why rejected |
 |-------------|--------------|
 | Keep paraphrasing per-surface, add Codex the same way | Drift compounds linearly in #surfaces × #rules; already 3 surfaces × 15 rules = 45 paraphrases today |
-| Build a full renderer now (manifest → generated rules) | Over-engineering for 3 stable surfaces; adds a second failure mode (generator bugs) with no observed divergence |
+| Copy canonical content into every IDE surface | Rejected after Codex parity work; duplication drift is the exact failure ADR-023 exists to remove |
 | Put company context in environment variables instead of YAML | Env variables are flat; nested structures (KPIs with owner + threshold + direction) need a typed schema |
 | Store company context in a cloud Secret Manager | Correct for secrets, wrong for config: schema changes cadence is weeks, not hours |
 | Skip the ADR and do this as "a refactor" | Violates the template's own governance (every non-trivial decision → ADR) |
@@ -216,8 +230,10 @@ without explicit human approval. The matrix:
 - Contract: `templates/service/tests/test_mcp_registry_contract.py`
 
 ### F5 — Codex adapter (shipped)
-- `.codex/{README.md, skills/, automations/, mcp.example.json}`,
+- `.codex/{README.md, rules/, skills/, workflows/, automations/, mcp.example.json}`,
   `.codex_context.md`
+- Full parity with 15 canonical rule files, 16 skills, and 12 workflows
+  through generated pointer files.
 - Skills are pointer-files referencing canonical Windsurf SKILL.md
 - Contract: `templates/service/tests/test_codex_adapter_contract.py`
 
