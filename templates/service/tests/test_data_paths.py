@@ -69,11 +69,16 @@ def test_drift_cronjob_uses_canonical_paths() -> None:
     cur_match = re.search(r"-\s*--current\s*\n\s*-\s*(\S+)", text)
     assert ref_match, "cronjob-drift.yaml does not pass --reference"
     assert cur_match, "cronjob-drift.yaml does not pass --current"
-    assert ref_match.group(1).startswith("data/reference/"), (
-        f"--reference points at {ref_match.group(1)!r}; expected data/reference/* " "(see docs/data-paths.md)"
+    # Accept both local-relative ("data/reference/…") and container-absolute
+    # ("/data/reference/…").  The K8s CronJob legitimately uses the latter
+    # because the reference dataset is served from a volume mounted at /data.
+    assert ref_match.group(1).lstrip("/").startswith("data/reference/"), (
+        f"--reference points at {ref_match.group(1)!r}; expected data/reference/* "
+        "or /data/reference/* (see docs/data-paths.md)"
     )
-    assert cur_match.group(1).startswith("data/production/"), (
-        f"--current points at {cur_match.group(1)!r}; expected data/production/* " "(see docs/data-paths.md)"
+    assert cur_match.group(1).lstrip("/").startswith("data/production/"), (
+        f"--current points at {cur_match.group(1)!r}; expected data/production/* "
+        "or /data/production/* (see docs/data-paths.md)"
     )
 
 
