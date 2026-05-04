@@ -584,6 +584,30 @@ jobs:
       - name: Check baseline entry expiries
         run: python3 scripts/check_baselines_expiry.py
 
+  agentic-adapter-drift:
+    name: Agentic Adapter Drift Gate
+    runs-on: ubuntu-latest
+    # External-feedback gap 6.3 (May 2026 triage). The IDE adapter
+    # files under .cursor/, .claude/, and .windsurf/ are GENERATED
+    # from the manifest in templates/config/agentic_manifest.yaml +
+    # source rules in .windsurf/rules/. Pre-commit only runs the
+    # *structural* validator (validate_agentic.py); the *drift*
+    # check (sync_agentic_adapters.py --check) had no CI gate, so a
+    # PR could merge with stale adapters and the IDE-parity contract
+    # would silently regress. This job fixes that.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+      - name: Check adapter drift
+        run: python3 scripts/sync_agentic_adapters.py --check
+
   dashboard-inventory:
     name: Grafana Dashboard Inventory Gate
     runs-on: ubuntu-latest
