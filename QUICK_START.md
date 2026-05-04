@@ -2,6 +2,13 @@
 
 **From clone to first model served in 10 minutes.**
 
+Two clearly labeled tracks below. Pick ONE — do not mix them on a first read.
+
+- **Track A** — 5-minute taste: runs the `examples/minimal/` demo. Confirms your laptop is ready. No scaffolding, no cluster, no Docker.
+- **Track B** — 10-minute scaffold: generates a full-shape service via `new-service.sh` and runs its test suite locally. Still no cluster.
+
+If you need the longer "Day 1 to Month 2" arc (cluster deploys, production overlay, closed-loop retraining), read [`docs/PROGRESSION.md`](docs/PROGRESSION.md) AFTER finishing Track A or B.
+
 ---
 
 ## Prerequisites
@@ -14,7 +21,7 @@
 
 ---
 
-## Option A: Try the Working Example (5 min)
+## Track A — Try the Working Example (5 min)
 
 Run the fraud detection demo — no setup required beyond Python.
 
@@ -57,7 +64,7 @@ python drift_check.py
 
 ---
 
-## Option B: Scaffold Your Own Service (10 min)
+## Track B — Scaffold Your Own Service (10 min)
 
 ```bash
 git clone https://github.com/DuqueOM/ML-MLOps-Production-Template.git
