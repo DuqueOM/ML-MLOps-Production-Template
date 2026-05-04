@@ -34,6 +34,7 @@ import pytest
 from common_utils.risk_context import (
     Mode,
     RiskContext,
+    _load_file_signals,
     get_risk_context,
     render_audit_line,
 )
@@ -74,19 +75,31 @@ def _seed_ops_dir(ops_dir: Path, signals: Iterable[str]) -> None:
 
 
 def _build_context(tmp_path: Path, signals: Iterable[str], cache_key: str) -> RiskContext:
+    """Build a RiskContext deterministically — NO wall-clock / env reads.
+
+    Historical bug: an earlier version called ``get_risk_context()``
+    which evaluates ``_is_off_hours()`` against the real wall clock.
+    At 18:00–08:00 UTC (Mon–Fri) + weekends, the file loader emits
+    ``off_hours=True`` "for free", breaking every signal-count assertion
+    with an extra phantom signal. Fix: read file-backed signals
+    (incident, drift, rollback) via ``_load_file_signals`` — which does
+    NOT touch the clock — then FORCE off_hours / error_budget_exhausted
+    to the test's intended value (instead of letting them leak from
+    the environment).
+    """
     ops_dir = tmp_path / "ops"
     _seed_ops_dir(ops_dir, signals)
-    ctx = get_risk_context(ops_dir=ops_dir, cache_key=cache_key)
-    # File loader does not emit off_hours / error_budget_exhausted
-    # (they come from Prometheus or the time-of-day check). Inject
-    # them as if Prometheus had reported them so the matrix can be
-    # walked deterministically without mocking the HTTP client.
-    overrides: dict[str, bool] = {"available": True}
-    if "off_hours" in signals:
-        overrides["off_hours"] = True
-    if "error_budget_exhausted" in signals:
-        overrides["error_budget_exhausted"] = True
-    return replace(ctx, **overrides)
+    del cache_key  # cache intentionally bypassed — tests assert behavior, not cache
+    base = _load_file_signals(ops_dir)
+    return replace(
+        base,
+        available=True,
+        # off_hours + error_budget_exhausted are NOT file-backed;
+        # force them to the test's intended value so the wall clock
+        # and env vars cannot influence the matrix walk.
+        off_hours="off_hours" in set(signals),
+        error_budget_exhausted="error_budget_exhausted" in set(signals),
+    )
 
 
 # ---------------------------------------------------------------------------
