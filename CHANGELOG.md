@@ -8,6 +8,58 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.14.0] - 2026-05-03
+
+Enterprise adoption remediation release. This closes the highest-impact
+gaps from the Staff-level audit without changing the template's public
+positioning: production-ready by design, pre-GA until real cloud L4
+evidence is captured.
+
+### Added
+
+- Runbooks referenced by the non-agentic adoption guide and scaffolded
+  Makefile: drift detection, model retrain, release checklist, rollback,
+  incident response, performance review, cost review, secret breach,
+  inference debugging, performance RCA, concept drift analysis, and
+  GKE/AWS deploy procedures.
+- Enterprise adoption verifier in `scripts/verify_enterprise_adoption.py`
+  covering runbook links, release documentation, scaffolded CI/CD layout,
+  and train/inference parity contract text.
+
+### Changed
+
+- Generated CI now treats the scaffolded service as a single-service repo
+  rooted at `app/`, `src/`, `requirements.txt`, and `Dockerfile`.
+- GCP/AWS deploy workflows now build from repo root and publish
+  `{service-name}-predictor` images, matching the Kustomize overlay
+  vocabulary and digest-pinning reusable workflow.
+- Python packaging now discovers packages under `src/`; pytest also gets
+  `pythonpath = [".", "src"]` for scaffolded test ergonomics.
+- Template pre-commit versions now match the root quality chain.
+- README now records the post-remediation score delta and explicitly keeps
+  the L4 cloud rollout caveat.
+
+### Fixed
+
+- First scaffold CI no longer points at a non-existent `${ServiceName}/`
+  subdirectory.
+- Deploy image names no longer mix PascalCase service names with
+  kebab-case Kubernetes image names.
+- API inference now loads the training `FeatureEngineer` and applies
+  `transform_inference()` before prediction unless an operator explicitly
+  opts out with `FEATURE_ENGINEERING_REQUIRED=false`.
+- The skipped train/inference feature parity test is now an executable
+  contract in scaffolded services.
+- D-01..D-32 documentation references are reconciled in README,
+  adoption docs, and policy workflow summaries.
+
+### Known follow-ons
+
+- Real GKE/EKS cloud golden-path execution remains the release gate for
+  future `v1.0.0`.
+- Adopter-specific egress allowlists and cloud credentials still require
+  environment-local validation.
+
 ## [0.13.0] - 2026-05-03
 
 Pre-GA hardening release. This release deliberately moves the public

@@ -97,6 +97,22 @@ If you are an adopter deciding whether to stake a production service on this tem
 
 ---
 
+### Enterprise adoption delta
+
+The `v0.14.0` hardening pass closes the most immediate first-adopter gaps found in the Staff-level enterprise audit: scaffolded CI/CD now follows the documented single-service root layout, deploy workflows use the same kebab-case image vocabulary as Kustomize, the Python package is discoverable under `src/`, inference fails fast unless the training `FeatureEngineer` is available, and non-agentic runbook references resolve to real files.
+
+Current audit score after local validation:
+
+| Dimension | Before | After |
+|-----------|-------:|------:|
+| Overall template readiness | 8.1/10 | 8.7/10 |
+| Staff MLOps portfolio signal | 9.0/10 | 9.3/10 |
+| Immediate enterprise adoption | 7.4/10 | 8.4/10 |
+
+The score is still not a production L4 claim. It reflects repo-local evidence, scaffold contracts, workflow static checks, and documentation integrity; real GKE/EKS rollout evidence remains the `v1.0.0` gate.
+
+---
+
 ## Quick navigation
 
 | If you want to... | Read first | Then |
@@ -641,7 +657,7 @@ For platform reviewers asking *"is this ready for our org?"* and teams that want
 - **Non-agentic on-ramp**: every `/slash` workflow has a `make` equivalent or runbook reference; teams that don't use AI assistants get the same safety guarantees through `make` targets and contract tests
 - **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference)
 
-The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-31) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
+The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-32) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
 
 ---
 

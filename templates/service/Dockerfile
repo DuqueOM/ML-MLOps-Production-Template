@@ -67,7 +67,7 @@ FROM python:3.11-slim-bookworm AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app \
+    PYTHONPATH=/app:/app/src \
     PATH="/opt/venv/bin:$PATH" \
     MODEL_PATH=models/model.joblib
 

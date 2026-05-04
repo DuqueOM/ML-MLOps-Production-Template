@@ -5,7 +5,7 @@
 #
 # This workflow runs the `templates/service/tests/policy/` suite, which
 # scaffolds a fresh service via `templates/scripts/new-service.sh` and then
-# asserts that AGENTS.md D-01..D-31 invariants hold on the rendered output.
+# asserts that AGENTS.md D-01..D-32 invariants hold on the rendered output.
 #
 # Why a dedicated workflow (not part of the regular test job):
 #   - Each scaffold takes ~45s + tests take ~4-5 min total
@@ -93,7 +93,7 @@ jobs:
           echo "## Policy test result: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Suite scaffolds a service via \`new-service.sh\` and asserts" >> $GITHUB_STEP_SUMMARY
-          echo "AGENTS.md D-01..D-31 invariants hold on the rendered output." >> $GITHUB_STEP_SUMMARY
+          echo "AGENTS.md D-01..D-32 invariants hold on the rendered output." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "If FAILED: a template change caused drift between the" >> $GITHUB_STEP_SUMMARY
           echo "documented invariants and what users actually receive." >> $GITHUB_STEP_SUMMARY

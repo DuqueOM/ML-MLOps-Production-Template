@@ -21,6 +21,7 @@ COMMANDS = (
     [sys.executable, "scripts/validate_agentic_manifest.py", "--strict"],
     [sys.executable, "scripts/mcp_doctor.py", "--mode", "check"],
     [sys.executable, "scripts/validate_quality_gates.py", "--require-at-least-one"],
+    [sys.executable, "scripts/verify_enterprise_adoption.py"],
 )
 
 

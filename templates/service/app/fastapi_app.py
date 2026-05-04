@@ -24,6 +24,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from importlib import import_module
 from typing import List, Optional
 from uuid import uuid4
 
@@ -121,6 +122,7 @@ _model_pipeline = None
 _explainer = None  # shap.KernelExplainer (lazy — only if background data exists)
 _feature_names: list[str] = []
 _background_data: Optional[np.ndarray] = None
+_feature_engineer = None
 
 # Closed-loop prediction logger — lifecycle managed by main.lifespan
 # (see ADR-006 and .windsurf/rules/13-closed-loop-monitoring.md, D-21)
@@ -219,7 +221,9 @@ def load_model_artifacts() -> None:
     Models are downloaded by the K8s init container into /models/ (emptyDir).
     Background data for SHAP should be in data/reference/ (50 representative samples).
     """
-    global _model_pipeline, _explainer, _feature_names, _background_data
+    global _model_pipeline, _explainer, _feature_names, _background_data, _feature_engineer
+
+    _feature_engineer = _load_feature_engineer()
 
     model_path = os.getenv("MODEL_PATH", "models/model.joblib")
     try:
@@ -264,6 +268,45 @@ def load_model_artifacts() -> None:
     version = os.getenv("MODEL_VERSION", "0.1.0")
     model_loaded_info.labels(version=version).set(1)
     logger.info("Model loaded from %s (version=%s)", model_path, version)
+
+
+def _load_feature_engineer():
+    """Load the service's training FeatureEngineer for inference parity.
+
+    The scaffolded package is installed from ``src/`` and the Dockerfile puts
+    ``/app/src`` on PYTHONPATH. Keeping this import dynamic preserves the
+    unrendered template's syntax while making the rendered service fail fast
+    if training/serving feature code cannot be imported.
+    """
+    try:
+        module = import_module("{service}.training.features")
+        return module.FeatureEngineer()
+    except Exception as exc:  # noqa: BLE001 - explicit fail-fast contract.
+        if os.getenv("FEATURE_ENGINEERING_REQUIRED", "true").lower() == "false":
+            logger.warning("FeatureEngineer unavailable; using raw inference features: %s", exc)
+            return None
+        raise RuntimeError(
+            "FeatureEngineer is not importable. Inference must use the same "
+            "feature transformation as training. Ensure the service is "
+            "installed with src/ package discovery or set "
+            "FEATURE_ENGINEERING_REQUIRED=false only for a documented "
+            "serialized-pipeline exception."
+        ) from exc
+
+
+def _prepare_model_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply the same feature transformation used by training before predict."""
+    if _feature_engineer is None:
+        return df
+
+    transformed = _feature_engineer.transform_inference(df)
+    if not isinstance(transformed, pd.DataFrame):
+        raise TypeError("FeatureEngineer.transform_inference() must return a pandas DataFrame")
+    if len(transformed) != len(df):
+        raise ValueError(
+            f"FeatureEngineer.transform_inference() changed row count: input={len(df)} output={len(transformed)}"
+        )
+    return transformed
 
 
 def warm_up_model() -> dict:
@@ -314,7 +357,7 @@ def _predict_proba_wrapper(X_array: np.ndarray) -> np.ndarray:
     instead of 'Geography'. This ensures SHAP runs in ORIGINAL feature space.
     """
     X_df = pd.DataFrame(X_array, columns=_feature_names)
-    return _model_pipeline.predict_proba(X_df)[:, 1]
+    return _model_pipeline.predict_proba(_prepare_model_features(X_df))[:, 1]
 
 
 # ---------------------------------------------------------------------------
@@ -439,9 +482,10 @@ def _sync_predict(input_dict: dict, explain: bool) -> dict:
     """
     start = time.perf_counter()
     df = pd.DataFrame([input_dict])
+    model_df = _prepare_model_features(df)
 
     # --- Inference ---
-    prob = float(_model_pipeline.predict_proba(df)[:, 1][0])
+    prob = float(_model_pipeline.predict_proba(model_df)[:, 1][0])
 
     # --- Risk level classification ---
     # TODO: Adjust thresholds for your domain (document in ADR)
@@ -505,8 +549,9 @@ def _sync_predict_batch(inputs: List[dict]) -> List[dict]:
     """Batch prediction — CPU-bound, runs in thread pool."""
     start = time.perf_counter()
     df = pd.DataFrame(inputs)
+    model_df = _prepare_model_features(df)
 
-    probas = _model_pipeline.predict_proba(df)[:, 1]
+    probas = _model_pipeline.predict_proba(model_df)[:, 1]
     version = os.getenv("MODEL_VERSION", "0.1.0")
 
     results = []

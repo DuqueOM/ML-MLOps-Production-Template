@@ -73,11 +73,12 @@ jobs:
 
       - name: Build and push
         run: |
-          # Single-service: scaffolder substitutes {ServiceName}.
-          # Multi-service: replace the literal with the list (space-separated).
-          for SERVICE in {ServiceName}; do
-            docker build -t ${{ env.REGISTRY }}/${SERVICE}:${{ steps.version.outputs.v }} ${SERVICE}/
-            docker push ${{ env.REGISTRY }}/${SERVICE}:${{ steps.version.outputs.v }}
+          # Single-service default: image slug is kebab-case and build context is repo root.
+          # Multi-service adopters can replace SERVICES with service-root pairs.
+          for SERVICE in {service-name}; do
+            IMAGE="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            docker build -t "$IMAGE" .
+            docker push "$IMAGE"
           done
 
       # Capture the digest of EACH pushed image so deploy-common.yml can
@@ -88,8 +89,8 @@ jobs:
         run: |
           set -euo pipefail
           DIGESTS_JSON='{}'
-          for SERVICE in {ServiceName}; do
-            IMG="${{ env.REGISTRY }}/${SERVICE}:${{ steps.version.outputs.v }}"
+          for SERVICE in {service-name}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
             # buildx imagetools inspect resolves the manifest digest from the
             # registry without re-pulling. Works for single-arch and multi-arch.
             DIGEST=$(docker buildx imagetools inspect "$IMG" --format '{{ .Manifest.Digest }}')
@@ -115,9 +116,9 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
           DIGESTS: ${{ steps.digests.outputs.json }}
         run: |
-          for SERVICE in {ServiceName}; do
+          for SERVICE in {service-name}; do
             DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
-            REPO="${{ env.REGISTRY }}/${SERVICE}"
+            REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
             # Sign by digest (immutable identifier), not by tag (mutable).
             cosign sign --yes "${REPO}@${DIGEST}"
           done
@@ -136,8 +137,8 @@ jobs:
 
       - name: Generate SBOM per service (Syft / CycloneDX)
         run: |
-          for SERVICE in {ServiceName}; do
-            IMG="${{ env.REGISTRY }}/${SERVICE}:${{ steps.version.outputs.v }}"
+          for SERVICE in {service-name}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
             syft "$IMG" -o cyclonedx-json > "sbom-${SERVICE}.cyclonedx.json"
             echo "✓ SBOM generated: sbom-${SERVICE}.cyclonedx.json"
           done
@@ -147,9 +148,9 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
           DIGESTS: ${{ steps.digests.outputs.json }}
         run: |
-          for SERVICE in {ServiceName}; do
+          for SERVICE in {service-name}; do
             DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
-            REPO="${{ env.REGISTRY }}/${SERVICE}"
+            REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
             cosign attest --yes --type cyclonedx \
               --predicate "sbom-${SERVICE}.cyclonedx.json" "${REPO}@${DIGEST}"
           done
@@ -197,7 +198,7 @@ jobs:
       region: ${{ vars.GCP_REGION }}
       overlay_path: k8s/overlays/gcp-dev
       version: ${{ needs.build.outputs.version }}
-      services: '["{ServiceName}"]'
+      services: '["{service-name}"]'
       image_digests: ${{ needs.build.outputs.image_digests }}
       # WIF identity propagates via permissions.id-token at the reusable
       # workflow level — no secrets passthrough required.
@@ -217,7 +218,7 @@ jobs:
       region: ${{ vars.GCP_REGION }}
       overlay_path: k8s/overlays/gcp-staging
       version: ${{ needs.build.outputs.version }}
-      services: '["{ServiceName}"]'
+      services: '["{service-name}"]'
       image_digests: ${{ needs.build.outputs.image_digests }}
 
   # ---------------------------------------------------------------------
@@ -235,5 +236,5 @@ jobs:
       region: ${{ vars.GCP_REGION }}
       overlay_path: k8s/overlays/gcp-prod
       version: ${{ needs.build.outputs.version }}
-      services: '["{ServiceName}"]'
+      services: '["{service-name}"]'
       image_digests: ${{ needs.build.outputs.image_digests }}
