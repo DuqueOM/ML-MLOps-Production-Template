@@ -1,0 +1,58 @@
+---
+# Kyverno admission smoke — proves the shipped ClusterPolicy under
+# templates/k8s/policies/ actually rejects non-compliant Pods in a
+# production-labeled namespace.
+#
+# Closes external-feedback gap 1.4 (May 2026 triage):
+# the supply-chain policies were designed but had never been applied
+# to a real cluster. This workflow turns "Kyverno designed" into
+# "Kyverno verified" without an L4 dependency (kind cluster only).
+#
+# Mode (per AGENTS.md): AUTO. Reversible (kind cluster torn down).
+#
+# Trigger surface:
+#   - PR: only when the policy file or the smoke script changes.
+#   - Schedule: weekly so we catch regressions in the Kyverno chart
+#     itself (upstream behavioral changes that would silently break
+#     enforcement).
+#   - Manual: workflow_dispatch for ad-hoc runs.
+
+name: Kyverno Admission Smoke
+
+on:
+  pull_request:
+    paths:
+      - "templates/k8s/policies/kyverno-image-verification.yaml"
+      - "scripts/test_kyverno_admission.sh"
+      - ".github/workflows/kyverno-smoke.yml"
+  schedule:
+    # Mondays 03:30 UTC — quiet window globally, before EU business
+    # hours so a regression is caught early in the week.
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kyverno-admission-smoke:
+    name: Reject :latest in production namespace
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kind
+        uses: helm/kind-action@v1.10.0
+        with:
+          install_only: true
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      - name: Run Kyverno admission smoke
+        env:
+          KYVERNO_VERSION: "3.2.6"
+        run: bash scripts/test_kyverno_admission.sh
