@@ -32,14 +32,15 @@ from typing import Iterator
 import pandas as pd
 import pandera as pa
 import pytest
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+
 from common_utils.input_validation import (
     DriftSchemaError,
     validate_drift_dataframe,
     validate_predict_batch,
     validate_predict_payload,
 )
-from fastapi import HTTPException
-from fastapi.testclient import TestClient
 
 
 # ---------------------------------------------------------------------------
