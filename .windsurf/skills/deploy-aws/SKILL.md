@@ -106,9 +106,22 @@ kubectl rollout status deployment/{service}-predictor -n {namespace} --timeout=3
 export SVC_URL=$(kubectl get svc {service}-service -n {namespace} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
 curl -f http://${SVC_URL}/health
+curl -f http://${SVC_URL}/ready
+
+# Test prediction with a schema-valid scaffold payload. Add
+# `-H "X-API-Key: ${API_KEY}"` when API_AUTH_ENABLED=true.
 curl -X POST http://${SVC_URL}/predict \
   -H "Content-Type: application/json" \
-  -d '{"feature_a": 1.0, "feature_b": "A"}'
+  -d '{
+    "entity_id": "deploy-smoke-001",
+    "slice_values": {"smoke": "aws"},
+    "feature_a": 42.0,
+    "feature_b": 50000.0,
+    "feature_c": "category_A"
+  }'
+
+# Metrics scrape smoke
+curl -s http://${SVC_URL}/metrics | grep "_requests_total"
 ```
 
 ## Step 6: Verify IRSA

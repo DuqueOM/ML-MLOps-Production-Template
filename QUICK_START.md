@@ -93,26 +93,34 @@ ChurnPredictor/
 └── docker-compose.demo.yml # Local demo stack
 ```
 
+The generated FastAPI service is not a blank stub. It already includes
+the required `/predict`, `/predict_batch`, `/health`, `/ready`,
+`/metrics`, `/model/info`, and `/model/reload` surface, plus async
+inference, feature-parity hooks, structured errors, auth hooks, and
+prediction logging. The contract is summarized in
+[`docs/FASTAPI_TEMPLATE_CONTRACT.md`](docs/FASTAPI_TEMPLATE_CONTRACT.md).
+
 **Next steps after scaffolding:**
 
 ```bash
 cd ChurnPredictor
 
-# 1. Define your data schema
-#    Edit src/churn_predictor/schemas.py
-
-# 2. Define your features
-#    Edit src/churn_predictor/training/features.py
-
-# 3. Define your model pipeline
-#    Edit src/churn_predictor/training/model.py
-
-# 4. Define your API schema
+# 1. Define your public API schema
 #    Edit app/schemas.py
 
-# 5. Install, train, serve
+# 2. Define your data contract
+#    Edit src/churn_predictor/schemas.py
+
+# 3. Define your features
+#    Edit src/churn_predictor/training/features.py
+
+# 4. Define your model pipeline
+#    Edit src/churn_predictor/training/model.py
+
+# 5. Install, train, serve, and verify the FastAPI contract
 pip install -r requirements.txt
 make train DATA=data/raw/your-dataset.csv
+pytest tests/test_fastapi_template_contract.py -v
 make serve
 ```
 

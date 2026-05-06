@@ -38,8 +38,8 @@ kubectl rollout status deployment/${SERVICE}-predictor -n ${NAMESPACE}
 
 # Step 2: Verify recovery
 curl -f http://${ENDPOINT}/health
+curl -f http://${ENDPOINT}/ready
 ```
-// turbo
 
 ## 3. Diagnose Root Cause
 
@@ -51,10 +51,10 @@ kubectl logs -l app=${SERVICE} -n ${NAMESPACE} --since=1h | grep -i "error\|exce
 ### Check Metrics
 ```bash
 # Error rate
-curl 'http://prometheus:9090/api/v1/query?query=rate(http_requests_total{service="${SERVICE}",status=~"5.."}[5m])'
+curl 'http://prometheus:9090/api/v1/query?query=rate(${SERVICE}_requests_total{status=~"5.."}[5m])'
 
 # Latency
-curl 'http://prometheus:9090/api/v1/query?query=histogram_quantile(0.95, ${SERVICE}_prediction_latency_seconds)'
+curl 'http://prometheus:9090/api/v1/query?query=histogram_quantile(0.95, sum(rate(${SERVICE}_request_duration_seconds_bucket[5m])) by (le))'
 
 # Drift
 curl 'http://prometheus:9090/api/v1/query?query=${SERVICE}_psi_score'

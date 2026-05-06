@@ -107,17 +107,25 @@ grep -r "{ServiceName}\|{service}\|{SERVICE}" $service-name/ --include="*.py" --
 ### 5. Serving API (Agent-APIBuilder)
 
 1. Define Pydantic schemas in `app/schemas.py`
-2. Implement FastAPI app in `app/main.py`:
+2. Keep the generated FastAPI split intact:
+   - `app/main.py` owns lifespan, `/health`, `/ready`, CORS, tracing,
+     error envelope, `/model/info`, and `/model/reload`
+   - `app/fastapi_app.py` owns `/predict`, `/predict_batch`,
+     `/metrics`, model loading, feature parity, SHAP, and prediction
+     logging
+3. Customize the existing endpoints without changing the contract:
    - `/predict` with ThreadPoolExecutor (NEVER sync predict in async)
    - `/predict?explain=true` with SHAP KernelExplainer
    - `/predict_batch` for batch predictions (note: underscore, not slash)
    - `/health` for liveness probe (200 while process alive)
    - `/ready` for readiness probe (503 until warm-up complete — D-23)
    - `/metrics` for Prometheus
-3. Define `predict_proba_wrapper` for SHAP
-4. Write API tests with TestClient
+4. Keep `FeatureEngineer.transform_inference()` aligned with training
+5. Define `predict_proba_wrapper` for SHAP in original feature space
+6. Write API tests with TestClient and keep
+   `tests/test_fastapi_template_contract.py` passing
 
-**Success criteria**: `pytest tests/test_api.py -v` passes. `curl localhost:8000/health` returns healthy.
+**Success criteria**: `pytest tests/test_fastapi_template_contract.py tests/test_api.py -v` passes. `curl localhost:8000/health` returns healthy and `/ready` returns 200 only after the model is loaded and warmed.
 
 ### 6. Containerization (Agent-DockerBuilder)
 

@@ -43,13 +43,13 @@ remediation plan with commands. Every check must produce evidence (command + out
 
 ### 1. Anti-Pattern Checklist (DO THIS FIRST)
 
-Run this diagnostic before deep debugging — 80% of inference issues match one of these patterns:
+Run this diagnostic before deep debugging — most inference issues match one of these patterns:
 
 | # | Check | Command | Pass If |
 |---|-------|---------|---------|
-| D-01 | Multiple workers | `grep -rn "workers" $service-name/Dockerfile $service-name/k8s/` | `--workers` absent or `=1` |
+| D-01 | Multiple workers | `grep -rn "workers" $service-name/Dockerfile $service-name/k8s/` | `--workers` absent or exactly `1` |
 | D-02 | Memory HPA | `grep -n "memory" $service-name/k8s/base/*hpa*` | Empty output |
-| D-03 | Sync predict | `grep -rn "\.predict\|predict_proba" $service-name/app/` | All inside `run_in_executor` |
+| D-03 | Sync predict | `grep -rn "\.predict\|predict_proba" $service-name/app/` | Direct model calls only inside sync helpers delegated by `run_in_executor` |
 | D-04 | TreeExplainer | `grep -rn "TreeExplainer" $service-name/` | None, or only in try/fallback |
 | D-05 | `==` pinning | `grep "==" $service-name/requirements.txt` | No ML packages with `==` |
 | D-06 | Suspiciously high metric | Check MLflow: primary > 0.99? | Below 0.99 |
@@ -59,8 +59,29 @@ Run this diagnostic before deep debugging — 80% of inference issues match one 
 | D-10 | tfstate in git | `git ls-files \| grep tfstate` | Empty output |
 | D-11 | Model in Docker | `grep -n "COPY.*model\|ADD.*model" $service-name/Dockerfile` | No matches |
 | D-12 | No quality gates | `grep -rn "quality_gate\|should_promote" $service-name/src/` | Gate logic exists |
+| D-21/D-22 | Blocking prediction logs | `grep -rn "log_prediction" $service-name/app/` | Logging is fire-and-forget and errors are swallowed |
+| D-23 | Probe split | `grep -rn '"/health"\|"/ready"' $service-name/app/ $service-name/k8s/` | `/health` is liveness, `/ready` gates on model + warm-up |
+| D-24 | SHAP rebuild per request | `grep -rn "KernelExplainer" $service-name/app/` | Built once during artifact load/warm-up, not inside endpoint |
 
-**Success criteria**: All 12 checks run. Any matches → fix before proceeding to deep debugging.
+**Success criteria**: All serving checks run, plus any D-13..D-32 checks
+that match the symptom. Any violation is fixed or documented before
+proceeding to deep debugging.
+
+### 1b. FastAPI template contract
+
+Before treating the symptom as service-specific, verify the scaffolded
+contract still holds:
+
+```bash
+pytest tests/test_fastapi_template_contract.py -v
+curl -f http://${ENDPOINT}/health
+curl -f http://${ENDPOINT}/ready
+curl -s http://${ENDPOINT}/metrics | head
+```
+
+If auth is enabled, include the same `X-API-Key` or Bearer token used by
+clients when testing `/predict` and `/model/info`. A failure here means
+the service has drifted from the template contract; fix that first.
 
 ### 2. Identify the Symptom
 

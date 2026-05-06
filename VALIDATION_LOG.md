@@ -1013,6 +1013,96 @@ makes the train→serve→drift contract executable in every PR.
 
 ---
 
+## Entry 009 — FastAPI template contract hardening
+
+- **Date**: 2026-05-06
+- **Branch**: `codex/fastapi-template-hardening`
+- **Base commit**: `48610d8a26783f62b1f3aa5b836010ebbfe5d1de`
+- **Environment**: local WSL, Python 3.12.3; temporary validation venv
+  under `/tmp/template-mlops-fastapi-venv`
+- **Operator**: Codex
+- **Scope**: Validated that the existing FastAPI scaffold is now an
+  explicit, tested, agentic contract without introducing a parallel API
+  template.
+
+### What was executed
+
+#### 1. FastAPI contract and focal serving tests
+
+- `PYTHONPATH=templates/service /tmp/template-mlops-fastapi-venv/bin/python -m pytest templates/service/tests/test_fastapi_template_contract.py -v --no-cov -s`
+  - Result: **PASS** — 7 passed.
+  - Covers: OpenAPI surface, executor-backed async endpoints,
+    train/inference feature parity, `/health` vs `/ready` split,
+    auth/admin guards, CORS/error-envelope/tracing/prediction-log hooks,
+    and dev-only modelless startup.
+- `PYTHONPATH=templates/service:templates /tmp/template-mlops-fastapi-venv/bin/python -m pytest templates/service/tests/test_api.py templates/service/tests/test_auth.py templates/service/tests/test_error_envelope.py templates/service/tests/test_input_validation.py templates/service/tests/test_metrics_contract.py templates/service/tests/test_prediction_logger_lifecycle.py -v --no-cov -s`
+  - Result: **PASS** — 69 passed, 3 skipped.
+  - The 3 skips are the existing metric-reference checks that skip when
+    their optional alert/metric discovery fixture is not applicable in
+    this local invocation.
+- `PYTHONPATH=templates/service:templates /tmp/template-mlops-fastapi-venv/bin/python -m pytest templates/service/tests/test_release_notes_follow_ons.py -q --no-cov -s`
+  - Result: **PASS** — 32 passed, 4 skipped.
+  - Note: the first run exposed a pre-existing heading mismatch in
+    `releases/v0.14.0.md`; the heading was normalized to the canonical
+    `## Known follow-ons (scoped, not regressions)` form and the test
+    then passed.
+
+#### 2. YAML, workflow, agentic, and targeted validators
+
+- `python3 scripts/ci_verify_yaml.py`
+  - Result: **PASS** — YAML verification passed.
+- `python3 scripts/ci_verify_workflows.py`
+  - Result: **PASS** — workflow verification passed (19 files).
+- `python3 scripts/validate_agentic.py --strict`
+  - Result: **PASS** — 107 checks passed; 16 skills and 12 workflows
+    found; informational zero-match glob notes only.
+- `python3 scripts/validate_agentic_manifest.py --strict`
+  - Result: **PASS** — authority chain, source paths, surface roots,
+    adapter pointers, modes, context examples, context pointers, and
+    reports block all OK.
+- `python3 scripts/sync_agentic_adapters.py --check`
+  - Result: **PASS** — no adapter drift reported.
+- `python3 scripts/ci_verify_targeted.py`
+  - Result: **PASS** — targeted verification passed, including
+    agentic validators, MCP doctor check, quality gates validation, and
+    enterprise adoption verification.
+
+#### 3. Scaffold validation
+
+- `PATH=/tmp/template-mlops-fastapi-venv/bin:$PATH bash scripts/test_scaffold.sh`
+  - Result: **PASS** — scaffold structure valid; all overlays rendered
+    through `kubectl kustomize`.
+  - Note: lightweight pytest collection warned that scaffolded deps were
+    not installed, which is expected in non-smoke mode.
+- `PATH=/tmp/template-mlops-fastapi-venv/bin:$PATH SCAFFOLD_SMOKE=1 bash scripts/test_scaffold.sh`
+  - Result: **PASS** — dependencies installed, OpenAPI snapshot
+    bootstrapped, and pytest passed on a freshly scaffolded service.
+  - This smoke path now includes
+    `tests/test_fastapi_template_contract.py`, so the contract is
+    exercised after placeholder substitution.
+
+### What was NOT validated (pending)
+
+- **L4 real-cluster execution**: still adopter-owned; requires real GKE
+  and EKS credentials, clusters, registries, model buckets, and
+  observability stack.
+- **OpenTelemetry under load**: still adopter-side because tracing is
+  opt-in and requires a real OTLP collector.
+- **Public release tag**: documentation release `v0.15.2` was prepared;
+  no git tag is created by this entry.
+
+### Conclusion (Entry 009)
+
+The FastAPI scaffold remains the correct serving template and is now
+reviewable as an explicit contract. The new contract test, documentation,
+and agentic guidance close the drift risk where agents or operators
+could describe stale payloads, miss `/ready`, or treat the API as an
+unstated convention. Local L1/L2/L3 validation passed, including the
+full scaffold smoke chain; L4 remains intentionally outside this repo's
+local evidence boundary.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:
