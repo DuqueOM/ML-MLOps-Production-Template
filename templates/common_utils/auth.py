@@ -41,8 +41,9 @@ import os
 import secrets as _secrets
 from typing import Optional
 
-from common_utils.secrets import SecretNotFoundError, get_secret
 from fastapi import Header, HTTPException, status
+
+from common_utils.secrets import SecretNotFoundError, get_secret
 
 logger = logging.getLogger(__name__)
 

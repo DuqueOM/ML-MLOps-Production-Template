@@ -178,8 +178,9 @@ def fastapi_client(monkeypatch_module, trained_artifact):
     monkeypatch_module.setenv("FEATURE_ENGINEERING_REQUIRED", "false")
 
     try:
-        from app.main import app
         from fastapi.testclient import TestClient
+
+        from app.main import app
     except Exception as exc:  # pragma: no cover
         pytest.skip(f"FastAPI app modules unavailable in this layout: {exc}")
 

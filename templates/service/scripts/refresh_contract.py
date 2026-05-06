@@ -22,8 +22,9 @@ from pathlib import Path
 
 def main() -> int:
     try:
-        from app.main import app
         from fastapi.testclient import TestClient
+
+        from app.main import app
     except Exception as exc:  # pragma: no cover
         print(f"error: cannot import app ({exc})", file=sys.stderr)
         return 1

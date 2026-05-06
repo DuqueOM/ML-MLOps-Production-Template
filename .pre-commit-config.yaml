@@ -189,7 +189,9 @@ repos:
         # for the service test suite but not for this contract test).
         # --rootdir: avoids pytest walking up to the repo pyproject.toml
         # which applies coverage plugins this hook doesn't need.
-        entry: python3 -m pytest templates/service/tests/test_ci_autofix_policy_contract.py -q -o addopts="" --noconftest --rootdir=.
+        # -s disables pytest capture for portability across local shells and
+        # pre-commit temp dirs; this contract test does not need captured IO.
+        entry: python3 -m pytest templates/service/tests/test_ci_autofix_policy_contract.py -q -s -o addopts="" --noconftest --rootdir=.
         language: system
         pass_filenames: false
         files: ^(templates/config/(ci_autofix_policy|model_routing_policy)\.yaml|templates/service/tests/test_ci_autofix_policy_contract\.py)$
