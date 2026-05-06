@@ -22,8 +22,9 @@ from pathlib import Path
 import pytest
 
 try:
-    from app.main import app
     from fastapi.testclient import TestClient
+
+    from app.main import app
 except Exception:  # pragma: no cover - template placeholder
     pytest.skip("TestClient or app unavailable — stub template", allow_module_level=True)
 

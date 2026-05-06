@@ -28,9 +28,10 @@ from __future__ import annotations
 
 import os
 
-import app.fastapi_app as fastapi_app_mod
 import pytest
 from fastapi.testclient import TestClient
+
+import app.fastapi_app as fastapi_app_mod
 
 
 @pytest.fixture
