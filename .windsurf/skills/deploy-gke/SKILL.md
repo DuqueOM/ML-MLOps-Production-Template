@@ -108,11 +108,22 @@ export SVC_URL=$(kubectl get ingress -n {namespace} -o jsonpath='{.items[0].stat
 
 # Health check
 curl -f http://${SVC_URL}/health
+curl -f http://${SVC_URL}/ready
 
-# Test prediction
+# Test prediction with a schema-valid scaffold payload. Add
+# `-H "X-API-Key: ${API_KEY}"` when API_AUTH_ENABLED=true.
 curl -X POST http://${SVC_URL}/predict \
   -H "Content-Type: application/json" \
-  -d '{"feature_a": 1.0, "feature_b": "A"}'
+  -d '{
+    "entity_id": "deploy-smoke-001",
+    "slice_values": {"smoke": "gke"},
+    "feature_a": 42.0,
+    "feature_b": 50000.0,
+    "feature_c": "category_A"
+  }'
+
+# Metrics scrape smoke
+curl -s http://${SVC_URL}/metrics | grep "_requests_total"
 ```
 
 ## Step 6: Verify Monitoring

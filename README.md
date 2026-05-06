@@ -74,7 +74,7 @@ The previous wording ("Production-ready by design") was reworked in the May 2026
 
 | Area | Status | What that means |
 |------|--------|-----------------|
-| Service scaffold | Designed-ready (L1+L2+L3) | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, and observability are wired as first-class concerns. |
+| Service scaffold | Designed-ready (L1+L2+L3) | FastAPI serving, async inference, contract versioning, structured errors, domain hooks, tests, observability, and the explicit [`FASTAPI_TEMPLATE_CONTRACT.md`](docs/FASTAPI_TEMPLATE_CONTRACT.md) are wired as first-class concerns. |
 | Kubernetes runtime | Designed-ready (L1+L2+L3) | Single-worker pod model, split probes, startup gating, PDB, HPA, pod security labels, digest-pinned deploys, drift CronJob with PSS-restricted securityContext + init-container data fetch (May 2026 audit), and non-root runtime defaults are part of the base. |
 | Multi-cloud infrastructure | Designed-ready (L1+L2+L3) | GCP and AWS both ship with environment separation, remote state, identity federation, secret manager patterns, and reproducible Terraform layouts. L4 cluster rollout is the adopter's responsibility. |
 | CI/CD | Designed-ready (L1+L2+L3) | Build, scan, sign, attest, promote, smoke-test, drift-check, retrain (with audit trail + cosign blob signing of model artifacts after the May 2026 audit), and audit paths are governed and traceable. |
@@ -92,7 +92,7 @@ Four verification layers. Inside this repo the author can guarantee the first th
 
 | Layer | Scope | Where it runs | Evidence in this repo |
 |-------|-------|---------------|----------------------|
-| **L1 — Contract tests** | Invariants on generated service code, schemas, policies, and agentic config | `.github/workflows/validate-templates.yml`; `templates/service/tests/test_*.py`; `make validate-templates` locally | 106 passing contract tests covering memory (ADR-018), CI self-healing (ADR-019), model-routing disclaimer, Phase-0/1 disclosure, anti-pattern count consistency, Locust ↔ API parity, PR evidence policy, CI autofix policy |
+| **L1 — Contract tests** | Invariants on generated service code, schemas, policies, and agentic config | `.github/workflows/validate-templates.yml`; `templates/service/tests/test_*.py`; `make validate-templates` locally | Contract tests covering FastAPI serving invariants, memory (ADR-018), CI self-healing (ADR-019), model-routing disclaimer, Phase-0/1 disclosure, anti-pattern count consistency, Locust ↔ API parity, PR evidence policy, CI autofix policy |
 | **L2 — Scaffold smoke** | End-to-end scaffold of a fresh service + 6 overlay renders + kubeconform + binary audit | `.github/workflows/pr-smoke-lane.yml` on every PR; `make smoke` on demand (~60 s) | Green per PR; history in the Actions tab |
 | **L3 — Golden path E2E** | Full chain: scaffold → build → sign → attest → deploy to kind → rollout Available → `/health` + `/ready` + `/predict` 2xx + metrics smoke | `.github/workflows/golden-path.yml` on release tags / schedule | Shipped; uses an explicit CI-only synthetic model fallback so runtime checks do not depend on cloud buckets |
 | **L4 — Adopter production rollout** | Your cluster, your traffic, your SLOs, your compliance regime | Your CD pipeline + observability stack | **Not assertable from this repo.** Checklist lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md) §"Template for future entries" and [`docs/runbooks/`](docs/runbooks/). The R4 audit documents which runbooks are still pending execution by the author (secrets-integration-e2e, ground-truth ingestion SLA, Kyverno admission validation, secret history scan). |
@@ -101,7 +101,7 @@ If you are an adopter deciding whether to stake a production service on this tem
 
 ---
 
-### Recent hardening (v0.14.0 → v0.15.0)
+### Recent hardening (v0.14.0 → v0.15.x)
 
 Each release reports the gaps it closed against the most recent enterprise audit, with file-level evidence rather than a self-given numeric score.
 
@@ -119,6 +119,13 @@ Each release reports the gaps it closed against the most recent enterprise audit
 - README "Production-ready by design" wording softened to "Designed-ready (verified L1+L2+L3)" with explicit L4 gap call-out; numeric self-rating tables removed.
 
 The full per-finding evidence is in [`VALIDATION_LOG.md`](VALIDATION_LOG.md) Entry 005.
+
+`v0.15.2` (FastAPI template contract hardening): makes the existing
+FastAPI scaffold contract explicit, adds a focused contract test for the
+serving surface, and aligns agentic serving guidance with the current
+`app/main.py` + `app/fastapi_app.py` split. This is not a new framework
+or parallel template; it is a reviewability and drift-prevention pass
+over the existing service scaffold.
 
 L4 production rollout evidence remains the adopter's responsibility and the `v1.0.0` gate.
 
@@ -184,6 +191,9 @@ flowchart TD
 ### Serving and APIs
 
 - Async FastAPI serving with `run_in_executor` for CPU-bound inference.
+- Explicit FastAPI template contract for required endpoints, feature
+  parity, auth, readiness, CORS, error envelope, metrics, and prediction
+  logging: [`docs/FASTAPI_TEMPLATE_CONTRACT.md`](docs/FASTAPI_TEMPLATE_CONTRACT.md).
 - Single-worker pod model for correct HPA behavior.
 - Request validation, contract versioning, snapshot-based API checks, and structured error envelopes.
 - Model loading through init containers and shared volumes instead of baking models into images.

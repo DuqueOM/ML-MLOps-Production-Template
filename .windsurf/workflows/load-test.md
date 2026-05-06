@@ -15,6 +15,28 @@ Determine which service and environment to test:
 
 Verify `scripts/load_test_services.py` has the correct endpoints and payloads for the target service.
 
+Before starting load, verify the FastAPI contract with the same auth
+posture production clients use:
+
+```bash
+curl -f http://${ENDPOINT}/health
+curl -f http://${ENDPOINT}/ready
+curl -X POST http://${ENDPOINT}/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entity_id": "load-smoke-001",
+    "slice_values": {"smoke": "load"},
+    "feature_a": 42.0,
+    "feature_b": 50000.0,
+    "feature_c": "category_A"
+  }'
+curl -s http://${ENDPOINT}/metrics | grep "_requests_total"
+```
+
+If the service has customized `app/schemas.py`, replace the smoke
+payload with a schema-valid example from the service README before
+running Locust. Do not load-test a payload that returns 422.
+
 ## 3. Run Load Test (GCP)
 
 ```bash

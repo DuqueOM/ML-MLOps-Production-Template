@@ -3,7 +3,8 @@
 Provides:
     /predict       — Single prediction (async, ThreadPoolExecutor)
     /predict_batch — Batch prediction (async, ThreadPoolExecutor)
-    /health        — Liveness/readiness probe (healthy/degraded/unhealthy)
+    /health        — Liveness probe (always 200 while process is alive)
+    /ready         — Readiness probe (503 until model load + warm-up)
     /metrics       — Prometheus metrics endpoint
     /model/info    — Model metadata
     /model/reload  — Hot-reload model without pod restart
@@ -11,17 +12,20 @@ Provides:
 
 Architecture decisions:
     - CPU-bound inference runs in ThreadPoolExecutor → never blocks event loop
-    - CORS enabled for development; restrict in production via config
+    - CORS is default-deny; allow origins only through explicit config
     - Model loaded at startup via lifespan, NOT per request
-    - health returns "degraded" if model is None (not yet loaded)
+    - readiness gates traffic until both model load and warm-up complete
 
 TODO: Replace {ServiceName} with your actual service name.
-TODO: Restrict CORS origins for production deployment.
+TODO: Define CORS_ORIGINS only for browser clients that need it.
 """
 
 import logging
 import os
 from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.fastapi_app import (
     _start_prediction_logger,
@@ -30,8 +34,6 @@ from app.fastapi_app import (
     router,
     warm_up_model,
 )
-from fastapi import Depends, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 try:
     from common_utils.auth import require_admin, verify_api_key
@@ -185,8 +187,9 @@ async def ready():
     violating the P95 SLO. During graceful shutdown we set _warmed_up=False
     so K8s stops routing new traffic while the pod drains.
     """
-    from app.fastapi_app import _model_pipeline
     from fastapi.responses import JSONResponse
+
+    from app.fastapi_app import _model_pipeline
 
     model_loaded = _model_pipeline is not None
     is_ready = model_loaded and _warmed_up
