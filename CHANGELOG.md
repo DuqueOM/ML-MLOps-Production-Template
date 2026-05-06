@@ -8,6 +8,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.15.2] - 2026-05-06
+
+FastAPI template contract hardening release. This does not add a second
+serving framework or a parallel API template; it makes the existing
+FastAPI scaffold more explicit, easier to review, and harder to drift.
+
+### Added
+
+- `docs/FASTAPI_TEMPLATE_CONTRACT.md` — concise contract for the
+  scaffolded serving layer: required endpoints, non-negotiable
+  invariants, customization order, and reviewer evidence.
+- `templates/service/tests/test_fastapi_template_contract.py` —
+  structural contract tests for OpenAPI surface, async
+  `run_in_executor` usage, train/inference feature parity,
+  readiness gating, auth/admin guards, observability hooks, and
+  restricted modelless startup.
+
+### Changed
+
+- `.windsurf/rules/04a-python-serving.md` now treats the generated
+  FastAPI scaffold as a first-class contract and documents the current
+  `app/main.py` + `app/fastapi_app.py` split.
+- Agentic guidance for `new-service`, `debug-ml-inference`, cloud
+  deploy smoke tests, `/load-test`, and `/incident` now uses the
+  schema-valid scaffold payload and checks `/ready` alongside
+  `/health`.
+- `scripts/test_scaffold.sh` now includes
+  `tests/test_fastapi_template_contract.py` in the full
+  `SCAFFOLD_SMOKE=1` pytest chain.
+- `README.md` and `QUICK_START.md` now point adopters to the FastAPI
+  contract and make the scaffolded serving surface explicit.
+- `releases/v0.14.0.md` now uses the canonical
+  `## Known follow-ons (scoped, not regressions)` heading, preserving
+  release-note consistency.
+
+---
+
 ## [0.15.1] - 2026-05-04
 
 Patch release that closes 3 of the 5 pending items from the v0.15.0

@@ -6,6 +6,26 @@ description: Python ML serving — async inference, SHAP wrappers, Prometheus me
 
 # Python ML Serving Rules
 
+## Template Contract (MANDATORY)
+
+The scaffolded FastAPI service is a first-class template contract, not a
+placeholder. Keep `docs/FASTAPI_TEMPLATE_CONTRACT.md` aligned with the
+actual code whenever changing the serving surface.
+
+Canonical ownership:
+
+- `app/main.py`: FastAPI app, lifespan, CORS, stable error envelope,
+  tracing, `/health`, `/ready`, `/model/info`, `/model/reload`.
+- `app/fastapi_app.py`: inference router, `ThreadPoolExecutor`,
+  model loading, feature parity, SHAP wrapper, Prometheus metrics, and
+  prediction logging.
+- `app/schemas.py`: public Pydantic API contract.
+- `src/<service>/training/features.py`: reusable `FeatureEngineer`
+  used by both training and inference.
+
+Run or update `tests/test_fastapi_template_contract.py` for every
+serving-surface change.
+
 ## Async Inference (MANDATORY)
 
 `sklearn.predict()` and most ML frameworks are synchronous — they block asyncio's event loop.
@@ -120,11 +140,20 @@ that justifies it.
 
 - `/predict` — main inference endpoint
 - `/predict?explain=true` — SHAP explanation (opt-in)
+- `/predict_batch` — batch inference endpoint (underscore, not slash)
 - `/health` — **liveness** only (always 200 if event loop is alive)
 - `/ready` — **readiness** (503 until model loaded AND warmed up; D-23)
 - `/metrics` — Prometheus metrics
+- `/model/info` — model metadata; protected by API auth when enabled
+- `/model/reload` — admin-only hot reload; hidden unless explicitly enabled
 - Model loaded ONCE at startup (lifespan handler), never per-request
 - Warm-up runs ONCE in lifespan before `_warmed_up` flips true
+- CORS default is no middleware; origins are explicit through
+  `CORS_ORIGINS`
+- Non-2xx responses use the stable error envelope unless an adopter is
+  in a documented migration
+- `ALLOW_MODELLESS_STARTUP=true` is dev/CI only and MUST fail in
+  staging/production
 
 ## Graceful shutdown (MANDATORY — D-25)
 

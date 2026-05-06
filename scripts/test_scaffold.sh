@@ -352,7 +352,12 @@ if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   # `test_quality_gates_config.py` was added by PR-R2-7 (audit R2 §4.2)
   # to gate every change to configs/quality_gates.yaml — it runs in
   # milliseconds (no sklearn imports) so it's cheap to include here.
-  info "Running pytest (test_api.py + test_training.py + test_quality_gates_config.py + contract/)..."
+  info "Running pytest (FastAPI contract + API + training + quality gates + contract/)..."
+  # `test_fastapi_template_contract.py` (v0.15.2) gates the
+  # scaffolded serving contract: required endpoints, executor-backed
+  # async inference, train/inference feature parity, readiness gating,
+  # auth/admin guards, observability hooks, and dev-only modelless
+  # startup.
   # `test_prediction_logger_lifecycle.py` (Phase 1.1) gates the env-aware
   # fail-fast contract for closed-loop monitoring. It runs in milliseconds
   # because each test only exercises `_start_prediction_logger` directly,
@@ -391,6 +396,7 @@ if [[ "$SMOKE_REQUESTED" == "1" && "$FAILURES" -eq 0 ]]; then
   #     with content hashes, dependency versions, EDA cross-reference,
   #     and quality-gate verdict — even on rejected runs.
   if (cd "$SERVICE_DIR" && PYTHONPATH=.:src timeout 240 pytest \
+        tests/test_fastapi_template_contract.py \
         tests/test_api.py tests/test_training.py \
         tests/test_quality_gates_config.py \
         tests/test_quality_gates_schema_sync.py \
