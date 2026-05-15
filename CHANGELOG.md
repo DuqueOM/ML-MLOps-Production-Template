@@ -8,6 +8,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.16.1] - 2026-05-15
+
+CI/CD template drift gate. Closes a Dependabot blindspot: the
+`github-actions` ecosystem only scans `.github/workflows/`, so action
+references in `templates/cicd/*.yml` (the scaffolder inputs copied
+verbatim into adopter services) age silently after every Dependabot
+bump that lands in runtime. This release adds an enforcement script,
+fixes the four drifts that already existed, and wires the gate into
+`validate-templates.yml`.
+
+### Added
+
+- `scripts/check_cicd_template_drift.py` — fails when any GitHub
+  Action used in both `.github/workflows/` and `templates/cicd/`
+  has a version in templates that is not present in runtime
+- `cicd-template-drift` job in `.github/workflows/validate-templates.yml`
+  (runs on every PR; not in required-checks list per ADR-026, same
+  posture as `common-utils-drift`)
+- `docs/governance/cicd-templates-drift.md` — full rationale,
+  enforcement scope, what it does NOT cover, revisit triggers
+
+### Changed
+
+- `templates/cicd/*.yml` — bumped four lagging action references
+  to match runtime (`actions/upload-artifact` v4→v7,
+  `aquasecurity/tfsec-action` v1.0.0→v1.0.3,
+  `bridgecrewio/checkov-action` v12.2752.0→v12.3102.0,
+  `sigstore/cosign-installer` floating `v3` → pinned `v3.7.0`)
+  across 6 template files
+
 ## [0.16.0] - 2026-05-15
 
 SCM governance feature release. Adds branch-protection and tag-immutability

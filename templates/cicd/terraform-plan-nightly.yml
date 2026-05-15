@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload plan artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan-gcp-${{ github.run_id }}
           path: |
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload infracost artifact (GCP)
         if: always() && steps.infracost-gcp.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: infracost-gcp-${{ github.run_id }}
           path: infra/terraform/gcp/infracost-gcp.json
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload plan artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan-aws-${{ github.run_id }}
           path: |
@@ -343,7 +343,7 @@ jobs:
 
       - name: Upload infracost artifact (AWS)
         if: always() && steps.infracost-aws.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: infracost-aws-${{ github.run_id }}
           path: infra/terraform/aws/infracost-aws.json

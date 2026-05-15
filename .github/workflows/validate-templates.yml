@@ -659,6 +659,23 @@ jobs:
       - name: Check common_utils for scaffold-rewriteable placeholders
         run: python3 scripts/check_common_utils_drift.py
 
+  cicd-template-drift:
+    name: CI/CD Template Drift Gate
+    runs-on: ubuntu-latest
+    # Dependabot's github-actions ecosystem only scans .github/workflows/.
+    # Action references in templates/cicd/ age silently and propagate to
+    # every scaffolded service. This gate fails when a shared action's
+    # version in templates/cicd/ lags the runtime workflows.
+    # See docs/governance/cicd-templates-drift.md for the full rationale.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check templates/cicd vs .github/workflows for action drift
+        run: python3 scripts/check_cicd_template_drift.py
+
   scaffold-e2e:
     name: Scaffolder End-to-End Test
     runs-on: ubuntu-latest

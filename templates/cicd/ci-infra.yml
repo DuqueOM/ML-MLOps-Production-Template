@@ -40,7 +40,7 @@ jobs:
         working-directory: infra/terraform/${{ matrix.cloud }}
 
       - name: tfsec
-        uses: aquasecurity/tfsec-action@v1.0.0
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: infra/terraform/${{ matrix.cloud }}
           format: json
@@ -48,7 +48,7 @@ jobs:
       - name: Checkov
         # Pinned to immutable tag (D-19, ADR-014 §1.1). Dependabot updates
         # via .github/dependabot.yml. Phase 5 will harden to commit-SHA.
-        uses: bridgecrewio/checkov-action@v12.2752.0
+        uses: bridgecrewio/checkov-action@v12.3102.0
         with:
           directory: infra/terraform/${{ matrix.cloud }}
           quiet: true
