@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "0.15.3"
+RELEASE = "0.16.0"
 RELEASE_DATE = "2026-05-15"
 
 

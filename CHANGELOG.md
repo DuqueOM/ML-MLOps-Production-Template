@@ -8,6 +8,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.16.0] - 2026-05-15
+
+SCM governance feature release. Adds branch-protection and tag-immutability
+enforcement at the Git-server layer via GitHub Repository Rulesets, with a
+canonical configuration doc, ADR with rejected options + revisit triggers,
+and an idempotent `gh api` applier wired into three Make targets. No changes
+to scaffolded service surface, K8s identifiers, prediction schema, or any
+existing template contract — opt-in capability per the CONSULT-class entry
+in `AGENTS.md`. Full notes: `releases/v0.16.0.md`.
+
+### Added
+
+- ADR-026 — Branch Protection & Tag Immutability via GitHub Rulesets
+  (`docs/decisions/ADR-026-branch-protection.md`)
+- Canonical SCM governance config table (`docs/governance/branch-protection.md`)
+- Idempotent applier `scripts/setup_branch_protection.sh` with `--dry-run`
+  and `--check` modes; no hard `jq` dependency (`jq` → `python3 -m json.tool`
+  → `cat` fallback at startup)
+- Make targets `setup-github-preview`, `setup-github`, `setup-github-check`
+- `AGENTS.md` operations matrix: 2 rows for branch-protection apply/modify
+- `scripts/bootstrap.sh` Next Steps step 4 surfaces SCM protection
+- `QUICK_START.md` "Protect your fork" section
+- `README.md` references ADR-026 in Release-and-operate
+
+### Changed
+
+- `docs/ADOPTION.md` CC7.2 SOC 2 row points at the real enforcement
+  artifacts (ADR-026 + `make setup-github`), no longer the prior
+  aspirational "branch protection" string
+- `scripts/verify_enterprise_adoption.py` tracking constants bumped
+  to `RELEASE = "0.15.3"` + new `RELEASE_DATE` constant; still passes
+
 ## [0.15.3] - 2026-05-15
 
 ML/Data Scientist template hardening release. This patch aligns the
