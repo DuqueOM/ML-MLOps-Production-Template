@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "0.14.0"
+RELEASE = "0.15.3"
+RELEASE_DATE = "2026-05-15"
 
 
 def _read(path: str) -> str:
@@ -46,7 +47,7 @@ def main() -> int:
 
     changelog = _read("CHANGELOG.md")
     release_path = REPO_ROOT / f"releases/v{RELEASE}.md"
-    if f"## [{RELEASE}] - 2026-05-03" not in changelog:
+    if f"## [{RELEASE}] - {RELEASE_DATE}" not in changelog:
         failures.append(f"CHANGELOG.md missing {RELEASE} release entry")
     if not release_path.exists():
         failures.append(f"missing releases/v{RELEASE}.md")

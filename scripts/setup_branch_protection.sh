@@ -47,10 +47,18 @@ command -v gh >/dev/null 2>&1 || {
     exit 1
 }
 
-command -v jq >/dev/null 2>&1 || {
-    echo "::error::jq not found. Install: apt install jq / brew install jq" >&2
-    exit 1
-}
+# jq is OPTIONAL — used only for pretty-printing payloads during --dry-run.
+# `gh api --jq` uses gh's embedded jq library and does NOT need the external
+# binary, so the apply/check paths work even without it. We pick a pretty-
+# printer at startup: jq if present, otherwise python3 -m json.tool, otherwise
+# cat. All three are read-only formatters; correctness is identical.
+if command -v jq >/dev/null 2>&1; then
+    PRETTY="jq ."
+elif command -v python3 >/dev/null 2>&1; then
+    PRETTY="python3 -m json.tool"
+else
+    PRETTY="cat"
+fi
 
 if ! gh auth status >/dev/null 2>&1; then
     echo "::error::gh is not authenticated. Run: gh auth login" >&2
@@ -159,7 +167,7 @@ JSON
 print_payload() {
     local name="$1" payload="$2"
     echo "----- payload: ${name} -----"
-    echo "${payload}" | jq .
+    echo "${payload}" | ${PRETTY}
     echo "----- end ${name} -----"
 }
 

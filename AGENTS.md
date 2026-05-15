@@ -126,6 +126,8 @@ This protocol is NOT optional — every skill and workflow must map its operatio
 | `kubectl apply` prod cluster | **STOP** | Via GitHub Actions only, with approval |
 | Build + push Docker image | AUTO | Images are content-addressable |
 | Sign image (Cosign) | AUTO | Additive |
+| Apply branch-protection rulesets to a fresh fork | **CONSULT** | `make setup-github`; mutates repo SCM settings — see ADR-026 |
+| Modify branch-protection rulesets on an existing repo | **STOP** | Requires PR amending `docs/governance/branch-protection.md` + ADR-026 §Revisit triggers |
 | Rotate a leaked secret | **STOP** | Execute `/secret-breach` workflow; never silent rotation |
 | Delete any cloud resource | **STOP** | Always |
 | Override a failing quality gate | **STOP** | Requires ADR documenting why |
