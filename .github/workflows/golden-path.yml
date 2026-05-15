@@ -121,7 +121,7 @@ jobs:
           EOF
 
       - name: Upload scaffolded service for downstream jobs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scaffolded-service
           path: ${{ env.SERVICE_NAME }}/
@@ -232,7 +232,7 @@ jobs:
             -o /tmp/image.tar
 
       - name: Upload image tar + digest manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: built-image
           path: /tmp/image.tar

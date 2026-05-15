@@ -174,7 +174,7 @@ jobs:
 
       - name: Upload rendered overlays (debug aid)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-smoke-rendered-overlays-${{ github.run_id }}
           path: /tmp/overlay-renders/
