@@ -58,6 +58,15 @@ bootstrap: ## One-command setup: detect OS, install deps, configure MCPs, run ex
 bootstrap-check: ## Verify required tooling is installed (no install, no changes)
 	@bash scripts/bootstrap.sh --check-only
 
+setup-github-preview: ## Preview GitHub Rulesets payloads (main + tags) without applying — ADR-026
+	@bash scripts/setup_branch_protection.sh --dry-run
+
+setup-github: ## Apply ADR-026 branch protection + tag immutability rulesets (idempotent, CONSULT-class)
+	@bash scripts/setup_branch_protection.sh
+
+setup-github-check: ## Verify ADR-026 rulesets exist and are active — exits non-zero if drift
+	@bash scripts/setup_branch_protection.sh --check
+
 # ═══════════════════════════════════════════════
 # Quality
 # ═══════════════════════════════════════════════

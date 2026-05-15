@@ -180,6 +180,29 @@ If using Windsurf Cascade, Claude Code, or Cursor, the template includes pre-con
 
 ---
 
+## Protect your fork (one-time, CONSULT-class)
+
+If you have just forked or cloned this template into your own GitHub
+account / org, apply the same branch + tag protection the upstream uses:
+
+```bash
+make setup-github-preview   # show the 2 ruleset payloads without applying
+make setup-github            # apply main-branch-baseline + tag-immutability-v
+make setup-github-check      # verify both rulesets are active
+```
+
+This is **opt-in** because it mutates the SCM settings of your repo
+(force-push, deletion, required checks, bypass actors). The CONSULT
+posture means: read what it does first, then run it deliberately. Full
+rationale: `docs/decisions/ADR-026-branch-protection.md`. Single-source
+of-truth for the exact configuration: `docs/governance/branch-protection.md`.
+
+Requirements:
+- `gh` CLI authenticated against your fork (`gh auth login`)
+- A token with `repo` admin scope on your fork
+- Optional: `jq` for pretty-printed dry-run output (the script falls back
+  to `python3 -m json.tool` if `jq` is absent)
+
 ## Next Steps
 
 - **[README.md](README.md)** — Full documentation, architecture, invariants

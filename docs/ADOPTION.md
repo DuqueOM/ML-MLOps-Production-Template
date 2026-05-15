@@ -224,7 +224,7 @@ Authority: R4 audit M4, ADR-020 §S2-2.
 | CC6.1 logical access controls | Covered | IRSA / WI per-purpose identities (D-31); RBAC manifests | IdP integration + access reviews |
 | CC6.6 environmental controls | Covered | PSS labels per environment (D-29); deny-default NetworkPolicy | Cluster-level firewall + WAF |
 | CC7.1 system monitoring | Covered | Prometheus + Grafana + AlertManager wiring | 24/7 oncall rotation + escalation matrix |
-| CC7.2 change management | Covered | `docs/RELEASING.md` + branch protection + `pr-evidence-check.yml` | PR review SLA + approver matrix |
+| CC7.2 change management | Covered | `docs/RELEASING.md` + ADR-026 rulesets (`make setup-github`) + `pr-evidence-check.yml` | PR review SLA + approver matrix |
 | CC7.3 system operations | Covered | `docs/runbooks/`; audit trail (`ops/audit.jsonl`) | Auditor access to evidence |
 | CC8.1 change deployment | Covered | dev → staging → prod gate (D-26); digest pinning; signed images | Reviewer training |
 | A1.2 availability monitoring | Covered | SLO PrometheusRules + multi-window burn-rate alerts | SLO target negotiation per service |

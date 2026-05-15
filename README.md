@@ -685,6 +685,12 @@ Typical flow:
 
 Deploy, incident, and retrain are part of one operating model, not separate ad-hoc scripts.
 
+**SCM-level protection** sits beneath this flow as a one-time setup: see
+[`docs/decisions/ADR-026-branch-protection.md`](docs/decisions/ADR-026-branch-protection.md)
+for the two GitHub Rulesets the template ships (main-branch-baseline +
+tag-immutability-v). Adopters apply both to their fork with
+`make setup-github` once `gh auth login` is configured.
+
 ---
 
 ## Adoption boundary
