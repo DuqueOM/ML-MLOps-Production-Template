@@ -8,6 +8,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.15.3] - 2026-05-15
+
+ML/Data Scientist template hardening release. This patch aligns the
+training path with the EDA and fairness contracts the template already
+advertised, without changing the `/predict` API surface or scaffolded
+directory layout.
+
+### Changed
+
+- `train.py` now fails closed when
+  `quality_gates.require_eda_artifacts=true` unless the full canonical
+  EDA packet is present and loadable: `eda_summary.json`,
+  `schema_ranges.json`, `baseline_distributions.parquet`,
+  `feature_catalog.yaml`, and `leakage_report.json`.
+- Training fairness now runs at the same optimal decision threshold
+  selected during evaluation, writes `fairness.json`, fails closed for
+  missing configured protected attributes, and blocks automatic quality
+  gate pass-through when DIR is in the ADR-021 consultation band
+  `[0.80, 0.85)`.
+- The canonical EDA rule, skill, workflow, README, and ADR references
+  now use `baseline_distributions.parquet` and `feature_catalog.yaml`
+  as the source-of-truth names. Legacy names remain documented only as
+  transition outputs.
+
+### Added
+
+- `templates/service/tests/test_training_fairness_gate.py` — contract
+  tests for operational-threshold fairness, missing protected
+  attributes, and the DIR consultation band.
+- Additional EDA gate coverage proving a partial canonical artifact
+  packet fails when EDA artifacts are required.
+
+### Known follow-ons
+
+- Generate service-specific `FeatureEngineer` skeletons from
+  `feature_catalog.yaml` once at least one adopter-provided catalog is
+  available as a concrete fixture.
+- Extend `fairness.json` promotion evidence into model-card rendering
+  so subgroup findings are copied automatically into service docs.
+
+---
+
 ## [0.15.2] - 2026-05-06
 
 FastAPI template contract hardening release. This does not add a second

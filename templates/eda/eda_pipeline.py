@@ -5,7 +5,7 @@ Implements the procedure defined in `.windsurf/skills/eda-analysis/SKILL.md`.
 Phases:
     0. Ingest & snake_case normalization
     1. Structural profiling
-    2. Univariate distributions + baseline_distributions.pkl
+    2. Univariate distributions + baseline_distributions.parquet
     3. Multivariate correlations + VIF
     4. Leakage detection (HARD GATE — exit 1 if blocked features)
     5. Feature proposals with rationale
@@ -189,9 +189,7 @@ def _write_baseline_parquet(output_dir: Path, baseline: dict[str, Any]) -> Path:
                     rows.append({"feature": feature, "kind": "numeric_stat", "key": stat, "value": float(data[stat])})
         elif kind == "categorical":
             for label, freq in data.get("freq", {}).items():
-                rows.append(
-                    {"feature": feature, "kind": "categorical_freq", "key": str(label), "value": float(freq)}
-                )
+                rows.append({"feature": feature, "kind": "categorical_freq", "key": str(label), "value": float(freq)})
 
     df = pd.DataFrame(rows, columns=["feature", "kind", "key", "value"])
     df["eda_artifact_version"] = ARTIFACT_VERSION
@@ -240,6 +238,7 @@ def _write_leakage_report(
     path = output_dir / "artifacts" / LEAKAGE_REPORT_FILENAME
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return path
+
 
 # Thresholds — tune per domain; documented in ADR-004
 LEAKAGE_CORR_THRESHOLD = 0.95
@@ -376,10 +375,12 @@ th{{background:#f0f0f0}}</style></head>
 
 
 def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[str, Any]:
-    """Compute univariate stats and persist baseline_distributions.pkl.
+    """Compute univariate stats and persist baseline_distributions.parquet.
 
-    Invariant D-15: baseline_distributions.pkl MUST be produced — drift detection
-    in production depends on this file. Uses quantile bins (not uniform) per D-08.
+    Invariant D-15: the canonical parquet baseline MUST be produced —
+    drift detection in production depends on this file. Uses quantile
+    bins (not uniform) per D-08. The legacy pickle is emitted only for
+    one transition cycle.
     """
     logger.info("Phase 2 — Univariate + baseline distributions")
 
@@ -453,7 +454,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
     report_html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Univariate Distributions</title></head>
 <body><h1>Univariate Distributions</h1>
-<p><b>Baseline artifact</b>: <code>artifacts/02_baseline_distributions.pkl</code>
+<p><b>Baseline artifact</b>: <code>artifacts/baseline_distributions.parquet</code>
 (consumed by drift CronJob in production)</p>
 <h2>Per-feature summary</h2>
 <ul>

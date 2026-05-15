@@ -21,7 +21,7 @@ Consequences observed in the wild when this gap exists:
 - **Pandera schemas with arbitrary ranges** — `Check.greater_than(0)` copy-pasted
   from another service instead of derived from observed distribution
 - **Drift detection blind** — PSI computed against synthetic/missing baseline
-  (D-15: missing `baseline_distributions.pkl`) instead of the real training distribution
+  (D-15: missing canonical `baseline_distributions.parquet`) instead of the real training distribution
 - **Features added without rationale** — `features.py` full of transformations whose
   justification lived in a data scientist's head
 
@@ -46,14 +46,15 @@ store, data contracts, compliance, audit logs. EDA is core ML engineering.
 5. **Four anti-patterns** (D-13 through D-16) — codified invariants
 6. **One new specialist agent** (Agent-EDAProfiler in Layer 2 of AGENTS.md)
 
-The EDA phase produces 4 machine-readable artifacts consumed by other phases:
+The EDA phase produces five canonical machine-readable artifacts consumed by other phases:
 
 | Artifact | Consumer | Closes which loop |
 |---|---|---|
-| `01_dtypes_map.json` | Phase 6 schema proposal | EDA → Pandera schema |
-| `02_baseline_distributions.pkl` | **Drift CronJob in production** | **EDA → drift detection** |
-| `03_feature_ranking_initial.csv` | Phase 5 proposals | EDA → feature importance |
-| `05_feature_proposals.yaml` | `features.py` | EDA → feature engineering |
+| `eda_summary.json` | retrain / promotion evidence | EDA → provenance |
+| `schema_ranges.json` | Phase 6 schema proposal | EDA → Pandera schema |
+| `baseline_distributions.parquet` | **Drift CronJob in production** | **EDA → drift detection** |
+| `feature_catalog.yaml` | `features.py` | EDA → feature engineering |
+| `leakage_report.json` | `train.py` EDA gate | EDA → training halt/allow |
 
 ## Rationale
 
@@ -81,7 +82,7 @@ gate (exit 1, chain to `/incident`) forces resolution:
 
 All three paths produce auditable artifacts. Dismissing the gate does not.
 
-### Why baseline_distributions.pkl uses quantile bins
+### Why baseline_distributions.parquet uses quantile bins
 
 PSI (Population Stability Index) is the drift metric mandated by the template
 (per D-08). PSI with uniform bins produces misleading scores for skewed features
@@ -90,7 +91,10 @@ reference distribution are the statistically correct choice.
 
 The template already enforces D-08 in the drift CronJob. ADR-004 extends this: the
 **baseline against which PSI is computed must also use quantile bins**, stored in
-`02_baseline_distributions.pkl` during EDA phase 2.
+`baseline_distributions.parquet` during EDA phase 2. The legacy
+`02_baseline_distributions.pkl` may still be emitted for one transition
+cycle, but canonical consumers load the parquet artifact through
+`common_utils.eda_artifacts`.
 
 ### Why two dependency tiers (lightweight vs heavy)
 

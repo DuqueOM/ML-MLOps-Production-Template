@@ -246,8 +246,8 @@ GitHub Actions flow with required_reviewers.
 | D-12 | No quality gates before model promotion | Add all gates before deploy |
 | D-13 | EDA performed directly on production data without sandbox | Move to isolated `data/raw/` copy; EDA never writes to prod paths |
 | D-14 | Pandera schema without observed ranges from EDA | Add `Check.in_range(min, max)` derived from EDA distribution analysis |
-| D-15 | Baseline distributions not persisted for drift detection | Save `baseline_distributions.pkl` during EDA; consume in drift CronJob |
-| D-16 | Feature engineering without documented rationale | Add `feature_proposals.yaml` with justification tied to EDA evidence |
+| D-15 | Baseline distributions not persisted for drift detection | Save canonical `baseline_distributions.parquet` during EDA; consume in drift CronJob |
+| D-16 | Feature engineering without documented rationale | Add canonical `feature_catalog.yaml` with justification tied to EDA evidence |
 | D-17 | Hardcoded credentials in code, configs, or `os.environ[...]` for secrets | Use `common_utils/secrets.py` — delegates to AWS Secrets Manager / GCP Secret Manager |
 | D-18 | Static AWS access keys or GCP JSON service-account keys in production | Migrate to IRSA (AWS) or Workload Identity (GCP) — remove all static creds |
 | D-19 | Unsigned images reaching production or missing SBOM | Sign with Cosign, generate SBOM with Syft, enforce via Kyverno admission controller |

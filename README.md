@@ -127,6 +127,12 @@ serving surface, and aligns agentic serving guidance with the current
 or parallel template; it is a reviewability and drift-prevention pass
 over the existing service scaffold.
 
+`v0.15.3` (ML/Data Scientist contract hardening): makes the full
+canonical EDA packet load-bearing when `require_eda_artifacts=true`,
+aligns fairness evaluation with the model's operational threshold, and
+documents the canonical EDA names across rules, skills, workflows, ADRs,
+and README sources.
+
 L4 production rollout evidence remains the adopter's responsibility and the `v1.0.0` gate.
 
 ---
