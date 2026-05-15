@@ -1103,6 +1103,100 @@ local evidence boundary.
 
 ---
 
+## Entry 010 — ML/Data Scientist contract hardening
+
+- **Date**: 2026-05-15
+- **Branch**: `main`
+- **Base commit**: `687d952977dfed67a4bfa11e1f6db47c595c3cc6`
+- **Environment**: local WSL; Python 3.13.5 for targeted tests and
+  Python 3.12 for scaffold smoke; no cloud account, no Kubernetes cluster
+- **Operator**: Codex
+- **Scope**: Validated the `v0.15.3` hardening that makes the canonical
+  EDA packet load-bearing for training and aligns fairness gates with
+  ADR-021.
+
+### What was executed
+
+#### 1. EDA, fairness, split, and release-note contracts
+
+- `PYTEST_ADDOPTS='' PYTHONPATH=templates:templates/service/src TMPDIR=/tmp /home/duque_om/miniconda3/envs/ml/bin/python -m pytest -s templates/eda/tests/test_eda_artifacts.py templates/service/tests/test_eda_gate.py templates/service/tests/test_training_fairness_gate.py templates/service/tests/test_split_strategies.py templates/tests/unit/test_fairness_intersectional.py templates/service/tests/test_release_notes_follow_ons.py --no-cov -q --import-mode=importlib`
+  - Result: **PASS** — 70 passed, 4 skipped, 1 warning.
+  - Covers: full canonical EDA packet checks, partial-packet refusal
+    when `require_eda_artifacts=true`, operational-threshold fairness,
+    missing protected-attribute fail-closed behavior, DIR consultation
+    band, split strategy invariants, and release-note follow-on blocks.
+
+#### 2. Quality gates, drift baseline, and promotion evidence
+
+- `PYTEST_ADDOPTS='' PYTHONPATH=templates:templates/service/src TMPDIR=/tmp /home/duque_om/miniconda3/envs/ml/bin/python -m pytest -s templates/service/tests/test_quality_gates_config.py templates/service/tests/test_drift_eda_baseline.py templates/service/tests/test_evidence_bundle.py templates/service/tests/test_promote_evidence_gate.py --no-cov -q --import-mode=importlib`
+  - Result: **PASS** — 70 passed, 1 warning.
+  - Covers: quality gate config validation, drift PSI consumption of
+    canonical EDA baselines, evidence bundle validation, and promotion
+    refusal paths for failed quality/leakage gates.
+
+#### 3. Static formatting and targeted lint
+
+- `/home/duque_om/miniconda3/envs/ml/bin/python -m black --check --line-length=120 <changed-python-files>`
+  - Result: **PASS** — 5 files would be left unchanged.
+- `/home/duque_om/miniconda3/envs/ml/bin/python -m isort --check-only --profile=black --line-length=120 <changed-python-files>`
+  - Result: **PASS** after applying isort to `test_eda_gate.py`.
+- `/home/duque_om/miniconda3/envs/ml/bin/python -m flake8 --max-line-length=120 --extend-ignore=E203,W503 <changed-python-files>`
+  - Result: **PASS**.
+
+#### 4. Agentic, YAML, workflow, and targeted validators
+
+- `/home/duque_om/miniconda3/envs/ml/bin/python scripts/validate_agentic.py --strict`
+  - Result: **PASS** — 107 checks passed; 16 skills and 12 workflows found.
+- `/home/duque_om/miniconda3/envs/ml/bin/python scripts/validate_agentic_manifest.py --strict`
+  - Result: **PASS** — authority chain, source paths, surfaces, adapters,
+    modes, context, and reports block all OK.
+- `/home/duque_om/miniconda3/envs/ml/bin/python scripts/sync_agentic_adapters.py --check`
+  - Result: **PASS** — no adapter drift.
+- `/home/duque_om/miniconda3/envs/ml/bin/python scripts/ci_verify_yaml.py`
+  - Result: **PASS** — YAML verification passed.
+- `/home/duque_om/miniconda3/envs/ml/bin/python scripts/ci_verify_workflows.py`
+  - Result: **PASS** — workflow verification passed for 19 files.
+- `/home/duque_om/miniconda3/envs/ml/bin/python scripts/ci_verify_targeted.py`
+  - Result: **PASS** — targeted verification passed.
+
+#### 5. Scaffold smoke
+
+- `bash scripts/test_scaffold.sh`
+  - Result: **PASS** — service structure, placeholder replacement,
+    Python syntax, CI/CD root layout, and six Kustomize overlays valid.
+- `SCAFFOLD_SMOKE=1 bash scripts/test_scaffold.sh` with the host
+  `python3` (Python 3.13.5)
+  - Result: **FAIL** at dependency installation because the scaffolded
+    ML dependency set targets Python 3.11/3.12; this local interpreter
+    is outside the supported CI matrix.
+- `PATH=<tmp-python3.12-shim>:$PATH SCAFFOLD_SMOKE=1 bash scripts/test_scaffold.sh`
+  - Result: **PASS** — dependencies installed, OpenAPI snapshot
+    bootstrapped, and pytest passed on a freshly scaffolded service.
+
+### What was NOT validated (pending)
+
+- **L4 real-cluster execution**: still adopter-owned; requires real GKE
+  and EKS credentials, clusters, registries, model buckets, and
+  observability stack.
+- **Full `pre-commit run --all-files`**: attempted locally but the
+  black hook stalled under the sandbox on all tracked template files.
+  The equivalent changed-file `black`, `isort`, and `flake8` checks
+  passed, and CI re-runs pre-commit on GitHub-hosted runners.
+- **Full working-tree gitleaks no-git scan**: reported existing
+  repository findings outside this change scope. The release gate for
+  this change uses staged diff scanning before commit.
+
+### Conclusion (Entry 010)
+
+The ML/Data Scientist path is stricter and more auditable: training now
+loads the complete canonical EDA evidence packet before tuning, fairness
+uses the operational decision threshold, marginal DIR values trigger the
+consultation path, and missing configured protected attributes fail
+closed. Local L1/L2/L3 checks passed on the supported Python 3.12
+scaffold path; L4 remains intentionally outside local evidence.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

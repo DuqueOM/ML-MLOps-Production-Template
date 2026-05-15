@@ -28,10 +28,12 @@ eda/
 │   ├── 04_leakage_audit.md            # Contains BLOCKED_FEATURES list
 │   └── eda_summary.md
 ├── artifacts/                          # Machine-readable outputs (committed or DVC-tracked)
-│   ├── 01_dtypes_map.json
-│   ├── 02_baseline_distributions.pkl   # DVC-tracked — drift detection input
+│   ├── eda_summary.json
+│   ├── schema_ranges.json              # Schema proposal input
+│   ├── baseline_distributions.parquet  # DVC-tracked — drift detection input
 │   ├── 03_feature_ranking_initial.csv
-│   └── 05_feature_proposals.yaml       # Consumed by features.py
+│   ├── feature_catalog.yaml            # Consumed by features.py
+│   └── leakage_report.json             # Consumed by train.py EDA gate
 └── notebooks/
     └── eda_<dataset>.ipynb             # Interactive exploration companion
 ```
@@ -63,12 +65,12 @@ cat eda/reports/04_leakage_audit.md
 # Must show: BLOCKED_FEATURES: []
 
 # 4. Inspect proposals and schema
-less eda/artifacts/05_feature_proposals.yaml
+less eda/artifacts/feature_catalog.yaml
 less src/<service>/schema_proposal.py
 
 # 5. Commit via DVC
 dvc add data/raw/dataset.csv
-dvc add eda/artifacts/02_baseline_distributions.pkl
+dvc add eda/artifacts/baseline_distributions.parquet
 git add eda/ .dvc/
 git commit -m "feat(eda): complete EDA for <dataset>"
 ```
@@ -101,12 +103,12 @@ python -m eda.eda_pipeline --heavy ...
 | Phase | Output (report) | Output (artifact) | Consumer |
 |-------|----------------|-------------------|----------|
 | 0 | `00_ingest_report.md` | `data/processed/dataset_clean.parquet` | All downstream |
-| 1 | `01_profile.html` | `01_dtypes_map.json` | Phase 6 schema proposal |
-| 2 | `02_univariate.html` | **`02_baseline_distributions.pkl`** | **Drift CronJob (prod)** |
+| 1 | `01_profile.html` | `schema_ranges.json` | Phase 6 schema proposal |
+| 2 | `02_univariate.html` | **`baseline_distributions.parquet`** | **Drift CronJob (prod)** |
 | 3 | `03_correlations.html` | `03_feature_ranking_initial.csv` | Phase 5 proposals |
-| 4 | `04_leakage_audit.md` | — (GATE, not an artifact) | Pipeline control flow |
-| 5 | — | `05_feature_proposals.yaml` | `features.py` |
-| 6 | `eda_summary.md` | `schema_proposal.py` | `schemas.py` (review) |
+| 4 | `04_leakage_audit.md` | `leakage_report.json` | Training gate |
+| 5 | — | `feature_catalog.yaml` | `features.py` |
+| 6 | `eda_summary.md` | `eda_summary.json`, `schema_proposal.py` | `schemas.py` (review), provenance |
 
 ## The drift detection loop
 
@@ -114,7 +116,7 @@ python -m eda.eda_pipeline --heavy ...
       EDA phase 2
            │
            ▼
-02_baseline_distributions.pkl  ←─────── DVC tracked
+baseline_distributions.parquet  ←────── DVC tracked
            │
            ▼
    Drift CronJob (prod)
@@ -139,7 +141,7 @@ explicitly.
 # In src/<service>/training/features.py
 import yaml
 
-with open("eda/artifacts/05_feature_proposals.yaml") as f:
+with open("eda/artifacts/feature_catalog.yaml") as f:
     proposals = yaml.safe_load(f)
 
 class FeatureEngineer:
@@ -149,6 +151,11 @@ class FeatureEngineer:
             assert "rationale" in prop, f"D-16 violation: {prop['name']} lacks rationale"
             # Apply the transform...
 ```
+
+Use `eda/artifacts/feature_catalog.yaml` in new services. The legacy
+`05_feature_proposals.yaml` name is still emitted for one transition
+cycle so older notebooks do not break, but canonical consumers should
+load through `common_utils.eda_artifacts`.
 
 ## References
 

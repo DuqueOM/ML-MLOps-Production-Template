@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 import yaml
 
@@ -87,6 +88,58 @@ def _write_summary(artifacts: Path) -> None:
     )
 
 
+def _write_schema_ranges(artifacts: Path) -> None:
+    (artifacts / ea.SCHEMA_RANGES_FILENAME).write_text(
+        json.dumps(
+            {
+                "eda_artifact_version": ea.ARTIFACT_VERSION,
+                "features": [
+                    {
+                        "name": "x",
+                        "dtype": "float64",
+                        "nullable": False,
+                        "null_pct": 0.0,
+                        "cardinality": 100,
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "mean": 0.5,
+                        "std": 0.1,
+                    }
+                ],
+            }
+        )
+    )
+
+
+def _write_baseline_distributions(artifacts: Path) -> None:
+    pd.DataFrame(
+        [
+            {
+                "feature": "x",
+                "kind": "numeric_bin_edge",
+                "key": "0",
+                "value": 0.0,
+                "eda_artifact_version": ea.ARTIFACT_VERSION,
+            },
+            {
+                "feature": "x",
+                "kind": "numeric_bin_edge",
+                "key": "1",
+                "value": 1.0,
+                "eda_artifact_version": ea.ARTIFACT_VERSION,
+            },
+        ]
+    ).to_parquet(artifacts / ea.BASELINE_DISTRIBUTIONS_FILENAME, index=False)
+
+
+def _write_full_packet(artifacts: Path, *, leakage_status: str = "PASSED", blocked: list[str] | None = None) -> None:
+    _write_summary(artifacts)
+    _write_schema_ranges(artifacts)
+    _write_baseline_distributions(artifacts)
+    _write_leakage(artifacts, status=leakage_status, blocked=blocked or [])
+    _write_feature_catalog(artifacts, valid=True)
+
+
 def _write_leakage(artifacts: Path, *, status: str, blocked: list[str]) -> None:
     payload = {
         "eda_artifact_version": ea.ARTIFACT_VERSION,
@@ -117,9 +170,7 @@ def _write_feature_catalog(artifacts: Path, *, valid: bool) -> None:
 def test_blocked_leakage_report_raises_eda_gate_error(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()
-    _write_summary(artifacts)
-    _write_leakage(artifacts, status="BLOCKED", blocked=["leaky_feature"])
-    _write_feature_catalog(artifacts, valid=True)
+    _write_full_packet(artifacts, leakage_status="BLOCKED", blocked=["leaky_feature"])
 
     trainer = _GateOnlyTrainer(eda_artifacts_dir=artifacts)
     with pytest.raises(EDAGateError, match="leaky_feature"):
@@ -129,11 +180,9 @@ def test_blocked_leakage_report_raises_eda_gate_error(tmp_path: Path) -> None:
 def test_passed_leakage_report_allows_training(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()
-    _write_summary(artifacts)
-    _write_leakage(artifacts, status="PASSED", blocked=[])
-    _write_feature_catalog(artifacts, valid=True)
+    _write_full_packet(artifacts)
 
-    trainer = _GateOnlyTrainer(eda_artifacts_dir=artifacts)
+    trainer = _GateOnlyTrainer(eda_artifacts_dir=artifacts, require_eda_artifacts=True)
     with caplog.at_level("INFO"):
         trainer._enforce_eda_gate()  # must not raise
     log_text = " ".join(r.message for r in caplog.records)
@@ -179,6 +228,17 @@ def test_malformed_feature_catalog_blocks(tmp_path: Path) -> None:
 
     trainer = _GateOnlyTrainer(eda_artifacts_dir=artifacts)
     with pytest.raises(ea.EDAArtifactSchemaError, match="rationale"):
+        trainer._enforce_eda_gate()
+
+
+def test_required_gate_blocks_partial_canonical_packet(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    _write_summary(artifacts)
+    _write_leakage(artifacts, status="PASSED", blocked=[])
+
+    trainer = _GateOnlyTrainer(eda_artifacts_dir=artifacts, require_eda_artifacts=True)
+    with pytest.raises(EDAGateError, match="schema_ranges.json.*baseline_distributions.parquet.*feature_catalog.yaml"):
         trainer._enforce_eda_gate()
 
 

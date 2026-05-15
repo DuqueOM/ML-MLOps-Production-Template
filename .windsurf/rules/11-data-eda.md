@@ -15,16 +15,16 @@ description: Exploratory Data Analysis patterns — structure, isolation, and ar
 
 ### D-14 — Schemas derived from observed ranges
 - `src/{service}/schemas.py` must use `Check.in_range(min, max)` for numeric features.
-- The `min`/`max` values come from `eda/artifacts/01_dtypes_map.json` (EDA phase 1).
+- The `min`/`max` values come from canonical `eda/artifacts/schema_ranges.json` (EDA phase 6).
 - If EDA hasn't run, the Pandera schema is invalid.
 
 ### D-15 — Baseline distributions persisted
-- EDA phase 2 MUST produce `eda/artifacts/02_baseline_distributions.pkl`.
+- EDA phase 2 MUST produce canonical `eda/artifacts/baseline_distributions.parquet`.
 - This file is consumed by the drift detection CronJob to compute PSI.
 - **Missing this file breaks drift detection silently** — CI should fail if a service has a drift CronJob but no baseline.
 
 ### D-16 — Feature engineering with documented rationale
-- Every entry in `eda/artifacts/05_feature_proposals.yaml` MUST have a `rationale` field.
+- Every entry in canonical `eda/artifacts/feature_catalog.yaml` MUST have a `rationale` field.
 - The rationale must reference EDA phase outputs (distribution shape, correlation, leakage check).
 - `features.py` comments must cite the proposal entry that justifies each transformation.
 
@@ -40,10 +40,12 @@ eda/
 │   ├── 03_correlations.html
 │   └── 04_leakage_audit.md
 ├── artifacts/
-│   ├── 01_dtypes_map.json
-│   ├── 02_baseline_distributions.pkl     # consumed by drift detection
+│   ├── eda_summary.json
+│   ├── schema_ranges.json                # consumed by schema proposals
+│   ├── baseline_distributions.parquet    # consumed by drift detection
 │   ├── 03_feature_ranking_initial.csv
-│   └── 05_feature_proposals.yaml          # consumed by features.py
+│   ├── feature_catalog.yaml              # consumed by features.py
+│   └── leakage_report.json               # consumed by training gate
 └── notebooks/
     └── eda_<dataset_name>.ipynb
 ```
@@ -55,7 +57,8 @@ eda/
 
 ## Leakage gate (hard block)
 
-EDA phase 4 outputs `eda/reports/04_leakage_audit.md` with a `BLOCKED_FEATURES` list.
+EDA phase 4 outputs canonical `eda/artifacts/leakage_report.json` plus
+human-readable `eda/reports/04_leakage_audit.md` with a `BLOCKED_FEATURES` list.
 If `BLOCKED_FEATURES` is non-empty:
 - **Training pipeline MUST NOT consume those features**
 - `features.py` must reject them via assertion
@@ -63,8 +66,15 @@ If `BLOCKED_FEATURES` is non-empty:
 
 ## DVC tracking
 - `data/raw/*.csv|parquet` → DVC-tracked (input)
-- `eda/artifacts/02_baseline_distributions.pkl` → DVC-tracked (cross-phase input)
+- `eda/artifacts/baseline_distributions.parquet` → DVC-tracked (cross-phase input)
 - `eda/reports/*.html` → `.gitignore`'d (regenerable, large)
+
+## Legacy transition note
+
+The pipeline may still emit legacy names such as
+`02_baseline_distributions.pkl` and `05_feature_proposals.yaml` for one
+transition cycle. New rules, skills, training gates, and drift consumers
+MUST use the canonical loaders in `templates/common_utils/eda_artifacts.py`.
 
 ## Dependencies
 - Required: `pandas`, `scipy`, `scikit-learn`, `pandera`, `matplotlib`

@@ -11,7 +11,7 @@
 The template's drift detection (`templates/service/monitoring/drift_detection.py`)
 computes Population Stability Index (PSI) per feature against the
 training-time baseline distributions captured in
-`templates/eda/02_baseline_distributions.pkl` (D-15). The thresholds
+`templates/eda/baseline_distributions.parquet` (D-15). The thresholds
 have been hard-coded as `psi_warn = 0.10` and `psi_alert = 0.25` since
 v1.7.x. R4 audit finding M6 flagged that these are de-facto industry
 constants but lacked a per-feature override mechanism and a written
@@ -46,7 +46,7 @@ per-feature thresholds, with explicit per-feature overrides via
    sensitive to long tails and skewed distributions; quantile bins
    (default 10 quantile bins from the training reference) make PSI
    stable across feature distributions. The
-   `02_baseline_distributions.pkl` artifact stores the bin edges from
+   `baseline_distributions.parquet` artifact stores the bin edges from
    training so drift evaluation uses the same partition.
 
 3. **Per-feature override file.** The default thresholds are not

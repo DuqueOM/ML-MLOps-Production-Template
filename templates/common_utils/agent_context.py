@@ -98,8 +98,8 @@ class EDAHandoff:
     service_name: str
     dataset_path: str
     target_column: str
-    baseline_distributions_path: str  # eda/artifacts/02_baseline_distributions.pkl
-    feature_proposals_path: str  # eda/artifacts/05_feature_proposals.yaml
+    baseline_distributions_path: str  # eda/artifacts/baseline_distributions.parquet
+    feature_proposals_path: str  # eda/artifacts/feature_catalog.yaml
     schema_proposal_path: str  # src/<service>/schema_proposal.py
     leakage_gate_passed: bool  # False = STOP — chain to /incident
     blocked_features: list[str] = field(default_factory=list)

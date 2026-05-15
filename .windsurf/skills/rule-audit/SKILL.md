@@ -72,8 +72,8 @@ evidence (file:line or metric) per service.
 |----|-------|
 | D-13 | EDA notebooks writing under `data/raw/` or `data/processed/` |
 | D-14 | Pandera schemas missing `Check.in_range` derived from EDA |
-| D-15 | `baseline_distributions.pkl` missing or never regenerated |
-| D-16 | `feature_proposals.yaml` without `rationale:` on every feature |
+| D-15 | canonical `baseline_distributions.parquet` missing or never regenerated |
+| D-16 | canonical `feature_catalog.yaml` without `rationale:` on every transform |
 
 ### Security (D-17 → D-19)
 

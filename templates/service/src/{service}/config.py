@@ -325,7 +325,9 @@ class QualityGatesConfig(BaseModel):
         False,
         description=(
             "When true, training fails closed unless the canonical EDA "
-            "artifact directory exists and includes leakage_report.json. "
+            "artifact directory exists and includes eda_summary.json, "
+            "schema_ranges.json, baseline_distributions.parquet, "
+            "feature_catalog.yaml, and leakage_report.json. "
             "Use false only for legacy migration windows or throwaway demos."
         ),
     )

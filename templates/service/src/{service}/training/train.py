@@ -45,13 +45,26 @@ from .model import build_pipeline
 try:
     from common_utils.eda_artifacts import (
         EDAArtifactNotFoundError,
+        load_baseline_distributions,
+        load_eda_summary,
         load_feature_catalog,
         load_leakage_report,
+        load_schema_ranges,
+        missing_artifacts,
     )
 except ImportError:  # pragma: no cover
     EDAArtifactNotFoundError = FileNotFoundError  # type: ignore[misc,assignment]
+    load_baseline_distributions = None  # type: ignore[assignment]
+    load_eda_summary = None  # type: ignore[assignment]
     load_feature_catalog = None  # type: ignore[assignment]
     load_leakage_report = None  # type: ignore[assignment]
+    load_schema_ranges = None  # type: ignore[assignment]
+    missing_artifacts = None  # type: ignore[assignment]
+
+try:
+    from ..fairness import run_fairness_audit
+except ImportError:  # pragma: no cover
+    run_fairness_audit = None  # type: ignore[assignment]
 
 # PR-B3: every successful (and failed) training run writes a
 # ``training_manifest.json`` next to its model artifact. Fail-soft so
@@ -146,12 +159,17 @@ class Trainer:
     def _enforce_eda_gate(self) -> None:
         """Refuse to train when EDA artifacts say we shouldn't.
 
-        Two checks:
-          1. ``leakage_report.json`` — if present and ``status=BLOCKED``,
+        Three checks:
+          1. Complete canonical EDA packet when
+             ``quality_gates.require_eda_artifacts=true``:
+             ``eda_summary.json``, ``schema_ranges.json``,
+             ``baseline_distributions.parquet``, ``feature_catalog.yaml``,
+             and ``leakage_report.json``.
+          2. ``leakage_report.json`` — if present and ``status=BLOCKED``,
              raise ``EDAGateError``. This is the LOAD-BEARING check
              that makes "you cannot train on a leaky feature set" a
              hard rule rather than a TODO comment in the runbook.
-          2. ``feature_catalog.yaml`` — if present, log the count of
+          3. ``feature_catalog.yaml`` — if present, log the count of
              approved transforms for the audit trail. Loader enforces
              the D-16 rationale invariant on the way in, so a malformed
              catalog ALSO blocks training (raises during load).
@@ -168,7 +186,15 @@ class Trainer:
                 False,
             )
         )
-        if load_leakage_report is None or load_feature_catalog is None:
+        eda_loaders = (
+            load_eda_summary,
+            load_schema_ranges,
+            load_baseline_distributions,
+            load_feature_catalog,
+            load_leakage_report,
+            missing_artifacts,
+        )
+        if any(loader is None for loader in eda_loaders):
             msg = (
                 "EDA gate skipped: common_utils.eda_artifacts not importable "
                 "(legacy training path). PR-B2 wiring deferred."
@@ -195,8 +221,26 @@ class Trainer:
             logger.warning(msg)
             return
 
+        if require_eda:
+            missing = missing_artifacts(artifacts_dir)  # type: ignore[misc]
+            if missing:
+                names = ", ".join(path.name for path in missing)
+                raise EDAGateError(
+                    f"EDA gate required but canonical artifacts are missing under {artifacts_dir}: "
+                    f"{names}. Run `python -m eda.eda_pipeline` and commit the full artifact packet."
+                )
+
+            # Parse every required artifact once so schema/version drift
+            # fails before tuning starts. Training only uses leakage +
+            # feature catalog directly; the others are required because
+            # downstream schema synthesis and drift detection depend on
+            # the same packet.
+            load_eda_summary(artifacts_dir)  # type: ignore[misc]
+            load_schema_ranges(artifacts_dir)  # type: ignore[misc]
+            load_baseline_distributions(artifacts_dir)  # type: ignore[misc]
+
         try:
-            report = load_leakage_report(artifacts_dir)
+            report = load_leakage_report(artifacts_dir)  # type: ignore[misc]
         except EDAArtifactNotFoundError:
             msg = (
                 f"EDA gate required but leakage_report.json is missing under {artifacts_dir}. "
@@ -213,7 +257,7 @@ class Trainer:
                 raise EDAGateError(
                     f"EDA leakage gate is BLOCKED. Cannot train. "
                     f"Blocked features: {list(report.blocked_features)}. "
-                    f"Resolve via reports/04_leakage_audit.md and re-run EDA."
+                    f"Resolve via leakage_report.json / reports/04_leakage_audit.md and re-run EDA."
                 )
             logger.info(
                 "EDA leakage gate: PASSED (%d feature(s) audited, 0 blocked)",
@@ -221,7 +265,7 @@ class Trainer:
             )
 
         try:
-            catalog = load_feature_catalog(artifacts_dir)
+            catalog = load_feature_catalog(artifacts_dir)  # type: ignore[misc]
         except EDAArtifactNotFoundError:
             return
         n_transforms = len(catalog.get("transforms", []))
@@ -277,7 +321,11 @@ class Trainer:
 
         # Step 7: Fairness check
         logger.info("Step 7: Fairness check")
-        fairness_metrics = self._fairness_check(pipeline, splits)
+        fairness_metrics = self._fairness_check(
+            pipeline,
+            splits,
+            threshold=metrics.get("optimal_threshold"),
+        )
         metrics.update(fairness_metrics)
 
         # Step 8: Save artifacts
@@ -556,12 +604,17 @@ class Trainer:
             "test_size": len(y_test),
         }
 
-    def _fairness_check(self, pipeline: Any, splits: dict) -> dict[str, float]:
+    def _fairness_check(self, pipeline: Any, splits: dict, threshold: float | None = None) -> dict[str, float]:
         """Check Disparate Impact Ratio per protected attribute.
 
         DIR = P(positive | unprivileged) / P(positive | privileged)
         Must be >= ``self.gates.fairness_threshold`` (default 0.80,
         the EOC four-fifths rule) for each protected attribute.
+
+        The check uses the same decision threshold selected during
+        evaluation. Running fairness at 0.50 while serving at another
+        threshold can pass a model that behaves differently in
+        production.
         """
         metrics: dict[str, float] = {}
 
@@ -574,23 +627,59 @@ class Trainer:
             return metrics
 
         X_test = splits["X_test"]
+        y_test = splits["y_test"]
         y_prob = pipeline.predict_proba(X_test)[:, 1]
-        threshold = 0.5  # TODO: Use optimal threshold
+        operating_threshold = 0.5 if threshold is None else float(threshold)
+        y_pred = (y_prob >= operating_threshold).astype(int)
 
-        for attr in self.gates.protected_attributes:
-            if attr not in X_test.columns:
-                logger.warning("Protected attribute '%s' not in test data", attr)
-                continue
+        missing_attrs = [attr for attr in self.gates.protected_attributes if attr not in X_test.columns]
+        for attr in missing_attrs:
+            logger.warning("Protected attribute '%s' not in test data — fairness gate will fail closed", attr)
+            metrics[f"dir_{attr}"] = 0.0
+            metrics[f"fairness_missing_{attr}"] = 1.0
 
+        present_attrs = [attr for attr in self.gates.protected_attributes if attr in X_test.columns]
+        if not present_attrs:
+            return metrics
+
+        sensitive_df = X_test[present_attrs].copy()
+        fairness_report_path = self.output_dir / "fairness.json"
+
+        if run_fairness_audit is not None:
+            report = run_fairness_audit(
+                y_test.to_numpy() if hasattr(y_test, "to_numpy") else np.asarray(y_test),
+                y_pred,
+                sensitive_df,
+                y_prob=y_prob,
+                output_path=fairness_report_path,
+                intersectional=len(present_attrs) >= 2,
+                disparate_impact_threshold=self.gates.fairness_threshold,
+            )
+            for attr in present_attrs:
+                indicators = report.get(attr, {}).get("fairness", {})
+                if "disparate_impact_ratio" in indicators:
+                    metrics[f"dir_{attr}"] = float(indicators["disparate_impact_ratio"])
+                if "equal_opportunity_difference" in indicators:
+                    metrics[f"equal_opportunity_gap_{attr}"] = float(indicators["equal_opportunity_difference"])
+                if "calibration_parity_difference" in indicators:
+                    metrics[f"calibration_parity_gap_{attr}"] = float(indicators["calibration_parity_difference"])
+                if bool(indicators.get("consultation_required", False)):
+                    metrics[f"fairness_consult_{attr}"] = 1.0
+            if bool(report.get("_summary", {}).get("consultation_required", False)):
+                metrics["fairness_consult_required"] = 1.0
+            metrics["fairness_overall_pass"] = 1.0 if report.get("_summary", {}).get("overall_pass", True) else 0.0
+            return metrics
+
+        logger.warning("Fairness helper unavailable; falling back to DIR-only check")
+        for attr in present_attrs:
             groups = X_test[attr].unique()
             if len(groups) < 2:
                 continue
-
             # Calculate positive rate per group
             rates = {}
             for group in groups:
                 mask = X_test[attr] == group
-                rates[group] = float((y_prob[mask] >= threshold).mean())
+                rates[group] = float((y_prob[mask] >= operating_threshold).mean())
 
             # DIR = min_rate / max_rate
             min_rate = min(rates.values())
@@ -659,10 +748,18 @@ class Trainer:
         }
 
         # Fairness gates
+        if "fairness_overall_pass" in metrics:
+            gates["fairness audit overall pass"] = bool(metrics["fairness_overall_pass"])
         for attr in self.gates.protected_attributes:
             key = f"dir_{attr}"
             if key in metrics:
                 gates[f"DIR({attr}) >= {self.gates.fairness_threshold}"] = metrics[key] >= self.gates.fairness_threshold
+            consult_key = f"fairness_consult_{attr}"
+            if consult_key in metrics:
+                gates[f"DIR({attr}) outside consultation band"] = not bool(metrics[consult_key])
+            missing_key = f"fairness_missing_{attr}"
+            if missing_key in metrics:
+                gates[f"protected attribute present: {attr}"] = False
 
         all_passed = all(gates.values())
         failed = [name for name, passed in gates.items() if not passed]

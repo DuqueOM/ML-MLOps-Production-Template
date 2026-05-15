@@ -38,11 +38,11 @@ After phase 4:
 ### 4. Review outputs
 Engineer reviews:
 - `eda/reports/eda_summary.md` — human summary
-- `eda/artifacts/05_feature_proposals.yaml` — approve/reject each proposal
+- `eda/artifacts/feature_catalog.yaml` — approve/reject each proposal
 - `src/{service}/schema_proposal.py` — copy accepted parts to `schemas.py`
 
 ### 5. Close the drift loop
-Update drift detection config to reference `eda/artifacts/02_baseline_distributions.pkl`.
+Update drift detection config to reference `eda/artifacts/baseline_distributions.parquet`.
 Verify drift CronJob manifest:
 ```bash
 grep -l "baseline_distributions" k8s/base/drift-cronjob.yaml
@@ -51,7 +51,7 @@ grep -l "baseline_distributions" k8s/base/drift-cronjob.yaml
 ### 6. Commit via DVC
 ```bash
 dvc add data/raw/<dataset>
-dvc add eda/artifacts/02_baseline_distributions.pkl
+dvc add eda/artifacts/baseline_distributions.parquet
 git add eda/ .dvc/
 git commit -m "feat(eda): complete EDA for <dataset>"
 dvc push
@@ -65,8 +65,8 @@ dvc push
 ## Success criteria
 - All 6 phases complete
 - Leakage gate passed (empty `BLOCKED_FEATURES`)
-- `baseline_distributions.pkl` DVC-tracked and wired to drift CronJob
-- `feature_proposals.yaml` reviewed with engineer sign-off
+- `baseline_distributions.parquet` DVC-tracked and wired to drift CronJob
+- `feature_catalog.yaml` reviewed with engineer sign-off
 - ADR entry drafted citing `eda_summary.md`
 
 ## Related

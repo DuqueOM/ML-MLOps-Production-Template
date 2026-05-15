@@ -72,6 +72,27 @@ logger = logging.getLogger(__name__)
 # Thresholds per the 4/5 (80%) rule
 DISPARATE_IMPACT_THRESHOLD = 0.80
 EQUAL_OPPORTUNITY_THRESHOLD = 0.80
+CALIBRATION_PARITY_THRESHOLD = 0.05
+DIR_CONSULTATION_UPPER = 0.85
+
+
+def calibration_error(y_true: np.ndarray, y_prob: np.ndarray, *, n_bins: int = 10) -> float:
+    """Mean absolute calibration error over equal-width probability bins."""
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    if len(y_true) == 0:
+        return 0.0
+
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    # Keep probability == 1.0 in the final bin.
+    bin_ids = np.clip(np.digitize(y_prob, bins, right=False) - 1, 0, n_bins - 1)
+    weighted_error = 0.0
+    for bin_id in range(n_bins):
+        mask = bin_ids == bin_id
+        if not mask.any():
+            continue
+        weighted_error += float(mask.mean()) * abs(float(y_prob[mask].mean()) - float(y_true[mask].mean()))
+    return weighted_error
 
 
 def compute_group_metrics(
@@ -98,6 +119,7 @@ def compute_group_metrics(
 
     if y_prob is not None and len(np.unique(y_true)) > 1:
         metrics["auc"] = float(roc_auc_score(y_true, y_prob))
+        metrics["calibration_error"] = float(calibration_error(y_true, y_prob))
 
     return metrics
 
@@ -107,6 +129,10 @@ def compute_fairness_metrics(
     y_pred: np.ndarray,
     sensitive_features: pd.DataFrame,
     y_prob: Optional[np.ndarray] = None,
+    disparate_impact_threshold: float = DISPARATE_IMPACT_THRESHOLD,
+    equal_opportunity_threshold: float = EQUAL_OPPORTUNITY_THRESHOLD,
+    calibration_parity_threshold: float = CALIBRATION_PARITY_THRESHOLD,
+    consultation_upper: float = DIR_CONSULTATION_UPPER,
 ) -> Dict[str, Any]:
     """Compute fairness metrics across all protected attribute columns.
 
@@ -144,18 +170,22 @@ def compute_fairness_metrics(
         fpr_values = [
             gm["false_positive_rate"] for gm in group_metrics.values() if gm.get("false_positive_rate") is not None
         ]
+        calibration_errors = [
+            gm["calibration_error"] for gm in group_metrics.values() if gm.get("calibration_error") is not None
+        ]
 
         fairness_indicators: Dict[str, Any] = {}
 
         if positive_rates and max(positive_rates) > 0:
             di_ratio = min(positive_rates) / max(positive_rates)
             fairness_indicators["disparate_impact_ratio"] = round(di_ratio, 4)
-            fairness_indicators["disparate_impact_pass"] = di_ratio >= DISPARATE_IMPACT_THRESHOLD
+            fairness_indicators["disparate_impact_pass"] = di_ratio >= disparate_impact_threshold
+            fairness_indicators["consultation_required"] = disparate_impact_threshold <= di_ratio < consultation_upper
 
         if tpr_values:
             eo_diff = max(tpr_values) - min(tpr_values)
             fairness_indicators["equal_opportunity_difference"] = round(eo_diff, 4)
-            fairness_indicators["equal_opportunity_pass"] = 1.0 - eo_diff >= EQUAL_OPPORTUNITY_THRESHOLD
+            fairness_indicators["equal_opportunity_pass"] = 1.0 - eo_diff >= equal_opportunity_threshold
 
         if positive_rates:
             dp_diff = max(positive_rates) - min(positive_rates)
@@ -163,6 +193,11 @@ def compute_fairness_metrics(
 
         if fpr_values:
             fairness_indicators["equalized_odds_fpr_gap"] = round(max(fpr_values) - min(fpr_values), 4)
+
+        if calibration_errors:
+            calibration_gap = max(calibration_errors) - min(calibration_errors)
+            fairness_indicators["calibration_parity_difference"] = round(calibration_gap, 4)
+            fairness_indicators["calibration_parity_pass"] = calibration_gap <= calibration_parity_threshold
 
         report[attr] = {"groups": group_metrics, "fairness": fairness_indicators}
 
@@ -175,6 +210,8 @@ def compute_intersectional_fairness(
     sensitive_features: pd.DataFrame,
     y_prob: Optional[np.ndarray] = None,
     min_samples_per_cell: int = 30,
+    disparate_impact_threshold: float = DISPARATE_IMPACT_THRESHOLD,
+    consultation_upper: float = DIR_CONSULTATION_UPPER,
 ) -> Dict[str, Any]:
     """Compute DIR across all 2-way combinations of protected attributes (C6).
 
@@ -234,7 +271,10 @@ def compute_intersectional_fairness(
             if positive_rates and max(positive_rates) > 0:
                 di_ratio = min(positive_rates) / max(positive_rates)
                 fairness_indicators["disparate_impact_ratio"] = round(di_ratio, 4)
-                fairness_indicators["disparate_impact_pass"] = di_ratio >= DISPARATE_IMPACT_THRESHOLD
+                fairness_indicators["disparate_impact_pass"] = di_ratio >= disparate_impact_threshold
+                fairness_indicators["consultation_required"] = (
+                    disparate_impact_threshold <= di_ratio < consultation_upper
+                )
                 fairness_indicators["n_groups_evaluated"] = len(positive_rates)
 
             report[key] = {"groups": group_metrics, "fairness": fairness_indicators}
@@ -250,6 +290,10 @@ def run_fairness_audit(
     output_path: Optional[str | Path] = None,
     intersectional: bool = False,
     min_intersectional_samples: int = 30,
+    disparate_impact_threshold: float = DISPARATE_IMPACT_THRESHOLD,
+    equal_opportunity_threshold: float = EQUAL_OPPORTUNITY_THRESHOLD,
+    calibration_parity_threshold: float = CALIBRATION_PARITY_THRESHOLD,
+    consultation_upper: float = DIR_CONSULTATION_UPPER,
 ) -> Dict[str, Any]:
     """Run a complete fairness audit and optionally save JSON report.
 
@@ -261,7 +305,16 @@ def run_fairness_audit(
 
     Returns the full report including a _summary with overall_pass flag.
     """
-    report = compute_fairness_metrics(y_true, y_pred, sensitive_features, y_prob)
+    report = compute_fairness_metrics(
+        y_true,
+        y_pred,
+        sensitive_features,
+        y_prob,
+        disparate_impact_threshold=disparate_impact_threshold,
+        equal_opportunity_threshold=equal_opportunity_threshold,
+        calibration_parity_threshold=calibration_parity_threshold,
+        consultation_upper=consultation_upper,
+    )
     intersectional_report: Dict[str, Any] = {}
     if intersectional and len(sensitive_features.columns) >= 2:
         intersectional_report = compute_intersectional_fairness(
@@ -270,11 +323,14 @@ def run_fairness_audit(
             sensitive_features,
             y_prob,
             min_samples_per_cell=min_intersectional_samples,
+            disparate_impact_threshold=disparate_impact_threshold,
+            consultation_upper=consultation_upper,
         )
         report["_intersectional"] = intersectional_report
 
     # Summary: check all fairness gates
     all_pass = True
+    consultation_required = False
     summary: List[str] = []
 
     for attr, data in report.items():
@@ -283,13 +339,20 @@ def run_fairness_audit(
         fi = data.get("fairness", {})
         di_pass = fi.get("disparate_impact_pass", True)
         eo_pass = fi.get("equal_opportunity_pass", True)
+        calibration_pass = fi.get("calibration_parity_pass", True)
 
         if not di_pass:
             all_pass = False
-            summary.append(f"{attr}: FAIL DI ({fi['disparate_impact_ratio']:.3f} < {DISPARATE_IMPACT_THRESHOLD})")
+            summary.append(f"{attr}: FAIL DI ({fi['disparate_impact_ratio']:.3f} < {disparate_impact_threshold})")
+        if fi.get("consultation_required", False):
+            consultation_required = True
+            summary.append(f"{attr}: CONSULT DI margin ({fi['disparate_impact_ratio']:.3f})")
         if not eo_pass:
             all_pass = False
             summary.append(f"{attr}: FAIL equal opportunity (gap={fi['equal_opportunity_difference']:.3f})")
+        if not calibration_pass:
+            all_pass = False
+            summary.append(f"{attr}: FAIL calibration parity (gap={fi['calibration_parity_difference']:.3f})")
 
     # Intersectional issues — separate summary so operators see the delta
     for combo, data in intersectional_report.items():
@@ -297,14 +360,20 @@ def run_fairness_audit(
         if fi.get("disparate_impact_pass") is False:
             all_pass = False
             summary.append(f"intersectional {combo}: FAIL DI ({fi['disparate_impact_ratio']:.3f})")
+        if fi.get("consultation_required", False):
+            consultation_required = True
+            summary.append(f"intersectional {combo}: CONSULT DI margin ({fi['disparate_impact_ratio']:.3f})")
 
     report["_summary"] = {
         "overall_pass": all_pass,
+        "consultation_required": consultation_required,
         "issues": summary if summary else ["No fairness violations detected"],
         "intersectional_evaluated": bool(intersectional_report),
         "thresholds": {
-            "disparate_impact": DISPARATE_IMPACT_THRESHOLD,
-            "equal_opportunity": EQUAL_OPPORTUNITY_THRESHOLD,
+            "disparate_impact": disparate_impact_threshold,
+            "equal_opportunity": equal_opportunity_threshold,
+            "calibration_parity_gap": calibration_parity_threshold,
+            "consultation_upper": consultation_upper,
         },
     }
 

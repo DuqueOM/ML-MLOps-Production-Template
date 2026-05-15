@@ -22,7 +22,7 @@ authorization_mode:
   ingest_profile: AUTO           # read CSV/Parquet, compute stats, no side effects outside eda/
   univariate_correlations: AUTO  # local plots + summary tables
   leakage_gate: AUTO             # boolean check; result drives next mode
-  propose_features: AUTO         # writes 05_feature_proposals.yaml only
+  propose_features: AUTO         # writes feature_catalog.yaml only
   propose_schema: AUTO           # writes schema_proposal.py only
   escalation_triggers:
     - leakage_detected: STOP            # ANY blocked feature → halt; ADR-014 / D-13
@@ -35,7 +35,7 @@ authorization_mode:
 
 Guides the agent through a **6-phase EDA pipeline** that produces artifacts consumed by
 training (`features.py`), schema generation (`schemas.py`), and drift detection in production
-(`baseline_distributions.pkl`).
+(`baseline_distributions.parquet`).
 
 ## Inputs
 - `$dataset-path`: Path to raw data (e.g., `data/raw/transactions.csv`)
@@ -43,7 +43,7 @@ training (`features.py`), schema generation (`schemas.py`), and drift detection 
 
 ## Goal
 Complete EDA with all 6 artifacts produced, leakage audit passing (or explicitly resolved),
-and `feature_proposals.yaml` ready for `features.py` consumption.
+and `feature_catalog.yaml` ready for `features.py` consumption.
 
 ## Pre-conditions
 - `templates/eda/eda_pipeline.py` is available (copied by `new-service.sh`)
@@ -74,9 +74,9 @@ and `feature_proposals.yaml` ready for `features.py` consumption.
 4. Exact duplicates + near-duplicates (MinHash for >100k rows)
 5. Index integrity + temporal coverage (if datetime column detected)
 
-**Output**: `eda/reports/01_profile.html` (ydata-profiling or lightweight), `eda/artifacts/01_dtypes_map.json`
+**Output**: `eda/reports/01_profile.html` (ydata-profiling or lightweight), canonical `eda/artifacts/schema_ranges.json`
 
-**Success criteria**: Profile report generated. `01_dtypes_map.json` enumerates every column with inferred dtype and observed range.
+**Success criteria**: Profile report generated. `schema_ranges.json` enumerates every column with inferred dtype and observed range.
 
 ### Phase 2 — Univariate Distributions + Baseline
 **Trigger**: Agent-EDAProfiler. **Critical phase — feeds drift detection.**
@@ -86,9 +86,9 @@ and `feature_proposals.yaml` ready for `features.py` consumption.
 3. Target distribution: class balance, imbalance ratio
 4. **Quantile bin boundaries** per feature (stored for PSI computation)
 
-**Output**: `eda/reports/02_univariate.html`, **`eda/artifacts/02_baseline_distributions.pkl`**
+**Output**: `eda/reports/02_univariate.html`, **`eda/artifacts/baseline_distributions.parquet`**
 
-**Success criteria**: `baseline_distributions.pkl` exists with quantile bins for each feature. This file is the source of truth for drift detection in production. Missing = D-15 violation.
+**Success criteria**: `baseline_distributions.parquet` exists with quantile bins for each feature. This file is the source of truth for drift detection in production. Missing = D-15 violation.
 
 ### Phase 3 — Multivariate Correlations + VIF
 **Trigger**: Agent-EDAProfiler.
@@ -110,7 +110,7 @@ and `feature_proposals.yaml` ready for `features.py` consumption.
 4. Near-duplicate rows with near-identical targets
 5. Mutual information with target > threshold
 
-**Output**: `eda/reports/04_leakage_audit.md`
+**Output**: canonical `eda/artifacts/leakage_report.json` plus human-readable `eda/reports/04_leakage_audit.md`
 
 **Success criteria**:
 - If `BLOCKED_FEATURES: []` → continue to phase 5
@@ -128,7 +128,7 @@ Based on phases 2–3, propose transformations with documented rationale:
 - Interaction candidates (pairs with meaningful combined signal)
 - Time-based features if datetime present (hour, day_of_week, is_weekend)
 
-**Output**: `eda/artifacts/05_feature_proposals.yaml`
+**Output**: `eda/artifacts/feature_catalog.yaml`
 
 **Success criteria**: Every proposal has a `rationale` field citing specific EDA findings (e.g., "skew=2.3 → boxcox stabilizes variance"). Invariant D-16 enforced.
 
@@ -138,29 +138,29 @@ Based on phases 2–3, propose transformations with documented rationale:
 1. Generate `eda/reports/eda_summary.md` with key findings (for ADR)
 2. Generate `src/{service}/schema_proposal.py` — Pandera `DataFrameModel` with observed ranges
    (Engineer REVIEWS and copies to `schemas.py`. Never auto-overwrite.)
-3. Ensure `baseline_distributions.pkl` is DVC-tracked and referenced from drift CronJob config
+3. Ensure `baseline_distributions.parquet` is DVC-tracked and referenced from drift CronJob config
 
 **Output**: `eda/reports/eda_summary.md`, `src/{service}/schema_proposal.py`, ADR entry
 
 **Success criteria**:
 - `eda_summary.md` produced with measurable findings
 - `schema_proposal.py` has ranges derived from observed data (D-14 enforced)
-- Drift CronJob config updated to load `baseline_distributions.pkl` (closes the loop)
+- Drift CronJob config updated to load `baseline_distributions.parquet` (closes the loop)
 
 ## Rules
 - Never skip phase 4 (leakage gate) — proceeding past a non-empty `BLOCKED_FEATURES` is an automatic P2 incident
 - Never auto-overwrite `schemas.py` — produce `schema_proposal.py` for human review
 - Never read from production data paths — violation of D-13
-- Always commit `02_baseline_distributions.pkl` via DVC before closing EDA phase
+- Always commit `baseline_distributions.parquet` via DVC before closing EDA phase
 - Notebook outputs (cells with results) are allowed but `.html`/`.png` reports in `eda/reports/` stay out of git (see `.gitignore`)
 
 ## Acceptance Criteria
 
 EDA is complete when ALL of these pass:
 - [ ] All 6 phases produced their expected artifacts
-- [ ] `04_leakage_audit.md` shows `BLOCKED_FEATURES: []`
-- [ ] `02_baseline_distributions.pkl` is DVC-tracked
-- [ ] `05_feature_proposals.yaml` has rationale on every entry
+- [ ] `leakage_report.json` shows `blocked_features: []`
+- [ ] `baseline_distributions.parquet` is DVC-tracked
+- [ ] `feature_catalog.yaml` has rationale on every entry
 - [ ] `schema_proposal.py` exists with observed ranges
 - [ ] `eda_summary.md` ready for ADR citation
-- [ ] Drift detection CronJob config points to `02_baseline_distributions.pkl`
+- [ ] Drift detection CronJob config points to `baseline_distributions.parquet`
