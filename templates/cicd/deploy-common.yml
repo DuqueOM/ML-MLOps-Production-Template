@@ -319,7 +319,7 @@ jobs:
 
       - name: Upload audit log (kept locally also)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-${{ inputs.cloud }}-${{ inputs.environment }}-${{ github.run_id }}
           path: ops/audit.jsonl
