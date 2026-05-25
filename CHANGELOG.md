@@ -8,6 +8,55 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.16.2] - 2026-05-25
+
+CI hardening pass to unblock the open Dependabot PRs (#28
+`sigstore/cosign-installer 3.7.0→4.1.2`, #30 `azure/setup-helm 4→5`)
+and to fix a latent bug in the supply-chain policy. Three independent
+fixes shipped together because all three were blocking the same CI
+matrix:
+
+### Changed
+
+- **Bump `sigstore/cosign-installer` from `v3.7.0` to `v4.1.2`** in
+  `templates/cicd/{ci,deploy-aws,deploy-gcp,retrain-service}.yml` and
+  `.github/workflows/golden-path.yml`. This satisfies the CI/CD
+  Template Drift Gate (ADR-026) for the runtime bump landing via
+  Dependabot in `.github/workflows/`.
+- **Pin `cosign-release: v2.4.0`** on the `templates/cicd/ci.yml`
+  installer step. The other workflows were already pinned. Without an
+  explicit pin, cosign-installer v4 installs Cosign **v3** by default,
+  which is a breaking CLI change (renamed flags, mandatory tlog
+  inclusion proofs, OCI registry default changes). The Cosign v2→v3
+  migration is deferred to a dedicated ADR; this release adopts only
+  the installer's security/maintenance patches.
+
+### Fixed
+
+- **Kyverno image-verification policy schema bug**
+  (`templates/k8s/policies/kyverno-image-verification.yaml`).
+  Replaced the single `subjectRegExp:` entry with three explicit
+  `subject:` entries (one per trusted signing workflow:
+  `ci.yml`, `deploy-gcp.yml`, `deploy-aws.yml`). The `subjectRegExp`
+  field is rejected by the Kyverno CRD shipped in chart 3.2.6 (strict
+  decoding error: `unknown field`), which broke the
+  `Kyverno Admission Smoke / Reject :latest in production namespace`
+  job on every PR. The new form preserves the exact trust set, is
+  Kyverno-version-forward-compatible (uses only documented fields),
+  and Kyverno OR's `entries` within a single attestor so semantics
+  are identical.
+
+### Why these landed together
+
+`Kyverno Admission Smoke` was failing on `main` before the Dependabot
+bumps arrived, so every Dependabot PR inherited a red required check
+unrelated to its diff. Bumping `cosign-installer` in templates without
+the explicit Cosign release pin would also have broken adopters'
+deploy pipelines silently the first time they regenerated from the
+scaffolder. Shipping the three fixes in one merge keeps the audit
+trail tight: one PR, one CHANGELOG entry, and Dependabot's open PRs
+auto-rebase onto a clean `main`.
+
 ## [0.16.1] - 2026-05-15
 
 CI/CD template drift gate. Closes a Dependabot blindspot: the
