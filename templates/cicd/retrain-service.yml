@@ -195,7 +195,7 @@ jobs:
       # without detection.
       - name: Install Cosign
         if: steps.gates.outcome == 'success' && (steps.champion.outputs.found == 'false' || steps.cvsc.outputs.exit_code == '0')
-        uses: sigstore/cosign-installer@v3.7.0
+        uses: sigstore/cosign-installer@v4.1.2
         with:
           cosign-release: v2.4.0
 
