@@ -85,7 +85,7 @@ jobs:
       # versions via canonical actions or direct release tarballs).
       # ---------------------------------------------------------------------
       - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: v1.30.0
 
