@@ -31,7 +31,7 @@ jobs:
       # 1. gitleaks — secret scanning over committed files + git history.
       #    Failure means a credential pattern was committed; D-17 violation.
       - name: gitleaks (D-17)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
