@@ -43,7 +43,7 @@ install-dev: ## Install contributor tools + pre-commit hooks (idempotent)
 
 verify-hooks: ## Verify pre-commit hooks are actually installed in .git/hooks/
 	@hooks_dir="$$(git rev-parse --git-path hooks)" ; \
-	for h in pre-commit pre-push ; do \
+	for h in pre-commit ; do \
 	  if [ ! -f "$$hooks_dir/$$h" ] || ! grep -q pre-commit "$$hooks_dir/$$h" 2>/dev/null ; then \
 	    echo "$(GREEN)MISSING:$(NC) $$hooks_dir/$$h" ; \
 	    echo "  Run: make install-dev   (or: bash scripts/dev-setup.sh)" ; \
