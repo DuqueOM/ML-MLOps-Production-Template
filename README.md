@@ -156,7 +156,7 @@ See [`docs/runbooks/progressive-delivery.md`](docs/runbooks/progressive-delivery
 | Understand the operating model | [AGENTS.md](AGENTS.md) | [docs/decisions/](docs/decisions/) |
 | Review deployment and rollback flow | [RUNBOOK.md](RUNBOOK.md) | `templates/cicd/` and `templates/k8s/` |
 | Evaluate security posture | [SECURITY.md](SECURITY.md) | `templates/infra/`, `templates/k8s/`, `templates/cicd/` |
-| Extend agentic behavior | [AGENTS.md](AGENTS.md) | `templates/config/agentic_manifest.yaml`, `.windsurf/`, generated adapters |
+| Extend agentic behavior | [AGENTS.md](AGENTS.md) | `templates/config/agentic_manifest.yaml`, `agentic/`, generated surfaces |
 | Contribute to the template | [CONTRIBUTING.md](CONTRIBUTING.md) | License and governance sections below |
 | Cut a release | [docs/RELEASING.md](docs/RELEASING.md) | [CHANGELOG.md](CHANGELOG.md) |
 | Migrate from a prior version | [MIGRATION.md](MIGRATION.md) | [CHANGELOG.md](CHANGELOG.md) |
@@ -271,11 +271,11 @@ The template treats agent behavior as an engineering surface, not a prompt confi
 The governance pattern is now single-source:
 
 - `AGENTS.md` is the behavioral authority.
-- `.windsurf/` stores canonical rule, skill, and workflow bodies.
+- `agentic/` stores canonical rule, skill, and workflow bodies (ADR-027); `.devin/` is the generated Devin mirror, `.cursor/.claude/.codex/` are generated pointers.
 - `templates/config/agentic_manifest.yaml` declares which surfaces consume each asset.
 - `.cursor/`, `.claude/`, and `.codex/` contain generated pointer adapters only.
 
-Run `make agentic-sync` after changing the manifest or canonical Windsurf files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 15 rule files, 16 skills, and 12 workflows to Windsurf, Cursor, Claude, and Codex. The project shorthand "14 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
+Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 15 rule files, 16 skills, and 12 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "14 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
 
 ### Static decision protocol
 
@@ -516,10 +516,12 @@ docs/
   runbooks/           cloud-specific setup and incident runbooks
   incidents/          incident record templates
 
-.windsurf/
+agentic/             canonical rules, skills, workflows (humans edit here)
+.devin/              generated Devin mirror (full bodies)
 .cursor/
 .claude/
-  rules, skills, workflows, and parity shims for supported IDEs
+.codex/
+  generated pointer/mirror surfaces for supported IDEs
 ```
 
 <details>
@@ -611,7 +613,7 @@ examples/
     serve.py
     drift_check.py
 
-.windsurf/
+agentic/
   rules/
   skills/
   workflows/

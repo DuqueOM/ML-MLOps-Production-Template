@@ -76,7 +76,7 @@ def test_runtime_companion_required_mcps_exist_in_registry() -> None:
 
 
 def test_runtime_companion_introduces_no_new_skill_file() -> None:
-    skills_dir = REPO_ROOT / ".windsurf" / "skills"
+    skills_dir = REPO_ROOT / "agentic" / "skills"
     forbidden = {"runtime-monitoring", "runtime-monitor", "runtime-companion"}
     actual = {p.name for p in skills_dir.glob("*") if p.is_dir()}
     overlap = actual & forbidden
@@ -148,7 +148,7 @@ def test_cloud_companions_share_authority_chain() -> None:
 
 
 def test_companions_do_not_create_new_workflows() -> None:
-    workflows_dir = REPO_ROOT / ".windsurf" / "workflows"
+    workflows_dir = REPO_ROOT / "agentic" / "workflows"
     forbidden = {
         "runtime-monitor.md",
         "gemini-companion.md",

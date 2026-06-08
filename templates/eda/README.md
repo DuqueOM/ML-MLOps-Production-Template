@@ -3,8 +3,8 @@
 Structured, agentic Exploratory Data Analysis for ML services.
 
 This module implements the 6-phase pipeline described in
-`.windsurf/skills/eda-analysis/SKILL.md` and enforced by
-`.windsurf/rules/11-data-eda.md`.
+`agentic/skills/eda-analysis/SKILL.md` and enforced by
+`agentic/rules/11-data-eda.md`.
 
 ## Why a structured EDA module
 
@@ -159,8 +159,8 @@ load through `common_utils.eda_artifacts`.
 
 ## References
 
-- Rule: `.windsurf/rules/11-data-eda.md`
-- Skill: `.windsurf/skills/eda-analysis/SKILL.md`
-- Workflow: `.windsurf/workflows/eda.md` (`/eda`)
+- Rule: `agentic/rules/11-data-eda.md`
+- Skill: `agentic/skills/eda-analysis/SKILL.md`
+- Workflow: `agentic/workflows/eda.md` (`/eda`)
 - ADR: `docs/decisions/ADR-004-eda-phase-integration.md`
 - Invariants: D-13, D-14, D-15, D-16 (see AGENTS.md)

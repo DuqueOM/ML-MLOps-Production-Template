@@ -11,7 +11,7 @@ A clear and concise description of the problem. Ex. "When deploying to EKS, I ne
 
 **Which layer does this affect?**
 - [ ] Templates (`templates/`)
-- [ ] Agentic system (`.windsurf/rules/`, `.windsurf/skills/`, `.windsurf/workflows/`)
+- [ ] Agentic system (`agentic/rules/`, `agentic/skills/`, `agentic/workflows/`)
 - [ ] CI/CD (`templates/cicd/`)
 - [ ] Infrastructure (`templates/infra/`)
 - [ ] Documentation (`templates/docs/`)

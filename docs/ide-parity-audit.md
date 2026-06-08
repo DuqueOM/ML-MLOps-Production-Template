@@ -1,20 +1,20 @@
-# IDE Parity Audit — Windsurf / Cursor / Claude Code / Codex
+# IDE Parity Audit — Devin / Cursor / Claude Code / Codex
 
 Date: 2026-05-03
 
-`AGENTS.md` defines the behavior protocol and `.windsurf/` remains the
+`AGENTS.md` defines the behavior protocol and `agentic/` remains the
 canonical body store for rules, skills, and workflows. Cursor, Claude
 Code, and Codex are now adapter surfaces generated from
 `templates/config/agentic_manifest.yaml`.
 
 ## Current Parity
 
-| Asset | Windsurf | Cursor | Claude | Codex |
-|-------|----------|--------|--------|-------|
-| Rules | 15 canonical files | 15 `.mdc` pointers | 15 `.md` pointers | 15 `.md` pointers |
+| Asset | Canonical (`agentic/`) | Cursor | Claude | Codex |
+|-------|------------------------|--------|--------|-------|
+| Rules | 15 canonical files (mirrored to `.devin/`) | 15 `.mdc` pointers | 15 `.md` pointers | 15 `.md` pointers |
 | Skills | 16 canonical `SKILL.md` files | 16 pointers + `INDEX.md` | 16 pointers + `INDEX.md` | 16 pointers |
 | Workflows | 12 canonical files | 12 command pointers | 12 command pointers | 12 workflow pointers |
-| Context | `.windsurf_context.md` | `.cursor_context.md` | `.claude_context.md` | `.codex_context.md` |
+| Context | `.devin_context.md` | `.cursor_context.md` | `.claude_context.md` | `.codex_context.md` |
 | MCP example | User-home config | User-home config | User-home config | `.codex/mcp.example.json` |
 
 The repository may still use the human shorthand "14 rules"; the

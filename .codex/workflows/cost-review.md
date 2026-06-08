@@ -3,9 +3,9 @@
 **Adapter surface**: `codex`
 **Authority**: `AGENTS.md#Agent Behavior Protocol`
 **Mode**: `AUTO`
-**Canonical source**: `.windsurf/workflows/cost-review.md`
+**Canonical source**: `agentic/workflows/cost-review.md`
 
-Execute this workflow by reading the canonical Windsurf workflow in
+Execute this workflow by reading the canonical `agentic/` workflow in
 full, then applying the same AUTO/CONSULT/STOP protocol and audit
 requirements from `AGENTS.md`.
 

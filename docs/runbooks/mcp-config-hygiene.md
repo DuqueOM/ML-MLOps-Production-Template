@@ -139,7 +139,7 @@ grep -E 'github_pat_|pcsk_|sbp_|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za
 ## Related
 
 - Invariants D-17 (no hardcoded credentials), D-18 (cloud-native delegation)
-- `.windsurf/skills/secret-breach-response/SKILL.md`
-- `.windsurf/workflows/secret-breach.md`
+- `agentic/skills/secret-breach-response/SKILL.md`
+- `agentic/workflows/secret-breach.md`
 - `docs/runbooks/secret-rotation.md` — scheduled rotation procedure
 - `MEMORY[12-security-secrets.md]` — always-on security rule

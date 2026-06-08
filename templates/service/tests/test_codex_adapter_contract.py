@@ -6,7 +6,7 @@ Locks the structural invariants that distinguish "adapter" from "fork":
 
 Skill pointers, never copies
   Each `.codex/{rules,skills,workflows}/<id>.md` MUST reference its
-  canonical Windsurf source. Without this rule the Codex directory
+  canonical `agentic/` source. Without this rule the Codex directory
   drifts into a parallel agentic surface with no propagation contract.
 
 Manifest declares the pointer
@@ -46,9 +46,9 @@ SKILLS_DIR = CODEX_DIR / "skills"
 RULES_DIR = CODEX_DIR / "rules"
 WORKFLOWS_DIR = CODEX_DIR / "workflows"
 AUTOMATIONS_DIR = CODEX_DIR / "automations"
-WINDSURF_SKILLS = REPO_ROOT / ".windsurf/skills"
-WINDSURF_RULES = REPO_ROOT / ".windsurf/rules"
-WINDSURF_WORKFLOWS = REPO_ROOT / ".windsurf/workflows"
+CANONICAL_SKILLS = REPO_ROOT / "agentic/skills"
+CANONICAL_RULES = REPO_ROOT / "agentic/rules"
+CANONICAL_WORKFLOWS = REPO_ROOT / "agentic/workflows"
 MANIFEST = REPO_ROOT / "templates/config/agentic_manifest.yaml"
 MCP_EXAMPLE = CODEX_DIR / "mcp.example.json"
 MCP_LIVE = CODEX_DIR / "mcp.json"
@@ -84,7 +84,7 @@ def test_manifest_codex_surface_is_adapter() -> None:
 
 def test_codex_skill_pointers_reference_canonical() -> None:
     """Every `.codex/skills/<id>.md` references its canonical
-    Windsurf SKILL.md. This is the structural barrier against the
+    canonical SKILL.md. This is the structural barrier against the
     Codex directory becoming a parallel fork.
     """
     pointers = sorted(SKILLS_DIR.glob("*.md"))
@@ -92,7 +92,7 @@ def test_codex_skill_pointers_reference_canonical() -> None:
     for ptr in pointers:
         body = ptr.read_text(encoding="utf-8")
         sid = ptr.stem
-        canonical_ref = f".windsurf/skills/{sid}/SKILL.md"
+        canonical_ref = f"agentic/skills/{sid}/SKILL.md"
         assert canonical_ref in body, (
             f"{ptr.relative_to(REPO_ROOT)} must reference its canonical "
             f"source ({canonical_ref}). Pointer files cannot stand alone "
@@ -127,7 +127,7 @@ def test_codex_rules_match_manifest_surfaces_codex() -> None:
     assert pointers == declared
     for rid in pointers:
         body = (RULES_DIR / f"{rid}.md").read_text(encoding="utf-8")
-        assert f".windsurf/rules/{rid}.md" in body
+        assert f"agentic/rules/{rid}.md" in body
         assert "AGENTS.md" in body
 
 
@@ -139,20 +139,20 @@ def test_codex_workflows_match_manifest_surfaces_codex() -> None:
     assert pointers == declared
     for wid in pointers:
         body = (WORKFLOWS_DIR / f"{wid}.md").read_text(encoding="utf-8")
-        assert f".windsurf/workflows/{wid}.md" in body
+        assert f"agentic/workflows/{wid}.md" in body
         assert "AGENTS.md" in body
 
 
 def test_canonical_skill_files_exist() -> None:
-    """Every Codex pointer's canonical Windsurf SKILL.md exists.
+    """Every Codex pointer's canonical SKILL.md exists.
 
     Caught a regression during F5 development where a typo in the
     pointer (debug_ml_inference vs debug-ml-inference) silently
-    desynced from the Windsurf tree.
+    desynced from the canonical tree.
     """
     for ptr in SKILLS_DIR.glob("*.md"):
         sid = ptr.stem
-        canonical = WINDSURF_SKILLS / sid / "SKILL.md"
+        canonical = CANONICAL_SKILLS / sid / "SKILL.md"
         assert canonical.exists(), (
             f"Codex pointer {ptr.name} references a non-existent "
             f"canonical SKILL.md at {canonical.relative_to(REPO_ROOT)}"
@@ -160,12 +160,12 @@ def test_canonical_skill_files_exist() -> None:
 
     for ptr in RULES_DIR.glob("*.md"):
         rid = ptr.stem
-        canonical = WINDSURF_RULES / f"{rid}.md"
+        canonical = CANONICAL_RULES / f"{rid}.md"
         assert canonical.exists(), f"missing canonical rule for {ptr.name}"
 
     for ptr in WORKFLOWS_DIR.glob("*.md"):
         wid = ptr.stem
-        canonical = WINDSURF_WORKFLOWS / f"{wid}.md"
+        canonical = CANONICAL_WORKFLOWS / f"{wid}.md"
         assert canonical.exists(), f"missing canonical workflow for {ptr.name}"
 
 

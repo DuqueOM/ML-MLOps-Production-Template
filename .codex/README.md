@@ -2,8 +2,9 @@
 
 This directory wires OpenAI Codex into the canonical agent surfaces
 described in `agentic_manifest.yaml`. Codex is treated as an
-**adapter** surface: rules + skills + workflows live in `.windsurf/`
-and Codex consumes the full canonical set via generated thin pointers.
+**adapter** (pointer) surface: rules + skills + workflows live in
+`agentic/` (ADR-027) and Codex consumes the full canonical set via
+generated thin pointers.
 Automations remain Codex-specific wrappers around selected workflows.
 
 **Authority**: `docs/decisions/ADR-023-agentic-portability-and-context.md`.
@@ -14,9 +15,9 @@ Automations remain Codex-specific wrappers around selected workflows.
 | Type | Path | Behaviour |
 |------|------|-----------|
 | Project preamble | `AGENTS.md` | Codex's native preamble convention; highest authority |
-| Rules | `.codex/rules/` | Generated pointers to `.windsurf/rules/<id>.md` |
-| Skills | `.codex/skills/` | Generated pointers to `.windsurf/skills/<id>/SKILL.md` |
-| Workflows | `.codex/workflows/` | Generated pointers to `.windsurf/workflows/<id>.md` |
+| Rules | `.codex/rules/` | Generated pointers to `agentic/rules/<id>.md` |
+| Skills | `.codex/skills/` | Generated pointers to `agentic/skills/<id>/SKILL.md` |
+| Workflows | `.codex/workflows/` | Generated pointers to `agentic/workflows/<id>.md` |
 | Automations | `.codex/automations/` | Codex-specific schedules/events for selected workflows |
 | MCP config | `.codex/mcp.json` | Adopter copies `.codex/mcp.example.json` and fills credentials |
 
@@ -25,7 +26,7 @@ directory would multiply the same drift problem ADR-023 solves.
 
 ## Full parity scope
 
-Codex now consumes the same canonical surface as Windsurf, Cursor, and
+Codex now consumes the same canonical surface as Devin, Cursor, and
 Claude:
 
 - 15 canonical rule files. The project often calls these "14 rules"
@@ -77,10 +78,10 @@ extended to MCP configs).
 
 ## Anti-list (deliberately NOT here)
 
-- No skill bodies. Codex reads the canonical Windsurf SKILL.md via
+- No skill bodies. Codex reads the canonical `agentic/` SKILL.md via
   the pointer and `AGENTS.md` for protocol.
 - No copied rules/workflows. Codex has discoverability pointers only;
-  canonical bodies remain in `.windsurf/`.
+  canonical bodies remain in `agentic/`.
 - No live `mcp.json`. Adopter-specific.
 - No production-write automations. STOP-class operations stay in
   GitHub Actions per AGENTS.md permissions matrix.
