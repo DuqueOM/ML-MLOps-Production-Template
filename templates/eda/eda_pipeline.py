@@ -1,6 +1,6 @@
 """6-phase EDA pipeline with leakage gate and drift-detection integration.
 
-Implements the procedure defined in `.windsurf/skills/eda-analysis/SKILL.md`.
+Implements the procedure defined in `agentic/skills/eda-analysis/SKILL.md`.
 
 Phases:
     0. Ingest & snake_case normalization

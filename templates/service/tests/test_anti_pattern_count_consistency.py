@@ -37,7 +37,7 @@ RANGE_QUOTING_DOCS: list[Path] = [
     REPO_ROOT / "CLAUDE.md",
     REPO_ROOT / ".claude" / "rules" / "01-serving.md",
     REPO_ROOT / ".claude" / "rules" / "09-mlops-conventions.md",
-    REPO_ROOT / ".windsurf" / "skills" / "debug-ml-inference" / "SKILL.md",
+    REPO_ROOT / "agentic" / "skills" / "debug-ml-inference" / "SKILL.md",
     REPO_ROOT / "docs" / "ide-parity-audit.md",
     REPO_ROOT / "docs" / "decisions" / "ADR-014-gap-remediation-plan.md",
 ]

@@ -45,8 +45,8 @@ the same provider, ADR-023 §6 revisit triggers fire and we reopen.
 | Template concept | GCP equivalent | Notes |
 |------------------|----------------|-------|
 | `AGENTS.md` permissions matrix | Vertex AI Agent IAM policy | Map AUTO → `roles/aiplatform.user`, CONSULT → custom role with reviewer step, STOP → blocked at IAM |
-| Skill (`.windsurf/skills/<id>/SKILL.md`) | Agent Builder *Tool* with explicit instruction text | Copy SKILL body into the tool description; do NOT auto-translate |
-| Workflow (`.windsurf/workflows/<id>.md`) | Agent Builder *Playbook* | Slash-command name maps 1:1 to playbook trigger |
+| Skill (`agentic/skills/<id>/SKILL.md`) | Agent Builder *Tool* with explicit instruction text | Copy SKILL body into the tool description; do NOT auto-translate |
+| Workflow (`agentic/workflows/<id>.md`) | Agent Builder *Playbook* | Slash-command name maps 1:1 to playbook trigger |
 | MCP server (e.g. `prometheus`) | Vertex AI *Extension* or HTTP function tool | Use the same auth as our MCP registry — do not add a second credential |
 | `ops/audit.jsonl` | Cloud Logging sink with structured payload | Schema is identical; ship via Logging API rather than file write |
 | Reports v1 JSON | GCS bucket + Pub/Sub notification | Bucket name from `project_context.local.yaml` |
@@ -143,7 +143,7 @@ job, not a re-architecture.
 1. **Read-only by default.** Every companion's first integration is
    read-only. Write paths are unlocked one at a time per CONSULT.
 2. **Single source of truth for skills.** A skill body is edited in
-   `.windsurf/skills/<id>/SKILL.md` and copied to the platform once.
+   `agentic/skills/<id>/SKILL.md` and copied to the platform once.
    Subsequent edits are propagated by the adopter's runbook, not by
    automatic sync.
 3. **Audit parity.** Whatever the cloud platform's native audit

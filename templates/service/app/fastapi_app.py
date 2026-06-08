@@ -125,7 +125,7 @@ _background_data: Optional[np.ndarray] = None
 _feature_engineer = None
 
 # Closed-loop prediction logger — lifecycle managed by main.lifespan
-# (see ADR-006 and .windsurf/rules/13-closed-loop-monitoring.md, D-21)
+# (see ADR-006 and agentic/rules/13-closed-loop-monitoring.md, D-21)
 _prediction_logger: Optional["PredictionLogger"] = None
 
 
@@ -151,7 +151,7 @@ class _SyntheticGoldenPathModel:
 # ---------------------------------------------------------------------------
 # Thread pool for CPU-bound inference — NEVER block the event loop
 #
-# Sizing (May 2026 audit MED-2 / .windsurf/rules/04a-python-serving.md):
+# Sizing (May 2026 audit MED-2 / agentic/rules/04a-python-serving.md):
 # the pool size is bounded by the K8s CPU limit so 4 hot threads do not
 # fight for the GIL on a 1-vCPU pod. The CPU limit is read from
 # INFERENCE_CPU_LIMIT (set in the Deployment manifest from the container

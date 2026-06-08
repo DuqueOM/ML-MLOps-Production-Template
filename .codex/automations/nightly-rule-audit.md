@@ -2,7 +2,7 @@
 
 **Authority**: `AGENTS.md#Critical Patterns — DO NOT VIOLATE`
 **Skill**: `.codex/skills/rule-audit.md` →
-`.windsurf/skills/rule-audit/SKILL.md`
+`agentic/skills/rule-audit/SKILL.md`
 
 ## Trigger
 

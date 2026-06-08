@@ -2,12 +2,12 @@
 
 **Adapter surface**: `claude`
 **Authority**: `AGENTS.md` + `templates/config/agentic_manifest.yaml`
-**Canonical source**: `.windsurf/rules/12-security-secrets.md`
+**Canonical source**: `agentic/rules/12-security-secrets.md`
 
 Read the canonical source in full before acting. This file is a thin
 adapter pointer and must not duplicate policy text.
 
-To change this rule, edit `.windsurf/rules/12-security-secrets.md`, update the manifest when needed,
+To change this rule, edit `agentic/rules/12-security-secrets.md`, update the manifest when needed,
 then run:
 
 ```bash

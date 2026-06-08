@@ -156,5 +156,5 @@ deploy; only the promotion chain changes.
 ## See also
 
 - ADR-011 — Environment Promotion Gates (authorship & trade-offs)
-- `.windsurf/rules/05-github-actions.md` — D-26 enforcement
-- `.windsurf/skills/rollback/SKILL.md` — emergency path out of production
+- `agentic/rules/05-github-actions.md` — D-26 enforcement
+- `agentic/skills/rollback/SKILL.md` — emergency path out of production

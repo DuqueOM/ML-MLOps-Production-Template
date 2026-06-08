@@ -34,7 +34,8 @@
 
 # Core architecture and governance
 /AGENTS.md                              @DuqueOM
-/.windsurf/                             @DuqueOM
+/agentic/                               @DuqueOM
+/.devin/                                @DuqueOM
 /.cursor/                               @DuqueOM
 /.claude/                               @DuqueOM
 /docs/decisions/                        @DuqueOM
