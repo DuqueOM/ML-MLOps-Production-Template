@@ -6,8 +6,12 @@
 #
 #   1. pre-commit binary is on $PATH
 #   2. .git/hooks/pre-commit exists and points at the pre-commit framework
-#   3. .git/hooks/pre-push exists (catches the scaffold smoke test stage)
-#   4. A dry-run of `pre-commit run --all-files` is green
+#   3. A dry-run of `pre-commit run --all-files` is green
+#
+# Single-stage design: the pre-push hook was retired in R5-L4 (May 2026) and
+# replaced by `make smoke` + CI pr-smoke-lane.yml. .pre-commit-config.yaml
+# declares `default_install_hook_types: [pre-commit]`; this script must not
+# reintroduce a pre-push hook.
 #
 # If any of those is false, this script fails LOUD with the fix command.
 # Idempotent: safe to re-run.
@@ -56,20 +60,18 @@ pre-commit validate-config >/dev/null
 step "Config valid"
 
 # ---------------------------------------------------------------------------
-# 3. install hooks (reads default_install_hook_types from config:
-#    pre-commit + pre-push covered by a single call)
+# 3. install hooks (reads default_install_hook_types from config: pre-commit
+#    only — the pre-push stage was retired in R5-L4, replaced by `make smoke`
+#    + CI pr-smoke-lane.yml)
 # ---------------------------------------------------------------------------
 step "Installing git hooks…"
 pre-commit install --install-hooks --overwrite
-# Belt-and-suspenders: also install pre-push explicitly. If
-# default_install_hook_types ever drifts from the config, this still works.
-pre-commit install --install-hooks --hook-type pre-push --overwrite
 
 # ---------------------------------------------------------------------------
 # 4. verify the hooks actually landed in .git/hooks/
 # ---------------------------------------------------------------------------
 hooks_dir="$(git rev-parse --git-path hooks)"
-for hook in pre-commit pre-push; do
+for hook in pre-commit; do
   if [[ ! -f "${hooks_dir}/${hook}" ]]; then
     die "${hooks_dir}/${hook} missing after install. Aborting."
   fi
@@ -104,15 +106,16 @@ cat <<'EOF'
 
 What just happened:
   1. pre-commit framework installed
-  2. Both pre-commit AND pre-push hooks wired into .git/hooks/
+  2. pre-commit hook wired into .git/hooks/
   3. Config validated
   4. All hooks dry-run green on the current tree
 
 From now on:
   - `git commit`  triggers black/isort/flake8/mypy/bandit/gitleaks/
                   validate-agentic/ci-autofix-policy-contract.
-  - `git push`    additionally runs scripts/test_scaffold.sh (~60s).
-  - Both lanes BLOCK on failure. CI is the safety net, not the gate.
+  - `git push`    no hook (pre-push scaffold smoke retired in R5-L4) —
+                  run `make smoke` on demand; CI pr-smoke-lane.yml is the gate.
+  - The commit lane BLOCKS on failure. CI is the safety net, not the gate.
 
 To re-run all hooks manually anytime:
   pre-commit run --all-files
