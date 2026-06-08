@@ -67,7 +67,7 @@ CONTEXT_EXAMPLES = {
 
 CONTEXT_POINTERS = [
     REPO_ROOT / "AGENT_CONTEXT.md",
-    REPO_ROOT / ".windsurf_context.md",
+    REPO_ROOT / ".devin_context.md",
     REPO_ROOT / ".cursor_context.md",
     REPO_ROOT / ".claude_context.md",
     REPO_ROOT / ".codex_context.md",
@@ -200,7 +200,7 @@ def _validate_surface_roots(manifest: dict) -> list[str]:
     errors: list[str] = []
     for name, surface in (manifest.get("surfaces") or {}).items():
         status = surface.get("status")
-        if status in {"authoritative", "adapter"}:
+        if status in {"authoritative", "adapter", "canonical", "mirror"}:
             for role, rel in (surface.get("roots") or {}).items():
                 p = REPO_ROOT / rel
                 if not p.exists():
@@ -245,21 +245,84 @@ def _adapter_path(surface: str, roots: dict, bucket: str, item_id: str) -> Path 
     return None
 
 
+def _surface_kind(spec: dict) -> str | None:
+    """Return the surface kind, mapping legacy statuses for back-compat."""
+    kind = spec.get("kind")
+    if kind:
+        return kind
+    status = spec.get("status")
+    if status in ("canonical", "authoritative"):
+        return "canonical"
+    if status == "mirror":
+        return "mirror"
+    if status == "adapter":
+        return "pointer"
+    return None
+
+
+def _canonical_roots(manifest: dict) -> dict:
+    for spec in (manifest.get("surfaces") or {}).values():
+        if _surface_kind(spec) == "canonical":
+            return spec.get("roots") or {}
+    return {}
+
+
+def _mirror_path(source: str, bucket: str, canon_roots: dict, roots: dict) -> Path | None:
+    """Path of a mirror-surface body: source with canonical root swapped."""
+    canon_root = canon_roots.get(bucket)
+    mirror_root = roots.get(bucket)
+    if not canon_root or not mirror_root:
+        return None
+    try:
+        rel = Path(source).relative_to(canon_root)
+    except ValueError:
+        return None
+    return REPO_ROOT / mirror_root / rel
+
+
 def _validate_adapter_pointers(manifest: dict) -> list[str]:
-    """Validate adapter files are thin pointers to canonical sources."""
+    """Validate generated surfaces (ADR-027).
+
+    - canonical: the source itself; nothing to check.
+    - mirror (.devin/): full body, byte-identical to the canonical source.
+    - pointer (.cursor/.claude/.codex): thin pointer to source + AGENTS.md.
+    """
     errors: list[str] = []
     surfaces = manifest.get("surfaces") or {}
+    canon_roots = _canonical_roots(manifest)
     for bucket in ("rules", "skills", "workflows"):
         for entry in manifest.get(bucket, []) or []:
             item_id = entry.get("id")
             source = entry.get("source")
             for surface in entry.get("surfaces") or []:
                 spec = surfaces.get(surface) or {}
-                if spec.get("status") == "authoritative":
+                kind = _surface_kind(spec)
+                if kind == "canonical":
                     continue
-                if spec.get("status") != "adapter":
+                if kind == "mirror":
+                    mpath = _mirror_path(source, bucket, canon_roots, spec.get("roots") or {})
+                    if mpath is None:
+                        errors.append(
+                            f"{bucket}:{item_id}: surfaces.{surface}.roots missing {bucket} mirror root"
+                        )
+                        continue
+                    if not mpath.exists():
+                        errors.append(
+                            f"{bucket}:{item_id}: mirror body missing for {surface}: "
+                            f"{mpath.relative_to(REPO_ROOT)} (run sync_agentic_adapters.py)"
+                        )
+                        continue
+                    if source and (REPO_ROOT / source).exists():
+                        if mpath.read_bytes() != (REPO_ROOT / source).read_bytes():
+                            errors.append(
+                                f"{bucket}:{item_id}: mirror {mpath.relative_to(REPO_ROOT)} "
+                                f"is not byte-identical to canonical {source} "
+                                "(run sync_agentic_adapters.py)"
+                            )
+                    continue
+                if kind != "pointer":
                     errors.append(
-                        f"{bucket}:{item_id}: surface {surface!r} is not an adapter/authoritative surface"
+                        f"{bucket}:{item_id}: surface {surface!r} has unknown kind {kind!r}"
                     )
                     continue
                 path = _adapter_path(surface, spec.get("roots") or {}, bucket, item_id)

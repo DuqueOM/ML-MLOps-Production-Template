@@ -41,7 +41,7 @@ VALIDATOR = REPO_ROOT / "scripts" / "validate_agentic_manifest.py"
 MANIFEST = REPO_ROOT / "templates" / "config" / "agentic_manifest.yaml"
 AGENT_CONTEXT = REPO_ROOT / "AGENT_CONTEXT.md"
 SURFACE_POINTERS = [
-    REPO_ROOT / ".windsurf_context.md",
+    REPO_ROOT / ".devin_context.md",
     REPO_ROOT / ".cursor_context.md",
     REPO_ROOT / ".claude_context.md",
     REPO_ROOT / ".codex_context.md",
@@ -108,7 +108,7 @@ def test_agent_context_is_present_and_bounded() -> None:
     ids=lambda p: p.name,
 )
 def test_surface_pointer_is_compact(pointer: Path) -> None:
-    """Each surface context pointer (`.windsurf_context.md` etc.) is a
+    """Each surface context pointer (`.devin_context.md` etc.) is a
     compact redirect to `AGENT_CONTEXT.md`, not a second authority.
 
     Caps are tighter than `AGENT_CONTEXT.md` deliberately — the pointer

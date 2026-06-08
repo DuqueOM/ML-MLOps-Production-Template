@@ -87,7 +87,7 @@ Ten panels covering the slower feedback loop. Consumed by the
 | P2 latency | `dashboard-template.json` → panel 3 | Prometheus query builder for per-endpoint breakdown |
 | P2 drift-heartbeat-missing | `dashboard-closed-loop.json` → panels 9, 10 | `kubectl describe cronjob` |
 | P3 PSI drift alert | `dashboard-template.json` → panel 5; `dashboard-closed-loop.json` → panel 10 | Run `/drift-check <service>` |
-| Monthly performance review | `dashboard-closed-loop.json` → panels 1, 3, 4, 8 | [`performance-review` workflow](../../.windsurf/workflows/performance-review.md) |
+| Monthly performance review | `dashboard-closed-loop.json` → panels 1, 3, 4, 8 | [`performance-review` workflow](../../agentic/workflows/performance-review.md) |
 
 ---
 

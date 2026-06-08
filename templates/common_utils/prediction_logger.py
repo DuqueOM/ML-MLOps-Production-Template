@@ -9,7 +9,7 @@ Architecture (ADR-006):
   - stdout    (debugging only)
 - Buffered: batched writes to reduce backend pressure
 
-Invariants (see .windsurf/rules/13-closed-loop-monitoring.md):
+Invariants (see agentic/rules/13-closed-loop-monitoring.md):
 - D-20: prediction_id (UUID) and entity_id are mandatory on every log event
 - D-21: logger.log_prediction() MUST be awaitable and non-blocking; it returns
   immediately after enqueueing. Backend flush happens in a background task.

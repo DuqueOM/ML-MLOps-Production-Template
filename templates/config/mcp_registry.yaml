@@ -17,7 +17,7 @@
 #     agent DO, which skills/workflows depend on it, and which
 #     surfaces support which install mode.
 #   - The authoritative cross-surface mapping consumed by
-#     `.windsurf/`, `.cursor/`, `.claude/`, `.codex/` MCP example
+#     `.devin/`, `.cursor/`, `.claude/`, `.codex/` MCP example
 #     configs. Those config files are RENDERED by humans reading
 #     this registry — no silent generator in v1.
 #
@@ -53,7 +53,7 @@ mcps:
     recommended_for: []    # CI self-healing (ADR-019) is a workflow concept,
                            # not a manifest-listed skill yet; keep empty.
     install_mode:
-      windsurf: "documented"
+      devin: "documented"
       cursor: "documented"
       claude: "documented"
       codex: "user_confirmed"
@@ -75,7 +75,7 @@ mcps:
       - "deploy-gke"
       - "deploy-aws"
     install_mode:
-      windsurf: "documented"
+      devin: "documented"
       cursor: "documented"
       claude: "documented"
       codex: "user_confirmed"
@@ -94,7 +94,7 @@ mcps:
       - "cost-audit"
     recommended_for: []
     install_mode:
-      windsurf: "documented"
+      devin: "documented"
       cursor: "documented"
       claude: "documented"
       codex: "user_confirmed"
@@ -115,7 +115,7 @@ mcps:
     recommended_for:
       - "concept-drift-analysis"
     install_mode:
-      windsurf: "documented"
+      devin: "documented"
       cursor: "documented"
       claude: "documented"
       codex: "user_confirmed"
@@ -135,7 +135,7 @@ mcps:
     recommended_for:
       - "release-checklist"
     install_mode:
-      windsurf: "documented"
+      devin: "documented"
       cursor: "documented"
       claude: "documented"
       codex: "optional"
@@ -167,10 +167,10 @@ mcps:
 # docs/agentic/mcp-portability.md explain the manual-render pattern.
 # -----------------------------------------------------------------------------
 surfaces:
-  windsurf:
-    config_path: "~/.codeium/windsurf/mcp_config.json"
-    example_in_repo: null   # Windsurf reads from user-home only
-    status: "authoritative"
+  devin:
+    config_path: "~/.codeium/mcp_config.json"
+    example_in_repo: null   # Devin Desktop reads from user-home only
+    status: "mirror"
   cursor:
     config_path: "~/.cursor/mcp.json"
     example_in_repo: null   # Cursor's per-repo config is adopter-owned

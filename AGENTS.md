@@ -313,7 +313,7 @@ When starting a new session in a project derived from this template:
 ## Agentic Configuration
 
 ```
-.windsurf/                              # Canonical agentic source — 15 rules, 16 skills, 12 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 15 rules, 16 skills, 12 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
@@ -380,9 +380,9 @@ When starting a new session in a project derived from this template:
 
 ## Multi-IDE Support
 
-The template supports **4 agent surfaces** with equivalent invariant coverage: Windsurf, Cursor, Claude Code, and Codex. `AGENTS.md` is the behavior authority, `.windsurf/` is the canonical body store, and `templates/config/agentic_manifest.yaml` is the cross-surface index.
+The template supports **4 agent surfaces** with equivalent invariant coverage: Devin (Desktop), Cursor, Claude Code, and Codex. `AGENTS.md` is the behavior authority, `agentic/` is the vendor-neutral canonical body store (ADR-027), and `templates/config/agentic_manifest.yaml` is the cross-surface index. Surfaces are generated, never hand-edited: `.devin/` is a full-body **mirror** (the IDE ingests bodies); `.cursor/`, `.claude/`, `.codex/` are thin **pointers**.
 
-Adapter directories are generated pointers, not forks:
+Generated surfaces are produced from the canonical store, not forks:
 
 ```bash
 python3 scripts/sync_agentic_adapters.py
@@ -391,9 +391,13 @@ python3 scripts/validate_agentic_manifest.py --strict
 ```
 
 ```
-.windsurf/rules/       # authoritative rules: 15 files
-.windsurf/skills/      # authoritative skills: 16 SKILL.md files
-.windsurf/workflows/   # authoritative workflows: 12 files
+agentic/rules/         # CANONICAL rules: 15 files (humans edit here)
+agentic/skills/        # CANONICAL skills: 16 SKILL.md files
+agentic/workflows/     # CANONICAL workflows: 12 files
+
+.devin/rules/          # generated MIRROR (full bodies): 15 files
+.devin/skills/         # generated MIRROR: 16 SKILL.md files
+.devin/workflows/      # generated MIRROR: 12 files
 
 .cursor/rules/         # generated rule pointers: 15 .mdc files
 .cursor/skills/        # generated skill pointers + INDEX.md: 16 skills
@@ -413,14 +417,14 @@ Note: the project often says "14 rules" because rule 04 is split into `04a-pytho
 
 ### IDE Parity Matrix (manifest-enforced)
 
-| Asset | Windsurf | Cursor | Claude | Codex |
-|-------|----------|--------|--------|-------|
-| Rules | `.windsurf/rules/*.md` canonical | `.cursor/rules/*.mdc` pointers | `.claude/rules/*.md` pointers | `.codex/rules/*.md` pointers |
-| Skills | `.windsurf/skills/**/SKILL.md` canonical | `.cursor/skills/*.md` pointers | `.claude/skills/*.md` pointers | `.codex/skills/*.md` pointers |
-| Workflows | `.windsurf/workflows/*.md` canonical | `.cursor/commands/*.md` pointers | `.claude/commands/*.md` pointers | `.codex/workflows/*.md` pointers |
-| Context | `.windsurf_context.md` | `.cursor_context.md` | `.claude_context.md` | `.codex_context.md` |
+| Asset | Canonical (`agentic/`) | Devin | Cursor | Claude | Codex |
+|-------|------------------------|-------|--------|--------|-------|
+| Rules | `agentic/rules/*.md` | `.devin/rules/*.md` mirror | `.cursor/rules/*.mdc` pointers | `.claude/rules/*.md` pointers | `.codex/rules/*.md` pointers |
+| Skills | `agentic/skills/**/SKILL.md` | `.devin/skills/**/SKILL.md` mirror | `.cursor/skills/*.md` pointers | `.claude/skills/*.md` pointers | `.codex/skills/*.md` pointers |
+| Workflows | `agentic/workflows/*.md` | `.devin/workflows/*.md` mirror | `.cursor/commands/*.md` pointers | `.claude/commands/*.md` pointers | `.codex/workflows/*.md` pointers |
+| Context | `AGENT_CONTEXT.md` | `.devin_context.md` | `.cursor_context.md` | `.claude_context.md` | `.codex_context.md` |
 
-Every surface inherits the same **Agent Behavior Protocol** (AUTO/CONSULT/STOP) from `AGENTS.md`; `scripts/validate_agentic_manifest.py --strict` rejects adapter pointers that omit the canonical source or authority chain.
+Every surface inherits the same **Agent Behavior Protocol** (AUTO/CONSULT/STOP) from `AGENTS.md`; `scripts/validate_agentic_manifest.py --strict` rejects pointers that omit the canonical source or authority chain, and fails if any `.devin/` mirror body drifts from its `agentic/` source.
 
 ## Template System
 

@@ -176,5 +176,5 @@ enforces at every PR:
 
 - `docs/decisions/ADR-023-agentic-portability-and-context.md`
 - `docs/decisions/ADR-010-dynamic-behavior-protocol.md` (consumer)
-- `.windsurf/rules/12-security-secrets.md` (what lives where)
+- `agentic/rules/12-security-secrets.md` (what lives where)
 - `templates/common_utils/risk_context.py` (runtime consumer)

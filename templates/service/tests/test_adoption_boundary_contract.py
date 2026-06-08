@@ -6,7 +6,7 @@ Three invariants:
    ratings table (ready/partial/roadmap) plus the canonical non-claims list.
 
 2. **Every /slash workflow has a `make` equivalent** — for each file in
-   `.windsurf/workflows/*.md`, the corresponding `make` target exists in
+   `agentic/workflows/*.md`, the corresponding `make` target exists in
    `templates/Makefile`. The mapping is canonical (defined in this test);
    if a new workflow is added without a make target, this test fails.
 
@@ -110,14 +110,14 @@ def test_adoption_doc_has_non_claims_section() -> None:
 
 
 def test_workflow_to_make_map_matches_filesystem() -> None:
-    """The canonical map must list every `.windsurf/workflows/*.md` file.
+    """The canonical map must list every `agentic/workflows/*.md` file.
 
     If a new workflow was added without updating WORKFLOW_TO_MAKE, the map
     is stale. Update the map AND add a make target.
     """
-    workflow_dir = REPO_ROOT / ".windsurf" / "workflows"
+    workflow_dir = REPO_ROOT / "agentic" / "workflows"
     if not workflow_dir.is_dir():
-        pytest.skip(".windsurf/workflows/ not present in this checkout")
+        pytest.skip("agentic/workflows/ not present in this checkout")
     on_disk = {p.stem for p in workflow_dir.glob("*.md")}
     in_map = set(WORKFLOW_TO_MAKE.keys())
     missing_in_map = on_disk - in_map

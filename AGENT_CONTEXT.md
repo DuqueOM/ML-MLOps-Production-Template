@@ -1,7 +1,9 @@
 # Agent Context
 
-Read-first entry point for any agent (Windsurf, Cursor, Claude, Codex, or
-any future surface) that has just attached to this repo. ADR-023 §F3
+Read-first entry point for any agent (Devin, Cursor, Claude, Codex, or
+any future surface) that has just attached to this repo. Canonical agentic
+bodies live in `agentic/` (ADR-027); IDE surfaces are generated from it.
+ADR-023 §F3
 caps this file at 150 lines and forbids date-led lines or tables with
 more than 10 rows — keep it an index, never a diary.
 
@@ -28,25 +30,25 @@ promotion, monitoring, drift detection, and agentic governance.
 
 ### Serving (FastAPI app, inference path)
 
-- `.windsurf/rules/04a-python-serving.md`
+- `agentic/rules/04a-python-serving.md`
 - `templates/service/app/main.py` and `templates/service/app/fastapi_app.py`
 - Invariants to watch: D-01, D-03, D-04, D-23, D-24, D-25
 
 ### Training (pipelines, MLflow, quality gates)
 
-- `.windsurf/rules/04b-python-training.md`
+- `agentic/rules/04b-python-training.md`
 - `templates/service/src/{service}/training/` and `templates/config/model_routing_policy.yaml`
 - Invariants to watch: D-05, D-06, D-09, D-14
 
 ### Kubernetes (manifests, HPA, overlays, NetworkPolicy)
 
-- `.windsurf/rules/02-kubernetes.md`
+- `agentic/rules/02-kubernetes.md`
 - `templates/k8s/base/` and `templates/k8s/overlays/`
 - Invariants to watch: D-02, D-11, D-23, D-25, D-27, D-29, D-30
 
 ### Terraform (GCP + AWS infra, bootstrap)
 
-- `.windsurf/rules/03-terraform.md`
+- `agentic/rules/03-terraform.md`
 - `templates/infra/terraform/{gcp,aws}/`
 - Invariants to watch: D-10 (remote state), D-18 (no literal creds)
 
@@ -60,13 +62,13 @@ promotion, monitoring, drift detection, and agentic governance.
 
 ### Security (secrets, supply chain, admission)
 
-- `.windsurf/rules/12-security-secrets.md`
+- `agentic/rules/12-security-secrets.md`
 - `docs/runbooks/secrets-integration-e2e.md`
 - Skill `security-audit` (pre-build / pre-deploy)
 
 ### Monitoring + drift (alerts, PSI, closed loop)
 
-- `.windsurf/rules/09-monitoring.md` and `13-closed-loop-monitoring.md`
+- `agentic/rules/09-monitoring.md` and `13-closed-loop-monitoring.md`
 - `templates/monitoring/alertmanager.yml`
 - `docs/runbooks/alertmanager-validation.md`
 

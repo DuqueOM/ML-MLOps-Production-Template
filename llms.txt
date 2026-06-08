@@ -30,9 +30,9 @@ Scope: classical ML (scikit-learn, XGBoost, LightGBM). Not LLM/GenAI.
   - 03-python-serving.mdc: async, SHAP, metrics (globs: **/app/*.py)
   - 04-python-training.mdc: pipeline, gates, fairness (globs: **/training/*.py)
   - 05-docker.mdc: multi-stage, non-root, no model (globs: **/Dockerfile*)
-- .windsurf/rules/ — 10 context-aware behavioral constraints
-- .windsurf/skills/ — 8 operational procedures (debug, deploy-gke, deploy-aws, drift, retrain, release, new-service, cost-audit)
-- .windsurf/workflows/ — 8 slash-command workflows (/new-service, /retrain, /incident, /drift-check, /release, /cost-review, /load-test, /new-adr)
+- agentic/rules/ — 10 context-aware behavioral constraints
+- agentic/skills/ — 8 operational procedures (debug, deploy-gke, deploy-aws, drift, retrain, release, new-service, cost-audit)
+- agentic/workflows/ — 8 slash-command workflows (/new-service, /retrain, /incident, /drift-check, /release, /cost-review, /load-test, /new-adr)
 
 ## Template structure
 - templates/service/ — FastAPI + training + monitoring + fairness + DVC boilerplate

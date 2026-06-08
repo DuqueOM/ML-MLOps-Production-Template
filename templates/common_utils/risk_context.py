@@ -13,7 +13,7 @@ Signal sources (by priority):
        to the static AGENTS.md mapping
 
 Consumers:
-    - .windsurf/skills/**/SKILL.md invocations
+    - agentic/skills/**/SKILL.md invocations
     - CI jobs that emit the [AGENT MODE: ...] signal
     - Pre-deploy checks in deploy-common.yml (future enhancement)
 
