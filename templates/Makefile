@@ -199,7 +199,7 @@ release-checklist: ## Print the canonical release checklist
 	@if [ -f docs/runbooks/release-checklist.md ]; then \
 		cat docs/runbooks/release-checklist.md; \
 	else \
-		echo "$(YELLOW)See .windsurf/skills/release-checklist/SKILL.md$(NC)"; \
+		echo "$(YELLOW)See agentic/skills/release-checklist/SKILL.md$(NC)"; \
 	fi
 
 rollback: ## Roll back the last deploy (REV=<revision> optional)
@@ -217,7 +217,7 @@ incident-runbook: ## Print the incident-response runbook
 	@if [ -f docs/runbooks/incident-response.md ]; then \
 		cat docs/runbooks/incident-response.md; \
 	else \
-		echo "$(YELLOW)See .windsurf/workflows/incident.md$(NC)"; \
+		echo "$(YELLOW)See agentic/workflows/incident.md$(NC)"; \
 	fi
 
 performance-review: ## Sliced performance review (concept drift detection)
@@ -233,7 +233,7 @@ cost-review: ## Print the cost-review runbook
 	@if [ -f docs/runbooks/cost-review.md ]; then \
 		cat docs/runbooks/cost-review.md; \
 	else \
-		echo "$(YELLOW)See .windsurf/skills/cost-audit/SKILL.md$(NC)"; \
+		echo "$(YELLOW)See agentic/skills/cost-audit/SKILL.md$(NC)"; \
 	fi
 
 new-adr: ## Create a new ADR (TITLE='<title>')
@@ -285,7 +285,7 @@ batch-inference: ## Run batch scoring job (DATA=path/to/input.parquet)
 	@if [ -f scripts/batch_inference.py ]; then \
 		python scripts/batch_inference.py --input $(DATA); \
 	else \
-		echo "$(YELLOW)See .windsurf/skills/batch-inference/SKILL.md for the K8s CronJob pattern$(NC)"; \
+		echo "$(YELLOW)See agentic/skills/batch-inference/SKILL.md for the K8s CronJob pattern$(NC)"; \
 	fi
 
 # ═══════════════════════════════════════════════

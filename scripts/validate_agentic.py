@@ -2,10 +2,10 @@
 """Validate the agentic system configuration.
 
 Checks:
-1. Every rule in .windsurf/rules/ has valid frontmatter with trigger + description
+1. Every rule in agentic/rules/ has valid frontmatter with trigger + description
 2. Every glob pattern in rules matches at least one real file (no dead rules)
-3. Every skill in .windsurf/skills/ has a SKILL.md with required frontmatter
-4. Every workflow in .windsurf/workflows/ has valid frontmatter
+3. Every skill in agentic/skills/ has a SKILL.md with required frontmatter
+4. Every workflow in agentic/workflows/ has valid frontmatter
 5. Every skill/workflow referenced in AGENTS.md actually exists
 
 Exit codes:
@@ -27,9 +27,11 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RULES_DIR = REPO_ROOT / ".windsurf" / "rules"
-SKILLS_DIR = REPO_ROOT / ".windsurf" / "skills"
-WORKFLOWS_DIR = REPO_ROOT / ".windsurf" / "workflows"
+# Canonical agentic store is vendor-neutral `agentic/` (ADR-027).
+# IDE surfaces (.devin/, .cursor/, .claude/, .codex/) are generated from it.
+RULES_DIR = REPO_ROOT / "agentic" / "rules"
+SKILLS_DIR = REPO_ROOT / "agentic" / "skills"
+WORKFLOWS_DIR = REPO_ROOT / "agentic" / "workflows"
 AGENTS_MD = REPO_ROOT / "AGENTS.md"
 
 
@@ -294,13 +296,13 @@ def validate_agents_md_references(
     # AGENTS.md lists skills in the Cross-References table and "How to Invoke"
     for skill in skill_names:
         if f"`{skill}`" not in text:
-            result.warn(f"Skill '{skill}' defined in .windsurf/skills/ but not referenced in AGENTS.md")
+            result.warn(f"Skill '{skill}' defined in agentic/skills/ but not referenced in AGENTS.md")
         else:
             result.ok()
 
     for wf in workflow_names:
         if wf not in text:
-            result.warn(f"Workflow '{wf}' defined in .windsurf/workflows/ but not referenced in AGENTS.md")
+            result.warn(f"Workflow '{wf}' defined in agentic/workflows/ but not referenced in AGENTS.md")
         else:
             result.ok()
 

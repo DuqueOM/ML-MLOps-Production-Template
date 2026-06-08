@@ -2,7 +2,7 @@
 
 **Authority**: `AGENTS.md#Operation → Mode mapping`
 **Skill**: `.codex/skills/release-checklist.md` →
-`.windsurf/skills/release-checklist/SKILL.md`
+`agentic/skills/release-checklist/SKILL.md`
 
 ## Trigger
 

@@ -1,7 +1,7 @@
 # Runbook: Scheduled Secret Rotation
 
-**Pairs with**: `.windsurf/skills/secret-breach-response/SKILL.md` (for
-emergency rotation after a leak) and `.windsurf/workflows/secret-breach.md`.
+**Pairs with**: `agentic/skills/secret-breach-response/SKILL.md` (for
+emergency rotation after a leak) and `agentic/workflows/secret-breach.md`.
 
 This runbook covers **scheduled** rotation — the quarterly / biannual
 exercise where no leak has occurred but credentials must be rotated to
@@ -175,8 +175,8 @@ Template default cadence (override per deployment):
 
 ## Related
 
-- `.windsurf/skills/secret-breach-response/SKILL.md` — emergency path
+- `agentic/skills/secret-breach-response/SKILL.md` — emergency path
   when a secret is LEAKED (different: blast-radius is bigger, faster)
-- `.windsurf/workflows/secret-breach.md` — /secret-breach slash command
-- `.windsurf/rules/12-security-secrets.md` — D-17/D-18 invariants
+- `agentic/workflows/secret-breach.md` — /secret-breach slash command
+- `agentic/rules/12-security-secrets.md` — D-17/D-18 invariants
 - AGENTS.md §Audit Trail Protocol — where rotation entries live

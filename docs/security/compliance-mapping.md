@@ -57,7 +57,7 @@ ADR-001).
 |------------------|------------------|-------|------|-------|
 | No hardcoded credentials | `common_utils/secrets.py` (D-17) + gitleaks pre-commit | CC6.1 | Art 32 | §164.312(c)(1) |
 | Cloud-native secret store | AWS Secrets Manager / GCP Secret Manager via IRSA / WI | CC6.1, CC7.1 | Art 32 | §164.312(a)(2)(iv) |
-| Secret rotation runbook | `.windsurf/skills/secret-breach-response/` + `/secret-breach` workflow | CC7.4, CC9.2 | Art 33 | §164.308(a)(6) |
+| Secret rotation runbook | `agentic/skills/secret-breach-response/` + `/secret-breach` workflow | CC7.4, CC9.2 | Art 33 | §164.308(a)(6) |
 | Static credential refusal | `secrets.py` refuses os.environ fallback in staging/production (D-18) | CC6.1 | Art 32 | §164.312(a)(2)(i) |
 
 ### Supply chain
@@ -85,7 +85,7 @@ ADR-001).
 | SLO + multi-window burn-rate alerts | `slo-prometheusrule.yaml` (CRIT-1) | A1.1 | — | §164.308(a)(7)(ii)(B) |
 | HPA per service | `hpa.yaml` | A1.1 | — | §164.308(a)(7)(ii)(B) |
 | Pod disruption budget | `pdb.yaml` | A1.1 | — | §164.308(a)(7)(ii)(B) |
-| Rollback procedure (codified) | `.windsurf/skills/rollback/` + `/rollback` workflow | A1.3, CC7.4 | — | §164.308(a)(7)(ii)(B) |
+| Rollback procedure (codified) | `agentic/skills/rollback/` + `/rollback` workflow | A1.3, CC7.4 | — | §164.308(a)(7)(ii)(B) |
 | Drift heartbeat alert | `drift_cronjob_last_success_timestamp_seconds` | A1.1, CC7.2 | Art 22 | §164.312(b) |
 
 ### Data protection

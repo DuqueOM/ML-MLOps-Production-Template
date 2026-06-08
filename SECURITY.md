@@ -107,7 +107,7 @@ If a credential is leaked in the repo, logs, or an artifact:
 3. Follow the 7-phase procedure: halt → classify → revoke → audit → rotate → clean history → notify → post-mortem
 4. Never attempt silent rotation — audit trail is mandatory
 
-The full procedure is codified in `.windsurf/skills/secret-breach-response/SKILL.md`.
+The full procedure is codified in `agentic/skills/secret-breach-response/SKILL.md`.
 
 ### SLSA Compliance
 
@@ -121,8 +121,8 @@ This template targets **SLSA Level 2** out of the box:
 ### Documentation
 
 - `docs/decisions/ADR-005-agent-behavior-and-security.md` — full rationale for security stack
-- `.windsurf/rules/12-security-secrets.md` — always_on rule enforcing D-17/D-18/D-19
-- `.windsurf/skills/security-audit/SKILL.md` — pre-build/pre-deploy audit procedure
+- `agentic/rules/12-security-secrets.md` — always_on rule enforcing D-17/D-18/D-19
+- `agentic/skills/security-audit/SKILL.md` — pre-build/pre-deploy audit procedure
 
 ## Historical security disclosures
 

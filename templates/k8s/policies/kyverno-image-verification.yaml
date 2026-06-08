@@ -15,7 +15,7 @@
 # References:
 #   - D-19 (AGENTS.md): Unsigned images / missing SBOM must not reach prod
 #   - ADR-005: Supply chain security
-#   - Rule: .windsurf/rules/12-security-secrets.md
+#   - Rule: agentic/rules/12-security-secrets.md
 
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy

@@ -2,12 +2,12 @@
 
 **Adapter surface**: `claude`
 **Authority**: `AGENTS.md` + `templates/config/agentic_manifest.yaml`
-**Canonical source**: `.windsurf/rules/05-github-actions.md`
+**Canonical source**: `agentic/rules/05-github-actions.md`
 
 Read the canonical source in full before acting. This file is a thin
 adapter pointer and must not duplicate policy text.
 
-To change this rule, edit `.windsurf/rules/05-github-actions.md`, update the manifest when needed,
+To change this rule, edit `agentic/rules/05-github-actions.md`, update the manifest when needed,
 then run:
 
 ```bash

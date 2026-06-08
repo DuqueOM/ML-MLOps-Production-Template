@@ -178,7 +178,7 @@ repos:
         entry: python3 scripts/validate_agentic.py --strict
         language: system
         pass_filenames: false
-        files: ^(AGENTS\.md|\.windsurf/|\.cursor/|\.claude/|scripts/validate_agentic\.py)
+        files: ^(AGENTS\.md|agentic/|\.devin/|\.cursor/|\.claude/|\.codex/|scripts/validate_agentic\.py)
       - id: ci-autofix-policy-contract
         name: CI autofix policy contract (ADR-019)
         description: |

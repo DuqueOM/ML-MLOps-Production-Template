@@ -123,7 +123,7 @@ scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
 releases/              → GitHub Release notes (v1.0.0..v1.9.0)
 .claude/rules/         → 14 path-scoped rules (this IDE)
-.windsurf/             → Canonical: 15 rules + 16 skills + 12 workflows
+agentic/             → Canonical: 15 rules + 16 skills + 12 workflows
 .cursor/rules/         → 12 glob-scoped .mdc rules
 ```
 

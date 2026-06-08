@@ -35,7 +35,8 @@ capabilities:
     description: "Scheduled or event-triggered agent actions"
 
 surfaces:
-  windsurf:
+  devin:
+    # Mirror-surface (ADR-027): full bodies generated from agentic/.
     supports:
       - "read_file"
       - "write_file"
@@ -43,10 +44,10 @@ surfaces:
       - "run_mcp"
       - "slash_commands"
     config_targets:
-      rules: ".windsurf/rules/"
-      skills: ".windsurf/skills/"
-      workflows: ".windsurf/workflows/"
-      mcp_config: "~/.codeium/windsurf/mcp_config.json"
+      rules: ".devin/rules/"
+      skills: ".devin/skills/"
+      workflows: ".devin/workflows/"
+      mcp_config: "~/.codeium/mcp_config.json"
 
   cursor:
     supports:

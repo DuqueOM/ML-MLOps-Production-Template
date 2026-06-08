@@ -115,7 +115,7 @@ Source: `templates/config/mcp_registry.yaml` + `templates/config/surface_capabil
 
 ## Install mode by surface
 
-| MCP | claude | codex | cursor | windsurf |
+| MCP | claude | codex | cursor | devin |
 |-----|---|---|---|---|
 | `github` | documented | user_confirmed | documented | documented |
 | `kubectl` | documented | user_confirmed | documented | documented |
