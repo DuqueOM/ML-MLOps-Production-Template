@@ -8,6 +8,78 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.17.0] - 2026-06-08
+
+Vendor-neutral agentic surface (ADR-027) plus the Dependabot GitHub Actions
+bumps that landed on `main` after the untagged `0.16.2` working entry. The
+agentic refactor is the headline change: it removes the last vendor name
+(`.windsurf/`) from the canonical layer so the template survives IDE rebrands
+without touching rule/skill/workflow bodies.
+
+### Added
+
+- **`ADR-027` — Vendor-Neutral Canonical Agentic Surface** (`Status: Accepted`).
+  Establishes `agentic/{rules,skills,workflows}/` as the single human-authored
+  canonical body store and demotes every IDE directory to a *generated*
+  surface. Amends `ADR-023` invariant I-4 (canonical source is now `agentic/`,
+  not `.windsurf/`).
+- **`.devin/` mirror-surface** — a generated, byte-identical copy of
+  `agentic/` bodies, because Devin Desktop ingests directory bodies and cannot
+  follow pointers. CI enforces byte-parity via
+  `scripts/sync_agentic_adapters.py --check`.
+- **`.devin_context.md`** context pointer for the Devin surface.
+- **Mirror/pointer surface model** in `scripts/validate_agentic_manifest.py`:
+  `canonical` (`agentic/`), `mirror` (`.devin/`, full bodies + byte-parity),
+  and `pointer` (`.cursor/`, `.claude/`, `.codex/`, thin pointers).
+
+### Changed
+
+- **Canonical agentic store moved `.windsurf/` → `agentic/`** via `git mv`
+  (15 rules, 16 skills, 12 workflows). `AGENTS.md` remains the sole behavior
+  authority; `agentic/` is the body store; `templates/config/agentic_manifest.yaml`
+  is the cross-surface index. This is an **internal/governance** surface — it
+  does NOT change the output of `templates/scripts/new-service.sh`, so it is a
+  MINOR per `docs/RELEASING.md` §1.2 (new Accepted ADR + backward-compatible
+  surface), not a MAJOR.
+- **`.cursor/`, `.claude/`, `.codex/`** regenerated as thin pointer-surfaces;
+  `.windsurf/` and `.windsurf_context.md` dropped.
+- Propagated the canonical-path rename across `surface_capabilities.yaml`,
+  `mcp_registry.yaml`, `AGENTS.md`, `.pre-commit-config.yaml`,
+  `.github/CODEOWNERS`, `validate-templates.yml`, contract tests, docs, and
+  in-code comments.
+- **Bump `docker/setup-buildx-action` from `v3` to `v4`** (#29) in
+  `.github/workflows/`.
+- **Bump `azure/setup-kubectl` from `v4` to `v5`** (#32) in the golden-path
+  workflows. Runtime-only action (not mirrored in `templates/cicd/`), so the
+  CI/CD Template Drift Gate (ADR-026) is unaffected.
+- **Bump `bridgecrewio/checkov-action` from `v12.3102.0` to `v12.3105.0`**
+  (#33) in `.github/workflows/validate-templates.yml` **and** mirrored into
+  `templates/cicd/ci-infra.yml` to satisfy the drift gate.
+- **Bump `gitleaks/gitleaks-action` from `v2` to `v3`** (#34) in
+  `.github/workflows/validate-templates.yml` **and** mirrored into
+  `templates/cicd/ci.yml`. v3 is a Node 20 → Node 24 runtime migration with no
+  input/output/behavior change; `v2` stops working once GitHub removes Node 20
+  (2026-09-16), so this keeps scaffolded services on a supported action.
+
+### Fixed
+
+- **Broken relative link in `.github/ISSUE_TEMPLATE/feature_request.md`** —
+  `../AGENTS.md` resolved to `.github/AGENTS.md`; corrected to
+  `../../AGENTS.md`. Pre-existing bug surfaced by the Link Check once the file
+  was edited in this release.
+
+### Known follow-ons
+
+- **`codex/fastapi-template-hardening`** is a separate WIP initiative branched
+  from `0.15.2` that still references `.windsurf/` and conflicts on
+  `CHANGELOG.md`/`VERSION`. It must be rebased onto post-ADR-027 `main` (with
+  the `.windsurf/` → `agentic/` rename applied) before it can ship; it is NOT
+  included in this release.
+- The untagged `0.16.2` working entry (cosign `v4.1.2` pin + Kyverno schema
+  fix + `azure/setup-helm v5`) is retained below for the audit trail; its
+  content is already on `main` and is therefore included under the `v0.17.0`
+  tag history.
+
 ## [0.16.2] - 2026-05-25
 
 CI hardening pass to unblock the open Dependabot PRs (#28
