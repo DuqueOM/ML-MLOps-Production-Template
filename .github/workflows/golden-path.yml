@@ -269,7 +269,7 @@ jobs:
       # All four installs below pin to specific releases via either
       # actions or direct tarball URLs (no API).
       - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: v1.30.0
 
