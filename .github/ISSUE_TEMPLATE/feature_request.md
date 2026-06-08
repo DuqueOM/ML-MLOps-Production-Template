@@ -23,7 +23,7 @@ A clear and concise description of what you want to happen.
 Other approaches and why they don't fit.
 
 **Engineering Calibration**
-Is this proportional to the problem? (See [Engineering Calibration Principle](../AGENTS.md#engineering-calibration-principle))
+Is this proportional to the problem? (See [Engineering Calibration Principle](../../AGENTS.md#engineering-calibration-principle))
 - Scale of the problem: [e.g., "2 models", "50 features", "100 RPS"]
 - Proposed solution complexity: [e.g., "CronJob", "Full orchestrator"]
 
