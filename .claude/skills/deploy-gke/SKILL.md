@@ -1,3 +1,8 @@
+---
+name: deploy-gke
+description: "Deploy ML service to GKE with Kustomize overlays and Workload Identity (Mode: CONSULT — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # deploy-gke
 
 **Adapter surface**: `claude`

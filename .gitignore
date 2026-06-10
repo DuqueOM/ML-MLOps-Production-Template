@@ -150,3 +150,12 @@ alertmanager-*.tar.gz
 # Codex live MCP config — adopter-specific, contains credentials.
 # Only `.codex/mcp.example.json` is tracked.
 .codex/mcp.json
+
+# Claude Code live MCP config — adopter-specific, may reference credentials.
+# Only `.mcp.json.example` is tracked.
+.mcp.json
+
+# Claude Code machine-local harness settings (e.g. Windows WSL shell path).
+.claude/settings.json
+.claude/settings.local.json
+.claude/launch.json

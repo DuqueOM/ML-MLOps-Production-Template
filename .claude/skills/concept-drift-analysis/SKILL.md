@@ -1,3 +1,8 @@
+---
+name: concept-drift-analysis
+description: "Root-cause a performance alert using sliced metrics + ground-truth (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # concept-drift-analysis
 
 **Adapter surface**: `claude`

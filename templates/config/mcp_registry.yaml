@@ -127,6 +127,50 @@ mcps:
       agent falls back to the static AGENTS.md mapping and emits
       `risk_signals: UNAVAILABLE`.
 
+  docker:
+    purpose: "Inspect images/containers, read container logs, run local builds for debugging"
+    risk_mode: "CONSULT"
+    authority: "AGENTS.md#MCP Integrations"
+    required_for: []
+    recommended_for:
+      - "debug-ml-inference"
+      - "security-audit"
+    install_mode:
+      devin: "documented"
+      cursor: "documented"
+      claude: "documented"
+      codex: "user_confirmed"
+    notes: >
+      Local Docker daemon access (docker-mcp). Read operations (ps,
+      images, logs, inspect) are AUTO-equivalent; build/run/rm mutate
+      local state and are CONSULT. Pushing images stays with the
+      governed GitHub Actions flow (D-19/D-30) — the MCP must never
+      push or tag registry images. Set DOCKER_MCP_LOCAL=true to scope
+      the server to the local daemon only.
+
+  postgres:
+    purpose: "Read-only SQL against ground-truth / prediction-log databases for closed-loop analysis"
+    risk_mode: "CONSULT"
+    authority: "AGENTS.md#MCP Integrations"
+    required_for: []
+    recommended_for:
+      - "concept-drift-analysis"
+      - "performance-degradation-rca"
+      - "drift-detection"
+    install_mode:
+      devin: "documented"
+      cursor: "documented"
+      claude: "documented"
+      codex: "user_confirmed"
+    notes: >
+      Connect with a READ-ONLY role (e.g. `GRANT SELECT` only); never
+      the application or migration user. The MCP exists so closed-loop
+      skills can join predictions with delayed ground truth (D-20)
+      without exporting CSVs by hand. Connection strings live in the
+      adopter's secret store (D-17/D-18) — the registry and surface
+      configs carry placeholders only. Writes/DDL through this MCP are
+      STOP; schema changes belong to migrations under code review.
+
   playwright:
     purpose: "End-to-end browser smoke-tests + scripted login flows"
     risk_mode: "AUTO"

@@ -1,3 +1,8 @@
+---
+name: eda-analysis
+description: "Run 6-phase exploratory data analysis on a new dataset — ingest, profile, univariate, correlations, leakage gate, feature proposals (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # eda-analysis
 
 **Adapter surface**: `claude`

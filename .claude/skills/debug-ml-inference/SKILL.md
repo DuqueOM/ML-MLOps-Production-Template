@@ -1,3 +1,8 @@
+---
+name: debug-ml-inference
+description: "Debug ML inference issues — latency spikes, wrong predictions, event loop blocking (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # debug-ml-inference
 
 **Adapter surface**: `claude`

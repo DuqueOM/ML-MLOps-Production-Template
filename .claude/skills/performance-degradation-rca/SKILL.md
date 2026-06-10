@@ -1,3 +1,8 @@
+---
+name: performance-degradation-rca
+description: "End-to-end RCA for a performance-degradation incident — correlates sliced metrics, drift, deploy history, upstream data changes, and prediction logs into one evidence-backed root cause. (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # performance-degradation-rca
 
 **Adapter surface**: `claude`

@@ -1,3 +1,8 @@
+---
+name: secret-breach-response
+description: "Incident playbook for leaked secrets — detect, revoke, rotate, audit access, notify, post-mortem (Mode: STOP — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # secret-breach-response
 
 **Adapter surface**: `claude`

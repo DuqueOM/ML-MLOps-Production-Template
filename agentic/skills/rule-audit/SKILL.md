@@ -1,6 +1,6 @@
 ---
 name: rule-audit
-description: Automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-27 — produces a PASS/FAIL report with file:line evidence
+description: Automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-32 — produces a PASS/FAIL report with file:line evidence
 allowed-tools:
   - Read
   - Grep
@@ -38,7 +38,7 @@ STOP because they affect all future services.
 - **On third-party code** — this skill is scoped to the template's own
   conventions.
 
-## Invariant catalogue (D-01 → D-27)
+## Invariant catalogue (D-01 → D-32)
 
 The checks below map one-to-one onto the AGENTS.md anti-pattern table.
 The agent runs the matching query for each ID and records PASS/FAIL +
@@ -100,6 +100,16 @@ evidence (file:line or metric) per service.
 | D-25 | `terminationGracePeriodSeconds` missing OR <= uvicorn `--timeout-graceful-shutdown` | yes (Rego) |
 | D-26 | `deploy-*.yml` missing the 3-env chain (dev/staging/prod environments) | grep |
 | D-27 | Deployment without matching `PodDisruptionBudget` | yes (Rego) |
+
+### Contracts + Supply chain + IAM (D-28 → D-32)
+
+| ID | Check | Automated? |
+|----|-------|-----------|
+| D-28 | `tests/contract/openapi.snapshot.json` changed without `app.version` bump in `app/main.py` | `tests/contract/test_openapi_snapshot.py` + CI `Validate API contract` |
+| D-29 | Namespace manifest missing `pod-security.kubernetes.io/enforce` label | `rg -n "pod-security.kubernetes.io/enforce" k8s/overlays/*/namespace.yaml` (every overlay must hit) |
+| D-30 | Deploy workflow missing `cosign attest --type cyclonedx` after the SBOM step | `rg -n "cosign attest" .github/workflows/deploy-*.yml` |
+| D-31 | Single IAM identity reused across ci/deploy/runtime/drift/retrain | `tests/test_iam_least_privilege.py` (no wildcard principals, no `Action: "*"`) |
+| D-32 | K8s manifest references a Python path with kebab placeholder (`src/{service-name}/...`) | `tests/policy/test_anti_patterns.py::test_d32_drift_cronjob_python_path` |
 
 ## Execution flow
 
@@ -176,8 +186,9 @@ For large repos the agent can restrict scope:
 
 - `--subset probes` → D-23, D-25 only
 - `--subset pdb` → D-27 only
-- `--subset security` → D-17, D-18, D-19
+- `--subset security` → D-17, D-18, D-19, D-30, D-31
 - `--subset closed-loop` → D-20, D-21, D-22, D-24
+- `--subset contracts` → D-28, D-32
 - `--subset all` (default) → every invariant
 
 ## What this skill is NOT
@@ -201,8 +212,8 @@ For large repos the agent can restrict scope:
 
 ## Related
 
-- AGENTS.md anti-pattern table (D-01..D-27)
+- AGENTS.md anti-pattern table (D-01..D-32)
 - `agentic/skills/security-audit/SKILL.md` — deeper security scan
-- `agentic/skills/debug-ml-inference/SKILL.md` — uses D-01..D-27 as
+- `agentic/skills/debug-ml-inference/SKILL.md` — uses D-01..D-32 as
   diagnostic checklist
 - `common_utils/agent_context.py::AuditLog` — audit trail integration

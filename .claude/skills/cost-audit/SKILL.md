@@ -1,3 +1,8 @@
+---
+name: cost-audit
+description: "Review cloud costs against budget and identify optimization opportunities (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # cost-audit
 
 **Adapter surface**: `claude`

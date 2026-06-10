@@ -35,6 +35,10 @@ pytest.importorskip("joblib")
 pytest.importorskip("pandas")
 pytest.importorskip("numpy")
 
+# Trains/serves a real toy model — scaffold-context only (the template
+# repo's CI exercises this through the scaffold smoke lane).
+pytestmark = pytest.mark.scaffold_context
+
 import joblib  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402

@@ -236,6 +236,10 @@ def _adapter_path(surface: str, roots: dict, bucket: str, item_id: str) -> Path 
         root = roots.get("skills")
         if not root:
             return None
+        # Claude Code only discovers skills laid out as <id>/SKILL.md with
+        # frontmatter; the pointer adopts that layout (still zero policy text).
+        if surface == "claude":
+            return REPO_ROOT / root / item_id / "SKILL.md"
         return REPO_ROOT / root / f"{item_id}.md"
     if bucket == "workflows":
         root = roots.get("workflows") or roots.get("commands")
@@ -348,6 +352,41 @@ def _validate_adapter_pointers(manifest: dict) -> list[str]:
                         f"{bucket}:{item_id}: adapter {path.relative_to(REPO_ROOT)} "
                         "does not reference AGENTS.md authority"
                     )
+                # Loadability (R6 audit S2-1): pointer EXISTENCE does not
+                # prove the IDE can LOAD it — the claude surface shipped
+                # invisible flat skills for months because only existence
+                # was checked. Assert the discoverable-format contract.
+                if surface == "claude" and bucket == "skills":
+                    errors.extend(_claude_skill_loadability(path, item_id, body))
+    return errors
+
+
+def _claude_skill_loadability(path: Path, item_id: str, body: str) -> list[str]:
+    """Claude Code only loads `<id>/SKILL.md` whose YAML frontmatter
+    parses and carries a `name` matching the directory plus a non-empty
+    `description` (<= 1024 chars, the listing truncation budget)."""
+    rel = path.relative_to(REPO_ROOT)
+    if not body.startswith("---"):
+        return [f"skills:{item_id}: {rel} missing YAML frontmatter (Claude Code will not load it)"]
+    parts = body.split("---", 2)
+    if len(parts) < 3:
+        return [f"skills:{item_id}: {rel} frontmatter is not closed with `---`"]
+    try:
+        meta = yaml.safe_load(parts[1]) or {}
+    except yaml.YAMLError as exc:
+        return [f"skills:{item_id}: {rel} frontmatter does not parse as YAML: {exc}"]
+    errors: list[str] = []
+    if meta.get("name") != item_id:
+        errors.append(
+            f"skills:{item_id}: {rel} frontmatter name={meta.get('name')!r} must equal the skill id"
+        )
+    desc = str(meta.get("description") or "").strip()
+    if not desc:
+        errors.append(f"skills:{item_id}: {rel} frontmatter description is empty")
+    elif len(desc) > 1024:
+        errors.append(
+            f"skills:{item_id}: {rel} frontmatter description is {len(desc)} chars (> 1024 truncation budget)"
+        )
     return errors
 
 

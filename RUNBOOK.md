@@ -147,6 +147,28 @@ git push origin v1.3.0
 # 3. Create GitHub Release from tag with notes from CHANGELOG
 ```
 
+## Local development port allocation
+
+Canonical local port map (R6 audit follow-up). Every tool, doc, and
+launch config must agree with this table; in-cluster traffic always
+goes through `Service:80` → container `8000` regardless of it.
+
+| Port | Owner | Why this port |
+|------|-------|---------------|
+| 8000 | Primary ML service API (example demo or scaffolded service) | FastAPI/uvicorn upstream default; matches Dockerfile `EXPOSE`, probes, and `/metrics` scrape annotations |
+| 8001 | Secondary/template API instance (e.g. `templates/service` in modelless dev mode) | One-port-per-service rule — never share 8000 between two local instances |
+| 5000 | MLflow tracking server | MLflow upstream default (`docker-compose.mlflow.yml`) |
+| 9000 / 9001 | MinIO S3 API / console (MLflow artifact store) | MinIO upstream defaults |
+| 9090 | Prometheus | Prometheus upstream default |
+| 9091 | Pushgateway (drift CronJob metrics) | Pushgateway upstream default |
+| 3000 | Grafana | Grafana upstream default |
+| 5432 | Postgres (MLflow backend / ground-truth dev DB) | Postgres upstream default; expose locally only, never in overlays |
+
+Rules: keep upstream defaults (least surprise for any SRE), one port
+per service instance, resolve conflicts with `lsof -i :<port>`, and
+never encode a local port into a K8s manifest — overlays own cluster
+networking.
+
 ## Troubleshooting
 
 | Issue | Fix |

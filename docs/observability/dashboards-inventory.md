@@ -26,6 +26,7 @@ a file that no longer exists.
 |------|-------|-------------|------|
 | [`dashboard-template.json`](../../templates/monitoring/grafana/dashboard-template.json) | `{ServiceName} — ML Service Dashboard` | Day-to-day operations view: request rate, error rate, latency, drift, capacity. This is the first dashboard to open when a P1/P2 alert fires. | `ml-service`, `{service}` |
 | [`dashboard-closed-loop.json`](../../templates/monitoring/grafana/dashboard-closed-loop.json) | `{ServiceName} — Closed-Loop & SLO Dashboard` | Long-horizon health: SLO burn, champion/challenger, sliced AUC, prediction-logger error rate, PSI heatmap. Reviewed in the monthly performance review (see `/performance-review`). | `ml-service`, `{service}`, `closed-loop`, `slo` |
+| [`dashboard-dora.json`](../../templates/monitoring/grafana/dashboard-dora.json) | `{ServiceName} — DORA Metrics` | Delivery-performance view: deployment frequency, lead time for changes, change failure rate, MTTR, deploys vs rollbacks. Reviewed in retros and the monthly cost/performance reviews. | `dora`, `delivery`, `{service}` |
 
 ---
 
@@ -76,6 +77,20 @@ Ten panels covering the slower feedback loop. Consumed by the
 - Recording rules: `slo:availability:ratio_30d`, `slo:error_budget:burn_14d`.
 - Service metrics: `{service}_auc_global`, `{service}_auc_slice`, `{service}_prediction_score`, `{service}_psi_score`, `{service}_prediction_logger_errors_total`, `{service}_input_quality_flags_total`.
 - Heartbeat: `performance_monitor_last_run_timestamp`.
+
+---
+
+## `dashboard-dora.json` — panels
+
+Five panels measuring delivery performance (DORA four keys + trend):
+
+| # | Type | Title | Purpose |
+|---|------|-------|---------|
+| 1 | `stat` | Deployment Frequency (per week) | How often the service ships to production; derived from deploy audit events. |
+| 2 | `stat` | Lead Time for Changes (hours, p50) | Median time from commit to production rollout. |
+| 3 | `stat` | Change Failure Rate (%) | Share of deploys that triggered a rollback or incident. |
+| 4 | `stat` | MTTR (minutes, p50) | Median time to restore after a failed change. |
+| 5 | `timeseries` | Deploys vs Rollbacks (last 90d) | Trend view pairing deploy volume with rollback volume. |
 
 ---
 

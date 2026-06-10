@@ -31,6 +31,10 @@ except Exception:  # pragma: no cover - template placeholder
 
 SNAP = Path(__file__).parent / "openapi.snapshot.json"
 
+# The snapshot is generated on first setup of a scaffolded service
+# (scripts/refresh_contract.py); it does not exist in the template repo.
+pytestmark = pytest.mark.scaffold_context
+
 
 @pytest.fixture(scope="module")
 def openapi_current() -> dict:
