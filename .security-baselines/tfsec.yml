@@ -3,11 +3,29 @@
 # Format: https://aquasecurity.github.io/tfsec/v1.28/guides/configuration/config/
 # Each excluded check_id MUST have a comment citing the ADR/issue + expiry date.
 # Audit `docs/audit/baseline-review.md` quarterly.
+#
+# ──────────────────────────────────────────────────────────────────────────────
+# WORKFLOW: to add a new exclusion
+#   1. Fix or document WHY it cannot be fixed right now.
+#   2. Add the check ID below with a comment: ADR/issue ref + review-by date.
+#   3. Open a tracking issue so it does not rot silently.
+# ──────────────────────────────────────────────────────────────────────────────
 
-# Baseline starts empty. The first CI run with hard-fail will surface the
-# real findings; each one then gets either a fix or an `exclude:` entry
-# below with a citation. The README in this directory documents the
-# add/remove workflow.
-exclude: []
+exclude:
+  # PSP (PodSecurityPolicy) was deprecated in K8s 1.21 and REMOVED in K8s
+  # 1.25.  GKE clusters on REGULAR channel run 1.27+; enabling PSP would
+  # cause a Terraform error.  Pod Security Standards (PSS) are enforced via
+  # namespace labels in every overlay (D-29, templates/k8s/overlays/*/
+  # namespace.yaml).  Review-by: 2027-01 (when tfsec migrates to trivy/PSS).
+  - google-gke-enforce-pod-security-policy
+
+  # master_authorized_networks_config IS present in compute.tf (lines 38–49)
+  # as a `dynamic` block gated on var.master_authorized_networks.  tfsec
+  # v1.28 static analysis does not evaluate dynamic blocks; it reports the
+  # block as absent even when the HCL is correct.  Environment overlays
+  # MUST supply non-empty `master_authorized_networks` for staging/prod
+  # (enforced by the variable validation rule in variables.tf).
+  # Review-by: 2027-01 (re-evaluate after tfsec→trivy migration).
+  - google-gke-enable-master-networks
 
 minimum_severity: HIGH
