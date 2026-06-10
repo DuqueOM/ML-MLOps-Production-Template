@@ -159,3 +159,7 @@ alertmanager-*.tar.gz
 .claude/settings.json
 .claude/settings.local.json
 .claude/launch.json
+
+# Prediction-logger test artifacts (parquet) — written by the suite when
+# pyarrow is installed; never repo content.
+data/predictions_log/
