@@ -75,27 +75,31 @@ jobs:
           fi
 
       # 3. tfsec — Terraform security checks against the template's own IaC.
-      #    May 2026 audit HIGH-1: flipped from `soft_fail: true` to hard-fail
-      #    so the supply-chain story is enforced, not advisory. The baseline
-      #    file `.security-baselines/tfsec.json` lists ALLOWED findings with
-      #    explicit rationale; new findings outside the baseline break CI.
+      #    May 2026 audit HIGH-1: flipped from `soft_fail: true` to hard-fail.
+      #    tfsec-action@v1.0.3 Docker build fails on current GitHub-hosted
+      #    runners (broken base-image dep); replaced with binary install which
+      #    is runner-version-stable and avoids the Docker build path entirely.
+      - name: Install tfsec
+        run: |
+          TFSEC_VERSION="$(curl -s https://api.github.com/repos/aquasecurity/tfsec/releases/latest | grep '"tag_name"' | cut -d'"' -f4)"
+          curl -sLo /usr/local/bin/tfsec \
+            "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64"
+          chmod +x /usr/local/bin/tfsec
+          tfsec --version
+
       - name: tfsec (Terraform IaC — GCP)
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: templates/infra/terraform/gcp
-          soft_fail: false
-          format: lovely
-          additional_args: >-
-            --config-file ${{ github.workspace }}/.security-baselines/tfsec.yml
+        run: |
+          tfsec templates/infra/terraform/gcp \
+            --config-file .security-baselines/tfsec.yml \
+            --format lovely \
+            --no-colour
 
       - name: tfsec (Terraform IaC — AWS)
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: templates/infra/terraform/aws
-          soft_fail: false
-          format: lovely
-          additional_args: >-
-            --config-file ${{ github.workspace }}/.security-baselines/tfsec.yml
+        run: |
+          tfsec templates/infra/terraform/aws \
+            --config-file .security-baselines/tfsec.yml \
+            --format lovely \
+            --no-colour
 
       # 4. Checkov — broader IaC checks (Terraform + K8s + Dockerfile).
       #    May 2026 audit HIGH-1: hard-fail with `--check` against the
