@@ -107,9 +107,10 @@ resource "google_container_node_pool" "system" {
     # Disable legacy instance metadata endpoint (tfsec google-gke-metadata-endpoints-disabled).
     # GKE_METADATA mode (above) shields workload credentials via Workload Identity;
     # this attribute additionally blocks the v0.1 legacy endpoint that pre-dates
-    # the metadata-flavor header requirement.
+    # the metadata-flavor header requirement. Key must be quoted — tfsec's HCL
+    # parser treats unquoted `disable-legacy-endpoints` as an arithmetic expression.
     metadata = {
-      disable-legacy-endpoints = "true"
+      "disable-legacy-endpoints" = "true"
     }
 
     oauth_scopes = var.node_oauth_scopes
@@ -149,8 +150,9 @@ resource "google_container_node_pool" "workload" {
     }
 
     # Disable legacy instance metadata endpoint (tfsec google-gke-metadata-endpoints-disabled).
+    # Key quoted for tfsec HCL parser compatibility (see system pool comment above).
     metadata = {
-      disable-legacy-endpoints = "true"
+      "disable-legacy-endpoints" = "true"
     }
 
     oauth_scopes = var.node_oauth_scopes
