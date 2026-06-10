@@ -5,9 +5,9 @@
 - **Implements**: `docs/decisions/ADR-028-llm-assist-integration.md` (Proposed)
 - **Hardware target**: laptop — i7-14650HX, 16 GB RAM, RTX 5070 Laptop 8 GB VRAM,
   WSL2 Ubuntu-24.04
-- **Models available locally**:
-  - `gemma-4-e4b-it` (~4B effective) — `~/projects/LLMS/gemma-4-transformers-gemma-4-e4b-it-v1.tar.gz`
-  - `gemma-4-26b-a4b-it` (MoE: 26B total, ~4B active) — `~/projects/LLMS/gemma-4-transformers-gemma-4-26b-a4b-it-v1.tar.gz`
+- **Models available locally** (`~/projects/LLMS/`): full Gemma-4 catalog —
+  e2b / e4b / 12b / 26b-a4b (MoE) / 31b, each in `-it`, `-it-assistant` and
+  `-it-qat-q4_0-unquantized` variants. See §0.4 for the selection rationale.
 
 ---
 
@@ -24,9 +24,11 @@ RAM stops being the binding constraint; the 8 GB VRAM now only bounds
 
 | Model / quant | Weights | Fits where | Expected speed | Verdict |
 |---|---|---|---|---|
-| e4b @ Q4_K_M | ~4–5 GB | Fully in 8 GB VRAM | 35–50 tok/s | ✅ `local-fast`, always-on |
-| 26b-a4b @ **Q4_K_M / Q5_K_M** | ~15–18 GB | Attention+shared on GPU, experts in RAM (plenty of headroom) | 10–18 tok/s | ✅ `local-deep`, **resident** |
-| 26b-a4b @ Q3-class | ~11 GB | — | — | obsolete (no reason to pay Q3 quality loss) |
+| e4b QAT @ Q4_0 | ~3–4 GB | Fully in 8 GB VRAM | 35–50 tok/s | ✅ `local-fast`, always-on |
+| 12b QAT @ Q4_0 | ~7 GB | ~90% of layers in VRAM | 20–30 tok/s | ✅ `local-deep` **candidate A** |
+| 26b-a4b QAT @ Q4_0 | ~14–15 GB | Attention+shared on GPU, experts in RAM | 10–18 tok/s | ✅ `local-deep` **candidate B** |
+| 31b QAT @ Q4_0 | ~17–18 GB | ~⅓ layers in VRAM, rest CPU (**dense** — every token pays full cost) | 3–5 tok/s | ❌ as lane worker; optional offline eval-oracle only |
+| e2b QAT @ Q4_0 | ~2 GB | VRAM, trivially | 60+ tok/s | spare — only if e4b proves too slow in bulk |
 
 What the upgrade changes concretely:
 
@@ -76,16 +78,46 @@ a one-time CPU job); the Q4 26b benchmark waits for the module.
 
 Two local tiers + cloud:
 
-- `local-fast` = e4b Q4_K_M — classification, extraction, doc-diff summaries,
+- `local-fast` = e4b QAT Q4_0 — classification, extraction, doc-diff summaries,
   PR descriptions. Everything high-volume.
-- `local-deep` = 26b-a4b Q4_K_M (Q3 interim) — low-frequency, latency-tolerant
-  jobs (draft RCA reports).
+- `local-deep` = winner of the 12b-vs-26b-a4b bake-off (§0.4) — low-frequency,
+  latency-tolerant jobs (draft RCA reports).
 - `cloud` (existing routing tiers) — anything CONSULT-gated that produces
   code patches (Lane 1) or where evals show the local tiers hallucinate.
 
 This maps cleanly onto the existing four-tier `model_routing_policy.yaml`:
 local tiers slot UNDER the cheapest cloud tier; escalation-only discipline
 (ADR-010) is unchanged — a local model can flag, never approve.
+
+### 0.4 Checkpoint selection from the full Gemma-4 catalog
+
+Three rules drive the picks:
+
+1. **Always convert from the `-it-qat-q4_0-unquantized` checkpoints.** These
+   weights were quantization-aware-trained for Q4_0: quantizing them to Q4_0
+   GGUF is near-lossless, while quantizing the plain `-it` weights post-hoc
+   costs measurable quality at the same size. Since every local tier serves
+   at Q4, QAT checkpoints strictly dominate. (The plain `-it` tars already
+   downloaded remain useful only if a converter rejects the QAT variant.)
+2. **Skip `-assistant` variants and base (non-`-it`) models.** The lanes
+   consume grammar-constrained JSON, not chat personality; plain `-it`
+   instruction-following is the right tuning target. Base models would need
+   few-shot scaffolding for no benefit.
+3. **Dense vs MoE is an empirical question at this VRAM size — benchmark,
+   don't guess.** The `local-deep` slot has two credible candidates:
+   - **12b dense QAT** — ~90% VRAM-resident → faster (20–30 tok/s), and
+     dense-12B quality is competitive with a 4B-active MoE on reasoning.
+   - **26b-a4b MoE QAT** — RAM-resident experts → slower (10–18 tok/s) but
+     26B total parameters carry more world knowledge.
+   Phase 0 gains a **bake-off step**: run both against 5 representative
+   Lane-3 tasks (RCA drafting from evidence bundles) + the Lane-2 eval set;
+   score faithfulness-to-evidence and JSON-schema compliance; the winner
+   becomes `local-deep`, the loser is deleted from disk.
+4. **31b dense is rejected as a lane worker** — at 8 GB VRAM two-thirds of a
+   *dense* model runs on CPU and every token pays the full 31B cost
+   (~3–5 tok/s). Optional niche: offline **eval-oracle** that grades lane
+   outputs overnight in batch, where 4 tok/s is irrelevant. Do not build
+   this before the evals themselves exist.
 
 ---
 
