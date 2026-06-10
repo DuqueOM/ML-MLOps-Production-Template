@@ -28,4 +28,25 @@ exclude:
   # Review-by: 2027-01 (re-evaluate after tfsec→trivy migration).
   - google-gke-enable-master-networks
 
+  # tfsec evaluates `node_config.metadata["disable-legacy-endpoints"]` only on
+  # the `google_container_cluster` resource. Our pattern uses
+  # `remove_default_node_pool = true` + two `google_container_node_pool`
+  # resources (system + workload), so the cluster has NO node_config —
+  # the metadata attribute lives on the pools (compute.tf:111-113 and
+  # compute.tf:152-154), where tfsec's adapter does not correlate it back
+  # to the cluster check. This is a known tfsec limitation for the
+  # separately-managed-node-pool pattern, not a missing control.
+  #
+  # Actual security posture (defense-in-depth, per GCP hardening guide):
+  #   1. `workload_metadata_config { mode = "GKE_METADATA" }` on both pools
+  #      — Workload Identity shields the v1 metadata server from pods;
+  #      it ALONE is sufficient to prevent SSRF-style metadata exfiltration.
+  #   2. `metadata = { "disable-legacy-endpoints" = "true" }` on both pools
+  #      — additionally blocks the v0.1 endpoint that does not require
+  #      the Metadata-Flavor header. Redundant but kept (belt + suspenders).
+  #
+  # Review-by: 2027-01 (re-evaluate after tfsec→trivy migration; trivy may
+  # correlate node_pool resources to the cluster correctly).
+  - google-gke-metadata-endpoints-disabled
+
 minimum_severity: HIGH
