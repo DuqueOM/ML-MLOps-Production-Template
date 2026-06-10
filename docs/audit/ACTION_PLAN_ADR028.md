@@ -13,35 +13,79 @@
 
 ## 0. Hardware reality check (read this before anything else)
 
-The binding constraint is **system RAM (16 GB)**, not the GPU.
+> **2026-06-10 update**: plan adjusted for the approved RAM upgrade
+> (+32 GB module → **48 GB total**). The original 16 GB analysis is kept
+> below for reference because Phase 0 may start before the module arrives.
+
+### 0.1 With 48 GB RAM (target state)
+
+RAM stops being the binding constraint; the 8 GB VRAM now only bounds
+*speed*, not *feasibility*.
+
+| Model / quant | Weights | Fits where | Expected speed | Verdict |
+|---|---|---|---|---|
+| e4b @ Q4_K_M | ~4–5 GB | Fully in 8 GB VRAM | 35–50 tok/s | ✅ `local-fast`, always-on |
+| 26b-a4b @ **Q4_K_M / Q5_K_M** | ~15–18 GB | Attention+shared on GPU, experts in RAM (plenty of headroom) | 10–18 tok/s | ✅ `local-deep`, **resident** |
+| 26b-a4b @ Q3-class | ~11 GB | — | — | obsolete (no reason to pay Q3 quality loss) |
+
+What the upgrade changes concretely:
+
+1. **`local-deep` jumps from Q3 to Q4/Q5** — meaningful quality gain for the
+   RCA-draft lane (Q3 MoE quants degrade noticeably; Q4_K_M is near-lossless).
+2. **Both servers can run simultaneously** (e4b in VRAM at port 8081,
+   26b-a4b in RAM at port 8082) — no more on-demand swapping; the routing
+   client picks a tier per request instead of per session.
+3. **KV cache headroom** — 16k–32k context on `local-deep` becomes practical,
+   which matters for Lane 3 (joined evidence bundles are long).
+4. **Phase 0 exit criteria rise accordingly**: local-deep gate moves from
+   ≥ 6 tok/s @ 8k ctx to **≥ 8 tok/s @ 16k ctx, Q4_K_M**.
+5. What does NOT change: the 8 GB VRAM still rules out dense >8B models at
+   useful speed, Lane 1 stays cloud-only (security rationale, not hardware),
+   and the fine-tuning rejection stands — ADR-028 §4's trigger is labeled
+   volume, not RAM.
+
+Hardware notes for the purchase: confirm the laptop pairs the new 32 GB
+SODIMM with the existing 16 GB in flex/dual-channel mode (DDR5-5600 to match);
+asymmetric pairing costs a few % bandwidth — irrelevant for MoE expert
+streaming, which is latency-bound, not bandwidth-bound at these sizes.
+
+`.wslconfig` after the upgrade:
+
+```ini
+[wsl2]
+memory=36GB        # leave ~12GB for Windows; both model servers fit resident
+swap=8GB           # safety net only — should never be touched in steady state
+```
+
+### 0.2 With 16 GB RAM (interim, until the module arrives)
 
 | Model / quant | Weights on disk | Fits where | Expected speed | Verdict |
 |---|---|---|---|---|
 | e4b @ Q4_K_M | ~4–5 GB | **Fully in 8 GB VRAM** | 35–50 tok/s | ✅ default worker |
 | e4b @ Q8 | ~8 GB | VRAM + small CPU spill | 20–30 tok/s | ✅ when quality matters |
 | 26b-a4b @ IQ3_M/Q3_K_M | ~11–12 GB | Attention+shared on GPU, experts on CPU RAM | 8–15 tok/s | ⚠️ feasible, tight |
-| 26b-a4b @ Q4_K_M | ~15 GB | Does NOT fit (OS+WSL need 5–6 GB) | swap thrashing | ❌ do not attempt |
+| 26b-a4b @ Q4_K_M | ~15 GB | Does NOT fit (OS+WSL need 5–6 GB) | swap thrashing | ❌ until upgrade |
 
-Strategy: **two local tiers**.
+Interim `.wslconfig`: `memory=11GB`, `swap=16GB`.
+
+Practical sequencing: Phase 0 conversion + e4b benchmarking can start on
+16 GB today (quantize the 26b to BOTH Q3 and Q4 in the same session — it is
+a one-time CPU job); the Q4 26b benchmark waits for the module.
+
+### 0.3 Strategy (unchanged by the upgrade)
+
+Two local tiers + cloud:
 
 - `local-fast` = e4b Q4_K_M — classification, extraction, doc-diff summaries,
   PR descriptions. Everything high-volume.
-- `local-deep` = 26b-a4b Q3-class — only for low-frequency, latency-tolerant
-  jobs (draft RCA reports) where the run takes minutes anyway.
+- `local-deep` = 26b-a4b Q4_K_M (Q3 interim) — low-frequency, latency-tolerant
+  jobs (draft RCA reports).
 - `cloud` (existing routing tiers) — anything CONSULT-gated that produces
   code patches (Lane 1) or where evals show the local tiers hallucinate.
 
 This maps cleanly onto the existing four-tier `model_routing_policy.yaml`:
 local tiers slot UNDER the cheapest cloud tier; escalation-only discipline
 (ADR-010) is unchanged — a local model can flag, never approve.
-
-WSL prerequisite — `.wslconfig` on Windows (`C:\Users\<user>\.wslconfig`):
-
-```ini
-[wsl2]
-memory=11GB        # leave ~5GB for Windows; default 50% (8GB) starves the MoE
-swap=16GB          # NVMe swap absorbs load spikes during model load
-```
 
 ---
 
