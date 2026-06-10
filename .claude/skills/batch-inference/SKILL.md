@@ -1,3 +1,8 @@
+---
+name: batch-inference
+description: "Scaffold and run batch scoring jobs (CronJob + Parquet output) that reuse the service's model + feature-engineering code without opening the live API (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # batch-inference
 
 **Adapter surface**: `claude`

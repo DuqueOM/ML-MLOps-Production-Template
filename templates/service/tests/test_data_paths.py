@@ -40,6 +40,7 @@ CANONICAL_DIRS = [
 ]
 
 
+@pytest.mark.scaffold_context
 @pytest.mark.parametrize("relpath", CANONICAL_DIRS)
 def test_canonical_directory_exists(relpath: str) -> None:
     """Every directory listed in `docs/data-paths.md` must exist."""

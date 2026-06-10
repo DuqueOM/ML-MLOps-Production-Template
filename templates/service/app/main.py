@@ -27,13 +27,13 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.fastapi_app import (
-    _start_prediction_logger,
-    _stop_prediction_logger,
-    load_model_artifacts,
-    router,
-    warm_up_model,
-)
+# Module import on purpose (NOT `from app.fastapi_app import load_model_artifacts`):
+# the lifespan and /model/reload must resolve these attributes at CALL time.
+# A from-import freezes the binding at import order, so anything that patches
+# `app.fastapi_app` afterwards (tests, hot-fix shims) silently misses this
+# module — observed as an import-order-dependent /model/reload failure.
+from app import fastapi_app
+from app.fastapi_app import router
 
 try:
     from common_utils.auth import require_admin, verify_api_key
@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting {ServiceName} API — loading model artifacts...")
     try:
-        load_model_artifacts()
+        fastapi_app.load_model_artifacts()
         logger.info("Model artifacts loaded successfully")
     except Exception as e:
         logger.error("Failed to load model artifacts: %s", e)
@@ -85,20 +85,20 @@ async def lifespan(app: FastAPI):
     # request is served with hot caches. Readiness probe MUST wait for this
     # to complete: we gate _warmed_up=True only after it finishes.
     try:
-        report = warm_up_model()
+        report = fastapi_app.warm_up_model()
         logger.info("Warm-up complete: %s", report)
     except Exception as e:
         logger.warning("Warm-up raised unexpectedly (continuing): %s", e)
     _warmed_up = True
 
     # Closed-loop monitoring (ADR-006) — graceful if unconfigured
-    await _start_prediction_logger()
+    await fastapi_app._start_prediction_logger()
 
     yield
 
     logger.info("Shutting down {ServiceName} API")
     _warmed_up = False  # K8s will stop sending traffic via readiness
-    await _stop_prediction_logger()
+    await fastapi_app._stop_prediction_logger()
 
 
 app = FastAPI(
@@ -242,8 +242,8 @@ async def model_reload() -> dict:
 
     _warmed_up = False
     try:
-        load_model_artifacts()
-        report = warm_up_model()
+        fastapi_app.load_model_artifacts()
+        report = fastapi_app.warm_up_model()
         logger.info("Reload warm-up complete: %s", report)
         _warmed_up = True
         return {

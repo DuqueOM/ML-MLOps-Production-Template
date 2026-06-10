@@ -1,3 +1,8 @@
+---
+name: model-retrain
+description: "Execute model retraining with quality gates and safe promotion (Mode: CONSULT — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # model-retrain
 
 **Adapter surface**: `claude`

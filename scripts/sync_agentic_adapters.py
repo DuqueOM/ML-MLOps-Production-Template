@@ -35,6 +35,13 @@ RULE_EXTENSIONS = {
     "cursor": ".mdc",
 }
 
+# Surfaces whose runtime only discovers skills laid out as
+# `<root>/<skill-id>/SKILL.md` with YAML frontmatter (name + description).
+# Claude Code ignores flat `<root>/<skill-id>.md` files entirely, so the
+# pointer must adopt the discoverable layout while still carrying zero
+# policy text (ADR-027 pointer-surface contract).
+SKILL_DIR_SURFACES = {"claude"}
+
 WORKFLOW_ROOT_KEYS = ("workflows", "commands")
 
 
@@ -154,6 +161,28 @@ def _remove_stale(
     return changed
 
 
+def _remove_stale_skill_dirs(root: Path, expected: set[Path], check: bool) -> bool:
+    """Prune `<root>/<id>/SKILL.md` pointers whose skill left the manifest."""
+    changed = False
+    if not root.exists():
+        return changed
+    for item in sorted(root.iterdir()):
+        if not item.is_dir():
+            continue
+        skill_md = item / "SKILL.md"
+        if skill_md.exists() and skill_md not in expected:
+            changed = True
+            if check:
+                print(f"would remove {_rel(skill_md)}")
+            else:
+                skill_md.unlink()
+                print(f"removed {_rel(skill_md)}")
+        if not check and item.exists() and not any(item.iterdir()):
+            item.rmdir()
+            print(f"removed {_rel(item)}/")
+    return changed
+
+
 def _render_skill_index(surface: str, skills: list[dict[str, Any]]) -> str:
     rows = [
         "| Skill | Mode | Canonical |",
@@ -213,6 +242,38 @@ python3 scripts/sync_agentic_adapters.py
 python3 scripts/validate_agentic_manifest.py --strict
 ```
 """
+
+
+def _canonical_skill_description(source: str) -> str:
+    """Extract the one-line description from a canonical SKILL.md frontmatter."""
+    path = REPO_ROOT / source
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return ""
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return ""
+    try:
+        meta = yaml.safe_load(parts[1]) or {}
+    except yaml.YAMLError:
+        return ""
+    desc = str(meta.get("description", "")).strip()
+    return " ".join(desc.split())
+
+
+def _skill_pointer_dir(surface: str, sid: str, source: str, mode: str) -> str:
+    """Discoverable SKILL.md pointer (frontmatter + thin body, no policy text)."""
+    desc = _canonical_skill_description(source) or f"Pointer to canonical skill {source}"
+    desc = desc.replace('"', "'")
+    body = _skill_pointer(surface, sid, source, mode)
+    return f"""---
+name: {sid}
+description: "{desc} (Mode: {mode} — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
+{body}"""
 
 
 def _skill_pointer(surface: str, sid: str, source: str, mode: str) -> str:
@@ -284,25 +345,34 @@ def render(manifest: dict[str, Any], check: bool) -> int:
         skill_root = roots.get("skills")
         if skill_root:
             root = REPO_ROOT / skill_root
+            as_dirs = surface in SKILL_DIR_SURFACES
             expected = set()
             for skill in manifest.get("skills") or []:
                 if surface not in (skill.get("surfaces") or []):
                     continue
-                path = root / f"{skill['id']}.md"
-                expected.add(path)
-                changed |= _write(
-                    path,
-                    _skill_pointer(
+                if as_dirs:
+                    path = root / skill["id"] / "SKILL.md"
+                    body = _skill_pointer_dir(
                         surface,
                         skill["id"],
                         skill["source"],
                         skill.get("mode", "AUTO"),
-                    ),
-                    check,
-                )
+                    )
+                else:
+                    path = root / f"{skill['id']}.md"
+                    body = _skill_pointer(
+                        surface,
+                        skill["id"],
+                        skill["source"],
+                        skill.get("mode", "AUTO"),
+                    )
+                expected.add(path)
+                changed |= _write(path, body, check)
             if "skills_index" in roots:
                 expected.add(REPO_ROOT / roots["skills_index"])
             changed |= _remove_stale(root, expected, (".md",), check)
+            if as_dirs:
+                changed |= _remove_stale_skill_dirs(root, expected, check)
         surface_skills = [
             s
             for s in (manifest.get("skills") or [])

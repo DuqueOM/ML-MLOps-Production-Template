@@ -12,13 +12,46 @@ tests should depend on it rather than constructing their own.
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock  # noqa: F401 — MagicMock kept for downstream tests
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+
+# Dual-layout shim (R6 audit, template-context CI lane): in a scaffolded
+# service ``common_utils`` is vendored next to ``app/`` and importable
+# via pyproject's pythonpath. In the TEMPLATE repo it lives one level up
+# at ``templates/common_utils``, which is NOT on sys.path (rootdir is
+# templates/service), so every test importing it collection-errored —
+# 52 errors that no CI lane saw before the lane existed. Same pattern as
+# the explicit sys.path handling in test_load_payload_matches_schema.py.
+try:  # pragma: no cover — environment probe
+    import common_utils  # noqa: F401
+except ImportError:
+    _TEMPLATES_ROOT = Path(__file__).resolve().parents[2]
+    if (_TEMPLATES_ROOT / "common_utils" / "__init__.py").exists():
+        sys.path.insert(0, str(_TEMPLATES_ROOT))
+
+# Importing locust gevent-monkey-patches ssl/socket process-wide, which
+# deadlocks anyio's TestClient portals (observed twice: pytest idle in
+# ``gevent/hub.py`` / ``do_epoll_wait`` with frozen CPU — R6 audit
+# follow-up). The patch fires at IMPORT time, i.e. during pytest
+# COLLECTION — so a ``-m`` marker filter is NOT enough (deselected
+# modules are still imported). The only safe exclusion is collection
+# itself. ``-p no:locust`` in CI additionally blocks locust's
+# self-registered pytest plugin.
+#
+# The Locust↔API parity contract (test_load_payload_matches_schema.py)
+# still runs in CI — in its OWN pytest process with RUN_LOCUST_PARITY=1,
+# where the monkey-patch lands before asyncio exists and nothing shares
+# the interpreter.
+collect_ignore = ["load_test.py"]
+if not os.environ.get("RUN_LOCUST_PARITY"):
+    collect_ignore.append("test_load_payload_matches_schema.py")
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +117,25 @@ def _patch_model_loading() -> Iterator[None]:
         # Pre-populate the global so endpoints that read it directly succeed.
         fastapi_app_mod._model_pipeline = mock_pipeline
         yield
+
+
+@pytest.fixture(autouse=True)
+def _env_hygiene() -> Iterator[None]:
+    """Snapshot/restore ``os.environ`` around every test (R6 audit S1-2).
+
+    Several tests toggle env vars like ``PREDICTION_LOG_ENABLED`` or
+    ``API_AUTH_ENABLED``; without restoration, a leaked value changes
+    the FastAPI lifespan behaviour for every later test in the session
+    (the observed failure mode: 52 client-fixture errors when
+    ``PREDICTION_LOG_ENABLED=true`` leaked into an environment where
+    ``common_utils.prediction_logger`` was not importable). Env set by
+    session-scoped fixtures during setup is part of the snapshot and
+    therefore survives.
+    """
+    snapshot = os.environ.copy()
+    yield
+    os.environ.clear()
+    os.environ.update(snapshot)
 
 
 @pytest.fixture(scope="session")

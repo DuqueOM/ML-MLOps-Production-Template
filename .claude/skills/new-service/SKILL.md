@@ -1,3 +1,8 @@
+---
+name: new-service
+description: "Create a complete new ML service from template — end-to-end scaffolding (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # new-service
 
 **Adapter surface**: `claude`

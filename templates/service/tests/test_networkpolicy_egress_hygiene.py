@@ -1,33 +1,37 @@
-"""Contract test — NetworkPolicy egress hygiene (R5-M3).
+"""Contract test — NetworkPolicy egress hygiene (R5-M3, hardened by May 2026 MED-11).
 
-Authority: ACTION_PLAN_R5 §R5-M3.
+Authority: ACTION_PLAN_R5 §R5-M3; May 2026 audit MED-11.
 
-The base NetworkPolicy at ``templates/k8s/base/networkpolicy.yaml``
-ships a permissive ``0.0.0.0/0:443`` egress rule so local
-``kustomize build`` works against dev clusters without hard-coding
-cloud-provider CIDR ranges. That default is SECURE only in dev.
+Since MED-11 the base NetworkPolicy at
+``templates/k8s/base/networkpolicy.yaml`` ships ZERO public egress
+(default-deny). Defense-in-depth must fail closed: when an overlay
+forgets its patch, the init container cannot reach cloud storage and
+the rollout fails visibly instead of running with a wildcard egress.
 
-Every non-dev overlay (``gcp-staging``, ``gcp-prod``, ``aws-staging``,
-``aws-prod``) MUST apply a JSON 6902 patch at
-``patch-networkpolicy.yaml`` that replaces the wildcard egress with a
-cloud-specific allowlist. This contract test enforces:
+EVERY overlay therefore MUST apply a JSON 6902 patch at
+``patch-networkpolicy.yaml``:
+
+- ``gcp-dev`` / ``aws-dev`` apply a deliberately permissive rule so
+  ``kustomize build overlays/<cloud>-dev`` works out of the box;
+- ``gcp-staging``/``gcp-prod``/``aws-staging``/``aws-prod`` apply
+  cloud-specific allowlists and MUST NOT contain ``0.0.0.0/0``.
+
+This contract test enforces:
 
 1. The base NetworkPolicy carries the ``OVERLAY-OVERRIDE REQUIRED``
-   banner so the intent is visible to any future editor.
-2. Each of the 4 non-dev overlays:
-   - contains a ``patch-networkpolicy.yaml`` file,
-   - wires it into ``kustomization.yaml`` with
-     ``target.kind: NetworkPolicy``,
-   - has a patch body that does NOT contain ``0.0.0.0/0``.
-3. Dev overlays are NOT constrained — they legitimately inherit the
-   permissive base rule, so the test does not assert anything about
-   them.
+   banner (with MED-11 provenance) so the intent is visible to any
+   future editor.
+2. Each of the 6 overlays contains ``patch-networkpolicy.yaml`` and
+   wires it into ``kustomization.yaml`` with
+   ``target.kind: NetworkPolicy``.
+3. Non-dev patch bodies do NOT contain ``0.0.0.0/0``.
 
 The test parses YAML structurally; it does not require kustomize in
 the test environment. An additional optional check invokes
-``kustomize build`` if available and fails when the rendered output
-still contains ``0.0.0.0/0`` — that catches patch-wiring mistakes
-that the structural checks would miss (e.g., wrong ``target`` kind).
+``kustomize build`` if available and fails when the rendered non-dev
+output still contains ``0.0.0.0/0`` — that catches patch-wiring
+mistakes that the structural checks would miss (e.g., wrong
+``target`` kind).
 """
 
 from __future__ import annotations
@@ -48,6 +52,8 @@ BASE_NETPOL = REPO_ROOT / "templates" / "k8s" / "base" / "networkpolicy.yaml"
 OVERLAY_ROOT = REPO_ROOT / "templates" / "k8s" / "overlays"
 
 NON_DEV_OVERLAYS = ["gcp-staging", "gcp-prod", "aws-staging", "aws-prod"]
+DEV_OVERLAYS = ["gcp-dev", "aws-dev"]
+ALL_OVERLAYS = DEV_OVERLAYS + NON_DEV_OVERLAYS
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +62,7 @@ NON_DEV_OVERLAYS = ["gcp-staging", "gcp-prod", "aws-staging", "aws-prod"]
 
 
 def test_base_networkpolicy_carries_override_banner() -> None:
-    """The base NetworkPolicy MUST flag the 0.0.0.0/0 egress as dev-only.
+    """The base NetworkPolicy MUST flag that every overlay patches egress.
 
     Without this banner a future editor could silently remove the
     override instruction from the most visible surface (the base
@@ -66,29 +72,31 @@ def test_base_networkpolicy_carries_override_banner() -> None:
     assert "OVERLAY-OVERRIDE REQUIRED" in text, (
         f"{BASE_NETPOL.relative_to(REPO_ROOT)} must carry the "
         "`OVERLAY-OVERRIDE REQUIRED` banner on the cloud-storage egress "
-        "rule (R5-M3). Contributors need to see this in the base file, "
-        "not just in a test."
+        "rule (R5-M3 / MED-11). Contributors need to see this in the "
+        "base file, not just in a test."
     )
-    # Also check the R5-M3 tag + non-dev overlay list is present
-    # so a future audit can grep the provenance.
+    # Provenance tags so a future audit can grep the lineage.
     assert "R5-M3" in text, "Base NetworkPolicy should cite R5-M3 as provenance"
-    assert "non-dev" in text.lower(), "Banner should name the non-dev overlay scope"
+    assert "MED-11" in text, "Base NetworkPolicy should cite MED-11 (default-deny hardening)"
+    assert "every overlay" in text.lower(), "Banner should state that EVERY overlay patches egress"
 
 
 # ---------------------------------------------------------------------------
-# 2. Each non-dev overlay has a patch file that does NOT contain 0.0.0.0/0
-#    AND wires it in kustomization.yaml.
+# 2. Each overlay has a patch file wired into kustomization.yaml; non-dev
+#    patch bodies must not contain 0.0.0.0/0.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("overlay", NON_DEV_OVERLAYS, ids=NON_DEV_OVERLAYS)
+@pytest.mark.parametrize("overlay", ALL_OVERLAYS, ids=ALL_OVERLAYS)
 def test_overlay_has_patch_file(overlay: str) -> None:
-    """Each non-dev overlay ships `patch-networkpolicy.yaml`."""
+    """Each overlay ships `patch-networkpolicy.yaml` (MED-11: the base is
+    default-deny, so an overlay without the patch cannot fetch models)."""
     patch = OVERLAY_ROOT / overlay / "patch-networkpolicy.yaml"
     assert patch.exists(), (
-        f"Non-dev overlay `{overlay}` must carry patch-networkpolicy.yaml "
-        "(R5-M3); without it the overlay inherits the base's permissive "
-        "0.0.0.0/0:443 egress, which is insecure in staging/prod."
+        f"Overlay `{overlay}` must carry patch-networkpolicy.yaml; since "
+        "MED-11 the base ships zero public egress, so without the patch "
+        "the init container cannot download the model. dev applies a "
+        "permissive rule; staging/prod apply cloud-specific allowlists."
     )
 
 
@@ -109,7 +117,7 @@ def test_patch_file_does_not_contain_wildcard(overlay: str) -> None:
     )
 
 
-@pytest.mark.parametrize("overlay", NON_DEV_OVERLAYS, ids=NON_DEV_OVERLAYS)
+@pytest.mark.parametrize("overlay", ALL_OVERLAYS, ids=ALL_OVERLAYS)
 def test_kustomization_wires_the_patch(overlay: str) -> None:
     """``kustomization.yaml`` MUST reference ``patch-networkpolicy.yaml``
     with an explicit target ``kind: NetworkPolicy``. Without the target
@@ -160,23 +168,33 @@ def test_kustomize_render_has_no_wildcard_egress(overlay: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 4. Dev overlays are intentionally unconstrained — ensure we do not
-#    accidentally require the patch there (would break local scaffold).
+# 4. Dev overlays MUST carry the permissive patch (MED-11): the base is
+#    default-deny, so without it `kustomize build overlays/<cloud>-dev`
+#    renders a NetworkPolicy under which the init container cannot
+#    download the model.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("overlay", ["gcp-dev", "aws-dev"])
-def test_dev_overlays_do_not_need_the_patch(overlay: str) -> None:
-    """Dev overlays legitimately inherit the permissive base egress.
+@pytest.mark.parametrize("overlay", DEV_OVERLAYS)
+def test_dev_overlays_carry_the_permissive_patch(overlay: str) -> None:
+    """Dev overlays ship a deliberately permissive egress patch.
 
-    The test asserts the patch file is NOT shipped for dev — if a
-    future change drops one here, we catch it immediately.
+    The wildcard CIDR is ALLOWED here — dev is the documented
+    exception (see the base manifest banner). What we assert is that
+    the patch exists and actually opens egress, so the local golden
+    path keeps working against the default-deny base.
     """
     patch = OVERLAY_ROOT / overlay / "patch-networkpolicy.yaml"
-    assert not patch.exists(), (
-        f"Dev overlay `{overlay}` unexpectedly carries "
-        "patch-networkpolicy.yaml; dev is supposed to exercise the "
-        "permissive base default so local kustomize build works out "
-        "of the box. If you need dev to also narrow egress, update "
-        "this test and the §R5-M3 ADR entry in ACTION_PLAN_R5.md."
+    assert patch.exists(), (
+        f"Dev overlay `{overlay}` is missing patch-networkpolicy.yaml; "
+        "since MED-11 the base ships zero public egress, so dev MUST "
+        "opt in to a permissive rule or the scaffolded service cannot "
+        "fetch its model locally."
+    )
+    body = patch.read_text(encoding="utf-8")
+    non_comment = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
+    assert "cidr" in non_comment.lower(), (
+        f"{patch.relative_to(REPO_ROOT)} does not declare any egress "
+        "CIDR; the dev patch must open egress for the init-container "
+        "model download."
     )

@@ -1,3 +1,8 @@
+---
+name: release-checklist
+description: "Full release checklist for multi-cloud deployment (GCP + AWS) (Mode: CONSULT — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # release-checklist
 
 **Adapter surface**: `claude`

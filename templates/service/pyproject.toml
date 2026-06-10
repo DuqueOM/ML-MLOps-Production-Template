@@ -101,3 +101,7 @@ warn_unused_configs = true
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 pythonpath = [".", "src"]
+markers = [
+    "scaffold_context: needs a scaffolded service (data/ dirs, generated openapi snapshot, trained model); excluded from the template-context CI lane and exercised by the scaffold smoke instead",
+    "locust_parity: imports locust, whose gevent monkey-patch deadlocks anyio TestClient lifespans in the same process; always run in a dedicated pytest invocation",
+]

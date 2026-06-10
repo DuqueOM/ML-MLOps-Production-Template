@@ -404,7 +404,7 @@ agentic/workflows/     # CANONICAL workflows: 12 files
 .cursor/commands/      # generated workflow pointers: 12 commands
 
 .claude/rules/         # generated rule pointers: 15 .md files
-.claude/skills/        # generated skill pointers + INDEX.md: 16 skills
+.claude/skills/        # generated skill pointers + INDEX.md: 16 skills as <id>/SKILL.md (Claude Code discoverable layout)
 .claude/commands/      # generated workflow pointers: 12 commands
 
 .codex/rules/          # generated rule pointers: 15 .md files
@@ -420,7 +420,7 @@ Note: the project often says "14 rules" because rule 04 is split into `04a-pytho
 | Asset | Canonical (`agentic/`) | Devin | Cursor | Claude | Codex |
 |-------|------------------------|-------|--------|--------|-------|
 | Rules | `agentic/rules/*.md` | `.devin/rules/*.md` mirror | `.cursor/rules/*.mdc` pointers | `.claude/rules/*.md` pointers | `.codex/rules/*.md` pointers |
-| Skills | `agentic/skills/**/SKILL.md` | `.devin/skills/**/SKILL.md` mirror | `.cursor/skills/*.md` pointers | `.claude/skills/*.md` pointers | `.codex/skills/*.md` pointers |
+| Skills | `agentic/skills/**/SKILL.md` | `.devin/skills/**/SKILL.md` mirror | `.cursor/skills/*.md` pointers | `.claude/skills/<id>/SKILL.md` pointers | `.codex/skills/*.md` pointers |
 | Workflows | `agentic/workflows/*.md` | `.devin/workflows/*.md` mirror | `.cursor/commands/*.md` pointers | `.claude/commands/*.md` pointers | `.codex/workflows/*.md` pointers |
 | Context | `AGENT_CONTEXT.md` | `.devin_context.md` | `.cursor_context.md` | `.claude_context.md` | `.codex_context.md` |
 
@@ -485,47 +485,35 @@ Install only MCPs that change agent capabilities for this stack. Skip MCPs for t
 | MCP | Package / Server | What the agent gains |
 |-----|-----------------|----------------------|
 | **`github`** | Streamable HTTP — `api.githubcopilot.com/mcp/` + PAT | Read CI logs, PR status, issues — no copy-paste into chat |
-| **`kubectl-mcp-server`** | `npx kubectl-mcp-server@latest` | Run `kubectl apply/get/logs/describe` directly — skills execute instead of instruct |
-| **`terraform-mcp-server`** | `docker run hashicorp/terraform-mcp-server` | Registry lookup, `plan/validate` — workflow `/release` with real infra state |
+| **`kubectl-mcp-server`** | `npx kubectl-mcp-server@latest --read-only` | Run `kubectl get/logs/describe` directly — skills execute instead of instruct |
+| **`terraform-mcp-server`** | `npx terraform-mcp-server@latest` or `docker run hashicorp/terraform-mcp-server` | Registry lookup, `plan/validate` — workflow `/release` with real infra state |
 | **`mcp-prometheus`** | varies by deployment | Query live metrics — `drift-detection` and `/incident` with real data |
+| **`docker`** | `npx docker-mcp@latest` (`DOCKER_MCP_LOCAL=true`) | Inspect images/containers + container logs during `debug-ml-inference` / `security-audit`; never pushes registry images (D-19/D-30) |
+| **`postgres`** | `npx @modelcontextprotocol/server-postgres@<pinned>` + read-only DSN | Read-only SQL against ground-truth / prediction-log DBs for closed-loop skills (D-20); writes/DDL stay STOP |
 
-### Setup (`~/.codeium/windsurf/mcp_config.json`)
+### Setup (per surface)
 
-```json
-{
-  "mcpServers": {
-    "github": {
-      "serverUrl": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer YOUR_GITHUB_PAT"
-      }
-    },
-    "kubectl-mcp-server": {
-      "command": "/path/to/envs/ml/bin/kubectl-mcp-serve",
-      "args": ["serve", "--transport", "stdio", "--read-only"],
-      "env": {}
-    },
-    "terraform-mcp-server": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:latest"],
-      "env": {}
-    },
-    "mcp-prometheus": {
-      "command": "uvx",
-      "args": ["mcp-prometheus"],
-      "env": {
-        "PROMETHEUS_URL": "http://prometheus.monitoring:9090"
-      }
-    }
-  }
-}
-```
+Each surface reads its own config file; the authoritative matrix lives in
+`templates/config/mcp_registry.yaml` §surfaces. Render the JSON for your
+surface from the registry — never commit credentials (D-17):
+
+| Surface | Config file |
+|---------|-------------|
+| Devin Desktop | `~/.codeium/mcp_config.json` (legacy Windsurf: `~/.codeium/windsurf/mcp_config.json`) |
+| Cursor | `~/.cursor/mcp.json` |
+| Claude Code | `~/.claude.json` (user) or repo-scoped `.mcp.json` — copy `.mcp.json.example` and export the env vars it references |
+| Codex | `.codex/mcp.json` (committed example: `.codex/mcp.example.json`) |
+
+A committed, placeholder-only reference for Claude Code lives at
+`.mcp.json.example`; tokens come from the environment, never the file.
 
 **GitHub PAT scopes needed**: `repo`, `actions` (CI logs), `pull_requests`.
 Create at: https://github.com/settings/personal-access-tokens/new
 
 **Note**: `kubectl-mcp-server` uses your current `kubectl` context.
 **Always run** `kubectl config current-context` before any cluster operation.
+**`postgres` MCP**: connect with a read-only role; the DSN comes from the
+secret store, not from the config file.
 
 **`mcp-prometheus` is required for the Dynamic Behavior Protocol (ADR-010).**
 Without it, the agent falls back to the static AGENTS.md mapping — which is

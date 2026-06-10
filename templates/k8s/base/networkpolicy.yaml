@@ -104,5 +104,10 @@ spec:
     # also fails if the `dev` overlay forgets the permissive patch
     # (so `kustomize build overlays/gcp-dev` still produces a working
     # init container without manual edits).
+    #
+    # OVERLAY-OVERRIDE REQUIRED — every overlay (dev, staging, prod)
+    # MUST ship `patch-networkpolicy.yaml`. dev applies a permissive
+    # rule; staging/prod apply cloud-specific allowlists with NO
+    # wildcard CIDR. Provenance: R5-M3, hardened by May 2026 MED-11.
     # -----------------------------------------------------------------
     # Intentionally empty: every environment opts in via patch.

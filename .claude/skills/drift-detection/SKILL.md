@@ -1,3 +1,8 @@
+---
+name: drift-detection
+description: "Run and interpret DATA drift (PSI) AND CONCEPT drift (sliced performance) for an ML service (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # drift-detection
 
 **Adapter surface**: `claude`

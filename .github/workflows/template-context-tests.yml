@@ -1,0 +1,73 @@
+# =============================================================================
+# Template-context test lane — R6 audit S0-2.
+#
+# Gap it closes: the full `templates/service/tests` suite was not executed
+# by ANY CI lane on the template repo itself. `policy-tests.yml` runs only
+# `tests/policy/`; `validate-templates.yml` runs a post-scaffold subset.
+# Several contract tests (dashboards inventory, networkpolicy egress
+# hygiene, release-notes follow-ons, k8s name vocabulary) were silently
+# red on main for weeks.
+#
+# Scope: every test EXCEPT those marked `scaffold_context` (tests that
+# need a scaffolded service: data/ dirs, generated openapi snapshot,
+# trained model). Those are exercised by the scaffold smoke in
+# `validate-templates.yml` (SCAFFOLD_SMOKE=1) and the golden-path E2E.
+# =============================================================================
+name: Template-Context Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  template-context-tests:
+    name: Full contract suite (template context)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: templates/service/requirements.txt
+
+      - name: Install service requirements
+        # Full requirements (incl. pyarrow + locust) so the prediction
+        # logger and load_test module import cleanly — partial installs
+        # were the source of 52 spurious lifespan errors (R6 §S1-2).
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r templates/service/requirements.txt
+
+      - name: Run template-context suite
+        # `-p no:locust`: locust self-registers as a pytest plugin and
+        # gevent-monkey-patches ssl/socket on load, which deadlocks
+        # anyio/TestClient lifespans (hang in epoll, not a failure —
+        # the worst CI failure mode). Collection of load_test.py is
+        # separately blocked by `collect_ignore` in tests/conftest.py.
+        run: |
+          python -m pytest templates/service/tests \
+            -p no:locust \
+            -m "not scaffold_context and not locust_parity" \
+            -q --tb=short
+
+      - name: Run locust-parity contract in isolation
+        # Own process on purpose: importing locust monkey-patches
+        # ssl/socket (gevent), which is fatal to any TestClient test
+        # sharing the process — and the import fires at COLLECTION time,
+        # so conftest collect_ignore (not a -m filter) gates it, keyed
+        # on RUN_LOCUST_PARITY. Fresh interpreter = patch applies before
+        # asyncio exists = safe.
+        env:
+          RUN_LOCUST_PARITY: "1"
+        run: |
+          python -m pytest \
+            templates/service/tests/test_load_payload_matches_schema.py \
+            -q --tb=short

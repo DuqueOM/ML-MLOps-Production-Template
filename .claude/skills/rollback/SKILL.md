@@ -1,3 +1,8 @@
+---
+name: rollback
+description: "Emergency rollback procedure for production ML service — Argo Rollouts abort + kubectl undo + MLflow revert + alert silencing (Mode: STOP — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # rollback
 
 **Adapter surface**: `claude`

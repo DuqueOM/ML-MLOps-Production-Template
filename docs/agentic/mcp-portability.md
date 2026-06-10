@@ -111,6 +111,8 @@ Source: `templates/config/mcp_registry.yaml` + `templates/config/surface_capabil
 | `kubectl` | Run read-only kubectl get/describe/logs against the cluster | `CONSULT` | `debug-ml-inference`, `incident`, `rollback` |
 | `terraform` | Registry lookup, provider/module metadata, plan validation | `AUTO` | `release-checklist`, `cost-audit` |
 | `prometheus` | Query live metrics for dynamic risk context + drift analysis | `AUTO` | `drift-detection`, `performance-degradation-rca`, `incident`, `performance-review` |
+| `docker` | Inspect images/containers, read container logs, run local builds for debugging | `CONSULT` | — |
+| `postgres` | Read-only SQL against ground-truth / prediction-log databases for closed-loop analysis | `CONSULT` | — |
 | `playwright` | End-to-end browser smoke-tests + scripted login flows | `AUTO` | — |
 
 ## Install mode by surface
@@ -121,5 +123,7 @@ Source: `templates/config/mcp_registry.yaml` + `templates/config/surface_capabil
 | `kubectl` | documented | user_confirmed | documented | documented |
 | `terraform` | documented | user_confirmed | documented | documented |
 | `prometheus` | documented | user_confirmed | documented | documented |
+| `docker` | documented | user_confirmed | documented | documented |
+| `postgres` | documented | user_confirmed | documented | documented |
 | `playwright` | documented | optional | documented | documented |
 

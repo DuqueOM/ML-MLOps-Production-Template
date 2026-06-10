@@ -1,0 +1,45 @@
+{
+  "//": "Claude Code project-scoped MCP config (ADR-023 F4). Copy to .mcp.json and export the env vars below — NEVER hardcode credentials (D-17). Authoritative capability registry: templates/config/mcp_registry.yaml. Install is always human-initiated (invariant I-3).",
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@latest"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "docker": {
+      "command": "npx",
+      "args": ["-y", "docker-mcp@latest"],
+      "env": {
+        "DOCKER_MCP_LOCAL": "true"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres@0.6.2",
+        "${POSTGRES_READONLY_DSN}"
+      ]
+    },
+    "kubectl": {
+      "command": "npx",
+      "args": ["-y", "kubectl-mcp-server@latest", "--read-only", "--disable-destructive"],
+      "env": {
+        "KUBECONFIG": "${HOME}/.kube/config"
+      }
+    },
+    "terraform": {
+      "command": "npx",
+      "args": ["-y", "terraform-mcp-server@latest"]
+    },
+    "prometheus": {
+      "command": "npx",
+      "args": ["-y", "mcp-prometheus@latest", "--url", "${PROMETHEUS_URL}"],
+      "env": {
+        "PROMETHEUS_URL": "${PROMETHEUS_URL}"
+      }
+    }
+  }
+}

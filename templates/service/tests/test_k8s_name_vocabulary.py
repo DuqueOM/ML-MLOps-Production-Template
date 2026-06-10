@@ -105,8 +105,11 @@ _KEBAB_REGEXES = [
     re.compile(r'job="\{service\}"'),
     # Anything that looks like a hyphen-suffixed K8s name.
     re.compile(r"\{service\}-[a-z]"),
-    # URL/path style references that mirror K8s names.
-    re.compile(r"/\{service\}/"),
+    # URL/path style references that mirror K8s names. Python module
+    # paths (src/{service}/...) are EXEMPT: D-32 requires snake_case
+    # there, and `tests/policy/test_anti_patterns.py::
+    # test_d32_drift_cronjob_python_path` guards that vocabulary.
+    re.compile(r"(?<!src)/\{service\}/"),
 ]
 
 

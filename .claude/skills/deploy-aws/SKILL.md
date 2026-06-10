@@ -1,3 +1,8 @@
+---
+name: deploy-aws
+description: "Deploy ML service to EKS with Kustomize overlays and IRSA (Mode: CONSULT — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # deploy-aws
 
 **Adapter surface**: `claude`

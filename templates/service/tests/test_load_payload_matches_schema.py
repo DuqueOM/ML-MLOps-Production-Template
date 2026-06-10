@@ -31,6 +31,13 @@ if str(_SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(_SERVICE_ROOT))
 
 
+# Importing locust gevent-monkey-patches ssl/socket process-wide, which
+# deadlocks anyio/TestClient lifespans in any test that runs AFTER this
+# module in the same pytest process (observed: suite hung in epoll_wait).
+# The marker routes this module to its OWN pytest invocation in the
+# template-context CI lane; never run it in-process with TestClient tests.
+pytestmark = pytest.mark.locust_parity
+
 # Locust is an optional dev dep. The file imports it transitively. If it
 # is not installed (or its install is broken in the current env, which
 # happens when urllib3/ssl on Python 3.13 recurses on locust 2.43.x), we

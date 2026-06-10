@@ -1,3 +1,8 @@
+---
+name: security-audit
+description: "Pre-build and pre-deploy security audit — secret scans, IAM least-privilege, IRSA/WI verification, image signing, SBOM (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+---
+
 # security-audit
 
 **Adapter surface**: `claude`

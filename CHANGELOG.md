@@ -8,6 +8,80 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [0.18.0] - 2026-06-10
+
+R6 audit closure ([`docs/audit/ACTION_PLAN_R6.md`](docs/audit/ACTION_PLAN_R6.md)).
+Full release notes: [`releases/v0.18.0.md`](releases/v0.18.0.md).
+
+### Added
+
+- **Template-context CI lane** `.github/workflows/template-context-tests.yml` —
+  runs the full `templates/service/tests` suite (`-m "not scaffold_context"`)
+  on every push/PR; previously NO lane executed it and 8 contract tests were
+  silently red on `main` (R6 S0-2). `scaffold_context` marker registered in
+  `templates/service/pyproject.toml`.
+- **MCP registry**: `docker` (CONSULT — local daemon inspection/builds, never
+  registry pushes) and `postgres` (CONSULT — read-only closed-loop SQL) in
+  `templates/config/mcp_registry.yaml`; `docs/agentic/mcp-portability.md`
+  re-rendered; placeholder-only `.mcp.json.example` for Claude Code project
+  scope (live `.mcp.json` gitignored).
+- **Surface-loadability validation** in `validate_agentic_manifest.py`:
+  claude skill pointers must parse as SKILL.md frontmatter with a non-empty
+  description (R6 S2-1).
+- **ADR-028 (Proposed)** — LLM-assist integration for maintenance/Day-2 ops;
+  recommends against fine-tuning dedicated models at this scale.
+- `releases/README.md` — explains legacy `v1.x` vs active `v0.x` lines and
+  the re-reserved `v1.0.0` L4 gate (R6 S1-3).
+- Autouse `os.environ` snapshot/restore fixture in service-test conftest
+  (R6 S1-2).
+
+### Changed
+
+- **`.claude/skills/` layout**: flat `<id>.md` pointers → `<id>/SKILL.md`
+  directories with frontmatter so Claude Code actually discovers the 16
+  skills (R6 S0-1); rendered by `sync_agentic_adapters.py`, validated by
+  manifest strict mode; AGENTS.md parity matrix updated.
+- `rule-audit` skill: catalogue and frontmatter extended D-27 → D-32
+  (R6 S0-3); anti-pattern count consistency test now covers skill bodies.
+- AGENTS.md §MCP Integrations: stale `~/.codeium/windsurf/` setup path
+  replaced with the per-surface config table (R6 S1-1); docker/postgres rows
+  added to the recommended-MCP table.
+- `test_networkpolicy_egress_hygiene.py` aligned with the May-2026
+  default-deny base contract (every overlay patches egress; dev permissive
+  by design); base `networkpolicy.yaml` carries the `OVERLAY-OVERRIDE
+  REQUIRED` banner.
+- CLAUDE.md: rule count corrected to 15; releases pointer updated (R6 S1-4).
+
+### Fixed
+
+- `docs/observability/dashboards-inventory.md` now lists
+  `dashboard-dora.json` (+ panels section) — inventory contract test green.
+- `## Known follow-ons` sections backfilled into `releases/v0.16.0.md` and
+  `releases/v0.16.1.md`.
+- `test_k8s_name_vocabulary.py` no longer false-positives on
+  `src/{service}/…` Python module paths in K8s manifests (D-32 vocabulary).
+- **Locust/gevent deadlock isolated**: importing locust monkey-patches
+  ssl/socket and deadlocks anyio `TestClient` lifespans sharing the process
+  (observed as a 55-min hang idle in `gevent/hub.py`, 0 CPU). Crucially the
+  patch fires at pytest COLLECTION time, so `-m` deselection is NOT enough —
+  exclusion happens at collection: `load_test.py` and
+  `test_load_payload_matches_schema.py` are `collect_ignore`d (the latter
+  re-enabled via `RUN_LOCUST_PARITY=1` in its own pytest invocation in CI,
+  new `locust_parity` marker), and the lane runs `-p no:locust`.
+- **`app/main.py` import-order fragility**: `from app.fastapi_app import
+  load_model_artifacts` froze the binding at import order, so patches on
+  `app.fastapi_app` silently missed `main.py` — `/model/reload` failed only
+  when another module imported `app.main` first during collection. `main.py`
+  now resolves `load_model_artifacts` / `warm_up_model` / prediction-logger
+  hooks through the module at call time (behavior-identical in production).
+- **Dual-layout `common_utils` shim** in service-test conftest: in the
+  template repo `common_utils` lives at `templates/common_utils` (not on
+  the rootdir pythonpath), which collection-errored 52 tests; the shim adds
+  `templates/` to `sys.path` only when the package is not already importable
+  (scaffolded services keep their vendored copy).
+
+---
+
 ## [0.17.0] - 2026-06-08
 
 Vendor-neutral agentic surface (ADR-027) plus the Dependabot GitHub Actions
