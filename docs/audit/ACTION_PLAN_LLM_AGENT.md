@@ -1,13 +1,18 @@
 # ACTION PLAN — Framework Agéntico LLM Local (WhatsApp + Asistente de Tienda + Plano de Mantenimiento)
 
 > **Autoridad**: ADR-028 (LLM-assist, 4 tiers), AGENTS.md (AUTO/CONSULT/STOP),
-> ACTION_PLAN_ADR028.md (Fase 0 de benchmarks), guía oficial Gemma 4.
+> guía oficial Gemma 4.
+> **Este documento es el ÚNICO plan vigente del plano LLM** — absorbe y
+> reemplaza a `ACTION_PLAN_ADR028.md` (hoy un stub que apunta aquí). Los
+> lanes de mantenimiento del template viven en la sección "PLANO DE
+> MANTENIMIENTO".
 > **Audiencia**: un LLM ejecutor (puede ser menos capaz que el autor) o un humano.
 > Cada paso incluye objetivo, archivos exactos, código, verificación y criterio
 > de aceptación. **No improvises fuera de los pasos: si un gate falla, detente
 > y reporta.**
 >
-> **Última actualización**: 2026-06-11.
+> **Última actualización**: 2026-06-11 (v2 — plan unificado + 10 reglas de
+> arquitectura aceptadas en revisión del maintainer).
 
 ---
 
@@ -48,6 +53,32 @@
 > ya descargados. Regla: bench primero lo local (paso F0.3); descarga el Q4_K_M
 > de `ggml-org` SOLO si el local falla su gate por calidad (no por velocidad).
 > Documenta cualquier cambio en `bench/RESULTS.md`.
+
+### 0.2 Contrato de roles — REGLA DE ARQUITECTURA (no una tabla informativa)
+
+Cada modelo tiene UN rol fijo con contrato. Violar el contrato es un bug de
+arquitectura, no una preferencia:
+
+| Modelo | Rol contractual | PUEDE | NO PUEDE |
+|---|---|---|---|
+| **E4B** | Router / guardrail | clasificar, normalizar alias, emitir JSON de routing con confidence | redactar respuestas al cliente; aprobar nada |
+| **12B** | Amortiguador de razonamiento medio | clarificaciones, borradores que otro verificará, fallback E4B→26B | ser destino final de casos comerciales o high-stakes |
+| **26B-A4B** | Asistente principal | conversación cliente, matching semántico, planear tools, multi-turn | aprobar sus propias violaciones de política; tocar estado sin policy gate |
+| **31B** | **JUEZ** (no worker diario) | verificación final, casos high-stakes escalados, auditorías, evals nocturnos | atender tráfico interactivo; ser fallback por pereza de routing |
+
+Cláusulas:
+
+- **Cláusula del 12B**: permanece en la arquitectura SOLO mientras los evals
+  por tier demuestren que reduce escalaciones innecesarias al 26B y mejora
+  las clarificaciones. Si dos ciclos de eval seguidos no lo justifican, se
+  retira y el router salta 0→2. Está por utilidad medida, no "porque está ahí".
+- **Cláusula del juez**: el 31B nunca recibe una tarea que un tier inferior
+  no haya intentado, salvo `risk=high` o verificación final. Su tiempo de
+  cómputo es caro: cada invocación queda loggeada con su justificación.
+- El que redacta NUNCA es el que aprueba: la verificación de una respuesta
+  de tier N la hace el policy layer determinista + (si `risk≥medium`) un
+  pase de crítica en tier N o N+1 con prompt de verificador, jamás el mismo
+  prompt que generó.
 
 ---
 
@@ -152,11 +183,20 @@ class Route(BaseModel):
                     "smalltalk", "complaint", "policy_question",
                     "maintenance_task", "unknown"]
     tier: Literal[0, 1, 2, 3]
+    confidence: float = Field(ge=0.0, le=1.0)  # escalación OBJETIVA, no heurística
     risk: Literal["low", "medium", "high"]
     ambiguity: Literal["low", "medium", "high"]
     tool_needed: bool
     finality: Literal["answer", "clarify", "escalate"]
     expected_followup: bool
+
+class RequestBudget(BaseModel):
+    """Presupuesto por request — evita loops bonitos pero caros.
+    Se fija ANTES de procesar y el loop lo respeta como límite duro."""
+    max_iterations: int = 4
+    max_tool_calls: int = 6
+    latency_budget_ms: int = 8000       # SLA del canal (WhatsApp ≈ 8s)
+    can_escalate_t3: bool = False       # el 31B requiere permiso explícito
 
 class ToolCall(BaseModel):
     tool: str
@@ -179,9 +219,10 @@ class Verdict(BaseModel):
 `grammars/route.gbnf` (llama.cpp GBNF — fuerza el shape del JSON):
 
 ```
-root   ::= "{" ws "\"intent\"" ws ":" ws intent "," ws "\"tier\"" ws ":" ws tier "," ws "\"risk\"" ws ":" ws lvl "," ws "\"ambiguity\"" ws ":" ws lvl "," ws "\"tool_needed\"" ws ":" ws bool "," ws "\"finality\"" ws ":" ws fin "," ws "\"expected_followup\"" ws ":" ws bool ws "}"
+root   ::= "{" ws "\"intent\"" ws ":" ws intent "," ws "\"tier\"" ws ":" ws tier "," ws "\"confidence\"" ws ":" ws conf "," ws "\"risk\"" ws ":" ws lvl "," ws "\"ambiguity\"" ws ":" ws lvl "," ws "\"tool_needed\"" ws ":" ws bool "," ws "\"finality\"" ws ":" ws fin "," ws "\"expected_followup\"" ws ":" ws bool ws "}"
 intent ::= "\"product_lookup\"" | "\"order_create\"" | "\"order_status\"" | "\"smalltalk\"" | "\"complaint\"" | "\"policy_question\"" | "\"maintenance_task\"" | "\"unknown\""
 tier   ::= "0" | "1" | "2" | "3"
+conf   ::= "0." [0-9] [0-9]? | "1.0"
 lvl    ::= "\"low\"" | "\"medium\"" | "\"high\""
 fin    ::= "\"answer\"" | "\"clarify\"" | "\"escalate\""
 bool   ::= "true" | "false"
@@ -203,7 +244,14 @@ RULES = """Reglas de tier (aplícalas tras clasificar):
 2. razonamiento moderado sin planning -> tier 1
 3. cara al cliente, semántico, comercial o multi-tool -> tier 2
 4. alto riesgo, ambiguo, o afecta pedidos/dinero/confianza -> tier 3
-5. NUNCA saltes directo a 3 salvo risk=high o ambiguity=high."""
+5. NUNCA saltes directo a 3 salvo risk=high o ambiguity=high.
+confidence: tu certeza en ESTA clasificación (0.00-1.0)."""
+
+# Escalación OBJETIVA (en loop.py, no en el prompt):
+#   confidence < 0.70           -> sube un tier antes de planear
+#   verificación rechaza        -> sube un tier (una sola vez)
+#   tier==3 requerido pero budget.can_escalate_t3==False
+#                               -> respuesta parcial segura + flag a humano
 
 def route(message: str) -> Route:
     r = httpx.post(ROUTER_URL, json={
@@ -284,12 +332,33 @@ BM25 sobre archivos (`app/retrieval.py`): indexa `retrieval/data/*.md`
 (políticas de tienda, promociones, plantillas de objeciones) con `rank-bm25`;
 expón `semantic_retrieval(query, k=3)` como tool. **Nada de stock/precio aquí.**
 
-### F1.6 Loop mínimo (`app/loop.py`) y webhook (`app/main.py`)
+### F1.6 Loop formal (`app/loop.py`) y webhook (`app/main.py`)
 
-Loop: `route() → plan (tier elegido, máx 5 tool-calls nombradas) → run tools →
-observar (schema compacto) → verificar (mismo tier en Fase 1) → finalizar`.
-Stop-conditions duras: máx 4 iteraciones; si `finality=clarify` dos veces
-seguidas → UNA pregunta directa al usuario; si oscila → plantilla segura.
+El loop completo tiene 7 estaciones — en Fase 1 `reflect` y `critic` pueden
+ser el mismo modelo con prompts distintos; en Fase 2 `critic` sube de tier:
+
+```
+route → plan → tools → observe → reflect → critic → policy → finalize
+  E4B    tierN   app     app      tierN    tierN/N+1  determinista  tierN
+```
+
+- **plan**: máx `budget.max_tool_calls` herramientas, nombradas explícitamente.
+- **observe**: resultados de tools inyectados en schema compacto.
+- **reflect**: el modelo contrasta su plan con las observaciones — ¿falta un
+  dato? ¿la herramienta contradijo la suposición? (1 pase, sin chain-of-thought
+  expuesto).
+- **critic**: prompt de verificador (NO el de generación): consistencia con
+  datos vivos, claridad, cero inventario alucinado, cero promesas ilegales.
+- **policy**: gate determinista (F2.2) — **invariante: NINGUNA respuesta final
+  sale sin pasar `product_exists`, `stock_confirmed`, `price_confirmed`,
+  `no_overpromise` y `tone_brand`**. Sin excepciones, ni siquiera smalltalk
+  que mencione productos.
+- **finalize**: formato cliente, corto y comercial.
+
+Stop-conditions duras (del `RequestBudget`): `max_iterations`; si
+`finality=clarify` dos veces seguidas → UNA pregunta directa al usuario;
+si oscila → plantilla segura; si `latency_budget_ms` se agota → respuesta
+parcial segura + flag.
 
 Webhook FastAPI: `POST /webhook/whatsapp` valida firma (token en env
 `WA_VERIFY_TOKEN`), encola el mensaje, responde 200 inmediato, procesa async y
@@ -356,22 +425,52 @@ El runner mide: accuracy, corrección de escalación, corrección de tools, tasa
 de alucinación (mención de stock/precio no presente en observations), latencia,
 adherencia a políticas. Reportes versionados en `evals/reports/`.
 
-**Gates de graduación**: router en umbral → 26B > 12B en tareas reales →
-31B solo donde su coste se justifique → ningún lane sube de autonomía sin
-regresión verde (`pytest -m regression`).
+**Gates de graduación POR TIER** (obligatorios antes de promover cualquier
+cambio de prompt, modelo o regla — no basta el eval global):
+
+| Tier | Gana en SU rol si... | Set que lo mide |
+|---|---|---|
+| E4B | precisión de routing ≥ umbral y confidence calibrada (alta conf ⇒ alta precisión) | 01_intent |
+| 12B | reduce escalaciones innecesarias al 26B y mejora clarificaciones vs E4B | 07_ambiguity + 01 |
+| 26B | supera al 12B en matching semántico/comercial real | 02, 03, 04, 05, 08 |
+| 31B | atrapa violaciones que el 26B-verificado dejó pasar, en high-stakes | 06, 10 |
+
+Reglas: ningún lane sube de autonomía sin regresión verde
+(`pytest -m regression`) · un tier que pierde en su propio rol dos ciclos
+seguidos se reconfigura o se retira (cláusula del 12B, §0.2) · el 31B
+justifica coste/latencia solo en los casos seleccionados — si el eval
+muestra que el 26B-verificado le empata, el 31B queda solo para evals
+nocturnos.
 
 ---
 
 ## FASE 3 — Observabilidad y mejora continua
-1. Logging de conversaciones (JSONL: route, plan, tools, verdicts, latencias
-   por tier) con PII redactada.
+1. **Telemetría de decisiones** (JSONL por request, PII redactada) — campos
+   obligatorios, porque sin esto el refinamiento es adivinanza:
+
+   ```json
+   {"ts": "...", "route": {...}, "tier_final": 2, "confidence": 0.84,
+    "escalated": false, "escalation_reason": null,
+    "tools": ["alias_lookup", "inventory_lookup"], "tool_failures": [],
+    "policy_verdict": {"approved": true, "violations": []},
+    "critic_verdict": "approved", "latency_ms": {"route": 320, "total": 4100},
+    "budget_exhausted": false, "outcome": "answered"}
+   ```
+
+   Con esto se mejoran prompts, prompts de verificación y reglas de
+   escalación con datos, no con intuición.
 2. Análisis offline semanal de fallos → nuevos casos a los sets (el eval set
    CRECE con producción).
-3. Refinamiento de prompts SOLO con evidencia de evals (diff versionado en
+3. **Ciclo de crecimiento del retrieval** (antes que cualquier LoRA): cada
+   semana, los términos de cliente que el alias-lookup NO resolvió pasan a
+   revisión → entradas nuevas en `aliases.json` / equivalencias de categoría /
+   variantes regionales, vía PR. El retrieval madura con tráfico real; el
+   modelo no memoriza nada.
+4. Refinamiento de prompts SOLO con evidencia de evals (diff versionado en
    `prompts/`).
-4. Generación sintética de variantes (alias regionales, faltas de ortografía)
+5. Generación sintética de variantes (alias regionales, faltas de ortografía)
    usando el 26B local — revisión humana antes de entrar al set.
-5. Shadow mode: toda decisión de routing se loggea junto a "qué habría hecho
+6. Shadow mode: toda decisión de routing se loggea junto a "qué habría hecho
    el tier superior" en una muestra del 10%.
 
 ## FASE 4 — QLoRA (gate estratégico, NO antes)
@@ -381,6 +480,77 @@ política que el prompting no resuelva. Entrenar SOLO comportamiento estable
 stock o precios. Requiere ADR nuevo en el template.
 
 ---
+
+## PLANO DE MANTENIMIENTO — lanes ADR-028 sobre el MISMO stack
+
+> Absorbido de `ACTION_PLAN_ADR028.md` (ahora stub). Los lanes reutilizan los
+> tiers, el cliente con gramática y el eval harness de las fases anteriores —
+> es un segundo consumidor del mismo runtime, no otro sistema.
+
+### L-4 Docs-drift updater (primer lane productivo — barato y verificable)
+
+El LLM es el *redactor*, no el *detector*:
+
+1. Extractor Python determinista recoge hechos visibles en código (conteos de
+   rules/skills/workflows, nombres de overlays, tablas de inventario).
+2. Comparador marca claims de docs que no coinciden — sin LLM.
+3. `E4B` redacta el cuerpo del PR + diffs de docs SOLO para los mismatches,
+   JSON-constrained.
+4. Abre **PR CONSULT** vía `gh`. Humano mergea.
+
+Runtime: **el laptop es el runner** (timer systemd semanal en WSL) — cero
+dependencia de CI, cero coste cloud. Eval de admisión: 10 casos sintéticos de
+drift sembrados (mutar un conteo, renombrar un overlay) → ≥9/10 detectados con
+0 parches falsos.
+
+### L-2 Memory plane Fase 2 (= P2.4) — embeddings-free primero
+
+1. BM25 sobre artefactos existentes: `ops/audit.jsonl`, `docs/incidents/`,
+   `VALIDATION_LOG.md`, `releases/*.md`, reportes de drift.
+2. `scripts/memory_query.py "<pregunta>"` → top-k chunks → `E4B` resume **con
+   citas file:line obligatorias** — una respuesta sin cita se descarta.
+3. Eval: 20 preguntas históricas con respuesta conocida; recall@5 ≥ 80% o se
+   reevalúa vector store (no antes).
+
+### L-3 Triage de drift/incidentes
+
+1. Joiner reúne: señales Prometheus (MCP), slices del prediction-log,
+   historial de deploys (`git log` + digests).
+2. `26B-A4B` redacta el borrador de RCA en `report_schema.json` — job batch,
+   minutos de runtime aceptables.
+3. El borrador se adjunta al issue. **El humano es dueño de la conclusión.**
+4. Eval: replay de 3 incidentes históricos; causalidad alucinada (afirmar
+   causa ausente de la evidencia) = fallo automático → esa subtarea va a cloud.
+
+### L-1 CI self-healing Fase 2 — los modelos locales quedan FUERA del path de CI
+
+Dos razones de seguridad (no de capacidad):
+
+1. Los runners de GitHub no alcanzan el laptop.
+2. Un runner self-hosted en laptop personal sobre repo público es un vector de
+   ataque conocido (PRs de forks ejecutan en tu máquina) — **rechazado**.
+
+En CI: clasificación heurística primero, cloud cheap-tier donde haga falta;
+generación de parches en cloud, CONSULT, según `model_routing_policy.yaml`
+(los tiers locales se registran ahí DEBAJO del tier cloud más barato; la
+disciplina de solo-escalación de ADR-010 no cambia — un modelo local puede
+señalar, nunca aprobar). Los tiers locales ayudan *offline*: job nocturno que
+reproduce los fallos de CI del día contra el prompt clasificador para crecer
+el corpus etiquetado (alimenta los triggers de revisión de fine-tuning, >10k
+eventos etiquetados).
+
+### Riesgos del plano (heredados y vigentes)
+
+| Riesgo | Mitigación |
+|---|---|
+| Arquitectura Gemma-4 no soportada por converters | cadena de fallback: GGUF oficial → registry Ollama → cloud-only (los lanes son agnósticos vía cliente OpenAI-compatible) |
+| Quant degrada al 26B bajo utilidad | gate de bench Fase 0 + side-by-side por tarea vs E4B; si pierde, se elimina el tier |
+| Disponibilidad del laptop-runner | lanes semanales/on-demand, no sensibles a latencia; una semana perdida es benigna |
+| Alucinación de modelo pequeño | JSON con gramática en todo; citas obligatorias; detectores deterministas aguas arriba de cada llamada LLM |
+
+📝 **Fine-tuning sigue RECHAZADO** (ADR-028 §4): el trigger es volumen
+etiquetado (>10k), no hardware. La Fase 4 de este plan es el único camino y
+exige ADR nuevo.
 
 ## INTEGRACIÓN P2 (template_MLOps, 1–2 meses — desbloquea v1.0.0)
 
