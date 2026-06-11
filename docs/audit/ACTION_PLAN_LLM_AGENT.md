@@ -403,23 +403,55 @@ stock o precios. Requiere ADR nuevo en el template.
 3. **Variante LLM-serving del template**: evaluar como track separado SOLO
    tras v1.0.0 (ADR requerido; el asistente de tienda es el caso de estudio).
 
-## EVIDENCIA COMPARATIVA portfolio vs template (experimento)
+## EVIDENCIA COMPARATIVA portfolio vs template (DOS experimentos)
 
-> Ver discusión: el template NO mejora métricas de modelo (mismos datos +
-> mismo algoritmo = mismo AUC). La comparación honesta es de **ingeniería**:
+> Son dos preguntas distintas y cada una necesita su experimento. Mezclarlas
+> destruye la credibilidad de ambas.
+
+### E-A: Migración con paridad (valida el TEMPLATE como contenedor)
+
+Portar el pipeline del portfolio TAL CUAL (mismas features, mismo algoritmo,
+mismos hiperparámetros, misma semilla) sobre el scaffold del template.
 
 | Dimensión | Portfolio (manual) | Template (medir) |
 |---|---|---|
 | Tiempo a servicio desplegable | semanas (real) | horas (`new-service.sh` + datos) |
 | Líneas escritas a mano | todas | solo `train.py` + features |
-| Incidentes de serving | 3 sufridos | 0 esperados (D-01..D-32 los previenen) |
-| Gates automáticos | añadidos a posteriori | día cero |
-| Paridad de métricas | AUC 0.87 | **debe ser ≈ igual** (valida la migración) |
+| Incidentes de serving | 3 sufridos | 0 (D-01..D-32 los previenen) |
+| Gates automáticos | a posteriori | día cero |
+| Métricas | AUC 0.87 | **≈ igual — paridad = migración fiel** |
 
-Pasos: scaffold con `new-service.sh BankChurnT bankchurn_t` → portar
-features/training del portfolio → correr gates → desplegar con overlay dev →
-tabla en `docs/evidence/COMPARATIVE_BANKCHURN.md`. **La paridad de AUC es el
-resultado correcto; el delta está en tiempo, defectos evitados y gobernanza.**
+### E-B: Re-desarrollo asistido (valida el PROCESO agéntico end-to-end)
+
+Partir SOLO del dataframe crudo y ejecutar el ciclo completo asistido:
+skill `eda-analysis` → skill `data-cleaning` (P2.5) → feature engineering →
+selección de modelo + HPO (Optuna) → gates (leakage, fairness) → serving.
+Aquí el proceso NO es idéntico al manual, así que las métricas PUEDEN y
+suelen mejorar — por mecanismos identificables: limpieza más sistemática,
+leakage detectado por gate, búsqueda de hiperparámetros más disciplinada,
+selección de modelo más amplia.
+
+**Objetivo declarado**: como mínimo paridad en una fracción del tiempo;
+como meta, mejora atribuible. **Guardarraíles de honestidad** (sin esto el
+experimento no vale):
+
+1. **Mismo test set congelado** que el portfolio, intocable — nada de
+   "probar hasta ganar" (eso es test-set shopping, no mejora).
+2. Cada delta de métrica **atribuido a su mecanismo** en MLflow: run del
+   baseline vs run asistido, con el cambio concreto etiquetado (p. ej.
+   "imputación por grupo", "feature X eliminada por leakage-gate",
+   "HPO 200 trials vs 30 manuales").
+3. Validación con CV temporal idéntica a la original.
+4. Si la mejora no llega, se publica igual: "paridad en 1/10 del tiempo"
+   ya es la victoria de ingeniería.
+
+La frase para entrevista: *"el template no mejora el modelo por arte de
+magia; mejora el PROCESO que produce el modelo — y un proceso mejor
+encuentra mejoras que el manual dejó sobre la mesa, con cada una trazada
+en MLflow"*.
+
+Salida de ambos: `docs/evidence/COMPARATIVE_BANKCHURN.md` con las dos
+tablas + links a los runs de MLflow.
 
 ---
 
