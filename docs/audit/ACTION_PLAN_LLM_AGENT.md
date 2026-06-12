@@ -11,8 +11,26 @@
 > de aceptación. **No improvises fuera de los pasos: si un gate falla, detente
 > y reporta.**
 >
-> **Última actualización**: 2026-06-11 (v2 — plan unificado + 10 reglas de
-> arquitectura aceptadas en revisión del maintainer).
+> **Última actualización**: 2026-06-12 (**v3** — incorpora los supervivientes
+> de la revisión adversarial de R1–R10; ver
+> `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
+
+### Decisiones v3 (revisión adversarial — resumen ejecutable)
+
+| Decisión | Estado | Dónde aterriza |
+|---|---|---|
+| Dos capas + **durable-state-as-data** (tabla `sagas` en SQLite; sin Temporal) | adoptado | F1.6 |
+| **ExecutiveController**: fachada `admit/execute/release`, interior de middlewares puros, ≤250 LOC, circuit breaker en memoria | adoptado | F2.0 |
+| Cadena determinista pre-router (normalizer → alias → taxonomía → BM25) | adoptado | F1.5 |
+| Embedder + **cache semántico**: DIFERIDO — trigger: ≥30% near-dups en logs (medible offline); si entra, cachea la RUTA, jamás la respuesta | trigger | F3 |
+| **Arranque sin 12B** (router salta 0→2); entra solo con telemetría que lo exija | adoptado | F0/F2.1 |
+| Juez cloud permitido SOLO en lanes de mantenimiento sin PII; high-stakes de clientes = juez local | adoptado | Plano mant. |
+| **Reflect condicional** (solo tool-fail o `risk≥medium`); K=3 solo en high-stakes ASÍNCRONO y evals nocturnos | adoptado | F1.6/F2.3 |
+| `budgets.yaml` estático por intent + **cap diario de cloud** + `max_reflections: 1`; adaptativo rechazado (revisar con 4 semanas de P95) | adoptado | F1.6 |
+| `policies/*.yaml` + `decision_id` + **policy-change-requires-test** (set 06) | adoptado | F2.2 |
+| **Telemetría obligatoria** (lane sin eventos no pasa el validator) con naming OTel-compatible (`trace_id`…) | adoptado | F1–F3 |
+| Gobernanza del flywheel: PII-redacción al escribir, cuarentena + revisión humana, procedencia por registro, retención 30d crudo | schema ahora | F3/F4 |
+| n8n: track diferido (trigger: ≥2 integraciones SaaS reales); core code-first | trigger | P3 |
 
 ---
 
@@ -192,11 +210,15 @@ class Route(BaseModel):
 
 class RequestBudget(BaseModel):
     """Presupuesto por request — evita loops bonitos pero caros.
-    Se fija ANTES de procesar y el loop lo respeta como límite duro."""
+    v3: los valores por intent viven en budgets.yaml (versionado);
+    este modelo solo los tipa. Adaptativo: rechazado hasta tener
+    >=4 semanas de P95 reales."""
     max_iterations: int = 4
     max_tool_calls: int = 6
+    max_reflections: int = 1            # v3: reflect es condicional y acotado
     latency_budget_ms: int = 8000       # SLA del canal (WhatsApp ≈ 8s)
     can_escalate_t3: bool = False       # el 31B requiere permiso explícito
+    # cap diario de cloud: contador global en el controller, no por request
 
 class ToolCall(BaseModel):
     tool: str
@@ -360,10 +382,25 @@ Stop-conditions duras (del `RequestBudget`): `max_iterations`; si
 si oscila → plantilla segura; si `latency_budget_ms` se agota → respuesta
 parcial segura + flag.
 
+**Profundidad adaptativa (v3)**: `reflect` corre SOLO si (a) una tool falló o
+contradijo el plan, o (b) `risk≥medium`. Smalltalk y lookups limpios van
+`plan→tools→policy→final` — el pase extra de modelo no se paga donde no aporta.
+
 Webhook FastAPI: `POST /webhook/whatsapp` valida firma (token en env
 `WA_VERIFY_TOKEN`), encola el mensaje, responde 200 inmediato, procesa async y
 contesta vía API de WhatsApp Business (env `WA_TOKEN`, `WA_PHONE_ID`). En Fase
 1 puedes probar TODO con `POST /dev/message {"text": "..."}` sin WhatsApp.
+
+**Cola y estado durable (v3)** — una sola SQLite (`app/state.db`, WAL):
+
+- tabla `queue(conv_id, msg, status, ts)` — un worker por conversación
+  (orden garantizado); un crash NO pierde mensajes.
+- tabla `sagas(saga_id, tipo, paso, estado, deadline, retries)` — el patrón
+  *durable-state-as-data* para flujos multi-día (pedido → confirmación →
+  seguimiento) con un sweep periódico del worker. **Sin Temporal**: ese es un
+  ADR-trigger (≥3 tipos de saga o exactly-once distribuido).
+- `budgets.yaml`: presupuesto por intent (los defaults del schema son
+  fallback); cap diario de cloud como contador del controller.
 
 ### F1.7 Set de routing + tests (gate de la fase)
 
@@ -379,12 +416,32 @@ llama `route()`, compara `intent/tier/finality`, imprime accuracy y guarda
 
 ---
 
-## FASE 2 — Tiers intermedios, verificador, políticas y evals completos
+## FASE 2 — Controller, tiers intermedios, verificador, políticas y evals
 
-### F2.1 Tier 1 (12B) como fallback intermedio
-`app/tiers.py`: cliente por tier (puertos 8091–8094). Regla de escalación: si
-el verificador del tier N rechaza o `confidence<umbral`, re-ejecuta plan en
-N+1 (una sola vez).
+### F2.0 ExecutiveController (`app/controller.py`) — v3
+
+Fachada única por la que pasa TODO request; interior de **middlewares puros**
+(`(ctx) -> ctx`, testeables aislados). Tope duro: ≤250 LOC o se parte.
+
+```python
+class ExecutiveController:
+    def admit(self, msg) -> Ctx:      # normalize → alias/BM25 → route(E4B) → budget
+    def execute(self, ctx) -> Ctx:    # loop adaptativo; retries SOLO de tools
+                                      # idempotentes; circuit breaker por tier
+                                      # (3 fallos → degradar un tier + plantillas,
+                                      # half-open 60s; estado EN MEMORIA)
+    def release(self, ctx) -> Final:  # policy gate → telemetría → finalize
+```
+
+Qué NO va aquí: prompts, lógica de negocio, conocimiento del dominio.
+
+### F2.1 Tier 1 (12B) como fallback intermedio — ENTRADA CONDICIONADA (v3)
+**Arranque SIN 12B**: el router salta 0→2. El artefacto queda en disco; el
+12B entra solo cuando la telemetría muestre que el 26B gasta >25% de su
+tiempo en tareas que el set 07 clasifica como "medias" (carga de la prueba
+invertida). Si entra: `app/tiers.py` cliente por puerto; escalación si el
+verificador del tier N rechaza o `confidence<umbral`, re-ejecuta en N+1 (una
+sola vez).
 
 ### F2.2 Policy layer (`app/policy.py`) — gate determinista, NO LLM
 
@@ -406,10 +463,22 @@ def check(ctx) -> Verdict:
 Si falla: escalar a Tier 3 → o pedir aclaración → o respuesta parcial segura
 (en ese orden). El modelo JAMÁS aprueba su propia violación.
 
+**Políticas como datos (v3)**: umbrales, tools permitidas por intent, montos
+máximos, compromisos prohibidos y tono por canal viven en `policies/*.yaml`
+(versionado — el diff del PR ES el audit trail de compliance). Cada veredicto
+emite `{policy_version, rules_fired, decision_id}` a telemetría. **Regla
+policy-change-requires-test**: ningún cambio de YAML se mergea sin su caso en
+el set 06 que falle sin el cambio. OPA/Rego: rechazado a esta escala
+(re-evaluar solo con multi-tenant).
+
 ### F2.3 Pase de crítica (verificación cruzada)
 Para `risk=medium|high`: la respuesta del 26B pasa por un prompt de verificador
 ("¿consistente con los datos de tools? ¿promete algo no confirmado? ¿claro para
 el cliente?") en el MISMO 26B (Fase 2a) y en 31B cuando exista (Fase 2b).
+
+**Self-consistency (v3, acotado)**: K=3 con voto SOLO en flujos high-stakes
+ASÍNCRONOS (confirmación de pedido, 15–20s aceptables) y en evals nocturnos.
+En interactivo, 3 pases del 26B revientan el budget de 8s: pase único + juez.
 
 ### F2.4 Tier 3 (31B) — descarga condicionada
 Descarga `ggml-org` Q4_K_M (~17GB) SOLO si: (a) el eval de high-stakes (set 10)
@@ -424,6 +493,17 @@ En `evals/sets/`: `01_intent`, `02_alias_match`, `03_oos_substitution`,
 El runner mide: accuracy, corrección de escalación, corrección de tools, tasa
 de alucinación (mención de stock/precio no presente en observations), latencia,
 adherencia a políticas. Reportes versionados en `evals/reports/`.
+
+**v3 — dos instrumentos adicionales**:
+
+- **Golden set congelado** (`evals/golden/`, 50 casos, NUNCA se edita ni
+  crece): mide deriva del sistema a largo plazo; los sets vivos miden
+  cobertura. Editar el golden = invalidar la serie histórica.
+- **Replay contra tráfico real**: `evals/replay.py --from logs/<dia>.jsonl
+  --against <prompt|policy>` — todo cambio de prompt/política se prueba
+  contra el tráfico de ayer ANTES de ver el de hoy.
+- La matriz de confusión del router se publica por ciclo (no solo accuracy):
+  escalar de más cuesta latencia; de menos, calidad.
 
 **Gates de graduación POR TIER** (obligatorios antes de promover cualquier
 cambio de prompt, modelo o regla — no basta el eval global):
@@ -449,16 +529,29 @@ nocturnos.
    obligatorios, porque sin esto el refinamiento es adivinanza:
 
    ```json
-   {"ts": "...", "route": {...}, "tier_final": 2, "confidence": 0.84,
-    "escalated": false, "escalation_reason": null,
+   {"ts": "...", "trace_id": "...", "route": {...}, "tier_final": 2,
+    "confidence": 0.84, "escalated": false, "escalation_reason": null,
     "tools": ["alias_lookup", "inventory_lookup"], "tool_failures": [],
-    "policy_verdict": {"approved": true, "violations": []},
+    "policy_verdict": {"approved": true, "violations": [],
+                       "policy_version": "...", "decision_id": "..."},
     "critic_verdict": "approved", "latency_ms": {"route": 320, "total": 4100},
-    "budget_exhausted": false, "outcome": "answered"}
+    "cost": {"tokens_by_tier": {"0": 160, "2": 840}},
+    "budget_exhausted": false, "outcome": "answered",
+    "provenance": {"source": "prod", "reviewer": null, "quarantine": true}}
    ```
 
+   **v3 — tres reglas duras**: (1) la telemetría es CONTRATO, no buena
+   práctica — un lane que no emite el schema no pasa el validator (el
+   prediction-logger D-20 del mundo agéntico); (2) naming alineado a
+   semconv de OTel (`trace_id` propagado a tools y tiers) para que adoptar
+   OTel después sea un swap de transporte (trigger: equipo >1 o >1 host);
+   (3) PII redactada EN EL MOMENTO de escritura, nunca después.
+
    Con esto se mejoran prompts, prompts de verificación y reglas de
-   escalación con datos, no con intuición.
+   escalación con datos, no con intuición — y los campos `provenance` son
+   la semilla gobernada del flywheel de F4: nada sale de cuarentena hacia
+   un dataset sin revisión humana por lotes; crudo se retiene 30 días,
+   curado indefinido; los rechazos del juez generan los pares de DPO.
 2. Análisis offline semanal de fallos → nuevos casos a los sets (el eval set
    CRECE con producción).
 3. **Ciclo de crecimiento del retrieval** (antes que cualquier LoRA): cada
