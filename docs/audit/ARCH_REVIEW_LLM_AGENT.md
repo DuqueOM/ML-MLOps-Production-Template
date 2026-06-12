@@ -306,3 +306,176 @@ La generación sintética ya pactada (variantes regionales revisadas) es el
 | R8 | Track opcional `integrations/n8n/` como adaptador edge documentado | P3 |
 | R9 | Trace ID + coste/request en telemetría | F3 |
 | R10 | ADR-trigger escrito para Temporal (durable, multi-tenant) y LangGraph (>3 grafos profundos) | P3 |
+
+---
+
+# ADDENDUM v3 — Revisión adversarial de R1–R10 (2026-06-12)
+
+> Mandato del maintainer: someter las propias propuestas R1–R10 al mismo
+> escrutinio que el resto, sin optimizar por acuerdo, proponiendo quintas
+> alternativas donde existan. Resultado honesto: **3 propuestas se revisan
+> a la baja, 1 se difiere con trigger, 6 sobreviven con refinamientos.**
+> Formato por ítem: ataque → veredicto → complejidad/impacto → prioridad.
+
+## A-R1. Modelo de tres capas (A/B/C) — REVISADO A LA BAJA
+
+**Ataque**: ¿la capa B (workflows duraderos) existe HOY en este sistema?
+Solo hay UN caso latente (pedido → confirmación → seguimiento, días). Crear
+una "capa" arquitectónica para un caso es taxonomía sin sustancia — el mismo
+teatro que criticamos en los microservicios.
+
+**Quinta alternativa (adoptada)**: **dos capas + un patrón**. A (loop) y C
+(integración) son capas reales con código propio. B no es una capa: es el
+patrón *durable-state-as-data* — una tabla `sagas` en la MISMA SQLite de la
+cola (estado, paso, deadline, retries) + un sweep periódico del worker. Cero
+runtimes nuevos; Temporal sigue siendo el ADR-trigger si las sagas pasan de
+~3 tipos o exigen exactly-once distribuido.
+**Complejidad**: baja (1 tabla + 1 función). **Prioridad: AHORA** (F1.6).
+
+## A-R2. Posicionamiento de n8n — ENDURECIDO EN CONTRA
+
+**Ataque a mi propia propuesta del track `integrations/n8n/`**: para UN solo
+canal (WhatsApp), un flujo n8n es un contenedor más que operar, una superficie
+de auth más, JSON exportado in-diffeable, y una licencia fair-code en un
+template que presume de supply-chain limpio. El webhook FastAPI son 40 líneas
+testeables.
+
+**Veredicto revisado**: el core queda code-first (confirmado); el track n8n
+**se difiere con trigger**: se crea solo cuando existan ≥2 integraciones SaaS
+reales (CRM + algo). Hasta entonces, n8n vive solo como párrafo de
+posicionamiento en docs. ¿Alguna alternativa como runtime primario? Re-evaluadas
+Temporal/Camunda/LangGraph contra el criterio 5-10 años: ninguna desplaza al
+runtime propio — el argumento decisivo es que el diferencial del template ES
+el control (policy/budgets/auditoría) y eso no se delega.
+**Prioridad: DIFERIDO** (trigger escrito en P3).
+
+## A-R3. ExecutiveController — SOBREVIVE con forma refinada
+
+**Ataque**: riesgo god-object real; además un objeto con 6 sub-módulos
+acumula estado mutable compartido.
+
+**Refinamiento adoptado**: la fachada de 3 métodos se queda, pero el interior
+es un **pipeline de middlewares puros** (`admit = compose(normalize, cache,
+route, budget)`) — cada middleware una función `(ctx) -> ctx` testeable
+aislada. Tope duro: ~250 LOC el módulo completo; si crece, se parte. Circuit
+breaker: estado EN MEMORIA (re-aprende en segundos tras restart; persistirlo
+sería complejidad sin beneficio).
+**Complejidad**: media-baja. **Prioridad: AHORA** (F2.0).
+
+## A-R4. Semantic router pre-E4B — RECHAZADO COMO PROPUESTO (mi error)
+
+**Ataque (fatal)**: con CERO tráfico no hay "tráfico repetido" que cachear —
+es optimización prematura de manual. Peor: en un bot COMERCIAL, un falso
+positivo del cache semántico responde sobre el producto equivocado (riesgo de
+negocio, no solo de latencia). Y añade un modelo más que operar el día 1.
+
+**Veredicto revisado**: la cadena determinista (normalizer → alias →
+taxonomía → BM25) SÍ va el día 1 — cero modelos nuevos, ya estaba en el plan.
+El **embedder + cache semántico se difiere con trigger medible**: cuando la
+telemetría muestre ≥30% de queries near-duplicadas que la capa de alias no
+resolvió (medible OFFLINE sobre los logs, sin servir embeddings). Y cuando
+entre: **se cachea la RUTA, jamás la respuesta** — toda respuesta pasa por
+tools en vivo + policy gate siempre.
+**Prioridad: DIFERIDO con trigger** (F3, análisis offline semanal).
+
+## A-R5. Responsabilidades de modelos — CONFIRMADO con dos matices
+
+**Matiz 1 (a favor del 12B que yo descarté rápido)**: con 36GB, 12B (6.5G) y
+26B (14G) SÍ co-residen — el argumento "un modelo grande a la vez" no aplica
+entre ellos. Aun así gana la simplicidad operativa: **arranque sin 12B**
+confirmado; su entrada es barata cuando la telemetría la justifique (el
+artefacto queda en disco).
+**Matiz 2 (juez)**: para lanes de mantenimiento SIN PII (docs-drift, evals del
+template), un juez cloud cheap-tier puede superar al 31B local en calidad y
+latencia — permitido. Para high-stakes de CLIENTES, el juez es local por la
+línea de privacidad: el 31B se sostiene.
+**Prioridad: AHORA** (regla de arranque) / juez-cloud anotado en lanes.
+
+## A-R6. Loop / reflexión — REFINADO (reflect condicional)
+
+**Ataque**: `reflect` incondicional añade un pase de modelo (1–3s) a intents
+tool-light donde no aporta — presupuesto de latencia tirado en el caso común.
+
+**Refinamiento adoptado — profundidad adaptativa**: `reflect` corre SOLO si
+(a) una tool falló/contradijo el plan, o (b) `risk≥medium`. Smalltalk y
+lookups limpios van plan→tools→policy→final.
+**Self-consistency K=3**: mi propia propuesta no sobrevive al presupuesto —
+3 pases del 26B revientan los 8s de WhatsApp. Revisado: K=3 SOLO en flujos
+high-stakes ASÍNCRONOS (confirmaciones de pedido donde 15-20s son aceptables)
+y en evals nocturnos; el high-stakes interactivo usa pase único + juez.
+**Prioridad: AHORA** (es un `if`, no un sistema).
+
+## A-R7. Budget engine — CONFIRMADO estático, adaptativo RECHAZADO por ahora
+
+**Ataque al "adaptativo"**: budgets que se auto-ajustan son un feedback loop
+más que debuggear, sin datos para fundarlo. **Veredicto**: budgets ESTÁTICOS
+por intent en `budgets.yaml` (versionado, diffeable) + un **cap diario de
+cloud** (contador simple). Adaptatividad: revisar con P95 reales de ≥4
+semanas. Se añade `max_reflections: 1` al RequestBudget (cierra A-R6).
+**Prioridad: AHORA.**
+
+## A-R8. Policy YAML — SOBREVIVE con una exigencia extra
+
+Alternativas re-evaluadas (Rego/OPA, CUE, DSL Python): YAML+Pydantic gana en
+auditabilidad por no-ingenieros y en cero-runtimes. **Exigencia añadida**:
+cada cambio de `policies/*.yaml` DEBE llegar con su caso en el set 06 que
+falle sin el cambio (policy-change-requires-test). Las políticas-como-datos
+sin tests son configuración mágica.
+**Prioridad: AHORA** (F2.2).
+
+## A-R9. Telemetría — ELEVADA a obligatoria; OTel diferido bien diferido
+
+**Veredicto**: la telemetría pasa de "buena práctica" a **contrato del
+template**: un lane sin emisión del schema de eventos NO pasa el validator
+(es el equivalente agéntico del prediction logger D-20). OTel: se difiere,
+PERO los nombres de campos se alinean desde hoy a semconv de OTel
+(`trace_id`, `span`…) para que la migración futura sea un swap de transporte,
+no un rename masivo.
+**Prioridad: AHORA** (naming) / OTel con trigger (equipo >1 o >1 host).
+
+## A-R10. Pipeline de aprendizaje continuo — CONFIRMADO con gobernanza dura
+
+**Ataque**: capturar correcciones de usuarios directo a datasets = riesgo de
+privacidad Y de envenenamiento (un usuario malicioso "enseña" al bot).
+**Gobernanza adoptada (innegociable)**: (1) redacción de PII en el momento de
+ESCRITURA del log, no después; (2) **cuarentena**: nada entra a un dataset sin
+revisión humana por lotes; (3) procedencia por registro (`source`, `reviewer`,
+`policy_version`); (4) retención: crudo 30 días, curado indefinido; (5) los
+veredictos del juez generan pares para DPO — ese es el flywheel legítimo.
+**Prioridad: el SCHEMA ahora** (campos en telemetría), el pipeline en F4.
+
+## Arquitectura integrada resultante (v3)
+
+```
+WhatsApp/canales ──► webhook FastAPI (code-first; n8n = trigger-diferido)
+        │
+        ▼
+  cola SQLite (worker/conversación) + tabla sagas (durable-state-as-data)
+        │
+        ▼
+ExecutiveController (fachada 3 métodos; middlewares puros; CB en memoria)
+  admit:  normalize → alias/taxonomía/BM25 → E4B(gramática+confidence)
+          → budget(budgets.yaml + cap cloud diario)
+  execute: loop adaptativo [plan → tools → observe → (reflect?) → critic]
+           tiers: E4B / 26B (12B y cache semántico: triggers escritos)
+  release: policy gate (policies/*.yaml + decision_id + test obligatorio)
+           → telemetría OBLIGATORIA (naming OTel-compatible, PII-redactada,
+             campos de procedencia para el flywheel DPO) → finalize
+        │
+        ▼ (sin SLA / sin PII)
+   31B juez local · juez cloud SOLO lanes de mantenimiento · evals nocturnos
+```
+
+| Ítem | Estado v3 | Cuándo |
+|---|---|---|
+| Dos capas + durable-state-as-data (tabla sagas) | adoptado | F1.6 |
+| n8n track | diferido (≥2 integraciones SaaS) | trigger P3 |
+| Controller fachada+middlewares, ≤250 LOC | adoptado | F2.0 |
+| Cadena determinista pre-router | adoptado (ya estaba) | F1.5 |
+| Embedder + cache semántico | **diferido** (≥30% near-dups en logs; cachea RUTA) | trigger F3 |
+| Arranque sin 12B / juez-cloud solo sin-PII | adoptado | F0/F2 |
+| Reflect condicional + K=3 solo async/evals | adoptado | F1.6/F2.3 |
+| budgets.yaml estático + cap cloud + max_reflections | adoptado | F1.6 |
+| policies.yaml + decision_id + policy-change-requires-test | adoptado | F2.2 |
+| Telemetría obligatoria, naming OTel-compatible | adoptado | F1–F3 |
+| Gobernanza del flywheel (cuarentena/procedencia/retención) | schema ahora, pipeline F4 | F3/F4 |
