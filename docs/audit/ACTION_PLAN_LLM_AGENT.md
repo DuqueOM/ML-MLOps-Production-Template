@@ -718,6 +718,45 @@ tablas + links a los runs de MLflow.
 
 ---
 
+## FAULT-INJECTION DRILL — known-answer monitoring (aprovecha los datasets del portfolio)
+
+> Idea del maintainer, adoptada: ya que probamos los datasets del portfolio,
+> **inyectamos a propósito los fallos que documentamos en los ADRs** y
+> verificamos que la superficie de monitoreo CORRECTA los detecta. Convierte
+> "el sistema detecta fallos" (afirmación) en "inyecté ESTE fallo conocido y
+> la alarma esperada disparó en T segundos" (evidencia con ground-truth).
+
+⚠️ **Distinción crítica (no la pierdas)**: los incidentes de los ADRs son
+**clases de fallo distintas**, cada una con su superficie de detección. Meterlas
+todas a "drift" es el error que haría parecer que el monitoreo no sirve.
+
+| Fallo (origen) | Clase | Cómo se inyecta | Superficie que DEBE detectar | Resultado esperado |
+|---|---|---|---|---|
+| 81% errores (D-01) | concurrencia/serving | overlay con `uvicorn --workers 4` | load test: error-rate + p95 | error-rate ↑, no drift |
+| SHAP ceros (D-04) | bug compatibilidad | TreeExplainer sobre el Stacking | **contract test** | test rojo en CI, no runtime |
+| HPA no baja (D-03) | config infra | HPA por memoria en overlay | métrica de réplicas en el tiempo | réplicas planas tras caída de tráfico |
+| Fuga datos (ChicagoTaxi) | integridad training | re-introducir feature filtrada | **leakage gate** en `train.py` | promoción bloqueada |
+| **Data drift** | distribución | perturbar 1-2 features | PSI en `run_drift_drill.py` | PSI > umbral, alerta |
+| **Concept drift** | relación X→y | invertir relación en un slice | performance sliced | métrica del slice cae |
+
+**Deliverable**: `templates/scripts/drills/fault_injection_matrix.py` — un caso
+por fila, cada uno con: función de inyección, superficie esperada, y un assert
+de "esta alarma y no otra debió dispararse". Cada ejecución emite una entrada a
+`VALIDATION_LOG.md` (fallo, superficie esperada, alarma observada, tiempo de
+detección).
+
+**Por qué importa para el portfolio/CV**: no solo prueba el monitoreo —
+demuestra que sabes **qué superficie atrapa cada clase de fallo**, el criterio
+que distingue a un junior de alguien con experiencia de producción. Y es
+grabable (pieza audiovisual E18) ANTES de cualquier L4 cloud: solo necesita el
+servicio local + monitoreo local. Mejor relación evidencia/coste de la guía.
+
+**Gate honesto**: cada fila debe detectarse en SU superficie (no en otra). Si
+inyectas data-drift y salta el contract test pero NO el PSI, el bug está en tu
+detector de drift, no en el drill — y eso también es un hallazgo que se publica.
+
+---
+
 ## Cronograma y criterios de aceptación globales
 
 | Semana | Hito |
@@ -725,7 +764,7 @@ tablas + links a los runs de MLflow.
 | 1 | F0 completa (bench + RESULTS.md) · P2.5 skill data-cleaning |
 | 2–3 | F1 completa (router+loop+retrieval+webhook dev, read-only) · P2.4 ingest |
 | 4–5 | F2 (policy, verifier, 10 sets) · P2.1–P2.2 rollout L4 + runbooks |
-| 6–7 | F3 (logging, shadow) · P2.3 cierre ventana 14d · experimento comparativo |
+| 6–7 | F3 (logging, shadow) · P2.3 cierre ventana 14d · experimento comparativo · **fault-injection drill (E18)** |
 | 8 | P3.1–P3.2 · release candidate v1.0.0 del template |
 
 **Aceptación global** (checklist final): router elige bien el tier en la
