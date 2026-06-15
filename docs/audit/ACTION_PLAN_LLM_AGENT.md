@@ -40,6 +40,48 @@
 > scoring conductual de los 10 sets (necesita los tiers corriendo) y F4 (≥4
 > semanas de logs). Se desbloquean tras el upgrade de RAM.
 
+### Cómo retomar (checklist de reanudación)
+
+> Esta subsección existe para que **cualquiera** (humano o LLM) pueda retomar
+> sin releer todo el plan. Estado a 2026-06-15.
+
+**Lo construido y verde (no tocar salvo refactor con ADR):**
+
+- `core/` (motor agnóstico): `config · schemas · router · tiers · tools ·
+  retrieval · policy · agent · controller · telemetry · circuit`.
+- `usecases/tienda/` (ejemplo): `config.yaml · tools.py · prompts/ · grammars/ ·
+  policies/policy.yaml · budgets.yaml · data/ · evals/sets/01..10`.
+- 5 ADRs en `agent-local/docs/decisions/` (001 plataforma · 002 infra · 003
+  policy-as-data · 004 verificación cruzada · 005 telemetría).
+- **77 tests** verdes; `flake8` + `mypy` limpios; CI sin modelos.
+
+**Comando para verificar el estado en cualquier momento:**
+
+```bash
+cd ~/projects/agent-local && .venv/bin/pytest -q && \
+  .venv/bin/flake8 core tests --max-line-length 120 --extend-ignore E203,W503 && \
+  .venv/bin/mypy core app
+```
+
+**Próximas acciones EN ORDEN cuando llegue el upgrade de RAM (≥32GB útiles):**
+
+1. **Levantar los tiers** (F0.2): E4B:8091, 26B:8093 (12B:8092 solo si entra por
+   §F2.1). Verificar con `bench/bench.sh`.
+2. **Scoring conductual de los 10 sets** (F2.5): correr `evals/run.py` contra los
+   tiers vivos; publicar matriz de confusión del router y reportes en
+   `evals/reports/`. Gate por tier (tabla §F2.5).
+3. **Acumular telemetría** (F3 ya implementado): con tráfico real, `ops/telemetry.jsonl`
+   empieza a llenar la evidencia que condiciona F2.1/F2.4/F4.
+4. **Decisión F2.1** (entrada del 12B): solo si la telemetría muestra que el 26B
+   gasta >25% en tareas "medias" (carga de la prueba invertida).
+5. **Decisión F2.4** (descarga del 31B): solo si el set 10 falla con 26B-verificado.
+6. **F4 (QLoRA)**: NO antes de ≥4 semanas de logs + evals estables + ADR nuevo.
+
+**Dónde mirar primero si algo falla**: `bench/RESULTS.md` (velocidad/calidad de
+modelos), `evals/reports/` (regresión conductual), `ops/telemetry.jsonl`
+(decisiones por request). La guía pedagógica 0→100 vive en
+`Guia_MLOps/docs/48_AGENT_LOCAL_DE_0_A_100.md`.
+
 **Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
 una app única y es ahora una **plataforma reutilizable**: la lógica
 crítica (loop, policy gate, escalación objetiva, routing con gramática) vive en
@@ -235,10 +277,13 @@ agent-local/
 │   ├── tools.py           #   build_registry(config) -> ToolRegistry
 │   ├── prompts/ grammars/ data/ policies/ budgets.yaml evals/sets/
 │   └── __init__.py        #   expone build_registry
+├── core/telemetry.py      #   F3: TelemetrySink (JSONL por request, PII redactada)
+├── core/controller.py     #   F2.0: ExecutiveController + circuit breaker + verifier
 ├── app/main.py            # webhook/transport FastAPI; carga use-case vía AGENT_USECASE
-├── tests/ bench/ evals/run.py
+├── tests/ bench/ evals/run.py   # 77 tests verdes (flake8 + mypy limpios)
 ├── Dockerfile docker-compose.yml pyproject.toml
-└── docs/decisions/        # ADR-001 (plataforma), ADR-002 (infra calibrada)
+└── docs/decisions/        # ADR-001 plataforma · 002 infra calibrada · 003 policy-as-data
+                           #   · 004 verificación cruzada · 005 telemetría de decisiones
 ```
 
 **Crear un dominio nuevo** = nueva carpeta `usecases/<nombre>/` (config + tools +
