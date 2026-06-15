@@ -11,9 +11,34 @@
 > de aceptación. **No improvises fuera de los pasos: si un gate falla, detente
 > y reporta.**
 >
-> **Última actualización**: 2026-06-12 (**v3** — incorpora los supervivientes
-> de la revisión adversarial de R1–R10; ver
-> `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
+> **Última actualización**: 2026-06-15 (**v3.1** — `agent-local` ejecutado:
+> refactor a **plataforma reutilizable** `core/` + `usecases/<dominio>/`,
+> repo público, gate de routing F1 **PASADO 19/20**; ver
+> "Estado de ejecución" abajo. v3 base: supervivientes de la revisión
+> adversarial R1–R10, `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
+
+### Estado de ejecución (2026-06-15)
+
+| Fase | Estado | Evidencia |
+|---|---|---|
+| F0 — Runtime + bench | ✅ Router E4B PASA gate velocidad | `agent-local/bench/RESULTS.md` |
+| F1 — Esqueleto (read-only) | ✅ **COMPLETADO** | repo `agent-local`, 16 tests verdes |
+| F1 — Gate de routing | ✅ **PASADO 19/20** (intent) | `agent-local/usecases/tienda/evals` |
+
+**Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
+una app única y es ahora una **plataforma reutilizable**: la lógica
+crítica (loop, policy gate, escalación objetiva, routing con gramática) vive en
+`core/` (agnóstico al negocio) y cada dominio es un `usecases/<nombre>/` (config
++ tools + prompts + evals), **nunca un fork de `core/`**. Consumo por
+`from core import load_agent` o por HTTP. El asistente de tienda es el use-case
+de ejemplo (`usecases/tienda/`).
+
+**Infra (ADR-002 del agente)**: Docker + docker-compose ahora (sin modelos en la
+imagen); K8s/Terraform diferidos hasta decidir topología de modelos y volumen;
+reuso de módulos del template cuando aplique.
+
+**Repo público**: https://github.com/DuqueOM/agent-local (Apache-2.0, CI de
+tests+lint sin modelos; docs en inglés).
 
 ### Decisiones v3 (revisión adversarial — resumen ejecutable)
 
@@ -41,7 +66,7 @@
 | Hardware | 48GB RAM (~36GB útiles), RTX 5070 Laptop 8GB VRAM, WSL2 Ubuntu-24.04 |
 | Modelos en disco (`~/ml-models/`) | `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` (4.0G) · `gemma-4-12b-it-qat-q4_0.gguf` (6.5G) · `gemma-4-26B_q4_0-it.gguf` (14G) |
 | Runtime | llama.cpp (`llama-server`, API OpenAI-compatible) |
-| Repos | `~/projects/template_MLOps` (plano de mantenimiento) · `~/projects/agent-local` (NUEVO — asistente de tienda) |
+| Repos | `~/projects/template_MLOps` (plano de mantenimiento) · `~/projects/agent-local` (**plataforma LLM reutilizable**, repo público; el asistente de tienda es `usecases/tienda/`) |
 
 **Principios no negociables** (copiados del marco — verifícalos en cada PR):
 
@@ -166,29 +191,43 @@ echo "$NAME: $(echo "$TOKENS/($END-$START)" | bc -l | cut -c1-5) tok/s" | tee -a
 ### F1.1 Crear el repo
 
 ```bash
-mkdir -p ~/projects/agent-local/{app,bench,evals/sets,retrieval/data,prompts,grammars,tests}
-cd ~/projects/agent-local && git init
-python3 -m venv .venv && .venv/bin/pip install fastapi uvicorn httpx pydantic pytest rank-bm25 pyyaml
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # ver pyproject.toml
 ```
 
-Estructura objetivo:
+> **NOTA v3.1 (implementado, ADR-001 del agente)**: la estructura objetivo
+> original (todo bajo `app/`) evolucionó a una **plataforma reutilizable**. La
+> lógica crítica vive en `core/` (agnóstica al negocio) y cada dominio es un
+> `usecases/<nombre>/`. Los bloques de código de F1.2–F1.x abajo siguen siendo
+> la **referencia conceptual** de cada contrato/estación; su ubicación real es
+> `core/` (motor) y `usecases/tienda/` (config + tools del ejemplo).
+
+Estructura real (repo `agent-local`):
 
 ```
 agent-local/
-├── app/
-│   ├── main.py            # webhook WhatsApp + orquestador
-│   ├── router.py          # Tier 0 → JSON estricto
-│   ├── loop.py            # planner→tools→observe→verify→finalize
-│   ├── tiers.py           # clientes por puerto/modelo
-│   ├── tools.py           # registro de herramientas (la APP las ejecuta)
-│   ├── policy.py          # checker pre-respuesta
-│   └── schemas.py         # Pydantic de TODOS los contratos
-├── grammars/route.gbnf    # gramática JSON del router
-├── prompts/*.md           # system prompts versionados
-├── retrieval/             # alias, políticas, plantillas (file-based)
-├── evals/                 # harness + 10 sets
-└── bench/
+├── core/                  # MOTOR agnóstico al negocio (fuente única de verdad)
+│   ├── config.py          #   UsecaseConfig: carga prompts/grammar/budgets/policy
+│   ├── schemas.py         #   contratos Pydantic (intent = str; la gramática fija el set)
+│   ├── router.py          #   Tier 0 → JSON estricto (GBNF) + validación allowed_intents
+│   ├── tiers.py           #   clientes por tier (endpoints inyectados desde config)
+│   ├── tools.py           #   ToolRegistry (la APP ejecuta; namespaces por use-case)
+│   ├── retrieval.py       #   BM25 + factory de semantic_retrieval
+│   ├── policy.py          #   gate determinista (reglas = datos: PolicyRules)
+│   ├── agent.py           #   loop de 7 estaciones (prompts inyectados desde config)
+│   └── __init__.py        #   load_agent(name)
+├── usecases/tienda/       # USE-CASE de ejemplo (asistente de tienda)
+│   ├── config.yaml        #   endpoints, allowed_intents, reglas de policy, prompts
+│   ├── tools.py           #   build_registry(config) -> ToolRegistry
+│   ├── prompts/ grammars/ data/ policies/ budgets.yaml evals/sets/
+│   └── __init__.py        #   expone build_registry
+├── app/main.py            # webhook/transport FastAPI; carga use-case vía AGENT_USECASE
+├── tests/ bench/ evals/run.py
+├── Dockerfile docker-compose.yml pyproject.toml
+└── docs/decisions/        # ADR-001 (plataforma), ADR-002 (infra calibrada)
 ```
+
+**Crear un dominio nuevo** = nueva carpeta `usecases/<nombre>/` (config + tools +
+prompts + evals), **nunca** un fork de `core/`.
 
 ### F1.2 Contratos (`app/schemas.py`) — escribir PRIMERO
 
