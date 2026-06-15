@@ -32,6 +32,13 @@
 | F2.4 — Tier 3 (31B) | ⏸️ **DIFERIDO por diseño** | descarga condicionada (plan §F2.4) |
 | F2.5 — Los 10 eval sets | ✅ **CREADOS** (gate offline) | `usecases/tienda/evals/sets/01..10`, `tests/test_eval_sets.py` — scoring conductual pendiente de modelos |
 | F3 — Telemetría de decisiones + shadow mode | ✅ **COMPLETADO** | `core/telemetry.py`, `TelemetryEntry`, `tests/test_telemetry.py` (9), ADR-005 |
+| F4 — QLoRA | ⏸️ **GATE no alcanzado (por diseño)** | requiere ≥4 semanas de logs + evals estables (plan §F4) |
+
+> **Frontera alcanzada**: todas las fases *accionables sin hardware/datos* están
+> hechas (77 tests verdes). Lo pendiente está bloqueado **por diseño**, no por el
+> agente: F2.1/F2.4 (entrada condicionada por telemetría / descarga del 31B),
+> scoring conductual de los 10 sets (necesita los tiers corriendo) y F4 (≥4
+> semanas de logs). Se desbloquean tras el upgrade de RAM.
 
 **Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
 una app única y es ahora una **plataforma reutilizable**: la lógica
