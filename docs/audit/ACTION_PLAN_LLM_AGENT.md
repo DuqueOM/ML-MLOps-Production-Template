@@ -28,6 +28,7 @@
 | F2.0 — ExecutiveController + circuit breaker | ✅ **COMPLETADO** | `core/controller.py`, `core/circuit.py`, 29 tests |
 | F2.1 — Tier 1 (12B) fallback | ⏸️ **DIFERIDO por diseño** | entrada condicionada por telemetría (plan §F2.1) |
 | F2.2 — Políticas como datos versionados + `decision_id` | ✅ **COMPLETADO** | `policies/policy.yaml`, `core/policy.py`, `tests/test_policy.py` (12), ADR-003 |
+| F2.3 — Verificación cruzada + self-consistency acotado | ✅ **COMPLETADO** | `core/controller.py` (`verify`), `tests/test_verifier.py` (7), ADR-004 |
 
 **Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
 una app única y es ahora una **plataforma reutilizable**: la lógica
