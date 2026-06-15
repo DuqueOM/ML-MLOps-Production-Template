@@ -31,6 +31,7 @@
 | F2.3 — Verificación cruzada + self-consistency acotado | ✅ **COMPLETADO** | `core/controller.py` (`verify`), `tests/test_verifier.py` (7), ADR-004 |
 | F2.4 — Tier 3 (31B) | ⏸️ **DIFERIDO por diseño** | descarga condicionada (plan §F2.4) |
 | F2.5 — Los 10 eval sets | ✅ **CREADOS** (gate offline) | `usecases/tienda/evals/sets/01..10`, `tests/test_eval_sets.py` — scoring conductual pendiente de modelos |
+| F3 — Telemetría de decisiones + shadow mode | ✅ **COMPLETADO** | `core/telemetry.py`, `TelemetryEntry`, `tests/test_telemetry.py` (9), ADR-005 |
 
 **Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
 una app única y es ahora una **plataforma reutilizable**: la lógica
