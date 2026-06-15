@@ -98,3 +98,21 @@ the maintenance budget.
   until evals + shadow data justify AUTO.
 - Out of scope, unchanged: LLM serving in the template's data plane,
   multi-tenant agent platforms, autonomous prod mutations (STOP).
+
+## 6. Implementation — the `agent-local` sibling repository
+
+The **local-model tiers** of this routing policy (the router/reasoner/assistant/
+verifier loop on llama.cpp) are implemented in a separate, reusable repository:
+[`agent-local`](https://github.com/DuqueOM/agent-local) (Apache-2.0). It is kept
+deliberately separate from this template (agent-local ADR-001: different product,
+lifecycle and audience).
+
+- The day-2 lanes above (CI self-healing, memory plane, drift triage, docs-drift)
+  run on `agent-local`'s tier stack, registered **below** the cheapest cloud tier
+  in `templates/config/model_routing_policy.yaml` (escalation-only discipline of
+  ADR-010 is unchanged: a local model may signal, never approve).
+- When `agent-local` needs cloud infra, it **reuses** this template's Terraform
+  modules and Kustomize overlays (agent-local ADR-002), not a rewrite.
+- The unified execution plan for both planes is
+  [`docs/audit/ACTION_PLAN_LLM_AGENT.md`](../audit/ACTION_PLAN_LLM_AGENT.md); the
+  local-model architecture decisions are `agent-local/docs/decisions/ADR-001..005`.
