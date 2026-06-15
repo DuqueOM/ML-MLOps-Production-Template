@@ -29,6 +29,8 @@
 | F2.1 — Tier 1 (12B) fallback | ⏸️ **DIFERIDO por diseño** | entrada condicionada por telemetría (plan §F2.1) |
 | F2.2 — Políticas como datos versionados + `decision_id` | ✅ **COMPLETADO** | `policies/policy.yaml`, `core/policy.py`, `tests/test_policy.py` (12), ADR-003 |
 | F2.3 — Verificación cruzada + self-consistency acotado | ✅ **COMPLETADO** | `core/controller.py` (`verify`), `tests/test_verifier.py` (7), ADR-004 |
+| F2.4 — Tier 3 (31B) | ⏸️ **DIFERIDO por diseño** | descarga condicionada (plan §F2.4) |
+| F2.5 — Los 10 eval sets | ✅ **CREADOS** (gate offline) | `usecases/tienda/evals/sets/01..10`, `tests/test_eval_sets.py` — scoring conductual pendiente de modelos |
 
 **Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
 una app única y es ahora una **plataforma reutilizable**: la lógica
