@@ -450,6 +450,30 @@ Before enabling any name from the table above for a production-adjacent route, v
 
 Vendor model names rotate every 6–12 months. The `verified_at` field in `model_routing_policy.yaml` declares when the catalog was last reconciled. The names in the table above are anticipated based on the project's adopter cadence and have not been reconciled against any vendor catalog at the time of writing.
 
+### Local model plane — the `agent-local` sibling repository
+
+The routing table above describes the **cloud** lanes. The **local** tiers of the
+same ADR-028 routing policy — Gemma models served by llama.cpp on a single host —
+are implemented in a separate, self-contained repository:
+
+> **[`agent-local`](https://github.com/DuqueOM/agent-local)** — a business-agnostic,
+> reusable **local-LLM agent platform** (Apache-2.0). It is the LLM plane of this
+> portfolio: a 4-tier router → reasoner → assistant → verifier loop with a
+> deterministic policy gate, objective escalation, and contract telemetry.
+
+How the two repositories integrate (they are **deliberately separate**, never merged):
+
+| Direction | What flows | Reference |
+|-----------|-----------|-----------|
+| template → agent-local | When `agent-local` needs cloud infra, it **reuses** this template's Terraform modules and Kustomize overlays instead of rewriting them | agent-local ADR-002 |
+| agent-local → template | The local tiers run the **day-2 maintenance lanes** of ADR-028 (CI self-healing, operational memory, drift triage, docs-drift) below the cheapest cloud tier in `model_routing_policy.yaml` | ADR-028 §maintenance lanes |
+| shared | The unified plan `docs/audit/ACTION_PLAN_LLM_AGENT.md` governs **both** planes; the local-model decisions live in `agent-local/docs/decisions/` (ADR-001..005) | `ACTION_PLAN_LLM_AGENT.md` |
+
+> **Why separate repos?** Different product, lifecycle, dependencies and audience.
+> Merging an LLM-serving product into this tabular-ML template would contaminate
+> both (agent-local ADR-001). A future "LLM-serving template variant" is a
+> separate, post-1.0 track — see "Scope boundaries" below.
+
 ---
 
 ## Anti-patterns encoded
@@ -701,7 +725,7 @@ For platform reviewers asking *"is this ready for our org?"* and teams that want
 
 - **Maturity matrix** per capability × cloud × environment (dev/staging/prod), with explicit `ready` / `partial` / `roadmap` ratings
 - **Non-agentic on-ramp**: every `/slash` workflow has a `make` equivalent or runbook reference; teams that don't use AI assistants get the same safety guarantees through `make` targets and contract tests
-- **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference)
+- **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference). *LLM serving is intentionally out of scope here and lives in the sibling [`agent-local`](https://github.com/DuqueOM/agent-local) repo — see "Local model plane" above.*
 
 The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-32) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
 
@@ -733,6 +757,18 @@ If you outgrow the template, the documented invariants and ADRs are designed to 
 This template was extracted from [ML-MLOps-Portfolio](https://github.com/DuqueOM/ML-MLOps-Portfolio), where the patterns were developed and validated across multiple ML services, ADRs, tests, and cloud deployments.
 
 The goal is not to mirror that portfolio one-to-one. The goal is to package the stable, reusable operating patterns into a template that other teams can adopt without starting from scratch.
+
+### Companion repositories
+
+This template is one of three products in the same portfolio. They share an
+operating philosophy (engineering calibration, ADRs for every non-trivial
+decision, AUTO/CONSULT/STOP governance) but stay deliberately separate:
+
+| Repository | Role | Relationship to this template |
+|------------|------|-------------------------------|
+| [ML-MLOps-Portfolio](https://github.com/DuqueOM/ML-MLOps-Portfolio) | The 3 validated tabular-ML services | Source the template was extracted from |
+| **this template** | Reusable MLOps platform (multi-cloud K8s, supply chain, agentic governance) | — |
+| [agent-local](https://github.com/DuqueOM/agent-local) | Reusable **local-LLM agent** platform (the LLM plane) | Runs ADR-028's day-2 lanes on local tiers; reuses this template's IaC when it needs cloud — see "Local model plane" above |
 
 ---
 
