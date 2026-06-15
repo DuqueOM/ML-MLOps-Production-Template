@@ -13,7 +13,8 @@
 >
 > **Última actualización**: 2026-06-15 (**v3.1** — `agent-local` ejecutado:
 > refactor a **plataforma reutilizable** `core/` + `usecases/<dominio>/`,
-> repo público, gate de routing F1 **PASADO 19/20**; ver
+> repo público, gate de routing F1 **PASADO 20/20** y **F2.0**
+> (ExecutiveController + circuit breaker) hecho; ver
 > "Estado de ejecución" abajo. v3 base: supervivientes de la revisión
 > adversarial R1–R10, `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
 
@@ -22,8 +23,9 @@
 | Fase | Estado | Evidencia |
 |---|---|---|
 | F0 — Runtime + bench | ✅ Router E4B PASA gate velocidad | `agent-local/bench/RESULTS.md` |
-| F1 — Esqueleto (read-only) | ✅ **COMPLETADO** | repo `agent-local`, 16 tests verdes |
-| F1 — Gate de routing | ✅ **PASADO 19/20** (intent) | `agent-local/usecases/tienda/evals` |
+| F1 — Esqueleto (read-only) | ✅ **COMPLETADO** | repo `agent-local`, suite verde |
+| F1 — Gate de routing | ✅ **PASADO 20/20** (intent) | `agent-local/usecases/tienda/evals` |
+| F2.0 — ExecutiveController + circuit breaker | ✅ **COMPLETADO** | `core/controller.py`, `core/circuit.py`, 29 tests |
 
 **Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
 una app única y es ahora una **plataforma reutilizable**: la lógica
