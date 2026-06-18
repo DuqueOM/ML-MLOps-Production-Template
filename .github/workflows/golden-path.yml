@@ -67,7 +67,7 @@ jobs:
     outputs:
       service_dir: ${{ steps.run.outputs.service_dir }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run new-service.sh
         id: run
@@ -142,7 +142,7 @@ jobs:
       digest: ${{ steps.digest.outputs.value }}
       registry: ${{ steps.reg.outputs.host_port }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download scaffolded service
         uses: actions/download-artifact@v8
@@ -246,7 +246,7 @@ jobs:
     needs: [scaffold, build-and-sign]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download scaffolded service
         uses: actions/download-artifact@v8
@@ -502,7 +502,7 @@ jobs:
     needs: admit-and-smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:

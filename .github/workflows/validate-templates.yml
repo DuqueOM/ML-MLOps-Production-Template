@@ -24,7 +24,7 @@ jobs:
       contents: read
       security-events: write   # for sarif upload
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # gitleaks needs history
 
@@ -219,7 +219,7 @@ jobs:
     name: Python Lint + Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -292,7 +292,7 @@ jobs:
     name: Kubernetes Manifests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install kubeconform
         # Pinned version, direct release tarball (no unauthenticated GH
@@ -440,7 +440,7 @@ jobs:
     name: Terraform Validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -478,7 +478,7 @@ jobs:
     name: Example End-to-End (train → serve → test → drift)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -535,7 +535,7 @@ jobs:
     name: Dockerfile Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
@@ -547,7 +547,7 @@ jobs:
     name: Agentic System Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -580,7 +580,7 @@ jobs:
     # entry is past due OR missing the annotation, forcing either a
     # fresh ADR + extension or a real fix. Path to zero-baseline by v1.0.0.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -600,7 +600,7 @@ jobs:
     # bug from reaching main again. See
     # docs/audit/feedback-may-2026-triage.md §"Closure summary".
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -620,7 +620,7 @@ jobs:
     # PR could merge with stale adapters and the IDE-parity contract
     # would silently regress. This job fixes that.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -639,7 +639,7 @@ jobs:
     # under templates/monitoring/grafana/ must be registered in
     # INDEX.md. Prevents drift between "shipped" and "documented".
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -655,7 +655,7 @@ jobs:
     # new-service.sh copies it verbatim and then runs a global sed pass;
     # any placeholder here would silently fork adopters' scaffolded copies.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -672,7 +672,7 @@ jobs:
     # version in templates/cicd/ lags the runtime workflows.
     # See docs/governance/cicd-templates-drift.md for the full rationale.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -684,7 +684,7 @@ jobs:
     name: Scaffolder End-to-End Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5

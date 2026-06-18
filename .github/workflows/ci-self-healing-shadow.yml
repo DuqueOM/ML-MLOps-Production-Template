@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout (read-only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Shadow mode — fetch only what we need.
           fetch-depth: 1
