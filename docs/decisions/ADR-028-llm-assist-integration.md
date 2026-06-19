@@ -1,7 +1,12 @@
 # ADR-028 — LLM-Assist Integration for Template Maintenance and Day-2 Operations
 
-- **Status**: Proposed (R6 audit follow-up — requires maintainer acceptance)
-- **Date**: 2026-06-09
+- **Status**: Accepted
+- **Date**: 2026-06-09 (proposed) · 2026-06-10 (accepted in `v0.18.0`)
+- **Acceptance note**: accepted as written — including its §4 recommendation
+  *against* fine-tuning dedicated models at this scale. The local-model plane
+  is realized in the sibling repo
+  [`agent-local`](https://github.com/DuqueOM/agent-local); the unified
+  execution plan is `docs/audit/ACTION_PLAN_LLM_AGENT.md`.
 - **Deciders**: Template maintainer (`@DuqueOM`)
 - **Related**: ADR-001 (scope boundaries), ADR-010 (dynamic behavior),
   ADR-018 (memory plane), ADR-019 (CI self-healing),
