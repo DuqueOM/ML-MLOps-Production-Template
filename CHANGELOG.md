@@ -28,8 +28,10 @@ Full release notes: [`releases/v0.18.0.md`](releases/v0.18.0.md).
 - **Surface-loadability validation** in `validate_agentic_manifest.py`:
   claude skill pointers must parse as SKILL.md frontmatter with a non-empty
   description (R6 S2-1).
-- **ADR-028 (Proposed)** — LLM-assist integration for maintenance/Day-2 ops;
-  recommends against fine-tuning dedicated models at this scale.
+- **ADR-028 (Accepted)** — LLM-assist integration for maintenance/Day-2 ops;
+  accepted as written, including its recommendation *against* fine-tuning
+  dedicated models at this scale. Local-model plane realized in the sibling
+  repo `agent-local`; unified plan in `docs/audit/ACTION_PLAN_LLM_AGENT.md`.
 - `releases/README.md` — explains legacy `v1.x` vs active `v0.x` lines and
   the re-reserved `v1.0.0` L4 gate (R6 S1-3).
 - Autouse `os.environ` snapshot/restore fixture in service-test conftest
