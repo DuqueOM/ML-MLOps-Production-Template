@@ -26,7 +26,7 @@ jobs:
     name: Link Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run markdown-link-check
         # Pinned to immutable tag (D-19 / ADR-014 §1.1). Dependabot
@@ -49,7 +49,7 @@ jobs:
     name: Markdown Lint (style)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run markdownlint-cli2
         uses: DavidAnson/markdownlint-cli2-action@v23

@@ -42,7 +42,7 @@ jobs:
           # Multi-service: replace with explicit list of service dirnames.
           - {ServiceName}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
