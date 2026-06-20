@@ -20,7 +20,7 @@ jobs:
       matrix:
         cloud: [gcp, aws]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -58,7 +58,7 @@ jobs:
     name: K8s Manifests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install kubeconform (PR-R2-5)
         # Replaces the deprecated kubeval install that used

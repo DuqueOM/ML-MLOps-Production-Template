@@ -38,7 +38,7 @@ jobs:
       version: ${{ steps.version.outputs.v }}
       image_digests: ${{ steps.digests.outputs.json }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Authenticate to AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
