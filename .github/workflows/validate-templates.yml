@@ -81,7 +81,9 @@ jobs:
       #    is runner-version-stable and avoids the Docker build path entirely.
       - name: Install tfsec
         run: |
-          TFSEC_VERSION="$(curl -s https://api.github.com/repos/aquasecurity/tfsec/releases/latest | grep '"tag_name"' | cut -d'"' -f4)"
+          # tfsec archived; pinned to last working release (v1.28.14).
+          # TODO: migrate to trivy config (tfsec successor) per ADR-TBD.
+          TFSEC_VERSION="v1.28.14"
           curl -sLo /usr/local/bin/tfsec \
             "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64"
           chmod +x /usr/local/bin/tfsec
