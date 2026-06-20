@@ -8,6 +8,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **tfsec archival workaround**: Pinned tfsec to v1.28.14 (last working release)
+  in `.github/workflows/validate-templates.yml` after aquasecurity archived the
+  project and `/releases/latest` began returning 404. Long-term migration to
+  `trivy config` (tfsec's official successor) tracked in TODO comment.
+- **CI/CD template drift**: Synchronized GitHub Actions versions in `templates/cicd/`
+  with `.github/workflows/` to resolve drift gate failures on Dependabot PRs:
+  - `actions/checkout` v4 → v7 (13 references across 8 template files)
+  - `codecov/codecov-action` v4 → v7 (1 reference in `ci.yml`)
+  - `bridgecrewio/checkov-action` v12.3105.0 → v12.3107.0 (1 reference in `ci-infra.yml`)
+
+### Changed
+
+- **Dependency updates** (Dependabot PRs #39, #40, #41):
+  - `actions/checkout` v4 → v7
+  - `codecov/codecov-action` v4 → v7
+  - `bridgecrewio/checkov-action` v12.3105.0 → v12.3107.0
+
+---
+
 ## [0.18.0] - 2026-06-10
 
 R6 audit closure ([`docs/audit/ACTION_PLAN_R6.md`](docs/audit/ACTION_PLAN_R6.md)).
