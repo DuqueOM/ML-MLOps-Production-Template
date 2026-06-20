@@ -72,7 +72,7 @@ jobs:
       id-token: write     # OIDC to cloud
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # -------------------------------------------------------------------
       # Cloud auth — branches on input.cloud to keep one workflow reusable
