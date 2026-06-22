@@ -120,10 +120,65 @@ tests+lint sin modelos; docs en inglés).
 
 | Recurso | Valor |
 |---|---|
-| Hardware | 48GB RAM (~36GB útiles), RTX 5070 Laptop 8GB VRAM, WSL2 Ubuntu-24.04 |
-| Modelos en disco (`~/ml-models/`) | `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` (4.0G) · `gemma-4-12b-it-qat-q4_0.gguf` (6.5G) · `gemma-4-26B_q4_0-it.gguf` (14G) |
+| Equipo | ASUS TUF Gaming F16 (FX608JPR) · i7-14650HX (16C/24T) · WSL2 Ubuntu-24.04 |
+| GPU / VRAM | RTX 5070 **Laptop**, **8GB VRAM — soldada, fija para siempre** (techo duro) |
+| RAM hoy | **2× 8GB DDR5-5600 SODIMM, ambos slots llenos, dual-channel (~90 GB/s)** — sin slot libre; todo upgrade es *reemplazo* |
+| RAM techo | **64GB (2×32) = máximo declarado/confiable.** 96GB (2×48) = sobre lo declarado, apuesta sin garantía en HX. 128GB (2×64) = no soportado, no apostar |
 | Runtime | llama.cpp (`llama-server`, API OpenAI-compatible) |
+| Modelos en disco (`~/ml-models/`) | `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` (4.0G) · `gemma-4-12b-it-qat-q4_0.gguf` (6.5G) · `gemma-4-26B_q4_0-it.gguf` (14G) |
 | Repos | `~/projects/template_MLOps` (plano de mantenimiento) · `~/projects/agent-local` (**plataforma LLM reutilizable**, repo público; el asistente de tienda es `usecases/tienda/`) |
+
+> ⚠️ **Corrección 2026-06-15**: el "48GB" de versiones previas era un error de
+> premisa (se creyó "16GB + slot libre → +32"). La realidad: 2 slots llenos con
+> 8GB c/u; el upgrade reemplaza ambos. Objetivo recomendado **64GB (2×32) dual-
+> channel** — desbloquea todas las fases pendientes con holgura para el 26B
+> Q4_K_M a 16–32k de contexto. Ver §0.5 (upgrade-path RAM↔modelos).
+
+### 0.5 Upgrade-path RAM ↔ modelos (lo que cada nivel de RAM desbloquea)
+
+La VRAM (8GB) es el techo duro e inamovible; la RAM rápida es la palanca. La
+velocidad de un MoE la manda **parámetros activos**, no totales
+(`tok/s ≈ ~60 GB/s efectivos / (activos × bytes_por_param)`).
+
+| RAM | Modelo "principal" viable | Modelo "juez" (tolera latencia) | Notas |
+|---|---|---|---|
+| 16GB (hoy) | E4B / 12B Q4 | — | el 26B-A4B no entra cómodo |
+| **64GB (2×32, objetivo)** | **Qwen3-30B-A3B** (3B act, Q4 ~17GB) o 26B-A4B (4B act, ~15GB) | Gemma-4 31B Q4 (~17GB) **o** gpt-oss-120B **Q3** (~48GB, 5B act, batch-only, monopoliza RAM) | punto dulce; un solo modelo grande residente a la vez |
+| 96GB (2×48, apuesta) | igual + contexto enorme | **gpt-oss-120B Q4** (~60GB, 5B act, ~10-18 tok/s) | la única RAM que mete gpt-oss-120B Q4 cómodo |
+
+**Regla de selección por rol** (la decide el eval, no la intuición):
+router = pequeño y estructurado (cabe en VRAM); principal = **MoE de activos
+bajos** que quepa en RAM; juez = el más grande que entre, tolera lentitud.
+Candidatos a evaluar tras el upgrade: **Qwen3-30B-A3B** como principal (upgrade
+real al 26B-A4B); gpt-oss-120B (Q3 en 64GB / Q4 en 96GB) como juez. Mixtral
+8×7B / 8×22B **descartados**: activos altos (13B/39B) → lentos en hardware
+limitado por ancho de banda, y superados por los MoE de grano fino.
+
+### 0.6 Modelos como configuración (swappability — regla de diseño)
+
+**El modelo detrás de cada tier es CONFIGURACIÓN, nunca código.** Cambiar un
+modelo (particular o la familia entera) debe ser editar YAML + re-validar, cero
+cambios de código. Esto ya es posible porque el cliente es OpenAI-compatible y
+el routing usa GBNF (agnósticos al modelo); esta regla lo formaliza:
+
+1. **Registro `models.yaml`**: cada entrada = `{tier, model_id, gguf_path,
+   port, quant, context, role, min_ram_gb, expected_tok_s}`. El tier referencia
+   un `model_id`, no una ruta hardcodeada.
+2. **Validación de capacidad**: el controller comprueba `min_ram_gb` y VRAM
+   disponibles ANTES de cargar — si el modelo no cabe, falla limpio, no swappea.
+3. **Gates de eval por ROL, no por modelo** (ya es el diseño, §F2.5): cualquier
+   modelo que entra a un tier DEBE re-pasar los eval sets de ese tier. Es lo que
+   hace el swap **seguro** en vez de una apuesta.
+4. **Runbook de swap**: descargar GGUF → registrar en `models.yaml` →
+   `llama-bench` (gate de velocidad) → eval set del tier (gate de calidad) → si
+   ambos verdes, promover; si no, revertir el `model_id`. Una entrada en
+   `bench/RESULTS.md` por swap.
+
+✅ **Coste de hacerlo ahora vs después**: hacerlo durante la construcción es
+trivial (un YAML + un loader); retrofitearlo tras hardcodear rutas es doloroso.
+Es además la señal "engineered for change" para entrevista: el sistema no está
+casado con Gemma — está casado con *contratos* (JSON con gramática, eval por
+tier), y los modelos son intercambiables debajo de ellos.
 
 **Principios no negociables** (copiados del marco — verifícalos en cada PR):
 
