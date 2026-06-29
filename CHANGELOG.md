@@ -10,6 +10,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Added
+
+- **ADR-029 — Agentic Adoption Contract & Interoperability Strategy**
+  (`docs/decisions/ADR-029-agentic-adoption-contract.md`): ratifies the
+  five-condition gate that routes all industry-adoption improvements (Copier,
+  local-first stack profiles, recognizable layout, tutorial) *through* the
+  vendor-neutral canonical agentic store (ADR-027) instead of around it.
+- **README §"How this compares"**: honest positioning table vs Made With ML,
+  Cookiecutter Data Science, and ZenML, with explicit "borrow ideas, never fork"
+  framing and a link to the adoption tracker.
+- **`docs/audit/ACTION_PLAN_ADAPTABILITY.md`**: living, enterprise-grade tracker
+  for the adaptability program (Waves 0–4), including a license/provenance
+  guardrail (§1.1) confirming the repo's Apache-2.0 license is unaffected.
+
 ### Fixed
 
 - **tfsec archival workaround**: Pinned tfsec to v1.28.14 (last working release)

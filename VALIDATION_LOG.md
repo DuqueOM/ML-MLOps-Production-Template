@@ -1197,6 +1197,74 @@ scaffold path; L4 remains intentionally outside local evidence.
 
 ---
 
+## Entry 011 — Adaptability program, Wave 0 (positioning + guardrail)
+
+- **Date**: 2026-06-29
+- **Branch**: `main`
+- **Base commit**: `39e6ec2e3814f60ae33cc4065bbe740df98aaa07`
+- **Environment**: local Linux developer workstation (WSL), `.venv` Python 3.12, no cloud account, no cluster
+- **Operator**: Maintainer — adaptability program execution
+- **Scope**: documentation-only Wave 0 of `docs/audit/ACTION_PLAN_ADAPTABILITY.md` (ADR-029 + README §"How this compares" + tracker); verify the agentic spine remains intact (ADR-027/ADR-023 invariants) after adding the adoption-governance ADR.
+
+### What was executed
+
+#### 1. Agentic system validator (canonical store integrity)
+
+```
+$ .venv/bin/python scripts/validate_agentic.py
+Checks passed: 107
+Skills found:    16
+Workflows found: 12
+✓ Agentic system valid
+```
+
+#### 2. Manifest strict validation (authority chain intact after ADR-029)
+
+```
+$ .venv/bin/python scripts/validate_agentic_manifest.py --strict
+[ OK ] authority_chain
+[ OK ] source_paths
+[ OK ] surface_roots
+[ OK ] adapter_pointers
+[ OK ] mode_enum
+[ OK ] context_examples
+[ OK ] context_pointers
+[ OK ] reports_block
+```
+
+#### 3. Generated-surface drift check (no surface was hand-edited)
+
+```
+$ .venv/bin/python scripts/sync_agentic_adapters.py --check
+(no output — no drift)
+```
+
+#### 4. Anti-pattern count consistency (README "32 anti-patterns" claim unchanged)
+
+```
+$ .venv/bin/python -m pytest templates/service/tests/test_anti_pattern_count_consistency.py -o addopts="" -q
+4 passed, 3 skipped in 0.60s
+```
+
+### What was NOT validated (pending)
+
+- **Waves 1–4** (Copier migration, local-first stack profiles, CCDS layout, tutorial): NOT started. Owner: maintainer. Tracking: `docs/audit/ACTION_PLAN_ADAPTABILITY.md` §6.
+- **ADR-030..032**: NOT authored. Tracking: ADR ledger §7 of the action plan.
+- **Reference-license SPDX verification (W1.5b)**: scheduled for Wave 1; published licenses recorded in action plan §1.1 but not yet pinned in ADR-030.
+- **Full template test suite + `pre-commit run --all-files`**: not run for this docs-only wave; CI re-runs them per PR.
+
+### Conclusion (Entry 011)
+
+Wave 0 ships the governance guardrail (ADR-029) that forces every upcoming
+adoption improvement to flow through the canonical agentic store, plus an honest
+README positioning section vs the de-facto references and the living tracker. The
+four agentic/contract checks confirm the spine is intact: adding the adoption ADR
+changed no canonical body, caused no surface drift, and kept the manifest
+authority chain resolvable. This entry materially supports the README §"How this
+compares" section and the Agentic controls maturity row; it makes no L4 claim.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:
