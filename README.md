@@ -39,6 +39,28 @@ It is not designed for data science notebooks, batch-only pipelines, or teams th
 
 ---
 
+## How this compares
+
+Three open-source projects are widely treated as references in the MLOps space. They are excellent, and this template deliberately borrows ergonomics from each — through its own canonical layer, never by forking them (see [ADR-029](docs/decisions/ADR-029-agentic-adoption-contract.md)). They optimize for different things:
+
+| | This template | [Made With ML](https://github.com/GokuMohandas/Made-With-ML) | [Cookiecutter Data Science](https://github.com/drivendataorg/cookiecutter-data-science) | [ZenML](https://github.com/zenml-io/zenml) |
+|---|---|---|---|---|
+| **Primary optimization** | Production discipline + governance | Teaching the *why* | Recognizable project structure | Infra-agnostic pipelines |
+| **Production hardening** | leader | medium | low | medium |
+| **Multi-cloud (GKE + EKS)** | leader | no | no | via stacks |
+| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 32 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium |
+| **Entry friction** | higher (K8s/Terraform-oriented) | medium | very low | low |
+| **Standardized scaffolding** | bespoke today → Copier (roadmap) | n/a | de-facto | CLI |
+| **Pedagogy / learning arc** | reviewer-oriented today → tutorial (roadmap) | leader | medium | good |
+
+**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin/Windsurf, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 32 contract-tested anti-patterns.
+
+**Where we are improving adoption** — standardized scaffolding (Copier), a local-first on-ramp (stack profiles), a recognizable layout, and a guided tutorial — is tracked transparently in [`docs/audit/ACTION_PLAN_ADAPTABILITY.md`](docs/audit/ACTION_PLAN_ADAPTABILITY.md). Every one of those improvements is required to flow through the canonical agentic layer, so adoption ergonomics never dilute the governance that differentiates the template.
+
+If you want a guided course on ML fundamentals, start with Made With ML. If you want a minimal, deployment-agnostic project skeleton, start with Cookiecutter Data Science. If you want orchestrator portability, look at ZenML. If you want a **governed, production-hardened, multi-cloud service template with an agentic operating model**, you are in the right place.
+
+---
+
 ## What this template is
 
 This repository is a reference template for teams that want strong production defaults without adopting a heavyweight ML platform too early. It is intentionally opinionated where production failures are expensive and intentionally flexible where teams need domain-specific control.
