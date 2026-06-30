@@ -84,31 +84,62 @@ is the entire point of closing gap B1; Cookiecutter requires the third-party
 
 Copier renders files through Jinja. Jinja's default delimiters (`{{ }}`, `{% %}`,
 `{# #}`) would collide catastrophically with the template's content: Python
-f-strings and dict literals, YAML/JSON braces, and `${SERVICE}` shell variables
-all use `{`/`}`. We therefore configure **custom delimiters** that do not appear
-in the corpus:
+f-strings and dict literals, YAML/JSON braces, GitHub Actions `${{ … }}`
+expressions, and `${SERVICE}` shell variables all use `{`/`}`. We therefore
+configure **custom delimiters** that do not appear in the corpus:
 
 ```yaml
 _envops:
-  block_start_string: "[%"
-  block_end_string: "%]"
-  variable_start_string: "[["
-  variable_end_string: "]]"
-  comment_start_string: "[#"
-  comment_end_string: "#]"
+  variable_start_string: "{@"
+  variable_end_string: "@}"
+  block_start_string: "{%"
+  block_end_string: "%}"
+  comment_start_string: "{#"
+  comment_end_string: "#}"
+  keep_trailing_newline: true
 ```
 
-Tokens are converted **once** across the 227 files:
+**Delimiter family selection (empirically decided — supersedes the initial
+`[[ ]]` choice).** Token conversion ran in two stages. Stage 1 used the
+Copier square-bracket family `[[ ]]` / `[% %]` / `[# #]`. While converting we
+measured that `[[ ]]` collides with idiomatic ML/shell content the template
+must contain verbatim:
 
-| Today (bespoke token) | After (Copier/Jinja) |
+- pandas double-bracket selection — `df[["a","b"]]` (appears in feature and
+  monitoring code), and
+- bash test conditionals — `[[ -z "$X" ]]`, `while [[ $# -gt 0 ]]` (appears in
+  every shipped shell script).
+
+Under `_templates_suffix: ""` (see §2.3) Copier renders **every** file's
+content through Jinja, so any literal `[[` would be parsed as a variable-start
+and break the render. Stage 2c therefore **superseded** `[[ ]]` with the
+`{@ … @}` family, chosen empirically:
+
+- **Zero collisions**: `{@`, `{%`, `{#` each appear `0` times across the 249
+  render-root files (verified), so rendering every file is safe.
+- **Windows-filename-safe**: every sigil (`{ @ % #`) is legal in a filename,
+  so the path token `src/{@ service_slug @}/` checks out cross-platform.
+- **Cannot collide with lint-clean code**: the service's own flake8 (E225)
+  forbids the operator spacing (`x {@ y`) that could otherwise reproduce the
+  sequence.
+- **Blocks/comments stay native Jinja** (`{% %}` / `{# #}`): both
+  start-strings are also `0`-occurrence, so deviation from standard Jinja is
+  minimized to just the variable delimiter.
+
+Tokens are converted **once** across the render-root files. `service_slug` is
+the single source-of-truth answer; the other casings are **derived** in
+`copier.yml` (see §2.3), so the conversion maps each legacy token to the
+corresponding derived variable:
+
+| Legacy bespoke token | After (Copier/Jinja, `{@ @}` family) |
 |---|---|
-| `{ServiceName}` | `[[ service_name ]]` |
-| `{service-name}` | `[[ service_slug \| replace('_','-') ]]` |
-| `{service}` | `[[ service_slug ]]` |
-| `{SERVICE}` | `[[ service_slug \| upper ]]` |
-| `{ORG}` | `[[ gh_org ]]` |
-| `{REPO}` | `[[ gh_repo ]]` |
-| dir `src/{service}/` | dir `src/[[ service_slug ]]/` |
+| `{ServiceName}` | `{@ service_name @}`  (derived: PascalCase of slug) |
+| `{service-name}` | `{@ service_kebab @}` (derived: slug with `_`→`-`) |
+| `{service}` | `{@ service_slug @}` |
+| `{SERVICE}` | `{@ service_upper @}` (derived: UPPER of slug) |
+| `{ORG}` | `{@ gh_org @}` |
+| `{REPO}` | `{@ gh_repo @}` |
+| dir `src/{service}/` | dir `src/{@ service_slug @}/` |
 
 **Why native Jinja and not a post-gen substitution task** (the rejected
 "hybrid" design, §7): Copier's `update` algorithm regenerates the project from the
@@ -119,35 +150,56 @@ substituted — every update hunk near a substituted token would fail to apply.
 Native Jinja makes the tracked render byte-identical to the project, so
 `copier update` works as designed. This is the whole value of B1.
 
-A welcome side effect: with `[[ ]]` delimiters, `${SERVICE}` is not a Jinja
-construct, so the perl negative-lookbehind hack in `new-service.sh` is **deleted**,
-not ported.
+A welcome side effect: with `{@ @}` delimiters, `${SERVICE}` (and GitHub
+Actions `${{ … }}`) are not Jinja constructs, so the perl negative-lookbehind
+hack in `new-service.sh` is **deleted**, not ported. Verified by a real
+`copier copy`: bash `[[ ]]`, GHA `${{ }}`, and pandas `df[[ ]]` all survive the
+render unmangled.
 
 ### 2.3 Questionnaire (`copier.yml`)
 
+`service_slug` is the **single source-of-truth** prompt; every other casing is
+derived, which eliminates the casing-drift defect class of the old sed
+scaffolder (where `ServiceName` and the slug could disagree):
+
 ```yaml
-service_name:   { type: str, help: "PascalCase service name (e.g. FraudDetector)" }
-service_slug:   { type: str, help: "snake_case slug (e.g. fraud_detector)",
-                  default: "[[ service_name | lower ]]" }   # validated against ^[a-z][a-z0-9_]*$
+service_slug:   { type: str, help: "snake_case slug (e.g. fraud_detector)" }
+                # validated against ^[a-z][a-z0-9_]*$
+service_name:   # derived: PascalCase of slug   (when: false)
+service_kebab:  # derived: slug with _ -> -      (when: false)
+service_upper:  # derived: UPPER of slug         (when: false)
 gh_org:         { type: str, help: "GitHub org for cosign/Kyverno trust root" }
-gh_repo:        { type: str, help: "GitHub repo name" }
+gh_repo:        { type: str, default: "{@ service_kebab @}" }
 ```
 
-`_subdirectory: templates` makes the template root the `templates/` tree, which is
-**reorganized to mirror the generated-service layout** (§2.6) so the tracked
-render equals the project. `_answers_file: .copier-answers.yml` is committed into
+`_subdirectory: templates/service` makes the template root the
+`templates/service/` tree, which **already mirrors the generated-service
+layout** (it is the service-bound tree relocated there in Stage 2a), so the
+tracked render equals the project. `_templates_suffix: ""` makes Copier render
+every file's **content** through Jinja (its v9 default of `.jinja` would copy
+content verbatim and leave `{@ … @}` tokens unrendered — only path names get
+rendered by default). `_answers_file: .copier-answers.yml` is committed into
 the generated service to enable `copier update`.
 
 ### 2.4a Self-contained template root (vendoring + drift gate)
 
 Because Copier cannot pull from outside its root, the files `new-service.sh`
-currently sourced from the repo root are **vendored into `templates/`**:
-`scripts/audit_record.py`, `scripts/validate_quality_gates.py`, `scripts/_lib/`,
-and the Day-2 `docs/runbooks/*.md`. To prevent these vendored copies from
-drifting from their repo-root originals, a **drift gate** is added following the
-existing precedent of the `common_utils` drift gate (ADR-025 Option A): CI fails
-if a vendored copy diverges from its source. This keeps a single source of truth
-while satisfying Copier's single-root constraint.
+currently sourced from the repo root are **vendored into `templates/service/`**:
+`scripts/audit_record.py`, `scripts/validate_quality_gates.py`, and the Day-2
+runbooks `docs/runbooks/drift-detection.md` + `docs/runbooks/model-retrain.md`
+(`day-2-operations.md` already lived in the render root). `scripts/_lib/` is
+**intentionally not vendored**: no generated artifact references it (verified),
+so shipping it would be dead weight.
+
+To prevent these vendored copies from drifting from their repo-root originals, a
+**drift gate** — `scripts/check_vendored_runtime_drift.py` — asserts each
+vendored copy is byte-identical to its canonical source (with a `--fix`
+resync mode), following the existing precedent of the `common_utils` drift gate
+(ADR-025 Option A) and the `cicd-template-drift` gate. It runs as the
+`vendored-runtime-drift` job in `validate-templates.yml`. All four vendored
+files carry zero `{@`/`{%`/`{#` sequences, so Copier renders them as an
+identity transform — verified by a real `copier copy`. This keeps a single
+source of truth while satisfying Copier's single-root constraint.
 
 ### 2.4 Post-generation tasks (`_tasks`) — the agentic gate
 
@@ -175,8 +227,9 @@ The restructure is executed as four reviewable, individually-validated stages �
 not a single blind big-bang. `new-service.sh` stays as a working fallback until
 the Copier path is green in CI.
 
-- **Stage 1 — token conversion (content)**: convert the 227 files
-  `{token} → [[ jinja ]]` and rename `src/{service}/ → src/[[ service_slug ]]/`.
+- **Stage 1 — token conversion (content)**: convert the render-root files
+  `{token} → {@ jinja @}` (Stage 1 first used `[[ ]]`, superseded in Stage 2c —
+  see §2.2) and rename `src/{service}/ → src/{@ service_slug @}/`.
   Validate: zero residual `{...}` tokens; `${SERVICE}` shell vars untouched.
 - **Stage 2 — layout + plumbing**: reorganize `templates/` to mirror output
   (`cicd/ → .github/workflows/`), vendor the repo-root tools (§2.4a) with their
@@ -194,7 +247,7 @@ the Copier path is green in CI.
 
 - **I-030-1** — A freshly generated project contains **zero** unrendered tokens
   (existing `test_smoke.py::test_scaffold_replaces_placeholders`, updated to the
-  Jinja era) and **zero** Copier delimiters (`[[`, `[%`).
+  Jinja era) and **zero** Copier delimiters (`{@`, `{%`, `{#`).
 - **I-030-2** — A generated project's `.cursor/.claude/.codex/.devin` surfaces are
   byte-identical to `sync_agentic_adapters.py` output (post-gen task + the
   existing `--check` discipline). No surface is hand-rendered.
@@ -203,9 +256,11 @@ the Copier path is green in CI.
 - **I-030-4** — `new-service.sh` produces output equivalent to `copier copy` for
   the same inputs throughout the deprecation window (asserted by
   `scripts/test_scaffold.sh`).
-- **I-030-5** — Vendored copies in `templates/` (`audit_record.py`,
-  `validate_quality_gates.py`, `scripts/_lib/`, runbooks) are byte-identical to
-  their repo-root sources; CI's drift gate fails otherwise (ADR-025 precedent).
+- **I-030-5** — Vendored copies in `templates/service/` (`audit_record.py`,
+  `validate_quality_gates.py`, the Day-2 runbooks) are byte-identical to
+  their repo-root sources; CI's `vendored-runtime-drift` gate
+  (`scripts/check_vendored_runtime_drift.py`) fails otherwise (ADR-025
+  precedent).
 
 ## 4. Scope
 
