@@ -58,7 +58,7 @@ jobs:
           # Single-service repo: scaffolder substitutes the display name.
           # The generated service itself lives at repo root.
           # Multi-service adopters may convert this to service-root objects.
-          - {@ service_name @}
+          - "{@ service_name @}"
     steps:
       - uses: actions/checkout@v7
 
@@ -112,7 +112,7 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - {@ service_name @}
+          - "{@ service_name @}"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -211,7 +211,7 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - {@ service_name @}
+          - "{@ service_name @}"
     steps:
       - uses: actions/checkout@v7
 
