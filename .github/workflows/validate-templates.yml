@@ -682,6 +682,24 @@ jobs:
       - name: Check templates/service/.github/workflows vs .github/workflows for action drift
         run: python3 scripts/check_cicd_template_drift.py
 
+  vendored-runtime-drift:
+    name: Vendored Runtime Drift Gate
+    runs-on: ubuntu-latest
+    # Copier renders only templates/service/, so a handful of repo-root tools
+    # and runbooks that a scaffolded service needs at runtime
+    # (validate_quality_gates.py, audit_record.py, drift/retrain runbooks) are
+    # vendored into templates/service/. This gate fails when a vendored copy
+    # drifts from its canonical repo-root original.
+    # See scripts/check_vendored_runtime_drift.py for the full rationale.
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check vendored runtime files match canonical originals
+        run: python3 scripts/check_vendored_runtime_drift.py
+
   scaffold-e2e:
     name: Scaffolder End-to-End Test
     runs-on: ubuntu-latest
