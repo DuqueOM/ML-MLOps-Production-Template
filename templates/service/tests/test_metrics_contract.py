@@ -225,9 +225,14 @@ def _extract_declared_metrics() -> set[str]:
     return declared
 
 
+_AT_OPEN = "{" + "@"  # build dynamically to avoid Jinja2 parsing
+_AT_CLOSE = "@" + "}"
+_AT_RE = re.compile(_AT_OPEN + r"[^@]*" + _AT_CLOSE)
+
+
 def _normalise_metric_name(name: str) -> str:
-    """Replace `{...}` and ``{@ ... @}`` placeholders with a single sentinel."""
-    name = re.sub(r"\{@[^@]*@\}", "<PFX>", name)
+    """Replace ``{...}`` and Copier ``{@ ... @}`` placeholders with a sentinel."""
+    name = _AT_RE.sub("<PFX>", name)
     return re.sub(r"\{[^}]*\}", "<PFX>", name)
 
 
@@ -286,7 +291,7 @@ def _idents_from_expr(expr: str) -> set[str]:
     """
     # Replace Copier {@ ... @} tokens with a placeholder so the PromQL
     # identifier regex can match the full metric name (e.g. PFX_requests_total).
-    expr = re.sub(r"\{@[^@]*@\}", "PFX", expr)
+    expr = _AT_RE.sub("PFX", expr)
     cleaned = _strip_quoted(expr)
     out: set[str] = set()
     for tok in _PROMQL_IDENT.findall(cleaned):
@@ -378,7 +383,7 @@ def test_recording_rule_cross_references_resolve() -> None:
                 declared_records.add(_normalise_metric_name(rule["record"]))
             expr = rule.get("expr", "") or ""
             # Replace Copier {@ ... @} tokens so PromQL ident regex matches.
-            expr = re.sub(r"\{@[^@]*@\}", "PFX", expr)
+            expr = _AT_RE.sub("PFX", expr)
             for tok in _PROMQL_IDENT.findall(expr):
                 if ":" in tok:
                     referenced_records.add(_normalise_metric_name(tok))
