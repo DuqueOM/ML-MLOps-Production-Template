@@ -87,7 +87,7 @@ Each capability is rated **per environment**. Definitions:
 |---|---|---|---|---|
 | ADRs for non-trivial decisions | ready | ready | ready | 17 ADRs cover all design choices |
 | Audit trail (append-only `ops/audit.jsonl`) | ready | ready | ready | ADR-014; CLI `scripts/audit_record.py` |
-| Anti-pattern policy tests on scaffolded output | ready | ready | ready | PR-R2-11; D-01..D-32 enforced |
+| Anti-pattern policy tests on scaffolded output | ready | ready | ready | PR-R2-11; D-01..D-34 enforced |
 | Agent risk-context dynamic mode (AUTO→CONSULT→STOP) | ready | ready | ready | ADR-014; risk signals from Prometheus |
 | SOC2 / HIPAA controls | roadmap | roadmap | roadmap | Organizational, not template (ADR-001) |
 
@@ -108,6 +108,7 @@ inheriting the agentic surface.
 | Slash workflow | Make equivalent | Runbook reference |
 |---|---|---|
 | `/new-service` | `make new-service NAME=<PascalCase> SLUG=<snake_case>` | `templates/scripts/new-service.sh --help` |
+| `/scaffold-update` | `copier update` (manual) | `agentic/workflows/scaffold-update.md` |
 | `/eda` | `make eda` (runs the 6-phase pipeline) | `eda/README.md` |
 | `/drift-check` | `make drift-check` (runs `scripts/drills/run_drift_drill.py`) | `docs/runbooks/drift-detection.md` |
 | `/retrain` | `make retrain` (invokes training pipeline + quality gates) | `docs/runbooks/model-retrain.md` |
@@ -128,6 +129,7 @@ underlying CLI tool plus the corresponding human runbook:
 | Skill | CLI / runbook |
 |---|---|
 | `new-service` | `templates/scripts/new-service.sh` |
+| `scaffold-update` | `copier update` (manual; see `agentic/workflows/scaffold-update.md`) |
 | `deploy-gke` / `deploy-aws` | `templates/scripts/deploy.sh` + `docs/runbooks/deploy-{gke,aws}.md` |
 | `rollback` | `make rollback` + `docs/runbooks/rollback.md` |
 | `drift-detection` | `scripts/drills/run_drift_drill.py` + `docs/runbooks/drift-detection.md` |
@@ -136,7 +138,7 @@ underlying CLI tool plus the corresponding human runbook:
 | `cost-audit` | `make cost-review` + `docs/runbooks/cost-review.md` |
 | `security-audit` | `make security-audit` (gitleaks + bandit + trivy) |
 | `secret-breach-response` | `make secret-breach-check` + `docs/runbooks/secret-breach.md` |
-| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-32 are documented) |
+| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-34 are documented) |
 | `debug-ml-inference` | `docs/runbooks/debug-ml-inference.md` (manual procedure; no CLI equivalent — pure RCA reasoning) |
 | `performance-degradation-rca` | `docs/runbooks/performance-degradation-rca.md` (manual RCA procedure) |
 | `concept-drift-analysis` | `make performance-review` + `docs/runbooks/concept-drift-analysis.md` |
@@ -155,7 +157,7 @@ If your team adopts the template **without agents**, you lose:
 
 You **do not** lose:
 
-- any of the production invariants (D-01..D-32 are codified in tests, not
+- any of the production invariants (D-01..D-34 are codified in tests, not
   agent behavior)
 - contract tests (run on every PR via the same CI workflows)
 - supply-chain security (Cosign + SBOM + Kyverno are pipeline, not agent)
