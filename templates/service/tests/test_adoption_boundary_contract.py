@@ -55,6 +55,7 @@ WORKFLOW_TO_MAKE: dict[str, str] = {
     "cost-review": "cost-review",
     "new-adr": "new-adr",
     "secret-breach": "secret-breach-check",
+    "scaffold-update": "scaffold-update",
 }
 
 
@@ -136,7 +137,7 @@ def test_workflow_to_make_map_matches_filesystem() -> None:
 
 def test_every_workflow_has_make_target() -> None:
     """For each canonical workflow, the make target must exist."""
-    makefile = (REPO_ROOT / "templates" / "Makefile").read_text()
+    makefile = (REPO_ROOT / "templates" / "service" / "Makefile").read_text()
     # Match `^target:` or `^target [target2]:` as the target declaration line.
     target_pattern = re.compile(r"^([a-zA-Z_-][a-zA-Z0-9_-]*)\s*:", re.MULTILINE)
     declared_targets = set(target_pattern.findall(makefile))

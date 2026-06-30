@@ -258,6 +258,10 @@ secret-breach-check: ## Scan for leaked secrets (gitleaks)
 	@echo "$(GREEN)Scanning for leaked secrets...$(NC)"
 	gitleaks detect --no-git --source=. --redact
 
+scaffold-update: ## Update this service from the template (copier update)
+	@echo "$(GREEN)Updating from template...$(NC)"
+	copier update --trust --defaults
+
 security-audit: ## Run combined security audit (gitleaks + bandit + trivy)
 	@echo "$(GREEN)Running security audit...$(NC)"
 	@$(MAKE) secret-breach-check

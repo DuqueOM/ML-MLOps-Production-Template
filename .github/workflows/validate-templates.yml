@@ -257,7 +257,7 @@ jobs:
           set -euo pipefail
           status=0
           fastapi_app="templates/service/app/fastapi_app.py"
-          drift_py="templates/service/src/{service}/monitoring/drift_detection.py"
+          drift_py="templates/service/src/{@ service_slug @}/monitoring/drift_detection.py"
 
           if [ ! -f templates/service/app/_pandera_schema.py ]; then
             echo "::error::templates/service/app/_pandera_schema.py is missing (PR-R2-4)."

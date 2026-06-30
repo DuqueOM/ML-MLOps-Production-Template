@@ -50,6 +50,10 @@ def test_scaffold_replaces_placeholders(scaffold_dir: Path) -> None:
         for pattern, token in (
             (r"(?<![$])\{ServiceName\}", "{ServiceName}"),
             (r"(?<![$])\{SERVICE\}", "{SERVICE}"),
+            (r"\{@ service_slug @\}", "{@ service_slug @}"),
+            (r"\{@ service_name @\}", "{@ service_name @}"),
+            (r"\{@ service_kebab @\}", "{@ service_kebab @}"),
+            (r"\{@ SERVICE_NAME @\}", "{@ SERVICE_NAME @}"),
         ):
             if re.search(pattern, text):
                 bad.append(f"{rel}: contains {token!r}")

@@ -132,6 +132,7 @@ def _workflow_path() -> Path:
         here.parents[1] / ".github" / "workflows" / "terraform-plan-nightly.yml",
         here.parents[2] / "cicd" / "terraform-plan-nightly.yml",
         here.parents[2] / "templates" / "cicd" / "terraform-plan-nightly.yml",
+        here.parents[2] / "templates" / "service" / ".github" / "workflows" / "terraform-plan-nightly.yml",
     ]
     found = _find_one(candidates)
     if found is None:

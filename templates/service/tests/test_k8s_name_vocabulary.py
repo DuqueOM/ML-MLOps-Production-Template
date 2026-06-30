@@ -144,7 +144,16 @@ def _render(text: str) -> str:
     """Apply the same placeholder substitutions ``new-service.sh`` does,
     using a snake-heavy bug-trigger slug. Specific-first order so the
     kebab placeholder cannot be consumed by the snake substitution.
+
+    Supports both legacy ``{service}`` placeholders and Copier
+    ``{@ service_slug @}`` Jinja tokens.
     """
+    # Copier Jinja tokens ({@ @} delimiters)
+    text = text.replace("{@ service_name @}", "GoldenPath")
+    text = text.replace("{@ service_kebab @}", SAMPLE_KEBAB)
+    text = text.replace("{@ service_slug @}", SAMPLE_SNAKE)
+    text = text.replace("{@ SERVICE_NAME @}", "GOLDEN_PATH")
+    # Legacy placeholders (for backward compat)
     text = text.replace("{ServiceName}", "GoldenPath")
     text = text.replace("{service-name}", SAMPLE_KEBAB)
     text = text.replace("{service}", SAMPLE_SNAKE)

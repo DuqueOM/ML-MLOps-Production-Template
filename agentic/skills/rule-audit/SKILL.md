@@ -222,8 +222,8 @@ For large repos the agent can restrict scope:
 
 ## Related
 
-- AGENTS.md anti-pattern table (D-01..D-32)
+- AGENTS.md anti-pattern table (D-01..D-34)
 - `agentic/skills/security-audit/SKILL.md` — deeper security scan
-- `agentic/skills/debug-ml-inference/SKILL.md` — uses D-01..D-32 as
+- `agentic/skills/debug-ml-inference/SKILL.md` — uses D-01..D-34 as
   diagnostic checklist
 - `common_utils/agent_context.py::AuditLog` — audit trail integration

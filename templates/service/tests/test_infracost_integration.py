@@ -32,7 +32,7 @@ import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-WORKFLOW = REPO_ROOT / "templates" / "cicd" / "terraform-plan-nightly.yml"
+WORKFLOW = REPO_ROOT / "templates" / "service" / ".github" / "workflows" / "terraform-plan-nightly.yml"
 
 
 @pytest.fixture(scope="module")
