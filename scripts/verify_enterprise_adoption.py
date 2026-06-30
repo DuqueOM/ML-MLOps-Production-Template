@@ -25,7 +25,7 @@ def _runbook_refs() -> set[str]:
         "README.md",
         "QUICK_START.md",
         "docs/ADOPTION.md",
-        "templates/Makefile",
+        "templates/service/Makefile",
         "docs/runbooks/alertmanager-validation.md",
     ]
     refs: set[str] = set()
@@ -52,7 +52,7 @@ def main() -> int:
     if not release_path.exists():
         failures.append(f"missing releases/v{RELEASE}.md")
 
-    ci = _read("templates/cicd/ci.yml")
+    ci = _read("templates/service/.github/workflows/ci.yml")
     forbidden_ci = [
         "${{ matrix.service }}/requirements.txt",
         "cd ${{ matrix.service }}",
@@ -66,7 +66,9 @@ def main() -> int:
     if "docker build -t \"$IMAGE\" ." not in ci:
         failures.append("ci.yml does not build Docker image from scaffolded repo root")
 
-    deploy = _read("templates/cicd/deploy-gcp.yml") + _read("templates/cicd/deploy-aws.yml")
+    deploy = _read("templates/service/.github/workflows/deploy-gcp.yml") + _read(
+        "templates/service/.github/workflows/deploy-aws.yml"
+    )
     if "for SERVICE in {ServiceName}" in deploy:
         failures.append("deploy workflows still loop over PascalCase {ServiceName}")
     if "-predictor:${{ steps.version.outputs.v }}" not in deploy:

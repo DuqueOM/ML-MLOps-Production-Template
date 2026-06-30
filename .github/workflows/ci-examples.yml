@@ -41,7 +41,7 @@ jobs:
       - name: Run full test + coverage matrix
         # Coverage now measures the actual surface area shipped to users:
         #   - examples/minimal: the smallest demo
-        #   - templates/common_utils: the helper library reused by services
+        #   - templates/service/common_utils: the helper library reused by services
         #   - templates/service: the canonical service template
         # Tests run against:
         #   - examples/minimal/test_service.py (E2E demo)
@@ -57,7 +57,7 @@ jobs:
             templates/service/tests/test_explainer.py \
             templates/tests/unit/ \
             --cov=examples/minimal \
-            --cov=templates/common_utils \
+            --cov=templates/service/common_utils \
             --cov=templates/service/app \
             --cov-config=pyproject.toml \
             --cov-report=xml \

@@ -46,8 +46,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_FILE = REPO_ROOT / "templates" / "config" / "report_schema.json"
 
-# Make `templates/common_utils` importable without installing a package.
-sys.path.insert(0, str(REPO_ROOT / "templates"))
+# Make `templates/service/common_utils` importable without installing a package.
+sys.path.insert(0, str(REPO_ROOT / "templates" / "service"))
 
 # pylint: disable=wrong-import-position
 from common_utils.agent_context import AgentMode, Environment  # noqa: E402

@@ -66,11 +66,11 @@ jobs:
           set -euo pipefail
           ALLOWLIST_PATTERNS=(
             '^\.github/workflows/.*\.yml$'
-            '^templates/cicd/.*\.yml$'
-            '^templates/k8s/overlays/.*'
+            '^templates/service/\.github/workflows/.*\.yml$'
+            '^templates/service/k8s/overlays/.*'
             '^templates/k8s/policies/.*'
             '^templates/service/tests/contract/.*'
-            '^templates/common_utils/.*\.py$'
+            '^templates/service/common_utils/.*\.py$'
             '^scripts/.*\.py$'
             '^scripts/.*\.sh$'
             '^templates/config/.*\.yaml$'

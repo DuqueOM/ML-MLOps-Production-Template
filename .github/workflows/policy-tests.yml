@@ -35,10 +35,11 @@ on:
     paths:
       - "templates/scripts/new-service.sh"
       - "templates/service/tests/policy/**"
-      - "templates/k8s/**"
-      - "templates/infra/terraform/**"
-      - "templates/Dockerfile"
-      - "templates/requirements*.txt"
+      - "templates/service/k8s/**"
+      - "templates/k8s/policies/**"
+      - "templates/service/infra/terraform/**"
+      - "templates/service/Dockerfile"
+      - "templates/service/requirements*.txt"
       - "AGENTS.md"
 
 permissions:

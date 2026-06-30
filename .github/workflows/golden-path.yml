@@ -174,7 +174,7 @@ jobs:
 
       - name: Capture image digest
         id: digest
-        # Mirrors the canonical step in templates/cicd/deploy-{gcp,aws}.yml.
+        # Mirrors the canonical step in templates/service/.github/workflows/deploy-{gcp,aws}.yml.
         # Without this, the rest of the chain (cosign sign by digest,
         # Kyverno admit by digest, kustomize edit set image @sha256)
         # has nothing to bind to.
