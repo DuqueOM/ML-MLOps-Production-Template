@@ -24,8 +24,8 @@ Every architectural decision is documented in ADRs with measured trade-offs.
 When starting a new session:
 
 1. **READ** `AGENTS.md` fully before writing any code
-2. **CONFIRM** scaffold is complete: `grep -r "{@ service_name @}\|{@ service_slug @}" . --include="*.py" --include="*.yaml"`
-3. **CHECK** invariants: `grep -r "TODO\|{@ service_name @}\|{@ service_slug @}" . --include="*.py" --include="*.yaml"`
+2. **CONFIRM** scaffold is complete: `grep -r "{% raw %}{@ service_name @}{% endraw %}\|{% raw %}{@ service_slug @}{% endraw %}" . --include="*.py" --include="*.yaml"`
+3. **CHECK** invariants: `grep -r "TODO\|{% raw %}{@ service_name @}{% endraw %}\|{% raw %}{@ service_slug @}{% endraw %}" . --include="*.py" --include="*.yaml"`
 4. **IDENTIFY** phase: **Build** (new service) vs **Operate** (existing service)
 5. **SELECT** the appropriate approach based on the task
 
