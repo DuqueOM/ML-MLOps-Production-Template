@@ -260,6 +260,11 @@ skills:
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "scaffold-update"
+    source: "agentic/skills/scaffold-update/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "secret-breach-response"
     source: "agentic/skills/secret-breach-response/SKILL.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
@@ -330,6 +335,11 @@ workflows:
     source: "agentic/workflows/rollback.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "STOP"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "scaffold-update"
+    source: "agentic/workflows/scaffold-update.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "secret-breach"
     source: "agentic/workflows/secret-breach.md"

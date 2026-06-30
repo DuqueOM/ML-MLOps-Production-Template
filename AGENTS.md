@@ -299,6 +299,7 @@ When starting a new session in a project derived from this template:
 - `batch-inference` — scaffold + run batch scoring jobs (CronJob + Parquet output) reusing the service's model and feature-engineering code
 - `performance-degradation-rca` — end-to-end RCA for a performance-degradation incident: correlates sliced metrics, drift, deploy history, upstream data changes, and prediction logs into one evidence-backed root cause
 - `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-34; produces a PASS/FAIL report with file:line evidence
+- `scaffold-update` — update an existing scaffolded service with the latest template changes via `copier update`
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -313,11 +314,12 @@ When starting a new session in a project derived from this template:
 - `/secret-breach` — incident workflow for leaked secrets (STOP pipeline, rotate, audit)
 - `/performance-review` — monthly sliced-performance review using ground-truth metrics (detect silent concept drift, document findings)
 - `/rollback` — emergency rollback of a production ML service — pairs with the `rollback` skill (STOP-class operation)
+- `/scaffold-update` — pull template improvements into an existing scaffolded service via `copier update`
 
 ## Agentic Configuration
 
 ```
-agentic/                                # Canonical agentic source (ADR-027) — 16 rules, 16 skills, 12 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 16 rules, 17 skills, 13 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
@@ -335,7 +337,7 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── 13-closed-loop-monitoring.md    # glob: prediction_logger/ground_truth/performance_monitor — D-20/21/22
 │   ├── 14-api-contracts.md             # glob: **/app/schemas.py, **/tests/contract/** — D-28, OpenAPI snapshot + semver
 │   └── 15-template-lifecycle.md        # glob: copier.yml, templates/service/** — D-33/34, Copier scaffolding invariants
-├── skills/                             # 16 multi-step operational procedures
+├── skills/                             # 17 multi-step operational procedures
 │   ├── batch-inference/SKILL.md
 │   ├── concept-drift-analysis/SKILL.md
 │   ├── cost-audit/SKILL.md
@@ -350,9 +352,10 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── release-checklist/SKILL.md
 │   ├── rollback/SKILL.md
 │   ├── rule-audit/SKILL.md
+│   ├── scaffold-update/SKILL.md
 │   ├── secret-breach-response/SKILL.md
 │   └── security-audit/SKILL.md
-└── workflows/                          # 12 slash-command workflows
+└── workflows/                          # 13 slash-command workflows
     ├── cost-review.md                  # /cost-review
     ├── drift-check.md                  # /drift-check
     ├── eda.md                          # /eda
@@ -364,6 +367,7 @@ agentic/                                # Canonical agentic source (ADR-027) —
     ├── release.md                      # /release
     ├── retrain.md                      # /retrain
     ├── rollback.md                     # /rollback (STOP-class)
+    ├── scaffold-update.md              # /scaffold-update
     └── secret-breach.md                # /secret-breach (STOP-class)
 ```
 

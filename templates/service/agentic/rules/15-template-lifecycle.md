@@ -64,3 +64,16 @@ return zero hits. Every match is an unquoted Jinja token in a YAML list.
 services. The template MUST maintain backward-compatible `copier.yml`
 question names — renaming a question breaks `.copier-answers.yml` on
 every scaffolded service.
+
+The `scaffold-update` skill and `/scaffold-update` workflow codify the
+upgrade procedure:
+1. Pre-flight: clean working tree + `.copier-answers.yml` present.
+2. Dry-run diff to categorize changes (no-op / conflict / new).
+3. Review with operator (CONSULT mode).
+4. Apply via `copier update --trust --defaults`.
+5. Resolve conflicts manually.
+6. Validate (agentic manifest, CI workflows, K8s overlays, tests).
+7. Commit with template version reference.
+
+Breaking template changes (renamed questions, removed files) require a
+migration ADR before the update can proceed.
