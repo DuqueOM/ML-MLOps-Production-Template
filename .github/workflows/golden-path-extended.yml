@@ -84,6 +84,14 @@ jobs:
       # Tooling install (mirror golden-path.yml — no curl|bash, pinned
       # versions via canonical actions or direct release tarballs).
       # ---------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Copier
+        run: pip install "copier>=9.0.0"
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v5
         with:
@@ -109,7 +117,7 @@ jobs:
       # the time this runs on schedule, and (b) re-scaffolding is ~45s
       # which is cheap relative to the cluster setup below.
       # ---------------------------------------------------------------------
-      - name: Scaffold service via new-service.sh
+      - name: Scaffold service via Copier
         run: |
           set -euo pipefail
           bash templates/scripts/new-service.sh "${SERVICE_NAME}" "${SERVICE_SLUG}"

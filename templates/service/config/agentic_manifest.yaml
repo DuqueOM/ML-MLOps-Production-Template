@@ -1,0 +1,474 @@
+# =============================================================================
+# Agentic Manifest — ADR-023 §agentic-manifest.
+# =============================================================================
+# READ-ONLY INDEX. This file drives thin adapter rendering; it never copies canonical bodies.
+#   - `scripts/validate_agentic_manifest.py --strict` validates coherence:
+#       * every `authority:` anchor resolves to a heading in AGENTS.md
+#         or an existing ADR;
+#       * every skill/workflow/rule listed here exists at its declared
+#         path (canonical bodies live in agentic/, ADR-027);
+#       * every surface declared in `surfaces:` has the consumer files
+#         listed under its entry (cursor has 14 rule files, claude has
+#         12 command files, etc.);
+#       * no `escalation_override` de-escalates a mode.
+#
+# Surface files are rendered by `scripts/sync_agentic_adapters.py`:
+# `.devin/` is a full-body mirror-surface (the IDE ingests bodies and
+# cannot follow pointers); `.cursor/`, `.claude/`, `.codex/` are thin
+# pointer-surfaces. `agentic/` remains the sole canonical store (ADR-027).
+#
+# Invariant I-1 (ADR-023 §3): every policy claim here carries an
+# `authority:` reference to AGENTS.md#<section> or an ADR file path.
+# =============================================================================
+version: 1
+
+# -----------------------------------------------------------------------------
+# Canonical authority chain. The validator resolves these on load.
+# -----------------------------------------------------------------------------
+canonical:
+  behavior_protocol:
+    path: "AGENTS.md"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  invariants:
+    path: "AGENTS.md"
+    authority: "AGENTS.md#Critical Patterns \u2014 DO NOT VIOLATE"
+  permissions_matrix:
+    path: "AGENTS.md"
+    authority: "AGENTS.md#Agent Permissions Matrix"
+  dynamic_risk:
+    path: "common_utils/risk_context.py"
+    authority: "docs/decisions/ADR-010-dynamic-behavior-protocol.md"
+  ci_autofix_policy:
+    path: "config/ci_autofix_policy.yaml"
+    authority: "docs/decisions/ADR-019-agentic-ci-self-healing.md"
+  model_routing_policy:
+    path: "config/model_routing_policy.yaml"
+    authority: "docs/decisions/ADR-014-gap-remediation-plan.md"
+  memory_plane:
+    path: "ops/audit.jsonl"
+    authority: "docs/decisions/ADR-018-operational-memory-plane.md"
+  context_layer:
+    company_template: "config/company_context.example.yaml"
+    project_template: "config/project_context.example.yaml"
+    schema: "config/context.schema.json"
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+
+# -----------------------------------------------------------------------------
+# Agents — one entry per role defined in AGENTS.md §Agent Architecture.
+# The manifest does not redefine responsibilities; it indexes them.
+# -----------------------------------------------------------------------------
+agents:
+  - id: "Agent-Orchestrator"
+    layer: 1
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-EDAProfiler"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-DataValidator"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-MLTrainer"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-APIBuilder"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-DockerBuilder"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-K8sBuilder"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-TerraformBuilder"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-CICDBuilder"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-SecurityAuditor"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-MonitoringSetup"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-DriftSetup"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-DocumentationAI"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-TestGenerator"
+    layer: 2
+    phase: "build"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-DriftMonitor"
+    layer: 3
+    phase: "operate"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-RetrainingAgent"
+    layer: 3
+    phase: "operate"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-CostAuditor"
+    layer: 3
+    phase: "operate"
+    authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-DocUpdater"
+    layer: 3
+    phase: "operate"
+    authority: "AGENTS.md#Agent Architecture"
+
+# -----------------------------------------------------------------------------
+# Rules — canonical source is agentic/rules/. Other surfaces adapt (ADR-027).
+# The validator asserts EACH canonical rule exists at `source:` and
+# that every surface claiming the rule has a corresponding adapter file.
+# -----------------------------------------------------------------------------
+rules:
+  - id: "01-mlops-conventions"
+    source: "agentic/rules/01-mlops-conventions.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "02-kubernetes"
+    source: "agentic/rules/02-kubernetes.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "03-terraform"
+    source: "agentic/rules/03-terraform.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "04a-python-serving"
+    source: "agentic/rules/04a-python-serving.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "04b-python-training"
+    source: "agentic/rules/04b-python-training.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "05-github-actions"
+    source: "agentic/rules/05-github-actions.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "06-documentation"
+    source: "agentic/rules/06-documentation.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "07-docker"
+    source: "agentic/rules/07-docker.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "08-data-validation"
+    source: "agentic/rules/08-data-validation.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "09-monitoring"
+    source: "agentic/rules/09-monitoring.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "10-examples"
+    source: "agentic/rules/10-examples.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "11-data-eda"
+    source: "agentic/rules/11-data-eda.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "12-security-secrets"
+    source: "agentic/rules/12-security-secrets.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "13-closed-loop-monitoring"
+    source: "agentic/rules/13-closed-loop-monitoring.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "14-api-contracts"
+    source: "agentic/rules/14-api-contracts.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+
+# -----------------------------------------------------------------------------
+# Skills — canonical source is agentic/skills/. The authoritative set
+# lives in the directory with a SKILL.md inside each skill folder.
+# -----------------------------------------------------------------------------
+skills:
+  - id: "batch-inference"
+    source: "agentic/skills/batch-inference/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "concept-drift-analysis"
+    source: "agentic/skills/concept-drift-analysis/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "cost-audit"
+    source: "agentic/skills/cost-audit/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "debug-ml-inference"
+    source: "agentic/skills/debug-ml-inference/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "deploy-aws"
+    source: "agentic/skills/deploy-aws/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "deploy-gke"
+    source: "agentic/skills/deploy-gke/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "drift-detection"
+    source: "agentic/skills/drift-detection/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "eda-analysis"
+    source: "agentic/skills/eda-analysis/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "model-retrain"
+    source: "agentic/skills/model-retrain/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "new-service"
+    source: "agentic/skills/new-service/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "performance-degradation-rca"
+    source: "agentic/skills/performance-degradation-rca/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "release-checklist"
+    source: "agentic/skills/release-checklist/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "rollback"
+    source: "agentic/skills/rollback/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "STOP"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "rule-audit"
+    source: "agentic/skills/rule-audit/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "secret-breach-response"
+    source: "agentic/skills/secret-breach-response/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "STOP"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "security-audit"
+    source: "agentic/skills/security-audit/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+
+# -----------------------------------------------------------------------------
+# Workflows — slash-invokable procedures. Canonical in agentic/workflows/.
+# Cursor + Claude surfaces carry adapter files under `commands/`.
+# -----------------------------------------------------------------------------
+workflows:
+  - id: "cost-review"
+    source: "agentic/workflows/cost-review.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "drift-check"
+    source: "agentic/workflows/drift-check.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "eda"
+    source: "agentic/workflows/eda.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "incident"
+    source: "agentic/workflows/incident.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "load-test"
+    source: "agentic/workflows/load-test.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "new-adr"
+    source: "agentic/workflows/new-adr.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "new-service"
+    source: "agentic/workflows/new-service.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "performance-review"
+    source: "agentic/workflows/performance-review.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "release"
+    source: "agentic/workflows/release.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "retrain"
+    source: "agentic/workflows/retrain.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "rollback"
+    source: "agentic/workflows/rollback.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "STOP"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "secret-breach"
+    source: "agentic/workflows/secret-breach.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "STOP"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+
+# -----------------------------------------------------------------------------
+# Surfaces — where each surface's files live. The validator counts adapters.
+# -----------------------------------------------------------------------------
+surfaces:
+  agentic:
+    # Canonical store. Human-authored bodies; the only surface humans edit.
+    status: "canonical"
+    kind: "canonical"
+    roots:
+      rules: "agentic/rules"
+      skills: "agentic/skills"
+      workflows: "agentic/workflows"
+    context_pointer: "AGENT_CONTEXT.md"
+  devin:
+    # Mirror-surface: full bodies rendered from agentic/ (ADR-027). Devin
+    # Desktop ingests directory bodies and cannot follow pointers; .devin/
+    # is the preferred IDE location and takes precedence per Cognition FAQ.
+    # Generated by sync; CI enforces byte-parity with agentic/ via --check.
+    status: "mirror"
+    kind: "mirror"
+    roots:
+      rules: ".devin/rules"
+      skills: ".devin/skills"
+      workflows: ".devin/workflows"
+    context_pointer: ".devin_context.md"
+  cursor:
+    status: "adapter"
+    kind: "pointer"
+    roots:
+      rules: ".cursor/rules"
+      commands: ".cursor/commands"
+      skills: ".cursor/skills"
+      skills_index: ".cursor/skills/INDEX.md"
+    context_pointer: ".cursor_context.md"
+  claude:
+    status: "adapter"
+    kind: "pointer"
+    roots:
+      rules: ".claude/rules"
+      commands: ".claude/commands"
+      skills: ".claude/skills"
+      skills_index: ".claude/skills/INDEX.md"
+    context_pointer: ".claude_context.md"
+  codex:
+    status: "adapter"
+    kind: "pointer"
+    # Codex consumes the full canonical set through generated pointer
+    # files. Live MCP config remains adopter-owned and gitignored.
+    roots:
+      readme: ".codex/README.md"
+      rules: ".codex/rules"
+      skills: ".codex/skills"
+      workflows: ".codex/workflows"
+      automations: ".codex/automations"
+      mcp_example: ".codex/mcp.example.json"
+    context_pointer: ".codex_context.md"
+
+# -----------------------------------------------------------------------------
+# Integration hints — where other machinery reads the context layer.
+# Only informative; the runtime code owns its own defaults.
+# -----------------------------------------------------------------------------
+context_consumers:
+  - module: "common_utils/risk_context.py"
+    reads:
+      - "company.risk_appetite"
+      - "company.monthly_budget_usd"
+      - "company.on_hours_utc"
+      - "project.criticality"
+      - "project.agentic_policy.escalation_overrides"
+    authority: "docs/decisions/ADR-010-dynamic-behavior-protocol.md"
+
+# -----------------------------------------------------------------------------
+# Reports v1 (ADR-023 F6) — typed report contract for the four canonical
+# producer workflows. Every entry references its producer + consumer so
+# the cross-surface picture is auditable from the manifest alone.
+# -----------------------------------------------------------------------------
+reports:
+  schema: "config/report_schema.json"
+  library: "common_utils/reports.py"
+  cli: "scripts/generate_report.py"
+  storage_root: "ops/reports/"
+  authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+  types:
+    - id: "release"
+      producer: "release-checklist"
+      consumers: ["github_actions", "humans"]
+      mode: "CONSULT"
+    - id: "drift"
+      producer: "drift-detection"
+      consumers: ["model-retrain", "humans"]
+      mode: "AUTO"
+    - id: "training"
+      producer: "model-retrain"
+      consumers: ["release-checklist", "humans"]
+      mode: "AUTO"
+    - id: "incident"
+      producer: "incident"
+      consumers: ["humans", "post-mortem"]
+      mode: "CONSULT"
+
+# -----------------------------------------------------------------------------
+# Companions (ADR-023 F7 / F8 / F9) — docs-only integration patterns.
+#
+# A companion is NOT a new surface and does NOT introduce skills or workflows.
+# It is a documented wiring pattern that lets an existing surface
+# (or a managed-agent platform like Vertex AI / AgentCore) consume the
+# canonical agentic stack defined above.
+#
+# Contract test: `tests/test_companions_contract.py`.
+# -----------------------------------------------------------------------------
+companions:
+  - id: "runtime-monitoring"
+    feature: "F7"
+    kind: "consumption-pattern"
+    doc: "docs/agentic/runtime-monitoring-companion.md"
+    requires_mcps: ["prometheus", "github", "kubectl"]
+    write_capable: false
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+    status: "shipped"
+  - id: "gcp-gemini-enterprise"
+    feature: "F8"
+    kind: "cloud-companion"
+    doc: "docs/agentic/cloud-companions.md"
+    provider: "gcp"
+    write_capable: false
+    surfaces_native: []
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+    status: "shipped (docs-only)"
+  - id: "aws-bedrock-agentcore"
+    feature: "F9"
+    kind: "cloud-companion"
+    doc: "docs/agentic/cloud-companions.md"
+    provider: "aws"
+    write_capable: false
+    surfaces_native: []
+    authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
+    status: "shipped (docs-only)"

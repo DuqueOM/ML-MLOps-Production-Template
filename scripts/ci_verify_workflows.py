@@ -18,7 +18,10 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW_DIRS = (REPO_ROOT / ".github" / "workflows", REPO_ROOT / "templates" / "cicd")
+WORKFLOW_DIRS = (
+    REPO_ROOT / ".github" / "workflows",
+    REPO_ROOT / "templates" / "service" / ".github" / "workflows",
+)
 
 
 def _workflow_files() -> list[Path]:

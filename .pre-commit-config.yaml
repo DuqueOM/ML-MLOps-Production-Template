@@ -121,10 +121,10 @@ repos:
         args: ["--maxkb=500"]
 
   # mypy + bandit scope: REAL Python only.
-  # `templates/service/src/{service}/` is template territory — the
-  # `{service}` segment is a placeholder that new-service.sh
+  # `templates/service/src/{@ service_slug @}/` is template territory — the
+  # `{@ service_slug @}` segment is a Jinja token that Copier
   # substitutes at scaffold time. Running static analysis on the
-  # un-substituted templates explodes (mypy: "{service} is not a
+  # un-substituted templates explodes (mypy: "{@ service_slug @} is not a
   # valid Python package name"). The scaffolded SERVICE gets its
   # OWN per-service hook config (templates/service/.pre-commit-config.yaml).
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -212,6 +212,6 @@ repos:
   #   - industry baseline: pre-commit < 5 s, pre-push < 30 s, CI per-PR
   #     3–10 min (Software Engineering at Google §4.2)
   # On-demand local runs:
-  #   make smoke              # alias of: bash scripts/test_scaffold.sh
+  #   make smoke              # alias of: bash scripts/test_scaffold.sh (Copier render)
   #   make validate-templates # full local validation chain
   # See docs/audit/ACTION_PLAN_R5.md §R5-L4 for the full decision record.

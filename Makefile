@@ -140,11 +140,11 @@ report-example: ## Print a syntactically valid example report. Usage: make repor
 	@if [ -z "$(TYPE)" ]; then echo "$(RED)error: TYPE=<release|drift|training|incident> required$(NC)"; exit 2; fi
 	python3 scripts/generate_report.py example $(TYPE)
 
-test-scaffold: ## End-to-end test: runs new-service.sh in a tmp dir and validates output
-	@echo "$(GREEN)Testing scaffolder end-to-end...$(NC)"
+test-scaffold: ## End-to-end test: runs copier copy via new-service.sh and validates output
+	@echo "$(GREEN)Testing Copier scaffold end-to-end...$(NC)"
 	@bash scripts/test_scaffold.sh
 
-smoke: test-scaffold ## Alias of test-scaffold. Run before push when touching templates/service/k8s/, templates/service/.github/workflows/, or templates/scripts/new-service.sh. CI runs the same script in pr-smoke-lane.yml; this is the local on-demand entry point (R5-L4).
+smoke: test-scaffold ## Alias of test-scaffold. Run before push when touching templates/service/ or copier.yml. CI runs the same script in pr-smoke-lane.yml; this is the local on-demand entry point (R5-L4).
 
 eda-validate: ## Validate EDA pipeline: syntax + run against example dataset
 	@echo "$(GREEN)Validating EDA pipeline...$(NC)"
@@ -188,7 +188,7 @@ test-examples: demo-install ## Run all example regression tests
 # Scaffolding
 # ═══════════════════════════════════════════════
 
-new-service: ## Scaffold a new service: make new-service NAME=FraudDetection SLUG=fraud_detection
+new-service: ## Scaffold a new service via Copier: make new-service NAME=FraudDetection SLUG=fraud_detection
 	@if [ -z "$(NAME)" ] || [ -z "$(SLUG)" ]; then \
 		echo "$(RED)Usage: make new-service NAME=FraudDetection SLUG=fraud_detection$(NC)"; \
 		exit 1; \

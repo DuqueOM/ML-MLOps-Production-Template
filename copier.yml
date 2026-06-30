@@ -120,6 +120,15 @@ gh_repo:
     gh_repo must be a valid GitHub repository name.
     {% endif %}
 
+# ── Post-copy tasks ───────────────────────────────────────────────────────────
+# After rendering, sync adapter surfaces (.devin/, .cursor/, .claude/, .codex/)
+# from the canonical agentic/ store, then validate the manifest in strict mode.
+# This guarantees the generated service ships with a coherent agentic system
+# (ADR-023 / ADR-027 / ADR-030).
+_tasks:
+  - "python3 scripts/sync_agentic_adapters.py"
+  - "python3 scripts/validate_agentic_manifest.py --strict"
+
 # ── Post-copy guidance ─────────────────────────────────────────────────────────
 _message_after_copy: |
   ✓ Service "{@ service_name @}" scaffolded.

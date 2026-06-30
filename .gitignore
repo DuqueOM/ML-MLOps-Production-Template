@@ -118,6 +118,11 @@ reports/
 !ops/reports/**/.gitkeep
 ops/reports/**/*.json
 
+# Templates vendored reports dir (W1.3b) — must be trackable for Copier render
+!templates/service/ops/
+!templates/service/ops/reports/
+!templates/service/ops/reports/**/.gitkeep
+
 # ─── DVC ─────────────────────────────────────────────
 /tmp/
 

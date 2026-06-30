@@ -654,8 +654,8 @@ jobs:
     runs-on: ubuntu-latest
     # ADR-025 Option A: until common_utils is distributed as a proper
     # package, templates/service/common_utils/ MUST remain placeholder-free.
-    # new-service.sh copies it verbatim and then runs a global sed pass;
-    # any placeholder here would silently fork adopters' scaffolded copies.
+    # Copier renders it verbatim; any placeholder here would silently fork
+    # adopters' scaffolded copies.
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python
@@ -714,7 +714,7 @@ jobs:
       - name: Install validation tools
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
+          pip install pytest "copier>=9.0.0"
 
       - name: Install kustomize
         # Direct release tarball, pinned version (PR-R2-5).
@@ -727,16 +727,16 @@ jobs:
           sudo mv /tmp/kustomize /usr/local/bin/
           kustomize version
 
-      - name: Run scaffolder end-to-end test
-        # Executes templates/scripts/new-service.sh in a tmp dir. With
-        # SCAFFOLD_SMOKE=1, additionally:
+      - name: Run Copier scaffold end-to-end test
+        # Executes `copier copy` via templates/scripts/new-service.sh in a
+        # tmp dir. With SCAFFOLD_SMOKE=1, additionally:
         #   - creates a venv for the scaffolded service
         #   - installs requirements.txt
         #   - generates tests/contract/openapi.snapshot.json
         #   - runs pytest on test_api.py + test_training.py + contract/
         #
         # Without the flag, only structural validations run (kustomize,
-        # placeholders, syntax) — kept fast for local invocation.
+        # Jinja tokens, syntax) — kept fast for local invocation.
         env:
           SCAFFOLD_SMOKE: "1"
         run: bash scripts/test_scaffold.sh
