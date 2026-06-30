@@ -47,13 +47,16 @@ def test_scaffold_replaces_placeholders(scaffold_dir: Path) -> None:
         # Use negative lookbehind so shell variables like ${SERVICE}
         # (legitimate in scaffolded CI workflow scripts) are not flagged.
         # Only bare {ServiceName} / {SERVICE} not preceded by $ are placeholders.
+        # Build Copier token strings dynamically to avoid Jinja2 parsing.
+        _at = "{" + "@"
+        _ate = "@" + "}"
         for pattern, token in (
             (r"(?<![$])\{ServiceName\}", "{ServiceName}"),
             (r"(?<![$])\{SERVICE\}", "{SERVICE}"),
-            (r"\{@ service_slug @\}", "{@ service_slug @}"),
-            (r"\{@ service_name @\}", "{@ service_name @}"),
-            (r"\{@ service_kebab @\}", "{@ service_kebab @}"),
-            (r"\{@ SERVICE_NAME @\}", "{@ SERVICE_NAME @}"),
+            (rf"\{_at} service_slug {_ate}", f"{_at} service_slug {_ate}"),
+            (rf"\{_at} service_name {_ate}", f"{_at} service_name {_ate}"),
+            (rf"\{_at} service_kebab {_ate}", f"{_at} service_kebab {_ate}"),
+            (rf"\{_at} SERVICE_NAME {_ate}", f"{_at} SERVICE_NAME {_ate}"),
         ):
             if re.search(pattern, text):
                 bad.append(f"{rel}: contains {token!r}")

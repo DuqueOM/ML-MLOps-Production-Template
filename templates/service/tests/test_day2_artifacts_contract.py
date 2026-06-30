@@ -112,9 +112,12 @@ def test_day2_runbook_uses_kebab_for_k8s_names() -> None:
             if "Prometheus" in line or "snake-case" in line.lower():
                 continue
             bad.append((n, line.strip()))
+    _at = "{" + "@"
+    _ate = "@" + "}"
     assert not bad, (
-        "day-2-operations.md uses `{@ service_slug @}` (snake) in a K8s-name "
-        "context (must be `{@ service_kebab @}` kebab per PR-A5b):\n" + "\n".join(f"  L{n}: {ln}" for n, ln in bad)
+        f"day-2-operations.md uses `{_at} service_slug {_ate}` (snake) in a K8s-name "
+        f"context (must be `{_at} service_kebab {_ate}` kebab per PR-A5b):\n"
+        + "\n".join(f"  L{n}: {ln}" for n, ln in bad)
     )
 
 

@@ -146,13 +146,16 @@ def _render(text: str) -> str:
     kebab placeholder cannot be consumed by the snake substitution.
 
     Supports both legacy ``{service}`` placeholders and Copier
-    ``{@ service_slug @}`` Jinja tokens.
+    Jinja tokens (built dynamically to avoid self-rendering).
     """
-    # Copier Jinja tokens ({@ @} delimiters)
-    text = text.replace("{@ service_name @}", "GoldenPath")
-    text = text.replace("{@ service_kebab @}", SAMPLE_KEBAB)
-    text = text.replace("{@ service_slug @}", SAMPLE_SNAKE)
-    text = text.replace("{@ SERVICE_NAME @}", "GOLDEN_PATH")
+    # Copier Jinja tokens — build strings to avoid
+    # Jinja2 parsing the literal tokens in this source file.
+    _at = "{" + "@"
+    _at_end = "@" + "}"
+    text = text.replace(f"{_at} service_name {_at_end}", "GoldenPath")
+    text = text.replace(f"{_at} service_kebab {_at_end}", SAMPLE_KEBAB)
+    text = text.replace(f"{_at} service_slug {_at_end}", SAMPLE_SNAKE)
+    text = text.replace(f"{_at} SERVICE_NAME {_at_end}", "GOLDEN_PATH")
     # Legacy placeholders (for backward compat)
     text = text.replace("{ServiceName}", "GoldenPath")
     text = text.replace("{service-name}", SAMPLE_KEBAB)
