@@ -33,9 +33,10 @@ _TEMPLATES_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_TEMPLATES_ROOT) not in sys.path:
     sys.path.insert(0, str(_TEMPLATES_ROOT))
 
+from eda import eda_pipeline  # noqa: E402
+
 # common_utils lives at templates/common_utils/; eda_pipeline at templates/eda/.
 from common_utils import eda_artifacts as ea  # noqa: E402
-from eda import eda_pipeline  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures

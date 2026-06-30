@@ -73,7 +73,7 @@ def scaffold_dir() -> Iterator[Path]:
             pytest.fail(f"Scaffolder not found at {scaffolder}")
 
         result = subprocess.run(
-            ["bash", str(scaffolder), "PolicySvc", "policy_svc"],
+            ["bash", str(scaffolder), "PolicySvc", "policy_svc", "test-org", "policy-svc"],
             cwd=tmp_root,
             capture_output=True,
             text=True,
