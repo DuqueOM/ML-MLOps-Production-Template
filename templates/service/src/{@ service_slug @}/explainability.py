@@ -1,4 +1,4 @@
-"""Model explainability using SHAP for [[ service_name ]].
+"""Model explainability using SHAP for {@ service_name @}.
 
 Provides global feature importance and per-prediction explanations via SHAP.
 Uses KernelExplainer for complex ensemble/pipeline models (NEVER TreeExplainer

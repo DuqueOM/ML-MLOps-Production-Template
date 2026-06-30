@@ -1,4 +1,4 @@
-# Release Checklist — [[ service_name ]]
+# Release Checklist — {@ service_name @}
 
 Use this checklist before every production release. Copy to an issue or PR description.
 

@@ -5,12 +5,12 @@ Why a separate module
 
 The Pandera schema is the *single source of truth* for input validation
 (training, serving, drift — see ADR-016 PR-R2-4). It lives under
-``src/[[ service_slug ]]/schemas.py`` because that is where ``train.py`` consumes
+``src/{@ service_slug @}/schemas.py`` because that is where ``train.py`` consumes
 it via a relative import.
 
 The FastAPI router in :mod:`app.fastapi_app` cannot ``from
-[[ service_slug ]].schemas import ServiceInputSchema`` directly: at template-test
-time the package name is the literal placeholder ``[[ service_slug ]]`` (not a
+{@ service_slug @}.schemas import ServiceInputSchema`` directly: at template-test
+time the package name is the literal placeholder ``{@ service_slug @}`` (not a
 valid Python identifier) and the import fails at *parse* time, before
 any ``try`` block can rescue it.
 
@@ -49,7 +49,7 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
-_DEFAULT_PACKAGE = "[[ service_slug ]]"  # rewritten by new-service.sh; see module docstring
+_DEFAULT_PACKAGE = "{@ service_slug @}"  # rewritten by new-service.sh; see module docstring
 _SCHEMA_ATTR = "ServiceInputSchema"
 
 

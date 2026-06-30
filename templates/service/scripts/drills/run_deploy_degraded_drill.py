@@ -14,7 +14,7 @@ What it exercises:
   - Challenger: a deliberately degraded model trained on the SAME
     features but with shuffled labels (pure noise → AUC ≈ 0.50).
   - Holdout: a fresh sample from the same generative process.
-  - Gate: ``[[ service_slug ]].evaluation.champion_challenger.compare_models``
+  - Gate: ``{@ service_slug @}.evaluation.champion_challenger.compare_models``
     — the production decision engine.
 
 The expected verdict is ``block``; the drill fails (exit 1) if any
@@ -46,13 +46,7 @@ _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
 
-from _drill_common import (  # noqa: E402
-    DrillEvidence,
-    default_evidence_root,
-    make_run_id,
-    utcnow_iso,
-    write_evidence,
-)
+from _drill_common import DrillEvidence, default_evidence_root, make_run_id, utcnow_iso, write_evidence  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

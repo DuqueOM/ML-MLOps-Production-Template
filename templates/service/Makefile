@@ -10,7 +10,7 @@
 #   make build         # Build Docker image
 #   make deploy        # Deploy to K8s (requires configured kubectl)
 #
-# TODO: Replace [[ service_slug ]] and {SERVICE_SLUG} with your actual service names.
+# TODO: Replace {@ service_slug @} and {SERVICE_SLUG} with your actual service names.
 
 .PHONY: help install train serve test lint format build deploy health-check clean \
         new-service eda drift-check retrain release-checklist rollback \
@@ -25,7 +25,7 @@ BLUE   := \033[0;34m
 NC     := \033[0m
 
 # Configuration — customize per service
-SERVICE_SLUG ?= [[ service_slug ]]
+SERVICE_SLUG ?= {@ service_slug @}
 MODEL_PATH   ?= models/model.joblib
 DATA_PATH    ?= data/raw/dataset.csv
 IMAGE_TAG    ?= $(SERVICE_SLUG):latest

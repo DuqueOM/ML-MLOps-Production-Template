@@ -1,4 +1,4 @@
-"""Model definition for [[ service_name ]].
+"""Model definition for {@ service_name @}.
 
 Defines the sklearn Pipeline with preprocessing and model.
 The model choice should be documented in an ADR with alternatives

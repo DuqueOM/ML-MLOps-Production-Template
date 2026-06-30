@@ -71,9 +71,7 @@ def _init_tracer_provider() -> None:
         return
 
     try:
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-            OTLPSpanExporter,
-        )
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
         service_name = os.environ.get("OTEL_SERVICE_NAME", "ml-service")
         endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")

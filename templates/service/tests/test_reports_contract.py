@@ -95,11 +95,7 @@ def test_cli_example_round_trips_validate(rtype: str, tmp_path: Path) -> None:
 def test_envelope_rejects_mismatched_payload() -> None:
     """report_type=release with a DriftPayload must raise."""
     from common_utils.agent_context import AgentMode, Environment
-    from common_utils.reports import (
-        DriftFeature,
-        DriftPayload,
-        ReportEnvelope,
-    )
+    from common_utils.reports import DriftFeature, DriftPayload, ReportEnvelope
 
     drift = DriftPayload(
         window_start="2026-05-01T00:00:00Z",
@@ -147,11 +143,7 @@ def test_envelope_rejects_consult_without_approver() -> None:
 
 def test_envelope_rejects_malformed_service_slug() -> None:
     from common_utils.agent_context import AgentMode
-    from common_utils.reports import (
-        DriftFeature,
-        DriftPayload,
-        build_drift_report,
-    )
+    from common_utils.reports import DriftFeature, DriftPayload, build_drift_report
 
     payload = DriftPayload(
         window_start="2026-05-01T00:00:00Z",
@@ -170,11 +162,7 @@ def test_envelope_rejects_malformed_service_slug() -> None:
 
 def test_envelope_is_frozen() -> None:
     from common_utils.agent_context import AgentMode
-    from common_utils.reports import (
-        DriftFeature,
-        DriftPayload,
-        build_drift_report,
-    )
+    from common_utils.reports import DriftFeature, DriftPayload, build_drift_report
 
     rep = build_drift_report(
         service="svc_a",
@@ -193,11 +181,7 @@ def test_envelope_is_frozen() -> None:
 
 def test_envelope_round_trips_through_json(tmp_path: Path) -> None:
     from common_utils.agent_context import AgentMode, Environment
-    from common_utils.reports import (
-        ReleasePayload,
-        build_release_report,
-        load_report,
-    )
+    from common_utils.reports import ReleasePayload, build_release_report, load_report
 
     payload = ReleasePayload(
         version="v0.1.0",

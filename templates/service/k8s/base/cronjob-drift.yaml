@@ -1,9 +1,9 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: "[[ service_kebab ]]-drift-detection"
+  name: "{@ service_kebab @}-drift-detection"
   labels:
-    app: "[[ service_kebab ]]-drift"
+    app: "{@ service_kebab @}-drift"
 spec:
   schedule: "0 2 * * *"   # Daily at 02:00 UTC
   concurrencyPolicy: Forbid
@@ -16,9 +16,9 @@ spec:
       template:
         metadata:
           labels:
-            app: "[[ service_kebab ]]-drift"
+            app: "{@ service_kebab @}-drift"
         spec:
-          serviceAccountName: "[[ service_kebab ]]-sa"
+          serviceAccountName: "{@ service_kebab @}-sa"
           restartPolicy: Never
 
           # ------------------------------------------------------------------
@@ -77,21 +77,21 @@ spec:
                     exit 0
                   fi
                   case "$DATA_BUCKET_KIND" in
-                    gcs) gsutil cp "gs://${DATA_BUCKET}/[[ service_kebab ]]/reference/reference.csv" /data/reference/reference.csv ;;
-                    s3)  aws s3 cp "s3://${DATA_BUCKET}/[[ service_kebab ]]/reference/reference.csv" /data/reference/reference.csv ;;
+                    gcs) gsutil cp "gs://${DATA_BUCKET}/{@ service_kebab @}/reference/reference.csv" /data/reference/reference.csv ;;
+                    s3)  aws s3 cp "s3://${DATA_BUCKET}/{@ service_kebab @}/reference/reference.csv" /data/reference/reference.csv ;;
                     *)   echo "::error::Unsupported DATA_BUCKET_KIND=${DATA_BUCKET_KIND}"; exit 1 ;;
                   esac
               env:
                 - name: DATA_BUCKET
                   valueFrom:
                     configMapKeyRef:
-                      name: "[[ service_kebab ]]-drift-config"
+                      name: "{@ service_kebab @}-drift-config"
                       key: data_bucket
                       optional: true
                 - name: DATA_BUCKET_KIND
                   valueFrom:
                     configMapKeyRef:
-                      name: "[[ service_kebab ]]-drift-config"
+                      name: "{@ service_kebab @}-drift-config"
                       key: data_bucket_kind
                       optional: true
               securityContext:
@@ -118,21 +118,21 @@ spec:
                     exit 0
                   fi
                   case "$DATA_BUCKET_KIND" in
-                    gcs) gsutil cp "gs://${DATA_BUCKET}/[[ service_kebab ]]/latest.csv" /data/production/latest.csv ;;
-                    s3)  aws s3 cp "s3://${DATA_BUCKET}/[[ service_kebab ]]/latest.csv" /data/production/latest.csv ;;
+                    gcs) gsutil cp "gs://${DATA_BUCKET}/{@ service_kebab @}/latest.csv" /data/production/latest.csv ;;
+                    s3)  aws s3 cp "s3://${DATA_BUCKET}/{@ service_kebab @}/latest.csv" /data/production/latest.csv ;;
                     *)   echo "::error::Unsupported DATA_BUCKET_KIND=${DATA_BUCKET_KIND}"; exit 1 ;;
                   esac
               env:
                 - name: DATA_BUCKET
                   valueFrom:
                     configMapKeyRef:
-                      name: "[[ service_kebab ]]-drift-config"
+                      name: "{@ service_kebab @}-drift-config"
                       key: data_bucket
                       optional: true
                 - name: DATA_BUCKET_KIND
                   valueFrom:
                     configMapKeyRef:
-                      name: "[[ service_kebab ]]-drift-config"
+                      name: "{@ service_kebab @}-drift-config"
                       key: data_bucket_kind
                       optional: true
               securityContext:
@@ -151,15 +151,15 @@ spec:
 
           containers:
             - name: drift-detector
-              image: "[[ service_kebab ]]-predictor:latest"
+              image: "{@ service_kebab @}-predictor:latest"
               command:
                 - python
-                # Python package paths are snake_case ([[ service_slug ]]), not
-                # kebab ([[ service_kebab ]]). The scaffolder renames
-                # src/[[ service_slug ]] → src/<snake_slug>; using [[ service_kebab ]]
+                # Python package paths are snake_case ({@ service_slug @}), not
+                # kebab ({@ service_kebab @}). The scaffolder renames
+                # src/{@ service_slug @} → src/<snake_slug>; using {@ service_kebab @}
                 # here would fail at runtime with ModuleNotFoundError
                 # (fraud-detector is not a valid Python package name).
-                - src/[[ service_slug ]]/monitoring/drift_detection.py
+                - src/{@ service_slug @}/monitoring/drift_detection.py
                 - --reference
                 - /data/reference/reference.csv
                 - --current

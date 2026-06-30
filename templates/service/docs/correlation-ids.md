@@ -13,7 +13,7 @@ instead of fuzzy-matched. ADR-015 PR-C1 codifies the contract.
 | `model_version` | `train.py` → MLflow tag → pod env `MODEL_VERSION` | `PredictionEvent.model_version`; `*_predictions_total{model_version}` Counter label | Which model produced this prediction |
 | `deployment_id` | `deploy-common.yml` (`<env>-<run_id>-<run_attempt>`) | K8s Deployment annotation `windsurf.io/deployment-id`; pod env `DEPLOYMENT_ID`; `PredictionEvent.deployment_id`; `AuditEntry.outputs.deployment_id` | Deploy run ↔ pod ↔ prediction line JOIN |
 | `audit_id` | `audit_record.py` CLI (env `AUDIT_ID` or auto uuid hex) | `AuditEntry.audit_id`; `$GITHUB_OUTPUT.audit_id`; CI step summary | Audit log entry ↔ workflow run |
-| `drift_run_id` | `drift_detection.detect_drift` (env `DRIFT_RUN_ID` or uuid hex) | drift report JSON; `[[ service_slug ]]_drift_run_info{drift_run_id}` Gauge; GitHub Issue body | One drift evaluation across report, metrics, and incident issue |
+| `drift_run_id` | `drift_detection.detect_drift` (env `DRIFT_RUN_ID` or uuid hex) | drift report JSON; `{@ service_slug @}_drift_run_info{drift_run_id}` Gauge; GitHub Issue body | One drift evaluation across report, metrics, and incident issue |
 | `retrain_run_id` | retrain workflow (`${{ github.run_id }}`) | MLflow run tag; `AuditEntry.outputs.retrain_run_id`; promotion packet | Retraining run ↔ promoted model ↔ deploy that picks it up |
 | `trace_id` | inbound `X-Trace-ID` header (optional) | Forwarded in error envelope and response header | OpenTelemetry-compatible distributed trace |
 
@@ -64,7 +64,7 @@ Later: drift CronJob (cronjob-drift.yaml) — separate workflow run
 │
 ├── DRIFT_RUN_ID = "drift-67890-1" (env or auto-mint)
 ├── detect_drift() emits {drift_run_id: "drift-67890-1", ...}
-├── push_metrics() pushes [[ service_slug ]]_drift_run_info{drift_run_id="drift-67890-1"} = 1
+├── push_metrics() pushes {@ service_slug @}_drift_run_info{drift_run_id="drift-67890-1"} = 1
 └── If alert: GitHub Issue body opens with "drift_run_id: drift-67890-1"
 ```
 
@@ -72,7 +72,7 @@ A post-mortem then JOINs:
 
 - `ops/audit.jsonl WHERE outputs.deployment_id = X` → which deploy
 - `BigQuery predictions_log WHERE deployment_id = X` → which predictions
-- `Prometheus [[ service_slug ]]_drift_run_info` → which drift run
+- `Prometheus {@ service_slug @}_drift_run_info` → which drift run
 - `MLflow runs WHERE tags.deployment_id = X` → which model
 
 Without these IDs each hop is a guess. With them, the ADR-015 promise

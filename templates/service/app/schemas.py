@@ -1,4 +1,4 @@
-"""Pydantic request/response schemas for the [[ service_name ]] API.
+"""Pydantic request/response schemas for the {@ service_name @} API.
 
 Define all input features with type, range, and description.
 Replace the example fields below with your actual service features.

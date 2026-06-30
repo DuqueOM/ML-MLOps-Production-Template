@@ -1,4 +1,4 @@
-"""Locust load test for [[ service_name ]] inference API.
+"""Locust load test for {@ service_name @} inference API.
 
 Simulates concurrent prediction requests to measure:
 - P50, P95, P99 latency
@@ -16,7 +16,7 @@ How to run:
         --csv=reports/load_test
 
     # Against K8s service:
-    locust -f tests/load_test.py --host=http://[[ service_slug ]].ml-services.svc.cluster.local:8000 \
+    locust -f tests/load_test.py --host=http://{@ service_slug @}.ml-services.svc.cluster.local:8000 \
         --headless -u 100 -r 10 --run-time 120s
 
 Acceptance criteria (from new-service skill):

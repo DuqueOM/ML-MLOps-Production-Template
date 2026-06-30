@@ -1,4 +1,4 @@
-"""Integration test configuration for [[ service_name ]].
+"""Integration test configuration for {@ service_name @}.
 
 These tests validate the full service stack (API + model + dependencies).
 Requires the service to be running (e.g., via docker-compose or make serve).

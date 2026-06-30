@@ -82,7 +82,7 @@ jobs:
         run: |
           # Single-service default: image slug is kebab-case and build context is repo root.
           # Multi-service adopters can replace SERVICES with service-root pairs.
-          for SERVICE in [[ service_kebab ]]; do
+          for SERVICE in {@ service_kebab @}; do
             IMAGE="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
             docker build -t "$IMAGE" .
             docker push "$IMAGE"
@@ -96,7 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           DIGESTS_JSON='{}'
-          for SERVICE in [[ service_kebab ]]; do
+          for SERVICE in {@ service_kebab @}; do
             IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
             # buildx imagetools inspect resolves the manifest digest from the
             # registry without re-pulling. Works for single-arch and multi-arch.
@@ -123,11 +123,11 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
           DIGESTS: ${{ steps.digests.outputs.json }}
         run: |
-          for SERVICE in [[ service_kebab ]]; do
+          for SERVICE in {@ service_kebab @}; do
             DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
             REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
             # Sign by digest (immutable identifier), not by tag (mutable).
-            cosign sign --yes "$[[ gh_repo ]]@${DIGEST}"
+            cosign sign --yes "${@ gh_repo @}@${DIGEST}"
           done
 
       # -------------------------------------------------------------------
@@ -144,7 +144,7 @@ jobs:
 
       - name: Generate SBOM per service (Syft / CycloneDX)
         run: |
-          for SERVICE in [[ service_kebab ]]; do
+          for SERVICE in {@ service_kebab @}; do
             IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
             syft "$IMG" -o cyclonedx-json > "sbom-${SERVICE}.cyclonedx.json"
             echo "✓ SBOM generated: sbom-${SERVICE}.cyclonedx.json"
@@ -155,11 +155,11 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
           DIGESTS: ${{ steps.digests.outputs.json }}
         run: |
-          for SERVICE in [[ service_kebab ]]; do
+          for SERVICE in {@ service_kebab @}; do
             DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
             REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
             cosign attest --yes --type cyclonedx \
-              --predicate "sbom-${SERVICE}.cyclonedx.json" "$[[ gh_repo ]]@${DIGEST}"
+              --predicate "sbom-${SERVICE}.cyclonedx.json" "${@ gh_repo @}@${DIGEST}"
           done
 
   # ---------------------------------------------------------------------
@@ -205,7 +205,7 @@ jobs:
       region: ${{ vars.GCP_REGION }}
       overlay_path: k8s/overlays/gcp-dev
       version: ${{ needs.build.outputs.version }}
-      services: '["[[ service_kebab ]]"]'
+      services: '["{@ service_kebab @}"]'
       image_digests: ${{ needs.build.outputs.image_digests }}
       # WIF identity propagates via permissions.id-token at the reusable
       # workflow level — no secrets passthrough required.
@@ -225,7 +225,7 @@ jobs:
       region: ${{ vars.GCP_REGION }}
       overlay_path: k8s/overlays/gcp-staging
       version: ${{ needs.build.outputs.version }}
-      services: '["[[ service_kebab ]]"]'
+      services: '["{@ service_kebab @}"]'
       image_digests: ${{ needs.build.outputs.image_digests }}
 
   # ---------------------------------------------------------------------
@@ -243,5 +243,5 @@ jobs:
       region: ${{ vars.GCP_REGION }}
       overlay_path: k8s/overlays/gcp-prod
       version: ${{ needs.build.outputs.version }}
-      services: '["[[ service_kebab ]]"]'
+      services: '["{@ service_kebab @}"]'
       image_digests: ${{ needs.build.outputs.image_digests }}

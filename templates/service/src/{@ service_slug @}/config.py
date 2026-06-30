@@ -1,4 +1,4 @@
-"""Configuration management for [[ service_name ]].
+"""Configuration management for {@ service_name @}.
 
 Loads and validates YAML configuration using Pydantic models.
 Each config section has its own Pydantic model with defaults and validation.
@@ -8,7 +8,7 @@ Usage:
     print(config.model.type)           # "ensemble"
     print(config.data.target_column)   # "target"
 
-TODO: Rename ServiceConfig → [[ service_name ]]Config (e.g., ChurnConfig).
+TODO: Rename ServiceConfig → {@ service_name @}Config (e.g., ChurnConfig).
 TODO: Adjust field names, types, and defaults to match your domain.
 """
 
@@ -248,7 +248,7 @@ class MLflowConfig(BaseModel):
     """MLflow tracking configuration."""
 
     tracking_uri: str = "file:./mlruns"
-    experiment_name: str = "[[ service_name ]]-Production"
+    experiment_name: str = "{@ service_name @}-Production"
     enabled: bool = True
 
 
@@ -408,7 +408,7 @@ class QualityGatesConfig(BaseModel):
 # ---------------------------------------------------------------------------
 # Root config — aggregates all sub-configs
 # ---------------------------------------------------------------------------
-# TODO: Rename to [[ service_name ]]Config.
+# TODO: Rename to {@ service_name @}Config.
 class ServiceConfig(BaseModel):
     """Complete service configuration loaded from YAML.
 

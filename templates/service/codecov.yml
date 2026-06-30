@@ -1,7 +1,7 @@
-# codecov.yml — Codecov configuration for [[ service_name ]]
+# codecov.yml — Codecov configuration for {@ service_name @}
 # https://docs.codecov.com/docs/codecov-yaml
 #
-# TODO: Replace [[ service_slug ]] and [[ service_name ]] with your values.
+# TODO: Replace {@ service_slug @} and {@ service_name @} with your values.
 # TODO: Adjust coverage targets for your service.
 
 coverage:
@@ -25,9 +25,9 @@ coverage:
         if_ci_failed: error
 
 flags:
-  "[[ service_slug ]]":
+  "{@ service_slug @}":
     paths:
-      - "src/[[ service_slug ]]/"
+      - "src/{@ service_slug @}/"
     carryforward: true
 
 # Ignore files that should not affect coverage metrics

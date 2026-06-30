@@ -1,5 +1,5 @@
 # =============================================================================
-# Multi-stage Dockerfile for [[ service_name ]]
+# Multi-stage Dockerfile for {@ service_name @}
 # =============================================================================
 # Target image size: ~600MB (Python 3.11 slim + ML deps)
 #
@@ -26,7 +26,7 @@ FROM python:3.11-slim-bookworm AS builder
 
 LABEL maintainer="your-team@example.com" \
       version="1.0.0" \
-      description="[[ service_name ]] — ML prediction API"
+      description="{@ service_name @} — ML prediction API"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

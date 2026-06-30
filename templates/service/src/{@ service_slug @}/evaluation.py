@@ -1,4 +1,4 @@
-"""Model evaluation and metrics for [[ service_name ]].
+"""Model evaluation and metrics for {@ service_name @}.
 
 Provides comprehensive evaluation including:
 - Standard classification metrics (accuracy, precision, recall, F1, AUC)

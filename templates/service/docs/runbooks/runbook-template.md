@@ -1,8 +1,8 @@
-# Runbook: [[ service_name ]]
+# Runbook: {@ service_name @}
 
 ## Service Overview
 
-- **Service**: [[ service_name ]]
+- **Service**: {@ service_name @}
 - **Model**: {Model type}
 - **SLA**: P95 < {X}ms, availability 99.9%
 - **On-call**: {team/contact}
@@ -18,14 +18,14 @@
 
 ```bash
 # 1. Rollback to previous version
-kubectl rollout undo deployment/[[ service_kebab ]]-predictor -n {namespace}
-kubectl rollout status deployment/[[ service_kebab ]]-predictor -n {namespace}
+kubectl rollout undo deployment/{@ service_kebab @}-predictor -n {namespace}
+kubectl rollout status deployment/{@ service_kebab @}-predictor -n {namespace}
 
 # 2. Verify recovery
-curl -f http://[[ service_kebab ]]-service.{namespace}.svc.cluster.local:8000/health
+curl -f http://{@ service_kebab @}-service.{namespace}.svc.cluster.local:8000/health
 
 # 3. Check error rate dropping
-# Prometheus: rate(http_requests_total{service="[[ service_kebab ]]",status=~"5.."}[5m])
+# Prometheus: rate(http_requests_total{service="{@ service_kebab @}",status=~"5.."}[5m])
 ```
 
 ### Escalation
@@ -41,14 +41,14 @@ curl -f http://[[ service_kebab ]]-service.{namespace}.svc.cluster.local:8000/he
 ### Actions
 
 ```bash
-# 1. Check drift scores (Prometheus metric — snake-case [[ service_slug ]])
-curl 'http://prometheus:9090/api/v1/query?query=[[ service_slug ]]_psi_score'
+# 1. Check drift scores (Prometheus metric — snake-case {@ service_slug @})
+curl 'http://prometheus:9090/api/v1/query?query={@ service_slug @}_psi_score'
 
 # 2. If drift confirmed, trigger retraining
-gh workflow run retrain-[[ service_slug ]].yml -f reason="P2: metric degradation"
+gh workflow run retrain-{@ service_slug @}.yml -f reason="P2: metric degradation"
 
 # 3. Monitor retraining quality gates
-gh run list --workflow=retrain-[[ service_slug ]].yml --limit=1
+gh run list --workflow=retrain-{@ service_slug @}.yml --limit=1
 ```
 
 ## P3 — Warning Drift (24 hours SLA)
@@ -59,8 +59,8 @@ gh run list --workflow=retrain-[[ service_slug ]].yml --limit=1
 ### Actions
 
 ```bash
-# 1. Run detailed drift analysis (Python module — snake-case [[ service_slug ]])
-python src/[[ service_slug ]]/monitoring/drift_detection.py \
+# 1. Run detailed drift analysis (Python module — snake-case {@ service_slug @})
+python src/{@ service_slug @}/monitoring/drift_detection.py \
   --reference data/reference/reference.csv \
   --current data/production/latest.csv \
   --output drift_report.json
@@ -89,16 +89,16 @@ cat drift_report.json | python -m json.tool
 
 ```bash
 # Pod status
-kubectl get pods -l app=[[ service_kebab ]] -n {namespace}
+kubectl get pods -l app={@ service_kebab @} -n {namespace}
 
 # Resource usage
-kubectl top pod -l app=[[ service_kebab ]] -n {namespace}
+kubectl top pod -l app={@ service_kebab @} -n {namespace}
 
 # Recent logs
-kubectl logs -l app=[[ service_kebab ]] -n {namespace} --since=30m --tail=100
+kubectl logs -l app={@ service_kebab @} -n {namespace} --since=30m --tail=100
 
 # HPA status
-kubectl get hpa [[ service_kebab ]]-hpa -n {namespace}
+kubectl get hpa {@ service_kebab @}-hpa -n {namespace}
 ```
 
 ## Key URLs

@@ -109,6 +109,13 @@ repos:
         exclude: ^.*\.md$
       - id: check-yaml
         args: ["--unsafe"]
+        # The Copier render root (templates/service/**) holds Jinja templates,
+        # not standalone YAML — `{@ … @}` tokens are not valid YAML until
+        # rendered. Their post-render validity is enforced by
+        # validate-templates.yml (kustomize build + kubeconform on the
+        # rendered overlays). yaml-linting the un-rendered templates is a
+        # category error, so exclude the render root here.
+        exclude: ^templates/service/
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]

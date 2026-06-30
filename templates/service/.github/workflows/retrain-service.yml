@@ -1,4 +1,4 @@
-name: Retrain — [[ service_name ]]
+name: Retrain — {@ service_name @}
 
 on:
   workflow_dispatch:
@@ -18,8 +18,8 @@ on:
 #   MODEL_BUCKET         — GCS bucket for model artifacts
 
 env:
-  SERVICE: "[[ service_name ]]"
-  SERVICE_SLUG: "[[ service_slug ]]"
+  SERVICE: "{@ service_name @}"
+  SERVICE_SLUG: "{@ service_slug @}"
 
 jobs:
   retrain:

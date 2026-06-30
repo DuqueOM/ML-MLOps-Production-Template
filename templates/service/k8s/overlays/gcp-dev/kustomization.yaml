@@ -7,15 +7,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: "[[ service_kebab ]]-dev"
+namespace: "{@ service_kebab @}-dev"
 
 resources:
   - ../../base
   - namespace.yaml
 
 images:
-  - name: "[[ service_kebab ]]-predictor"
-    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/[[ service_kebab ]]-predictor"
+  - name: "{@ service_kebab @}-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{@ service_kebab @}-predictor"
     newTag: "v1.0.0"
   # Init container CLI — dev tier may use a moving tag; staging/prod must
   # pin by digest (PR-R2-2, ADR-016). The base manifest references this
@@ -33,4 +33,4 @@ patches:
       group: networking.k8s.io
       version: v1
       kind: NetworkPolicy
-      name: "[[ service_kebab ]]-network-policy"
+      name: "{@ service_kebab @}-network-policy"

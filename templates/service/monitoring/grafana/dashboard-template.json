@@ -1,8 +1,8 @@
 {
   "__comment": "Grafana dashboard template for ML service monitoring. Import via Grafana UI or provisioning.",
   "dashboard": {
-    "title": "[[ service_name ]] — ML Service Dashboard",
-    "tags": ["ml-service", "[[ service_slug ]]"],
+    "title": "{@ service_name @} — ML Service Dashboard",
+    "tags": ["ml-service", "{@ service_slug @}"],
     "timezone": "utc",
     "refresh": "30s",
     "templating": {
@@ -10,7 +10,7 @@
         {
           "name": "service",
           "type": "constant",
-          "query": "[[ service_slug ]]",
+          "query": "{@ service_slug @}",
           "hide": 0
         },
         {
@@ -61,15 +61,15 @@
         "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
         "targets": [
           {
-            "expr": "histogram_quantile(0.50, rate($[[ service_slug ]]_prediction_latency_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.50, rate(${@ service_slug @}_prediction_latency_seconds_bucket[5m]))",
             "legendFormat": "P50"
           },
           {
-            "expr": "histogram_quantile(0.95, rate($[[ service_slug ]]_prediction_latency_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.95, rate(${@ service_slug @}_prediction_latency_seconds_bucket[5m]))",
             "legendFormat": "P95"
           },
           {
-            "expr": "histogram_quantile(0.99, rate($[[ service_slug ]]_prediction_latency_seconds_bucket[5m]))",
+            "expr": "histogram_quantile(0.99, rate(${@ service_slug @}_prediction_latency_seconds_bucket[5m]))",
             "legendFormat": "P99"
           }
         ]
@@ -80,7 +80,7 @@
         "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
         "targets": [
           {
-            "expr": "sum(increase($[[ service_slug ]]_prediction_score_bucket[1h])) by (le)",
+            "expr": "sum(increase(${@ service_slug @}_prediction_score_bucket[1h])) by (le)",
             "legendFormat": "{{le}}"
           }
         ]
@@ -91,7 +91,7 @@
         "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
         "targets": [
           {
-            "expr": "$[[ service_slug ]]_psi_score",
+            "expr": "${@ service_slug @}_psi_score",
             "legendFormat": "{{feature}}"
           }
         ],
@@ -113,7 +113,7 @@
         "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
         "targets": [
           {
-            "expr": "sum($[[ service_slug ]]_predictions_total) by (risk_level)",
+            "expr": "sum(${@ service_slug @}_predictions_total) by (risk_level)",
             "legendFormat": "{{risk_level}}"
           }
         ]
@@ -124,7 +124,7 @@
         "gridPos": {"h": 4, "w": 8, "x": 8, "y": 24},
         "targets": [
           {
-            "expr": "$[[ service_slug ]]_model_info",
+            "expr": "${@ service_slug @}_model_info",
             "legendFormat": "{{version}}"
           }
         ]
@@ -135,7 +135,7 @@
         "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
         "targets": [
           {
-            "expr": "rate(container_cpu_usage_seconds_total{pod=~\"$[[ service_slug ]]-predictor.*\",namespace=\"$namespace\"}[5m])",
+            "expr": "rate(container_cpu_usage_seconds_total{pod=~\"${@ service_slug @}-predictor.*\",namespace=\"$namespace\"}[5m])",
             "legendFormat": "{{pod}}"
           }
         ]
@@ -146,7 +146,7 @@
         "gridPos": {"h": 8, "w": 8, "x": 8, "y": 28},
         "targets": [
           {
-            "expr": "container_memory_working_set_bytes{pod=~\"$[[ service_slug ]]-predictor.*\",namespace=\"$namespace\"} / 1024 / 1024",
+            "expr": "container_memory_working_set_bytes{pod=~\"${@ service_slug @}-predictor.*\",namespace=\"$namespace\"} / 1024 / 1024",
             "legendFormat": "{{pod}} (Mi)"
           }
         ]
@@ -157,11 +157,11 @@
         "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
         "targets": [
           {
-            "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"$[[ service_slug ]]-hpa\"}",
+            "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"${@ service_slug @}-hpa\"}",
             "legendFormat": "Current"
           },
           {
-            "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"$[[ service_slug ]]-hpa\"}",
+            "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"${@ service_slug @}-hpa\"}",
             "legendFormat": "Desired"
           }
         ]

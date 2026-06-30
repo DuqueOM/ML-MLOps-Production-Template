@@ -4,19 +4,19 @@
 # Install: pip install -e ".[dev]"
 # Test:    pytest tests/ -v
 #
-# TODO: Replace [[ service_slug ]], [[ service_name ]], and author info.
+# TODO: Replace {@ service_slug @}, {@ service_name @}, and author info.
 
 [build-system]
 requires = ["setuptools >= 68.0", "wheel"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "[[ service_slug ]]"
+name = "{@ service_slug @}"
 # Scaffolded services start at 0.1.0 — the template itself is on the v0.x
 # hardening line until the first real-cluster L4 evidence lands. Adopters
 # bump this independently of the template version.
 version = "0.1.0"
-description = "[[ service_name ]] — ML prediction service"
+description = "{@ service_name @} — ML prediction service"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">= 3.11"

@@ -14,7 +14,7 @@ Key invariants:
     - SHAP computed in ORIGINAL feature space via _predict_proba_wrapper
     - Prometheus metrics: request count, latency histogram, score distribution
 
-TODO: Replace [[ service_slug ]] in metric names with your actual service name.
+TODO: Replace {@ service_slug @} in metric names with your actual service name.
 TODO: Adjust risk level thresholds (0.7/0.4) for your domain.
 """
 
@@ -73,18 +73,10 @@ except ImportError:
 
 
 from app._pandera_schema import get_pandera_schema
-from app.schemas import (
-    BatchPredictionRequest,
-    BatchPredictionResponse,
-    PredictionRequest,
-    PredictionResponse,
-)
+from app.schemas import BatchPredictionRequest, BatchPredictionResponse, PredictionRequest, PredictionResponse
 
 try:
-    from common_utils.input_validation import (
-        validate_predict_batch,
-        validate_predict_payload,
-    )
+    from common_utils.input_validation import validate_predict_batch, validate_predict_payload
 except ImportError:
     # Same fallback rationale as for verify_api_key above: keep the
     # router importable in stripped scaffolder smoke tests, where
@@ -99,12 +91,7 @@ except ImportError:
 
 
 try:
-    from common_utils.prediction_logger import (
-        PredictionEvent,
-        PredictionLogger,
-        build_logger,
-        utc_now_iso,
-    )
+    from common_utils.prediction_logger import PredictionEvent, PredictionLogger, build_logger, utc_now_iso
 
     _PREDICTION_LOGGING_AVAILABLE = True
 except ImportError:
@@ -199,7 +186,7 @@ _inference_executor = ThreadPoolExecutor(
 #
 # The metric prefix is resolved at IMPORT time from $SERVICE_METRIC_PREFIX or
 # falls back to a literal placeholder "ml_service". This keeps the module
-# importable BEFORE the scaffolder substitutes `[[ service_slug ]]` (otherwise
+# importable BEFORE the scaffolder substitutes `{@ service_slug @}` (otherwise
 # prometheus_client raises ValueError on names containing `{` / `}`).
 #
 # Production: deployment.yaml sets SERVICE_METRIC_PREFIX=<service>; metrics
@@ -334,7 +321,7 @@ def _load_feature_engineer():
     if training/serving feature code cannot be imported.
     """
     try:
-        module = import_module("[[ service_slug ]].training.features")
+        module = import_module("{@ service_slug @}.training.features")
         return module.FeatureEngineer()
     except Exception as exc:  # noqa: BLE001 - explicit fail-fast contract.
         if os.getenv("FEATURE_ENGINEERING_REQUIRED", "true").lower() == "false":

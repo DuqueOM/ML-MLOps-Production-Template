@@ -2,7 +2,7 @@
 # GCP Secret Manager — per-service entries (parity with AWS secrets.tf)
 # ============================================================================
 # One Secret Manager secret per (service × secret_name). Naming scheme
-# `${project_name}-$[[ service_slug ]]-${secret}` matches the IAM resource scope
+# `${project_name}-${@ service_slug @}-${secret}` matches the IAM resource scope
 # in iam.tf so a service's runtime SA can read only its own secrets.
 #
 # Encryption: every secret uses `google_kms_crypto_key.secrets` from

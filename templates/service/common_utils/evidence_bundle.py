@@ -143,11 +143,7 @@ def evaluate_evidence(
     # Lazy imports keep this module's import graph tiny — important
     # for the CLI's fast-path "missing model" exit.
     try:
-        from common_utils.training_manifest import (
-            ManifestError,
-            file_sha256,
-            load_manifest,
-        )
+        from common_utils.training_manifest import ManifestError, file_sha256, load_manifest
     except ImportError as exc:  # pragma: no cover
         return EvidenceVerdict(
             passed=False,
@@ -158,10 +154,7 @@ def evaluate_evidence(
         )
 
     try:
-        from common_utils.eda_artifacts import (
-            EDAArtifactError,
-            load_leakage_report,
-        )
+        from common_utils.eda_artifacts import EDAArtifactError, load_leakage_report
     except ImportError:  # pragma: no cover
         load_leakage_report = None  # type: ignore[assignment]
         EDAArtifactError = RuntimeError  # type: ignore[misc,assignment]

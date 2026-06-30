@@ -2,7 +2,7 @@
 # AWS Secrets Manager — per-service secret entries (PR-R2-6, audit R2 §3.5).
 #
 # One Secrets Manager secret per (service × secret_name). The naming
-# scheme `${project_name}/$[[ service_slug ]]/${secret}` matches the IAM
+# scheme `${project_name}/${@ service_slug @}/${secret}` matches the IAM
 # resource scope in iam.tf, so a service can read only its own secrets.
 #
 # Rotation: gated behind var.enable_secret_rotation. Rotation in AWS

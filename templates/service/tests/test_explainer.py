@@ -1,4 +1,4 @@
-"""SHAP explainer tests for [[ service_name ]].
+"""SHAP explainer tests for {@ service_name @}.
 
 Self-contained regression tests that validate SHAP produces meaningful,
 consistent explanations in the original feature space.

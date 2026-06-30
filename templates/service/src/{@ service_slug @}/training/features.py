@@ -1,4 +1,4 @@
-"""Feature engineering for [[ service_name ]].
+"""Feature engineering for {@ service_name @}.
 
 Transforms raw data into model-ready features. This class is used in both
 training and inference pipelines to guarantee consistency.

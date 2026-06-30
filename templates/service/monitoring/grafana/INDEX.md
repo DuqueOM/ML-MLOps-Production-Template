@@ -19,7 +19,7 @@ and the runbook that consumes it.
 
 Direct: FastAPI app emits Prometheus counters / histograms via
 `prometheus_client`. No additional plumbing required. Variables
-`[[ service_name ]]` and `[[ service_slug ]]` are substituted by `new-service.sh`
+`{@ service_name @}` and `{@ service_slug @}` are substituted by `new-service.sh`
 at scaffold time.
 
 ### `dashboard-closed-loop.json`

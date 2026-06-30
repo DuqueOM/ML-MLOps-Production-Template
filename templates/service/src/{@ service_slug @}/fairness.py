@@ -1,4 +1,4 @@
-"""Fairness and bias audit module for [[ service_name ]].
+"""Fairness and bias audit module for {@ service_name @}.
 
 Computes group-level fairness metrics across protected attributes to detect
 disparate impact and equal opportunity violations. Produces a structured
@@ -59,13 +59,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
-)
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-"""Pandera DataFrameModel for [[ service_name ]] input validation.
+"""Pandera DataFrameModel for {@ service_name @} input validation.
 
 Used at three validation points:
 1. Before training (fail fast on invalid data)
@@ -14,7 +14,7 @@ import pandera as pa
 
 
 class ServiceInputSchema(pa.DataFrameModel):
-    """Input data schema for [[ service_name ]].
+    """Input data schema for {@ service_name @}.
 
     Each field documents type, constraints, and business meaning.
 

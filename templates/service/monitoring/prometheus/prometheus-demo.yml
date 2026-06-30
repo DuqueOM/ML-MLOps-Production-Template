@@ -1,7 +1,7 @@
 # Prometheus config for docker-compose.demo.yml
 # Scrapes the ML service + Pushgateway for drift metrics
 #
-# TODO: Replace [[ service_slug ]] with your service name.
+# TODO: Replace {@ service_slug @} with your service name.
 
 global:
   scrape_interval: 15s

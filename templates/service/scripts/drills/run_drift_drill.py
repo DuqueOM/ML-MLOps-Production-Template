@@ -9,7 +9,7 @@ deterministic inputs:
      PR-B2 artifact contract the production drift CronJob consumes.
   3. Build a "production" frame with a deliberate +3σ shift on
      ``feature_a`` while leaving ``feature_b`` and ``feature_c`` alone.
-  4. Call ``[[ service_slug ]].monitoring.drift_detection.detect_drift`` with
+  4. Call ``{@ service_slug @}.monitoring.drift_detection.detect_drift`` with
      ``--eda-baseline`` mode. This is the SAME function the production
      CronJob runs.
   5. Assert PSI on the shifted feature crosses the alert threshold,
@@ -47,13 +47,7 @@ _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
 
-from _drill_common import (  # noqa: E402
-    DrillEvidence,
-    default_evidence_root,
-    make_run_id,
-    utcnow_iso,
-    write_evidence,
-)
+from _drill_common import DrillEvidence, default_evidence_root, make_run_id, utcnow_iso, write_evidence  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +66,7 @@ def _import_drift_module():
     ``monitoring.drift_detection`` submodule.
 
     The template ships the module at
-    ``src/[[ service_slug ]]/monitoring/drift_detection.py`` where ``[[ service_slug ]]``
+    ``src/{@ service_slug @}/monitoring/drift_detection.py`` where ``{@ service_slug @}``
     is replaced by ``new-service.sh``. The drill is invoked from the
     SCAFFOLDED service so we discover the package by walking ``src/``.
     """

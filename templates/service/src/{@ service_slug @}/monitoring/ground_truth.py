@@ -18,7 +18,7 @@ Invariants:
     - Idempotent writes: running twice produces no duplicates (unique index)
 
 Usage (CronJob):
-    python -m src.[[ service_slug ]].monitoring.ground_truth \\
+    python -m src.{@ service_slug @}.monitoring.ground_truth \\
         --since 2025-04-01 --until 2025-04-02 \\
         --backend parquet --output data/labels_log
 
@@ -185,7 +185,7 @@ class GroundTruthIngester:
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    parser = argparse.ArgumentParser(description="Ingest ground-truth labels for [[ service_name ]]")
+    parser = argparse.ArgumentParser(description="Ingest ground-truth labels for {@ service_name @}")
     parser.add_argument("--config", default="configs/ground_truth_source.yaml")
     parser.add_argument("--since", help="ISO date, default: yesterday 00:00 UTC")
     parser.add_argument("--until", help="ISO date, default: today 00:00 UTC")

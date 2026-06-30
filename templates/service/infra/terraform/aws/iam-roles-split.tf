@@ -245,7 +245,7 @@ resource "aws_iam_role_policy_attachment" "deploy" {
 # ---------------------------------------------------------------------------
 # 3. Drift IRSA role — drift CronJob (read CloudWatch, write S3 reports)
 # ---------------------------------------------------------------------------
-# Bound to the canonical drift KSA: ml-services/[[ service_slug ]]-drift-sa
+# Bound to the canonical drift KSA: ml-services/{@ service_slug @}-drift-sa
 # A separate role (vs the per-service IRSA in iam.tf) means a compromised
 # drift CronJob cannot read predictions or write models — only its own
 # reports bucket.

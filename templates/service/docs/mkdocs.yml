@@ -1,4 +1,4 @@
-# MkDocs Configuration — [[ service_name ]]
+# MkDocs Configuration — {@ service_name @}
 # Generate a documentation site with MkDocs Material.
 #
 # Setup:
@@ -9,15 +9,15 @@
 #   mkdocs build           # Build static site to site/
 #   mkdocs gh-deploy       # Deploy to GitHub Pages
 #
-# TODO: Replace [[ service_name ]], [[ service_slug ]], author info, and URLs.
+# TODO: Replace {@ service_name @}, {@ service_slug @}, author info, and URLs.
 
-site_name: "[[ service_name ]] Documentation"
-site_description: "[[ service_name ]] — ML prediction service documentation"
+site_name: "{@ service_name @} Documentation"
+site_description: "{@ service_name @} — ML prediction service documentation"
 site_author: "Your Name"
-site_url: "https://your-org.github.io/[[ service_slug ]]/"
+site_url: "https://your-org.github.io/{@ service_slug @}/"
 
-repo_name: "your-org/[[ service_slug ]]"
-repo_url: "https://github.com/your-org/[[ service_slug ]]"
+repo_name: "your-org/{@ service_slug @}"
+repo_url: "https://github.com/your-org/{@ service_slug @}"
 
 theme:
   name: material

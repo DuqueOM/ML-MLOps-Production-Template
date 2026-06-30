@@ -6,13 +6,13 @@
 # - Workload Identity for GCS access (no hardcoded credentials)
 # - 2 replicas minimum (D-27 PDB allows minAvailable=1 only with replicas>=2)
 #
-# TODO: Replace {MODEL_BUCKET}, [[ service_slug ]] with your actual values.
+# TODO: Replace {MODEL_BUCKET}, {@ service_slug @} with your actual values.
 # TODO: Adjust resource requests/limits from profiling data.
 # =============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "[[ service_kebab ]]-predictor"
+  name: "{@ service_kebab @}-predictor"
 spec:
   replicas: 2
   template:
@@ -29,9 +29,9 @@ spec:
             - sh
             - -ec
             - |
-              gsutil cp gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib     /models/model.joblib
-              gsutil cp gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib.sig /models/model.joblib.sig
-              gsutil cp gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib.pem /models/model.joblib.pem
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib     /models/model.joblib
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.sig /models/model.joblib.sig
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.pem /models/model.joblib.pem
           volumeMounts:
             - name: model-storage
               mountPath: /models
@@ -42,7 +42,7 @@ spec:
             - name: MODEL_SIGNATURE_VERIFY
               value: "true"
       containers:
-        - name: "[[ service_kebab ]]-predictor"
+        - name: "{@ service_kebab @}-predictor"
           resources:
             requests:
               cpu: "500m"
