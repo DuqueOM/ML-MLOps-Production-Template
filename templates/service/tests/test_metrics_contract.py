@@ -290,8 +290,8 @@ def _idents_from_expr(expr: str) -> set[str]:
       * Do not appear inside a quoted string (label-matcher value).
     """
     # Replace Copier at-tokens with a placeholder so the PromQL
-    # identifier regex can match the full metric name (e.g. PFX_requests_total).
-    expr = _AT_RE.sub("PFX", expr)
+    # identifier regex can match the full metric name (e.g. <PFX>_requests_total).
+    expr = _AT_RE.sub("<PFX>", expr)
     cleaned = _strip_quoted(expr)
     out: set[str] = set()
     for tok in _PROMQL_IDENT.findall(cleaned):
@@ -383,7 +383,7 @@ def test_recording_rule_cross_references_resolve() -> None:
                 declared_records.add(_normalise_metric_name(rule["record"]))
             expr = rule.get("expr", "") or ""
             # Replace Copier at-tokens so PromQL ident regex matches.
-            expr = _AT_RE.sub("PFX", expr)
+            expr = _AT_RE.sub("<PFX>", expr)
             for tok in _PROMQL_IDENT.findall(expr):
                 if ":" in tok:
                     referenced_records.add(_normalise_metric_name(tok))
