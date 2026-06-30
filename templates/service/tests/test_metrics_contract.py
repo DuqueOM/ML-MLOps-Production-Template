@@ -232,6 +232,9 @@ _AT_RE = re.compile(_AT_OPEN + r"[^@]*" + _AT_CLOSE)
 
 def _normalise_metric_name(name: str) -> str:
     """Replace curly-brace and Copier variable placeholders with a sentinel."""
+    # Normalise bare PFX first (from pre-processed expressions) before
+    # introducing <PFX> via the Copier token replacement below.
+    name = re.sub(r"(?<![<\w])PFX(?![>\w])", "<PFX>", name)
     name = _AT_RE.sub("<PFX>", name)
     return re.sub(r"\{[^}]*\}", "<PFX>", name)
 
@@ -289,9 +292,10 @@ def _idents_from_expr(expr: str) -> set[str]:
         cross-references to other recorded SLIs — checked separately).
       * Do not appear inside a quoted string (label-matcher value).
     """
-    # Replace Copier at-tokens with a placeholder so the PromQL
-    # identifier regex can match the full metric name (e.g. <PFX>_requests_total).
-    expr = _AT_RE.sub("<PFX>", expr)
+    # Replace Copier at-tokens with PFX (a valid PromQL identifier)
+    # so the regex can match the full metric name. _normalise_metric_name
+    # then maps PFX to <PFX> for comparison with declared metrics.
+    expr = _AT_RE.sub("PFX", expr)
     cleaned = _strip_quoted(expr)
     out: set[str] = set()
     for tok in _PROMQL_IDENT.findall(cleaned):
@@ -383,7 +387,7 @@ def test_recording_rule_cross_references_resolve() -> None:
                 declared_records.add(_normalise_metric_name(rule["record"]))
             expr = rule.get("expr", "") or ""
             # Replace Copier at-tokens so PromQL ident regex matches.
-            expr = _AT_RE.sub("<PFX>", expr)
+            expr = _AT_RE.sub("PFX", expr)
             for tok in _PROMQL_IDENT.findall(expr):
                 if ":" in tok:
                     referenced_records.add(_normalise_metric_name(tok))

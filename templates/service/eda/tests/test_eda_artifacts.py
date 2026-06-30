@@ -35,7 +35,6 @@ if str(_TEMPLATES_ROOT) not in sys.path:
 
 from eda import eda_pipeline  # noqa: E402
 
-# common_utils lives at templates/common_utils/; eda_pipeline at templates/eda/.
 from common_utils import eda_artifacts as ea  # noqa: E402
 
 # ---------------------------------------------------------------------------
