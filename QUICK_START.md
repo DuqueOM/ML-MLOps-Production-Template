@@ -18,6 +18,7 @@ If you need the longer "Day 1 to Month 2" arc (cluster deploys, production overl
 | **Python** | 3.11+ | `python --version` |
 | **Docker** | 20.10+ | `docker --version` |
 | **Make** | Any | `make --version` |
+| **Copier** | 9.0+ | `pip install copier` |
 
 ---
 
@@ -69,8 +70,9 @@ python drift_check.py
 ```bash
 git clone https://github.com/DuqueOM/ML-MLOps-Production-Template.git
 cd ML-MLOps-Production-Template
+pip install copier
 
-# Scaffold a new service (copies all templates, replaces placeholders)
+# Scaffold a new service (Copier renders templates/service/ with your answers)
 ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
 
 # Or via Make
@@ -132,6 +134,7 @@ Requires Docker.
 
 ```bash
 cd ML-MLOps-Production-Template
+pip install copier
 
 # Start MLflow + Pushgateway
 docker compose -f templates/infra/docker-compose.mlflow.yml up -d
@@ -161,6 +164,7 @@ If using Windsurf Cascade, Claude Code, or Cursor, the template includes pre-con
 ```
 # In your AI assistant:
 /new-service       # Scaffold a new ML service
+/scaffold-update   # Pull template improvements into an existing service
 /retrain           # Retrain with quality gates
 /drift-check       # Run PSI drift analysis
 /release           # Full multi-cloud release

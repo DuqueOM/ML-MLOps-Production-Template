@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# test_scaffold.sh — Validate that new-service.sh produces a working service
+# test_scaffold.sh — Validate that Copier produces a working service
 #
-# Runs the scaffolder in an isolated temp directory and verifies:
+# Runs `copier copy` (via new-service.sh) in an isolated temp directory and
+# verifies:
 #   1. Exit code 0
 #   2. Service directory created
-#   3. Zero remaining {ServiceName} / {service} / {SERVICE} placeholders
+#   3. Zero remaining {@ @} / {% %} / {# #} Jinja tokens
 #   4. Critical files exist (Dockerfile, requirements.txt, src/<slug>/, app/, k8s/)
-#   5. src/<slug>/ directory was correctly renamed from src/{service}/
+#   5. src/<slug>/ directory was correctly renamed from src/{@ service_slug @}/
 #   6. Python modules are syntactically valid
 #   7. Kustomize overlays render without errors
 #   8. (optional) pytest dry-collect succeeds on the scaffolded tests/
+#   9. Post-gen tasks ran (agentic adapters synced, manifest valid)
 #
-# The test creates a temp dir, copies templates/ and common_utils/ there,
-# runs new-service.sh, validates, and cleans up. Safe to run anywhere.
+# The test creates a temp clone of the repo, runs new-service.sh (which calls
+# `copier copy --vcs-ref HEAD`), validates, and cleans up.
 #
 # Exit codes:
 #   0 = scaffold works
@@ -78,21 +80,34 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The scaffolder resolves PROJECT_ROOT as $TEMPLATE_ROOT/.. — so we place
-# templates/ inside TEMP_ROOT/, and the service will be created in TEMP_ROOT/.
-cp -r "$REPO_ROOT/templates" "$TEMP_ROOT/templates"
-cp -r "$REPO_ROOT/docs" "$TEMP_ROOT/docs"
+# Copier needs the full repo (copier.yml at root + templates/service/).
+# We clone the local repo into the temp dir so Copier can use --vcs-ref HEAD.
+# Using git clone --no-hardlinks avoids issues with local file:// protocol.
+info "Cloning repo into temp environment..."
+if ! git clone --no-hardlinks "$REPO_ROOT" "$TEMP_ROOT/repo" > "$TEMP_ROOT/clone.log" 2>&1; then
+  fail "git clone failed"
+  cat "$TEMP_ROOT/clone.log" >&2
+  exit 2
+fi
 
-pass "Temp environment: $TEMP_ROOT"
+# Copy uncommitted changes into the clone (Copier --vcs-ref HEAD includes
+# dirty working tree, but only if the clone itself is dirty). We rsync the
+# working tree over the clone to capture staged + unstaged changes.
+rsync -a --delete --exclude='.git' \
+  "$REPO_ROOT/" "$TEMP_ROOT/repo/" 2>/dev/null || true
+
+pass "Temp environment: $TEMP_ROOT/repo"
 
 # ════════════════════════════════════════════════
-# Run the scaffolder
+# Run the scaffolder (thin Copier wrapper)
 # ════════════════════════════════════════════════
 info "Running new-service.sh $SERVICE_NAME $SERVICE_SLUG..."
 FAILURES=0
-SERVICE_DIR="$TEMP_ROOT/$SERVICE_NAME"
+SERVICE_DIR="$TEMP_ROOT/repo/$SERVICE_NAME"
 
-if bash "$TEMP_ROOT/templates/scripts/new-service.sh" "$SERVICE_NAME" "$SERVICE_SLUG" > "$TEMP_ROOT/scaffold.log" 2>&1; then
+if bash "$TEMP_ROOT/repo/templates/scripts/new-service.sh" \
+    "$SERVICE_NAME" "$SERVICE_SLUG" "test-org" "test-svc" \
+    > "$TEMP_ROOT/scaffold.log" 2>&1; then
   pass "Scaffolder exited 0"
 else
   fail "Scaffolder failed. Log:"
@@ -145,46 +160,46 @@ for f in "${CRITICAL_FILES[@]}"; do
 done
 
 # ════════════════════════════════════════════════
-# Validation 3 — Zero remaining placeholders
+# Validation 3 — Zero remaining Jinja tokens
 # ════════════════════════════════════════════════
-info "Checking for unreplaced placeholders..."
-# grep exits 1 when no matches — swallow with `|| true` before counting,
-# otherwise `set -o pipefail` would kill the script.
-# PR-A5b added the `{service-name}` (kebab) placeholder. The leak check
-# MUST include it in the regex; otherwise a regression in the scaffolder
-# that stops substituting `{service-name}` would silently pass this gate.
-# `{service-name}` MUST appear BEFORE `{service}` in the regex so the
-# longer alternative is tried first (POSIX EREs left-to-right). Note
-# that the literal forms differ at the closing brace (`-name}` vs `}`)
-# so the leftmost-match wouldn't actually swallow the kebab placeholder
-# either way; the order is purely code hygiene.
-PLACEHOLDER_REGEX='\{ServiceName\}|\{service-name\}|\{service\}|(^|[^$])\{SERVICE\}'
+info "Checking for unreplaced Jinja tokens..."
+# Copier uses {@ @} for variables, {% %} for blocks, {# #} for comments.
+# After rendering, none of these should appear in any file.
+JINJA_REGEX='\{@.*@\}|\{%.*%\}|\{#.*#\}'
+# Exclude agentic/ and .devin/ docs — they legitimately mention {@ @} as
+# literal text when documenting Copier delimiters (D-33/D-34 rules).
+# The {% raw %} blocks ensure Copier doesn't try to render them, but the
+# literal text remains in the output as intended.
+# Also exclude AGENTS.md and CLAUDE.md (root) which document D-34 / grep
+# examples with literal {@ @} tokens wrapped in {% raw %} blocks.
 PLACEHOLDER_HITS=$({
-  grep -rE "$PLACEHOLDER_REGEX" \
+  grep -rE "$JINJA_REGEX" \
     "$SERVICE_DIR" \
+    --exclude-dir="agentic" --exclude-dir=".devin" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="*.json" \
     --include="*.txt" --include="Dockerfile" --include="Makefile" \
-    2>/dev/null || true
+    2>/dev/null | grep -v '/AGENTS\.md:' | grep -v '/CLAUDE\.md:' || true
 } | wc -l)
 
 if [[ "$PLACEHOLDER_HITS" -eq 0 ]]; then
-  pass "Zero unreplaced placeholders ({ServiceName}, {service-name}, {service}, {SERVICE})"
+  pass "Zero unreplaced Jinja tokens ({@ @}, {% %}, {# #})"
 else
-  fail "$PLACEHOLDER_HITS lines still contain placeholders:"
-  grep -rEn "$PLACEHOLDER_REGEX" \
+  fail "$PLACEHOLDER_HITS lines still contain Jinja tokens:"
+  grep -rEn "$JINJA_REGEX" \
     "$SERVICE_DIR" \
+    --exclude-dir="agentic" --exclude-dir=".devin" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="Dockerfile" \
-    --include="Makefile" 2>/dev/null | head -10 >&2
+    --include="Makefile" 2>/dev/null | grep -v '/AGENTS\.md:' | head -10 >&2
 fi
 
 # ════════════════════════════════════════════════
 # Validation 4 — src/{service}/ was renamed correctly
 # ════════════════════════════════════════════════
 info "Checking src/ directory rename..."
-if [[ -d "$SERVICE_DIR/src/$SERVICE_SLUG" ]] && [[ ! -d "$SERVICE_DIR/src/{service}" ]]; then
-  pass "src/{service} → src/$SERVICE_SLUG"
+if [[ -d "$SERVICE_DIR/src/$SERVICE_SLUG" ]] && [[ ! -d "$SERVICE_DIR/src/{@ service_slug @}" ]]; then
+  pass "src/{@ service_slug @} → src/$SERVICE_SLUG"
 else
   fail "src/ directory not renamed correctly"
 fi
@@ -205,11 +220,22 @@ if [[ "$PY_ERRORS" -eq 0 ]]; then
   pass "All Python files parse"
 fi
 
-if [[ -d "$SERVICE_DIR/docs/docs" ]]; then
-  fail "Documentation templates were nested under docs/docs instead of merged into docs/"
+# ════════════════════════════════════════════════
+# Validation 5c — Post-gen tasks ran (agentic system)
+# ════════════════════════════════════════════════
+info "Checking post-gen agentic system..."
+if [[ -d "$SERVICE_DIR/.devin/rules" ]]; then
+  pass "Agentic adapters synced (.devin/rules/ exists)"
 else
-  pass "Documentation templates merged into docs/ without docs/docs nesting"
+  fail "Agentic adapters NOT synced (.devin/rules/ missing)"
 fi
+if [[ -f "$SERVICE_DIR/config/agentic_manifest.yaml" ]]; then
+  pass "Agentic manifest present (config/agentic_manifest.yaml)"
+else
+  fail "Agentic manifest missing"
+fi
+# .copier-answers.yml is only created by `copier update`, not `copier copy`.
+# It's expected to be absent after the initial scaffold.
 
 # ════════════════════════════════════════════════
 # Validation 5b — Generated CI/CD expects root-service layout
@@ -431,12 +457,13 @@ fi
 echo ""
 if [[ "$FAILURES" -eq 0 ]]; then
   echo -e "${GREEN}━━━ SCAFFOLD TEST PASSED ━━━${NC}"
-  echo "  new-service.sh produces a valid service structure."
+  echo "  Copier render produces a valid service structure."
   [[ "$SMOKE_REQUESTED" == "1" ]] && echo "  Smoke chain: install + snapshot + pytest all green."
   exit 0
 else
   echo -e "${RED}━━━ SCAFFOLD TEST FAILED ━━━${NC}"
   echo "  $FAILURES validation(s) failed."
   [[ "$KEEP_TEMP" == "false" ]] && echo "  Re-run with --keep to inspect the failing scaffold."
+  echo "  Temp dir: $TEMP_ROOT"
   exit 1
 fi

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Contract: CI templates in ``templates/cicd/`` must not lag
-``.github/workflows/`` for shared GitHub Actions versions.
+"""Contract: CI templates in ``templates/service/.github/workflows/`` must
+not lag ``.github/workflows/`` for shared GitHub Actions versions.
 
 Why this exists
 ---------------
 Dependabot's ``github-actions`` ecosystem only scans
 ``.github/workflows/`` (relative to the configured ``directory:``).
-It does NOT scan template files in ``templates/cicd/`` because those
+It does NOT scan template files in ``templates/service/.github/workflows/`` because those
 files are scaffolder inputs, not executable workflows of the template
 repo itself. As a result, every action version bump that Dependabot
 opens (e.g., ``actions/upload-artifact v4 -> v7``) lands ONLY in
 ``.github/workflows/`` while the corresponding reference in
-``templates/cicd/`` ages silently.
+``templates/service/.github/workflows/`` ages silently.
 
 The blast radius is real: ``templates/scripts/new-service.sh`` copies
-``templates/cicd/*.yml`` verbatim into every scaffolded service. A
+``templates/service/.github/workflows/*.yml`` verbatim into every scaffolded service. A
 service generated today off a stale template starts life with
 deprecated action versions and inherits the blindspot — its own
 Dependabot will open the same bumps the template already merged,
@@ -23,7 +23,7 @@ multiplying maintenance cost across every adopter.
 What this enforces
 ------------------
 For every action ``X`` that appears in BOTH ``.github/workflows/``
-and ``templates/cicd/``, the set of versions used in templates must
+and ``templates/service/.github/workflows/``, the set of versions used in templates must
 be a subset of the set of versions used in runtime workflows. In
 practice this means: if runtime is on ``v7`` and templates are on
 ``v4``, fail. If runtime has ``{v3.7.0}`` and templates have
@@ -32,7 +32,7 @@ chose to pin exact.
 
 What this does NOT enforce
 --------------------------
-- Action versions in ``templates/cicd/`` that are NOT also used in
+- Action versions in ``templates/service/.github/workflows/`` that are NOT also used in
   ``.github/workflows/``. Some template-only actions exist (e.g.,
   ``google-github-actions/auth``, ``aws-actions/configure-aws-credentials``)
   precisely because the template repo doesn't deploy to a real cloud
@@ -59,7 +59,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_DIR = REPO_ROOT / ".github" / "workflows"
-TEMPLATE_DIR = REPO_ROOT / "templates" / "cicd"
+TEMPLATE_DIR = REPO_ROOT / "templates" / "service" / ".github" / "workflows"
 
 # Match `uses: <action>@<version>` allowing optional comments / params.
 # The action name is everything up to '@'; the version is the rest of the
@@ -116,7 +116,7 @@ def main() -> int:
     if not shared:
         print(
             "[cicd-drift] OK — no shared actions between "
-            ".github/workflows/ and templates/cicd/."
+            ".github/workflows/ and templates/service/.github/workflows/."
         )
         return 0
 
@@ -131,7 +131,7 @@ def main() -> int:
 
     if drifts:
         sys.stderr.write(
-            "FAIL: templates/cicd/ uses outdated GitHub Actions versions "
+            "FAIL: templates/service/.github/workflows/ uses outdated GitHub Actions versions "
             "compared to .github/workflows/.\n"
             "Dependabot only scans .github/workflows/, so template references "
             "age silently and propagate to every scaffolded service.\n\n"
@@ -147,7 +147,7 @@ def main() -> int:
                 f"      template-only versions to remove or upgrade: {extra}\n\n"
             )
         sys.stderr.write(
-            "Fix: bump the offending references in templates/cicd/*.yml to a "
+            "Fix: bump the offending references in templates/service/.github/workflows/*.yml to a "
             "version already used in .github/workflows/. If the template "
             "intentionally needs a different version (e.g., for backward "
             "compat with a specific runner), add an exception to this script "

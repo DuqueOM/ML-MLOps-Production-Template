@@ -23,6 +23,7 @@ no skill body lives here.
 | `release-checklist` | `CONSULT` | `agentic/skills/release-checklist/SKILL.md` |
 | `rollback` | `STOP` | `agentic/skills/rollback/SKILL.md` |
 | `rule-audit` | `AUTO` | `agentic/skills/rule-audit/SKILL.md` |
+| `scaffold-update` | `CONSULT` | `agentic/skills/scaffold-update/SKILL.md` |
 | `secret-breach-response` | `STOP` | `agentic/skills/secret-breach-response/SKILL.md` |
 | `security-audit` | `AUTO` | `agentic/skills/security-audit/SKILL.md` |
 

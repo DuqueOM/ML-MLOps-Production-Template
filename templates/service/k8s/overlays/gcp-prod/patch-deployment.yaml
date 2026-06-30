@@ -1,0 +1,70 @@
+# =============================================================================
+# GCP Production — Deployment patches
+# =============================================================================
+# - Init container uses google/cloud-sdk:slim for gsutil
+# - Production resource limits (set from profiling)
+# - Workload Identity for GCS access (no hardcoded credentials)
+# - 2 replicas minimum (D-27 PDB allows minAvailable=1 only with replicas>=2)
+#
+# TODO: Replace {MODEL_BUCKET}, {@ service_slug @} with your actual values.
+# TODO: Adjust resource requests/limits from profiling data.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{@ service_kebab @}-predictor"
+spec:
+  replicas: 2
+  template:
+    spec:
+      initContainers:
+        - name: model-downloader
+          # Image is set by the overlay's `images:` mapping in
+          # kustomization.yaml (PR-R2-2). Setting `image:` here would
+          # bypass digest pinning enforced by the CI lint.
+          # Production downloads model + signature + cert (May 2026
+          # audit ADR-024 follow-up to HIGH-8). The verifier init
+          # container fails the pod if any are missing.
+          command:
+            - sh
+            - -ec
+            - |
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib     /models/model.joblib
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.sig /models/model.joblib.sig
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.pem /models/model.joblib.pem
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+        # Production overrides: force enforce mode so any signature
+        # mismatch / missing artifact fails the pod at init time.
+        - name: model-verifier
+          env:
+            - name: MODEL_SIGNATURE_VERIFY
+              value: "true"
+      containers:
+        - name: "{@ service_kebab @}-predictor"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+          env:
+            - name: MODEL_PATH
+              value: /models/model.joblib
+            - name: LOG_FORMAT
+              value: "json"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: ENVIRONMENT
+              value: "production"
+            # API auth + admin endpoint controls (PR-R2-1 + PR-R2-3, ADR-016)
+            # API_KEY is mounted via `envFrom: secretRef: api-keys` in the
+            # secret patch (TODO operator: provision the Secret).
+            # ADMIN_API_ENABLED stays false in prod; rotation requires
+            # `/secret-breach` workflow if exposure is suspected.
+            - name: API_AUTH_ENABLED
+              value: "true"
+            - name: ADMIN_API_ENABLED
+              value: "false"

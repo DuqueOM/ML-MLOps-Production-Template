@@ -40,11 +40,11 @@ limits:
 # `infra_or_deploy` / `security_or_auth` enforce this in addition.
 protected_paths:
   - ".github/workflows/deploy-*.yml"
-  - "templates/cicd/deploy-*.yml"
-  - "templates/infra/terraform/**"
-  - "templates/k8s/overlays/*prod*/**"
-  - "templates/common_utils/secrets.py"
-  - "templates/common_utils/risk_context.py"
+  - "templates/service/.github/workflows/deploy-*.yml"
+  - "templates/service/infra/terraform/**"
+  - "templates/service/k8s/overlays/*prod*/**"
+  - "templates/service/common_utils/secrets.py"
+  - "templates/service/common_utils/risk_context.py"
   - "scripts/audit_record.py"
   - "templates/config/ci_autofix_policy.yaml"
   - "templates/config/model_routing_policy.yaml"
@@ -69,10 +69,10 @@ failure_classes:
     allowed_paths:
       - "templates/config/**"
       - ".github/workflows/*.yml"
-      - "templates/cicd/*.yml"
+      - "templates/service/.github/workflows/*.yml"
     blocked_if_paths_match:
       - ".github/workflows/deploy-*.yml"
-      - "templates/cicd/deploy-*.yml"
+      - "templates/service/.github/workflows/deploy-*.yml"
     verifiers: ["yaml-parse", "workflow-lint"]
 
   snapshot_regen_deterministic:
@@ -93,16 +93,16 @@ failure_classes:
   workflow_nonprod_fix:
     mode: CONSULT
     description: "non-deploy CI workflow path/artifact/matrix"
-    allowed_paths: [".github/workflows/*.yml", "templates/cicd/*.yml"]
+    allowed_paths: [".github/workflows/*.yml", "templates/service/.github/workflows/*.yml"]
     blocked_if_paths_match:
       - ".github/workflows/deploy-*.yml"
-      - "templates/cicd/deploy-*.yml"
+      - "templates/service/.github/workflows/deploy-*.yml"
     verifiers: ["workflow-lint", "targeted-tests"]
 
   build_harness_fix:
     mode: CONSULT
     description: "scaffolding/validation/contract test infra"
-    allowed_paths: ["scripts/**", "templates/scripts/**", "templates/cicd/**"]
+    allowed_paths: ["scripts/**", "templates/scripts/**", "templates/service/.github/workflows/**"]
     verifiers: ["targeted-tests", "scaffold-e2e"]
 
   dependency_pin_nonruntime:

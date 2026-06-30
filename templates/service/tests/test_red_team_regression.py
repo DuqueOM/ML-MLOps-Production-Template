@@ -92,14 +92,14 @@ def _classify(mod, **context: Any) -> dict[str, Any]:
 
 def test_entry_2_and_3_protected_path_short_circuits_formatter_drift() -> None:
     """Red-team Entry 3 payload: a `formatter_drift` signature over a
-    protected path (`templates/common_utils/secrets.py`) must classify
+    protected path (`templates/service/common_utils/secrets.py`) must classify
     as STOP / blast_radius_exceeded (the canonical protected-paths
     short-circuit class), NOT as an AUTO formatter drift.
 
     This is the exact payload from the log:
 
         error_signatures: ["black.format_drift"]
-        changed_files:    ["templates/common_utils/secrets.py"]
+        changed_files:    ["templates/service/common_utils/secrets.py"]
 
     Regression goal: if someone reorders the classifier so signature
     matching happens BEFORE protected-paths, this test fails.
@@ -108,7 +108,7 @@ def test_entry_2_and_3_protected_path_short_circuits_formatter_drift() -> None:
     result = _classify(
         mod,
         error_signatures=["black.format_drift"],
-        changed_files=["templates/common_utils/secrets.py"],
+        changed_files=["templates/service/common_utils/secrets.py"],
         blast_radius_lines=5,
     )
     assert result["final_mode"] == "STOP", (
@@ -119,7 +119,7 @@ def test_entry_2_and_3_protected_path_short_circuits_formatter_drift() -> None:
         "protected-paths short-circuit (canonical class is "
         "`blast_radius_exceeded` which owns the protected-paths check)."
     )
-    assert "templates/common_utils/secrets.py" in list(result.get("protected_paths_hit") or ()), (
+    assert "templates/service/common_utils/secrets.py" in list(result.get("protected_paths_hit") or ()), (
         "Entry 3 regression: the hit path must be surfaced so the " "investigator can see WHY STOP was chosen."
     )
 
@@ -136,7 +136,7 @@ def test_entry_2_memory_cannot_demote_stop() -> None:
     base = _classify(
         mod,
         error_signatures=["terraform.destroy"],
-        changed_files=["templates/infra/terraform/aws/main.tf"],
+        changed_files=["templates/service/infra/terraform/aws/main.tf"],
         blast_radius_lines=10,
     )
     assert base["final_mode"] == "STOP", "Entry 2 baseline: terraform destroy signature must be STOP."

@@ -49,6 +49,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install Copier
+        run: pip install "copier>=9.0.0" jsonschema
+
       - name: Install kustomize
         # Direct release tarball, pinned version (PR-R2-5). The upstream
         # hack/install_kustomize.sh piped into bash (a) violates the
@@ -74,12 +77,12 @@ jobs:
           sudo mv kubeconform /usr/local/bin/kubeconform
           kubeconform -v
 
-      - name: Scaffold a fresh service from the template
+      - name: Scaffold a fresh service via Copier
         run: |
           set -euo pipefail
-          mkdir -p /tmp/scaffold-out
-          # The repo's test_scaffold.sh produces a renderable service tree
-          # for downstream contract tests. We reuse it as the smoke source.
+          # test_scaffold.sh runs `copier copy` via new-service.sh and
+          # validates the rendered output. The scaffolded service is
+          # created inside a temp clone of this repo.
           bash scripts/test_scaffold.sh
           ls -la /tmp/scaffold-out 2>/dev/null || true
 
@@ -87,7 +90,7 @@ jobs:
         id: render-overlays
         run: |
           set -euo pipefail
-          OVERLAY_BASE="templates/k8s/overlays"
+          OVERLAY_BASE="templates/service/k8s/overlays"
           OUT_DIR="/tmp/overlay-renders"
           mkdir -p "${OUT_DIR}"
           OVERLAYS=(gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod)
@@ -128,7 +131,7 @@ jobs:
           done
 
       - name: Binary-presence audit on deploy scripts
-        # Deploy chain (templates/cicd/deploy-*.yml + scripts referenced from
+        # Deploy chain (templates/service/.github/workflows/deploy-*.yml + scripts referenced from
         # them) MUST only invoke binaries the runner can actually find. R4
         # finding H3 specifically calls out historical regressions: cosign /
         # syft / kubeconform invoked but never installed. We validate at PR
@@ -160,7 +163,7 @@ jobs:
                 *)    EXTRA="" ;;
               esac
               if ! grep -REq "(install[- ]?${bin}|${bin}-installer|${bin}-action|${bin} version${EXTRA})" \
-                   templates/cicd/ .github/workflows/ 2>/dev/null; then
+                   templates/service/.github/workflows/ .github/workflows/ 2>/dev/null; then
                 MISSING+=("$bin")
               fi
             fi

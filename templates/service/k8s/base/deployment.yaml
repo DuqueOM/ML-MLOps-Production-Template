@@ -1,0 +1,278 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{@ service_kebab @}-predictor"
+  labels:
+    app: "{@ service_kebab @}"
+    version: v1.0.0
+    # `environment:` label is OWNED by the overlay (commonLabels in
+    # k8s/overlays/<cloud>-<env>/kustomization.yaml). Adding it here
+    # would silently overwrite the overlay's value (PR-R2-3, audit R2).
+    managed-by: kustomize
+spec:
+  # Floor for HPA — must equal HPA `minReplicas` (k8s/base/hpa.yaml).
+  # PR-R2-3 (audit R2): previous `replicas: 1` contradicted HPA
+  # minReplicas: 2 and PDB minAvailable: 1, making voluntary
+  # disruptions impossible.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "{@ service_kebab @}"
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # Zero downtime
+  template:
+    metadata:
+      labels:
+        app: "{@ service_kebab @}"
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+        # PR-C1 (ADR-015): correlation id for the deploy that produced
+        # this Pod. Patched in by `deploy-common.yml` at apply time
+        # (e.g. via `kubectl patch deployment ... -p '{"spec":{"template":
+        # {"metadata":{"annotations":{"windsurf.io/deployment-id":"..."}}}}}'`).
+        # The literal "local" default keeps `kubectl apply -f` smoke-tests
+        # working without the deploy chain — pods running locally then
+        # report `deployment_id=local`, which is honest and queryable.
+        windsurf.io/deployment-id: "local"
+    spec:
+      serviceAccountName: "{@ service_kebab @}-sa"
+
+      # Pod-level securityContext — satisfies PSS 'restricted' (v1.8.1).
+      # All containers inherit runAsNonRoot + the seccomp profile.
+      # See templates/k8s/policies/pod-security-standards.yaml.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532          # nonroot user; matches distroless images
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Init container downloads model from cloud storage.
+      # The image NAME is a symbolic placeholder ("cloud-cli-image") that
+      # each overlay rewrites via Kustomize `images:` to the real CLI:
+      #   - GCP overlays: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+      #   - AWS overlays: public.ecr.aws/aws-cli/aws-cli:latest
+      # Production overlays (gcp-prod, aws-prod) MUST also set `digest:`
+      # in their kustomization.yaml so the rendered manifest pins the
+      # init image by sha256 (PR-R2-2, audit R2). The CI lint in
+      # `.github/workflows/validate-templates.yml` enforces this.
+      # The `command:` below assumes gsutil; the AWS overlay patches it
+      # to `aws s3 cp` via patch-deployment.yaml.
+      initContainers:
+        - name: model-downloader
+          image: cloud-cli-image:placeholder   # rewritten per overlay
+          # Downloads model.joblib AND its companion cosign signature
+          # (model.joblib.sig + model.joblib.pem). The signature files
+          # are produced by the retrain-service.yml workflow's
+          # "Sign model with cosign" step (HIGH-8 from the May 2026
+          # audit, ADR-024). Verification happens in `model-verifier`
+          # below, NOT here — this container runs as the cloud CLI
+          # which does not include cosign. Two-container split keeps
+          # each image minimal and lets readOnlyRootFilesystem: true
+          # apply uniformly.
+          command:
+            - sh
+            - -ec
+            - |
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib /models/model.joblib
+              # Signature files are best-effort here; the verifier
+              # init container fails the pod fast if they are required
+              # but missing.
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.sig /models/model.joblib.sig 2>/dev/null || \
+                echo "[model-downloader] WARNING: signature file not found in bucket"
+              gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.pem /models/model.joblib.pem 2>/dev/null || \
+                echo "[model-downloader] WARNING: certificate file not found in bucket"
+          securityContext:
+            # PSS restricted: init container must also pass the gate.
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+
+        # Init container 2 — Cosign keyless verify-blob (May 2026 audit
+        # ADR-024 follow-up to HIGH-8). Verifies that the model artifact
+        # downloaded by `model-downloader` was signed by THIS repo's
+        # retrain workflow via Sigstore keyless OIDC.
+        #
+        # OPT-IN: gated by MODEL_SIGNATURE_VERIFY=true. Default is
+        # "warn-only" so adopters without a signing pipeline can
+        # scaffold and run without friction. Production overlays
+        # MUST set MODEL_SIGNATURE_VERIFY=true (enforce mode); the
+        # missing signature files then fail the pod at init time
+        # rather than serving an unsigned model.
+        #
+        # The verification rules (--certificate-identity-regexp +
+        # --certificate-oidc-issuer) match the workflow identity the
+        # retrain-service.yml job uses. Adopters MUST update the regexp
+        # if they fork to a different org/repo/workflow path —
+        # `templates/scripts/new-service.sh` substitutes {@ gh_org @} and
+        # {@ gh_repo @} at scaffold time (May 2026 audit MED-10).
+        - name: model-verifier
+          image: gcr.io/projectsigstore/cosign:v2.4.1@sha256:placeholder
+          # Image digest is a placeholder until the first overlay sets
+          # the real one via `kustomize edit set image`. Production
+          # overlays MUST pin by digest — see PR-R2-2.
+          command:
+            - sh
+            - -ec
+            - |
+              set -eu
+              MODE="${MODEL_SIGNATURE_VERIFY:-warn}"
+              if [ ! -f /models/model.joblib.sig ] || [ ! -f /models/model.joblib.pem ]; then
+                if [ "$MODE" = "true" ] || [ "$MODE" = "enforce" ]; then
+                  echo "[model-verifier] FATAL: signature or certificate missing from /models/ (enforce mode)"
+                  ls -la /models/
+                  exit 1
+                fi
+                echo "[model-verifier] WARNING: signature missing; running in warn mode (set MODEL_SIGNATURE_VERIFY=true to enforce)"
+                exit 0
+              fi
+              echo "[model-verifier] Verifying model signature with cosign keyless..."
+              cosign verify-blob \
+                --certificate /models/model.joblib.pem \
+                --signature  /models/model.joblib.sig \
+                --certificate-identity-regexp "https://github.com/{@ gh_org @}/{@ gh_repo @}/.github/workflows/retrain-service\.yml@.*" \
+                --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                /models/model.joblib
+              echo "[model-verifier] OK: model signature verified."
+          env:
+            # Default: warn-only. Production overlays MUST patch this
+            # to "true" so unsigned/unverifiable models fail the pod
+            # at init time. See overlays/<cloud>-prod/patch-deployment.yaml.
+            - name: MODEL_SIGNATURE_VERIFY
+              value: "warn"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: "50m",  memory: "64Mi" }
+            limits:   { cpu: "300m", memory: "192Mi" }
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+
+      # Graceful shutdown (D-25): allow in-flight requests to complete.
+      # Coordinated with uvicorn's --timeout-graceful-shutdown (see args below).
+      terminationGracePeriodSeconds: 30
+
+      # ADR-015 PR-A3 — toleration for the dedicated workload node pool.
+      # Terraform's GKE/EKS taint `workload-type=ml-services:NoSchedule`
+      # means ML pods can ONLY land on the workload pool. This toleration
+      # is the matching key that opts in. System pods (kube-system,
+      # monitoring) lack this toleration and stay on the system pool.
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: ml-services
+          effect: NoSchedule
+
+      containers:
+        - name: "{@ service_kebab @}-predictor"
+          image: "{@ service_kebab @}-predictor:latest"   # Patched by Kustomize overlay
+          command: ["uvicorn"]
+          args:
+            - "app.main:app"
+            - "--host=0.0.0.0"
+            - "--port=8000"
+            # NO --workers: default = 1 (K8s HPA manages scale, D-01)
+            # Graceful shutdown (D-25): uvicorn waits up to 20s for in-flight
+            # requests to finish before forcing exit. Must be LESS than the
+            # pod's terminationGracePeriodSeconds (30s) to leave headroom for
+            # SIGKILL-handling path.
+            - "--timeout-graceful-shutdown=20"
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: MODEL_PATH
+              value: /models/model.joblib
+            - name: MODEL_VERSION
+              value: "v1.0.0"
+            - name: BACKGROUND_DATA_PATH
+              value: /app/data/reference/background.csv
+            # Metric name prefix — fastapi_app.py reads this at import time
+            # to build Counter/Histogram names. Audit Critical-3.
+            - name: SERVICE_METRIC_PREFIX
+              value: "{@ service_slug @}"
+            # PR-C1 (ADR-015) — DEPLOYMENT_ID is the canonical correlation
+            # key that joins this running pod back to the deploy workflow
+            # that produced it. Sourced from the Pod's annotations via the
+            # Downward API: `deploy-common.yml` patches the Deployment
+            # template with `windsurf.io/deployment-id=<env>-<run_id>-<attempt>`
+            # before `kubectl apply`, so every pod inherits the same id
+            # without requiring a fresh image build. The prediction logger
+            # attaches it to every event (D-21/D-22).
+            - name: DEPLOYMENT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['windsurf.io/deployment-id']
+          resources:
+            requests:
+              cpu: "500m"       # TODO: Set based on profiling
+              memory: "512Mi"   # TODO: Set based on model size
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+          # PSS restricted (v1.8.1) — strictest container-level policy.
+          # readOnlyRootFilesystem: true requires writable volumes for temp files
+          # (e.g., /tmp for joblib spills). Uncomment the emptyDir below if
+          # needed; default is disabled so scaffolded services work out of the box.
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]
+            # readOnlyRootFilesystem: true    # enable after testing for tmp writes
+          # --- Probes (D-23) ---
+          # startupProbe: absorbs the slow-start window (model download +
+          # warm-up). Prevents the livenessProbe from restarting a pod that
+          # is simply still warming up. Once startupProbe succeeds, K8s
+          # stops running it and starts using liveness/readiness.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 24   # up to 120s total for cold start + warm-up
+          # readinessProbe → /ready (503 until warm-up done → traffic gated)
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            failureThreshold: 3
+          # livenessProbe → /health (always 200 if event loop is alive)
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+              readOnly: true
+
+      volumes:
+        - name: model-storage
+          emptyDir: {}   # Ephemeral — destroyed with the pod

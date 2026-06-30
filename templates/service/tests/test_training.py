@@ -1,4 +1,4 @@
-"""Training pipeline tests for {ServiceName}.
+"""Training pipeline tests for {@ service_name @}.
 
 Covers data leakage detection, quality gates, feature engineering
 consistency, inference latency, and model fairness.
@@ -7,7 +7,7 @@ How to run:
     pytest tests/test_training.py -v
     pytest tests/test_training.py -v -k "leakage"   # Run only leakage tests
 
-TODO: Replace {service} with your actual service name in imports.
+TODO: Replace {@ service_slug @} with your actual service name in imports.
 TODO: Update SAMPLE_DATA to match your service's input schema.
 TODO: Set realistic thresholds for quality gates and latency SLA.
 """
@@ -25,9 +25,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
 # TODO: Uncomment and update imports for your service
-# from src.{service}.training.train import Trainer, PRIMARY_THRESHOLD, FAIRNESS_THRESHOLD
-# from src.{service}.training.features import FeatureEngineer
-# from src.{service}.training.model import build_pipeline
+# from src.{@ service_slug @}.training.train import Trainer, PRIMARY_THRESHOLD, FAIRNESS_THRESHOLD
+# from src.{@ service_slug @}.training.features import FeatureEngineer
+# from src.{@ service_slug @}.training.model import build_pipeline
 
 # ---------------------------------------------------------------------------
 # Configuration — customize per service
@@ -201,7 +201,7 @@ class TestFeatureEngineering:
         Train/inference feature drift is one of the most common silent
         failure modes in production. This test catches it at PR time.
         """
-        FeatureEngineer = import_module("{service}.training.features").FeatureEngineer
+        FeatureEngineer = import_module("{@ service_slug @}.training.features").FeatureEngineer
 
         X_df, y_series = sample_data
         full_df = pd.concat([X_df, y_series.rename("target")], axis=1)

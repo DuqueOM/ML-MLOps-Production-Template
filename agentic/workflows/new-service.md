@@ -7,7 +7,7 @@ description: Create a complete new ML service from template — end-to-end scaff
 ## 1. Gather Requirements
 
 Before creating any files, determine:
-- **Service name**: `{ServiceName}-{Purpose}` (e.g., `FraudDetect-Scorer`)
+- **Service name**: `{@ service_name @}-{Purpose}` (e.g., `FraudDetect-Scorer`)
 - **Service slug**: lowercase, no hyphens (e.g., `frauddetect`)
 - **Business problem**: One sentence
 - **Model type**: classification / regression / NLP / time series
@@ -22,14 +22,14 @@ Before creating any files, determine:
 bash templates/scripts/new-service.sh "${SVC_NAME}" "${SVC_SLUG}"
 
 # Verify: no remaining placeholders
-grep -r "{ServiceName}\|{service}\|{SERVICE}" ${SVC_NAME}/ --include="*.py" --include="*.yaml" | head -10
+grep -r "{@ service_name @}\|{@ service_slug @}\|{@ SERVICE_NAME @}" ${SVC_NAME}/ --include="*.py" --include="*.yaml" | head -10
 ```
 
 If `new-service.sh` is unavailable, manual fallback:
 ```bash
 cp -r templates/service/ ${SVC_NAME}/
-find ${SVC_NAME}/ -type f -exec sed -i "s/{ServiceName}/${SVC_NAME}/g" {} +
-find ${SVC_NAME}/ -type f -exec sed -i "s/{service}/${SVC_SLUG}/g" {} +
+find ${SVC_NAME}/ -type f -exec sed -i "s/{@ service_name @}/${SVC_NAME}/g" {} +
+find ${SVC_NAME}/ -type f -exec sed -i "s/{@ service_slug @}/${SVC_SLUG}/g" {} +
 mv ${SVC_NAME}/src/\{service\} ${SVC_NAME}/src/${SVC_SLUG}
 ```
 
@@ -67,7 +67,7 @@ mv ${SVC_NAME}/src/\{service\} ${SVC_NAME}/src/${SVC_SLUG}
 cp templates/k8s/deployment.yaml k8s/base/${SVC_SLUG}-deployment.yaml
 cp templates/k8s/hpa.yaml k8s/base/${SVC_SLUG}-hpa.yaml
 cp templates/k8s/service.yaml k8s/base/${SVC_SLUG}-service.yaml
-sed -i "s/{service}/${SVC_SLUG}/g" k8s/base/${SVC_SLUG}-*.yaml
+sed -i "s/{@ service_slug @}/${SVC_SLUG}/g" k8s/base/${SVC_SLUG}-*.yaml
 ```
 
 Add to kustomization.yaml and create overlay patches.

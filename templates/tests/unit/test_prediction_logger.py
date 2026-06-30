@@ -19,7 +19,7 @@ import pytest
 
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "service"))
 
 from common_utils.prediction_logger import (  # noqa: E402
     ParquetBackend,

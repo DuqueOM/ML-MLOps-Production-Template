@@ -35,10 +35,11 @@ on:
     paths:
       - "templates/scripts/new-service.sh"
       - "templates/service/tests/policy/**"
-      - "templates/k8s/**"
-      - "templates/infra/terraform/**"
-      - "templates/Dockerfile"
-      - "templates/requirements*.txt"
+      - "templates/service/k8s/**"
+      - "templates/k8s/policies/**"
+      - "templates/service/infra/terraform/**"
+      - "templates/service/Dockerfile"
+      - "templates/service/requirements*.txt"
       - "AGENTS.md"
 
 permissions:
@@ -63,12 +64,11 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          # Policy suite needs ONLY pytest + pyyaml — no numerics.
-          # The parent templates/service/tests/conftest.py imports numpy
-          # for ML test fixtures; we bypass it via --rootdir + --confcutdir
-          # below so we don't have to install the full ML stack just to
-          # parse YAML.
-          pip install pytest pyyaml
+          # Policy suite needs pytest + pyyaml for YAML parsing, plus
+          # copier + jsonschema because the conftest fixture scaffolds a
+          # service via new-service.sh (Copier wrapper) with post-gen
+          # validation that requires jsonschema.
+          pip install pytest pyyaml "copier>=9.0.0" jsonschema
 
       - name: Run policy suite
         run: |

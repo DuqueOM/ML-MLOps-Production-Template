@@ -267,6 +267,10 @@ def test_no_service_python_imports_memory_types() -> None:
     for path in service_root.rglob("*.py"):
         if "/tests/" in str(path):
             continue  # test files may import memory modules — that's fine
+        # Skip the memory plane modules themselves — they reference
+        # their own import path in docstrings but are not serving/training.
+        if path.name in ("memory_types.py", "memory_redaction.py"):
+            continue
         text = path.read_text(encoding="utf-8", errors="replace")
         if pat.search(text):
             offenders.append(path)

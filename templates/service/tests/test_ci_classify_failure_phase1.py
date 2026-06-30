@@ -147,15 +147,15 @@ def test_collector_output_schema_stable() -> None:
 @pytest.mark.parametrize(
     "protected_file",
     [
-        "templates/common_utils/secrets.py",
-        "templates/common_utils/risk_context.py",
+        "templates/service/common_utils/secrets.py",
+        "templates/service/common_utils/risk_context.py",
         "scripts/audit_record.py",
         "templates/config/ci_autofix_policy.yaml",
         "templates/config/model_routing_policy.yaml",
-        "templates/k8s/overlays/gcp-prod/deployment.yaml",
-        "templates/infra/terraform/aws/iam.tf",
+        "templates/service/k8s/overlays/gcp-prod/deployment.yaml",
+        "templates/service/infra/terraform/aws/iam.tf",
         ".github/workflows/deploy-gcp.yml",
-        "templates/cicd/deploy-aws.yml",
+        "templates/service/.github/workflows/deploy-aws.yml",
     ],
 )
 def test_protected_paths_force_stop(protected_file: str) -> None:

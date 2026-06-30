@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Contract: templates/common_utils/ must stay placeholder-free.
+"""Contract: templates/service/common_utils/ must stay placeholder-free.
 
 Implements ADR-025 Option A — the interim guard for the "shared
 library" distribution gap until a proper package (Option B/C) lands.
 
 Why this shape
 --------------
-``templates/scripts/new-service.sh`` copies ``templates/common_utils/``
+``templates/scripts/new-service.sh`` copies ``templates/service/common_utils/``
 verbatim into each scaffolded service and THEN runs a global sed pass
 over the whole target tree, rewriting template placeholders
 (``{ServiceName}``, ``{service}``, ``{SERVICE}``, ``{service-name}``,
@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE_COMMON_UTILS = REPO_ROOT / "templates" / "common_utils"
+TEMPLATE_COMMON_UTILS = REPO_ROOT / "templates" / "service" / "common_utils"
 
 # Placeholders rewritten by new-service.sh's sed pass.
 # ``{SERVICE}`` is matched with a negative look-behind for ``$`` so
@@ -101,7 +101,7 @@ def main() -> int:
 
     if failures:
         sys.stderr.write(
-            "FAIL: placeholder found inside templates/common_utils/ "
+            "FAIL: placeholder found inside templates/service/common_utils/ "
             "(ADR-025 Option A drift guard).\n"
             "Any placeholder here would be rewritten by new-service.sh's "
             "global sed pass and silently fork adopters' scaffolded copies.\n\n"

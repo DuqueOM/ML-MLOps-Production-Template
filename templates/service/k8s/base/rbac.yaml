@@ -1,0 +1,52 @@
+# RBAC — Role-Based Access Control for ML service
+# Principle of least privilege: the service account can only read
+# ConfigMaps and Secrets in its own namespace.
+#
+# For enterprise environments (fintech, healthcare), RBAC is mandatory.
+#
+# TODO: Replace {@ service_slug @} and {namespace} with your values.
+# TODO: Adjust permissions based on what your service actually needs.
+
+---
+# Role — defines what actions are allowed
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: "{@ service_kebab @}-role"
+  # Namespace is OWNED by the overlay (kustomization.yaml `namespace:`).
+  # Hardcoding it here breaks the overlay's `namespace:` field for any
+  # env that uses a different namespace (PR-R2-3, audit R2).
+  labels:
+    app: "{@ service_kebab @}"
+    managed-by: kustomize
+rules:
+  # Read ConfigMaps (e.g., feature flags, config)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+  # Read Secrets (e.g., API keys injected by external-secrets)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+
+  # No write access — pods should never modify K8s resources
+
+---
+# RoleBinding — binds the Role to the ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: "{@ service_kebab @}-rolebinding"
+  # Namespace owned by overlay; see comment on Role above.
+  labels:
+    app: "{@ service_kebab @}"
+    managed-by: kustomize
+subjects:
+  - kind: ServiceAccount
+    name: "{@ service_kebab @}-sa"
+    # Namespace owned by overlay; see comment on Role above.
+roleRef:
+  kind: Role
+  name: "{@ service_kebab @}-role"
+  apiGroup: rbac.authorization.k8s.io

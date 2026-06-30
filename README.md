@@ -11,13 +11,14 @@ Opinionated, production-grade template for building and operating ML systems on 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
-[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-32%20encoded-red.svg)](#anti-patterns-encoded)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-34%20encoded-red.svg)](#anti-patterns-encoded)
 [![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Cursor_%7C_Claude_%7C_Codex-blueviolet.svg)](#agentic-system)
 
 ```bash
 # scaffold a new ML service in under a minute
 git clone https://github.com/DuqueOM/ML-MLOps-Production-Template.git
 cd ML-MLOps-Production-Template
+pip install copier
 ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
 ```
 
@@ -48,12 +49,12 @@ Three open-source projects are widely treated as references in the MLOps space. 
 | **Primary optimization** | Production discipline + governance | Teaching the *why* | Recognizable project structure | Infra-agnostic pipelines |
 | **Production hardening** | leader | medium | low | medium |
 | **Multi-cloud (GKE + EKS)** | leader | no | no | via stacks |
-| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 32 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium |
+| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 34 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium |
 | **Entry friction** | higher (K8s/Terraform-oriented) | medium | very low | low |
-| **Standardized scaffolding** | bespoke today → Copier (roadmap) | n/a | de-facto | CLI |
+| **Standardized scaffolding** | Copier | n/a | de-facto | CLI |
 | **Pedagogy / learning arc** | reviewer-oriented today → tutorial (roadmap) | leader | medium | good |
 
-**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin/Windsurf, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 32 contract-tested anti-patterns.
+**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin/Windsurf, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 34 contract-tested anti-patterns.
 
 **Where we are improving adoption** — standardized scaffolding (Copier), a local-first on-ramp (stack profiles), a recognizable layout, and a guided tutorial — is tracked transparently in [`docs/audit/ACTION_PLAN_ADAPTABILITY.md`](docs/audit/ACTION_PLAN_ADAPTABILITY.md). Every one of those improvements is required to flow through the canonical agentic layer, so adoption ergonomics never dilute the governance that differentiates the template.
 
@@ -297,7 +298,7 @@ The governance pattern is now single-source:
 - `templates/config/agentic_manifest.yaml` declares which surfaces consume each asset.
 - `.cursor/`, `.claude/`, and `.codex/` contain generated pointer adapters only.
 
-Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 15 rule files, 16 skills, and 12 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "14 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
+Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 16 rule files, 17 skills, and 13 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "15 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
 
 ### Static decision protocol
 
@@ -500,7 +501,7 @@ How the two repositories integrate (they are **deliberately separate**, never me
 
 ## Anti-patterns encoded
 
-The template encodes and audits 32 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
+The template encodes and audits 34 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
 
 | ID | Anti-pattern | Corrective action |
 |----|--------------|-------------------|
@@ -536,6 +537,8 @@ The template encodes and audits 32 production anti-patterns across serving, trai
 | D-30 | Production image lacks SBOM attestation | Attach a CycloneDX SBOM attestation as part of the signed release chain. |
 | D-31 | Monolithic IAM identity for ci/deploy/runtime/drift/retrain | Per-purpose, per-environment service accounts with WIF (GCP) and IRSA (AWS); enforced by `tests/test_iam_least_privilege.py`. |
 | D-32 | K8s manifests reference Python paths with kebab-case placeholders | Python module paths use `{service}` (snake), never `{service-name}` (kebab); enforced by `tests/policy/test_anti_patterns.py::test_d32_drift_cronjob_python_path`. |
+| D-33 | Manual file copying or sed-based placeholder substitution in the scaffolder | The scaffolder (`templates/scripts/new-service.sh`) MUST delegate to `copier copy`. Manual `cp -r` + `sed -i` cannot handle conditional logic, directory renaming, or upgrade paths. Enforced by `scripts/test_scaffold.sh`. |
+| D-34 | Unquoted Jinja tokens in YAML list items | All `{@ @}` tokens in YAML lists MUST be quoted: `- "{@ service_name @}"`. Unquoted tokens are invalid YAML. Enforced by `rg -n '^\s*- \{@' templates/service/ --glob "*.yml"` returning zero hits. |
 
 The full invariant text and operating rules live in [AGENTS.md](AGENTS.md).
 
@@ -699,10 +702,18 @@ python drift_check.py    # verify drift detection baseline
 ### 2. Scaffold your own service
 
 ```bash
+pip install copier  # one-time prerequisite
 ./templates/scripts/new-service.sh FraudDetector fraud_detector
 cd FraudDetector
 pytest
 ```
+
+The scaffolder delegates to [Copier](https://copier.readthedocs.io/) for
+project generation. It renders `templates/service/` with your service
+name, sets up the agentic system, and runs post-generation validation.
+A `.copier-answers.yml` file is created in the service directory — keep
+it committed so you can absorb template improvements via `copier update`
+(or the `/scaffold-update` workflow).
 
 ### 3. Wire your environment
 
@@ -749,7 +760,7 @@ For platform reviewers asking *"is this ready for our org?"* and teams that want
 - **Non-agentic on-ramp**: every `/slash` workflow has a `make` equivalent or runbook reference; teams that don't use AI assistants get the same safety guarantees through `make` targets and contract tests
 - **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference). *LLM serving is intentionally out of scope here and lives in the sibling [`agent-local`](https://github.com/DuqueOM/agent-local) repo — see "Local model plane" above.*
 
-The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-32) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
+The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-34) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
 
 ---
 

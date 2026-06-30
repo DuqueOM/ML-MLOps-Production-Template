@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=./quality_gates.schema.json
 # =============================================================================
-# {ServiceName} — Quality Gates Configuration
+# {@ service_name @} — Quality Gates Configuration
 # =============================================================================
 # Promotion thresholds + fairness requirements for this service. Loaded by:
-#   * src/{service}/training/train.py        — enforced before MLflow promotion
+#   * src/{@ service_slug @}/training/train.py        — enforced before MLflow promotion
 #   * tests/test_quality_gates_config.py     — schema regression tests
 #   * scripts/validate_quality_gates.py      — pre-commit / CI gate
 #
@@ -16,7 +16,7 @@
 #   model-hyperparameter diff.
 #
 # Editing this file:
-#   * Every field is enforced by a Pydantic schema in src/{service}/config.py
+#   * Every field is enforced by a Pydantic schema in src/{@ service_slug @}/config.py
 #     (class QualityGatesConfig). A typo or missing required field fails
 #     fast on `train.py --validate-config-only` BEFORE the training run.
 #   * Loosening a threshold requires an ADR (see docs/decisions/).

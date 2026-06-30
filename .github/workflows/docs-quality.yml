@@ -58,6 +58,6 @@ jobs:
             **/*.md
             !node_modules
             !.git
-            !templates/eda/notebooks/**
+            !templates/service/eda/notebooks/**
             !releases/**
         continue-on-error: true   # warn-only first run; flip to false after triage

@@ -1,7 +1,7 @@
 """Behavioural-equivalence test: JSON Schema ↔ Pydantic model.
 
 ADR-015 PR-B1 — keep ``configs/quality_gates.schema.json`` in lock-step
-with ``{service}.config.QualityGatesConfig``.
+with ``{@ service_slug @}.config.QualityGatesConfig``.
 
 We deliberately do NOT compare ``QualityGatesConfig.model_json_schema()``
 output to the committed file byte-for-byte:
@@ -40,7 +40,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-_cfg_module = importlib.import_module("{service}.config")
+_cfg_module = importlib.import_module("{@ service_slug @}.config")
 QualityGatesConfig = _cfg_module.QualityGatesConfig
 
 _SCHEMA_PATH = Path(__file__).resolve().parent.parent / "configs" / "quality_gates.schema.json"

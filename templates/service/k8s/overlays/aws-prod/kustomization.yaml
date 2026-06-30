@@ -1,0 +1,47 @@
+# =============================================================================
+# Kustomize overlay — AWS Production (EKS)
+# =============================================================================
+# Patches:
+#   - Docker image from ECR (digest-pinned in CI — D-19)
+#   - S3 model bucket for init container (aws-cli)
+#   - IRSA annotation on ServiceAccount (D-18)
+#   - Production resource limits
+#   - Namespace with PSS enforce=restricted (D-29)
+#
+# Deploy: kustomize build k8s/overlays/aws-prod/ | kubectl apply -f -
+#
+# TODO: Replace {AWS_ACCOUNT_ID}, {REGION}, {@ service_slug @} with your values.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: "{@ service_kebab @}-prod"
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: "{@ service_kebab @}-predictor"
+    newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{@ service_kebab @}-predictor"
+    # newTag is overwritten by deploy-common.yml's `Pin image to digest`
+    # step using the digest emitted by the build job (D-19, ADR-014 §B2).
+    newTag: "v1.0.0"
+  # Init container CLI — production pins by digest (PR-R2-2, ADR-016).
+  # The bootstrap runbook `docs/runbooks/digest-pin-init-image.md`
+  # documents the operator step that resolves and writes the digest.
+  - name: "cloud-cli-image"
+    newName: "public.ecr.aws/aws-cli/aws-cli"
+    newTag: "2"
+    # digest: "sha256:<resolve via bootstrap runbook>"
+
+patches:
+  - path: patch-deployment.yaml
+  - path: patch-serviceaccount.yaml
+  # R5-M3: narrow NetworkPolicy cloud-storage egress from 0.0.0.0/0 to
+  # AWS S3/ECR/STS residual CIDRs. Non-dev MUST carry this patch;
+  # tests/test_networkpolicy_egress_hygiene.py fails otherwise.
+  - path: patch-networkpolicy.yaml
+    target:
+      kind: NetworkPolicy
+      name: "{@ service_kebab @}-network-policy"

@@ -31,7 +31,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUNBOOK = REPO_ROOT / "docs" / "runbooks" / "egress-narrowing.md"
-OVERLAY_ROOT = REPO_ROOT / "templates" / "k8s" / "overlays"
+OVERLAY_ROOT = REPO_ROOT / "templates" / "service" / "k8s" / "overlays"
 
 
 @pytest.fixture(scope="module")
