@@ -291,7 +291,8 @@ def phase0_ingest(input_path: Path, output_dir: Path) -> pd.DataFrame:
     # Ingest report
     report = output_dir / "reports" / "00_ingest_report.md"
     report.parent.mkdir(parents=True, exist_ok=True)
-    report.write_text(f"""# Ingest Report
+    report.write_text(
+        f"""# Ingest Report
 
 - **Source**: `{input_path}`
 - **Rows**: {len(df):,}
@@ -301,7 +302,8 @@ def phase0_ingest(input_path: Path, output_dir: Path) -> pd.DataFrame:
 
 ## Column renames (snake_case normalization)
 {chr(10).join(f'- `{a}` → `{b}`' for a, b in zip(original_cols, df.columns) if a != b) or 'No renames needed.'}
-""")
+"""
+    )
 
     logger.info(f"  {len(df):,} rows × {len(df.columns)} columns → {out_path}")
     return df
@@ -498,11 +500,13 @@ def phase3_correlations(df: pd.DataFrame, target: str, output_dir: Path) -> pd.D
     ranking.to_csv(artifacts_dir / "03_feature_ranking_initial.csv", index=False)
 
     report = output_dir / "reports" / "03_correlations.html"
-    report.write_text(f"""<!DOCTYPE html>
+    report.write_text(
+        f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Correlations</title></head>
 <body><h1>Feature ↔ Target Correlations</h1>
 {ranking.to_html(index=False, float_format=lambda x: f'{x:.4f}')}
-</body></html>""")
+</body></html>"""
+    )
 
     logger.info(f"  Ranked {len(ranking)} numeric features by |corr| with target")
     return ranking
@@ -580,7 +584,8 @@ def phase4_leakage_gate(df: pd.DataFrame, target: str, ranking: pd.DataFrame, ou
         status = "PASSED"
         block_yaml = "# empty"
 
-    report.write_text(f"""# Leakage Audit
+    report.write_text(
+        f"""# Leakage Audit
 
 ## Status: {status}
 
@@ -599,7 +604,8 @@ BLOCKED_FEATURES:
 
 ## Resolution
 {_resolution_text(blocked)}
-""")
+"""
+    )
 
     # PR-B2: machine-readable equivalent of the markdown audit.
     # Always written, regardless of GATE pass/fail — a downstream
@@ -755,7 +761,8 @@ def phase6_consolidate(
     _n_features = len([c for c in dtypes_map if not c.startswith("_")])
     _n_numeric = len([c for c, m in dtypes_map.items() if "float" in m.get("dtype", "") or "int" in m.get("dtype", "")])
     summary = output_dir / "reports" / "eda_summary.md"
-    summary.write_text(f"""# EDA Summary
+    summary.write_text(
+        f"""# EDA Summary
 
 ## Dataset
 - **Rows**: {len(df):,}
@@ -792,7 +799,8 @@ def phase6_consolidate(
 ## ADR reference
 Create an ADR documenting the dataset, leakage decisions, and feature strategy.
 Cite this summary file from the ADR.
-""")
+"""
+    )
     logger.info(f"  Summary → {summary}")
 
     # PR-B2 — canonical structured artifacts. Written last so an

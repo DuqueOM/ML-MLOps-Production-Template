@@ -198,9 +198,9 @@ def run_drill(output_root: Path, work_dir: Path) -> int:
     no_false_positive = (actual_alerts - expected_alerts) == set()
     passed = bool(drift_correct and no_false_positive)
     actual_verdict = (
-        "alert_on_feature_a" if (drift_correct and no_false_positive)
-        else "drift_missed" if not drift_correct
-        else f"false_positive_on:{sorted(actual_alerts - expected_alerts)}"
+        "alert_on_feature_a"
+        if (drift_correct and no_false_positive)
+        else "drift_missed" if not drift_correct else f"false_positive_on:{sorted(actual_alerts - expected_alerts)}"
     )
 
     observations = [

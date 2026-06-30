@@ -71,10 +71,7 @@ def _import_cc_module():
     src = repo / "src"
     if not src.is_dir():
         raise RuntimeError(f"no src/ directory under {repo}; run drill from service root")
-    candidates = [
-        d for d in src.iterdir()
-        if d.is_dir() and (d / "evaluation" / "champion_challenger.py").is_file()
-    ]
+    candidates = [d for d in src.iterdir() if d.is_dir() and (d / "evaluation" / "champion_challenger.py").is_file()]
     if not candidates:
         raise RuntimeError("no evaluation/champion_challenger.py found under any src/* package")
     pkg = candidates[0].name
@@ -176,7 +173,7 @@ def run_drill(output_root: Path) -> int:
     bootstrap = report["bootstrap"]
     mcnemar = report["mcnemar"]
 
-    passed = (decision == EXPECTED_VERDICT)
+    passed = decision == EXPECTED_VERDICT
     actual_verdict = decision
 
     observations = [

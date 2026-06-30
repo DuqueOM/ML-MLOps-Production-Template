@@ -37,7 +37,6 @@ if str(_TEMPLATES_ROOT) not in sys.path:
 from common_utils import eda_artifacts as ea  # noqa: E402
 from eda import eda_pipeline  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

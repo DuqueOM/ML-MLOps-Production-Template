@@ -7,8 +7,8 @@ Usage:
     pytest tests/integration/test_service_integration.py -v
 """
 
-import requests
 import pytest
+import requests
 
 # TODO: Replace with your service's actual URL
 SERVICE_URL = "http://localhost:8000"
