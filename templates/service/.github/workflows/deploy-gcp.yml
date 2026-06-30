@@ -1,0 +1,247 @@
+name: "Deploy — GCP (dev → staging → prod)"
+
+# Environment promotion chain with human-gated transitions:
+#
+#   main / tag push
+#        │
+#   [build-and-push]  ← AUTO
+#        │
+#   [deploy-dev]      ← AUTO (GitHub Environment `gcp-dev` — no reviewers)
+#        │
+#   [deploy-staging]  ← CONSULT (GitHub Environment `gcp-staging` — 1 reviewer)
+#        │
+#   [deploy-prod]     ← STOP (GitHub Environment `gcp-production` — 2 reviewers + 5m wait)
+#
+# GitHub Environment Protection Rules are configured in the repo Settings
+# → Environments. The PROTECTION lives there, not in this YAML — the YAML
+# only declares which environment each job targets.
+#
+# Required Environments (configure manually in GitHub Settings):
+#   * gcp-dev         — auto-deploy, no reviewers
+#   * gcp-staging     — required_reviewers: 1 (tech lead)
+#   * gcp-production  — required_reviewers: 2, wait_timer: 5m,
+#                       deployment_branches: main + version tags only
+#
+# Maintainership note (May 2026 audit HIGH-2): this template currently
+# ships with a single CODEOWNER. The "required_reviewers: 2" claim on
+# `gcp-production` is aspirational. Adopters with one-person ownership
+# MUST either (a) set `required_reviewers: 1` until a co-maintainer is
+# onboarded, or (b) include a peer-team handle that is NOT the template
+# CODEOWNER as the second required reviewer. See `.github/CODEOWNERS`.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ml-images
+
+jobs:
+  # ---------------------------------------------------------------------
+  # 1. Build + push images ONCE (reused across dev/staging/prod)
+  # ---------------------------------------------------------------------
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.v }}
+      image_digests: ${{ steps.digests.outputs.json }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Workload Identity Federation — NO static credentials (D-18, ADR-014 §3.1).
+      # GitHub mints a short-lived OIDC token; GCP exchanges it for a SA via WIF.
+      # Setup: docs/runbooks/gcp-wif-setup.md.
+      # Required GitHub Variables (Settings → Variables):
+      #   GCP_WIF_PROVIDER  e.g. projects/123/locations/global/workloadIdentityPools/gh/providers/gh
+      #   GCP_SERVICE_ACCOUNT  e.g. ci-deployer@<project>.iam.gserviceaccount.com
+      - name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
+
+      - name: Compute version
+        id: version
+        run: |
+          V="${GITHUB_REF_NAME}"
+          if [ "${V}" = "main" ]; then
+            V="main-$(git rev-parse --short HEAD)"
+          fi
+          echo "v=${V}" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        run: |
+          # Single-service default: image slug is kebab-case and build context is repo root.
+          # Multi-service adopters can replace SERVICES with service-root pairs.
+          for SERVICE in {@ service_kebab @}; do
+            IMAGE="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            docker build -t "$IMAGE" .
+            docker push "$IMAGE"
+          done
+
+      # Capture the digest of EACH pushed image so deploy-common.yml can
+      # pin the kustomize overlay to <repo>@sha256:... before applying.
+      # Closes audit Critical-2 (digest pinning) + matches Kyverno digest gate.
+      - name: Capture image digests
+        id: digests
+        run: |
+          set -euo pipefail
+          DIGESTS_JSON='{}'
+          for SERVICE in {@ service_kebab @}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            # buildx imagetools inspect resolves the manifest digest from the
+            # registry without re-pulling. Works for single-arch and multi-arch.
+            DIGEST=$(docker buildx imagetools inspect "$IMG" --format '{{ .Manifest.Digest }}')
+            if [ -z "$DIGEST" ] || [ "$DIGEST" = "<no value>" ]; then
+              echo "::error::Could not resolve digest for $IMG"
+              exit 1
+            fi
+            DIGESTS_JSON=$(echo "$DIGESTS_JSON" | jq --arg s "$SERVICE" --arg d "$DIGEST" '. + {($s): $d}')
+            echo "✓ $SERVICE → $DIGEST"
+          done
+          echo "json=$(echo $DIGESTS_JSON | jq -c .)" >> $GITHUB_OUTPUT
+          echo "✓ image_digests=$(echo $DIGESTS_JSON | jq -c .)"
+
+      # Cosign installer pin (audit High-3). Without this, `cosign sign`
+      # fails on a clean ubuntu-latest runner.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v2.4.0
+
+      - name: Sign images with Cosign (keyless OIDC, by digest — D-19)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGESTS: ${{ steps.digests.outputs.json }}
+        run: |
+          for SERVICE in {@ service_kebab @}; do
+            DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
+            REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
+            # Sign by digest (immutable identifier), not by tag (mutable).
+            cosign sign --yes "${@ gh_repo @}@${DIGEST}"
+          done
+
+      # -------------------------------------------------------------------
+      # SLSA provenance (L3 intent, L1-L2 actual until we also add hermetic
+      # builds and tamper-proof builder). Generated by slsa-github-generator
+      # and attached as a Cosign attestation so admission controllers can
+      # verify the image was built by THIS repo at THIS commit.
+      # -------------------------------------------------------------------
+      # Generate one SBOM per service (multi-service safe — ADR-014 §5.7).
+      # anchore/sbom-action does not loop, so we install Syft and call it
+      # ourselves. Output filename is parametrized by SERVICE.
+      - name: Install Syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM per service (Syft / CycloneDX)
+        run: |
+          for SERVICE in {@ service_kebab @}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            syft "$IMG" -o cyclonedx-json > "sbom-${SERVICE}.cyclonedx.json"
+            echo "✓ SBOM generated: sbom-${SERVICE}.cyclonedx.json"
+          done
+
+      - name: Attach SBOM as attestation (by digest)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGESTS: ${{ steps.digests.outputs.json }}
+        run: |
+          for SERVICE in {@ service_kebab @}; do
+            DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
+            REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
+            cosign attest --yes --type cyclonedx \
+              --predicate "sbom-${SERVICE}.cyclonedx.json" "${@ gh_repo @}@${DIGEST}"
+          done
+
+  # ---------------------------------------------------------------------
+  # 1b. SLSA provenance (ROADMAP — ADR-013)
+  # ---------------------------------------------------------------------
+  # Today: SBOM attestation above gives L1 (build process documented).
+  # Next step to reach SLSA L3 (image integrity + builder isolation):
+  #
+  #   provenance:
+  #     needs: build
+  #     permissions:
+  #       id-token: write
+  #       contents: read
+  #       actions: read
+  #       packages: write
+  #     uses: slsa-framework/slsa-github-generator/.github/workflows/\
+  #           generator_container_slsa3.yml@v2.0.0
+  #     with:
+  #       image: "<registry>/<image>"
+  #       digest: "${{ needs.build.outputs.image_digest }}"
+  #     # No secrets block needed — WIF used at the build step authenticates
+  #     # the registry push too. The slsa-github-generator inherits identity
+  #     # via OIDC.
+  #
+  # Requires `build` to emit `image_digest` via
+  #   docker inspect --format '{{ index .RepoDigests 0 }}' "$IMG" | cut -d@ -f2
+  # and add it to the job's `outputs:` block.
+  #
+  # Not enabled by default because slsa-github-generator v2 pins require a
+  # specific Dockerfile layout and breaks on first setup. Enable after
+  # verifying your image builds reproducibly.
+
+  # ---------------------------------------------------------------------
+  # 2. Deploy to dev (AUTO)
+  # ---------------------------------------------------------------------
+  deploy-dev:
+    needs: build
+    uses: ./.github/workflows/deploy-common.yml
+    with:
+      cloud: gcp
+      environment: dev
+      cluster_name: ${{ vars.GKE_DEV_CLUSTER }}
+      region: ${{ vars.GCP_REGION }}
+      overlay_path: k8s/overlays/gcp-dev
+      version: ${{ needs.build.outputs.version }}
+      services: '["{@ service_kebab @}"]'
+      image_digests: ${{ needs.build.outputs.image_digests }}
+      # WIF identity propagates via permissions.id-token at the reusable
+      # workflow level — no secrets passthrough required.
+
+  # ---------------------------------------------------------------------
+  # 3. Deploy to staging (CONSULT — 1 reviewer via Environment Protection)
+  # ---------------------------------------------------------------------
+  deploy-staging:
+    needs: [build, deploy-dev]
+    # Only auto-promote when main or tag — feature branches stop at dev
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/deploy-common.yml
+    with:
+      cloud: gcp
+      environment: staging
+      cluster_name: ${{ vars.GKE_STAGING_CLUSTER }}
+      region: ${{ vars.GCP_REGION }}
+      overlay_path: k8s/overlays/gcp-staging
+      version: ${{ needs.build.outputs.version }}
+      services: '["{@ service_kebab @}"]'
+      image_digests: ${{ needs.build.outputs.image_digests }}
+
+  # ---------------------------------------------------------------------
+  # 4. Deploy to production (STOP — 2 reviewers + wait timer + branch gate)
+  # ---------------------------------------------------------------------
+  deploy-prod:
+    needs: [build, deploy-staging]
+    # Only version tags can reach prod — D-26
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/deploy-common.yml
+    with:
+      cloud: gcp
+      environment: production
+      cluster_name: ${{ vars.GKE_PROD_CLUSTER }}
+      region: ${{ vars.GCP_REGION }}
+      overlay_path: k8s/overlays/gcp-prod
+      version: ${{ needs.build.outputs.version }}
+      services: '["{@ service_kebab @}"]'
+      image_digests: ${{ needs.build.outputs.image_digests }}

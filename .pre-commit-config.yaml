@@ -36,7 +36,7 @@
 # This file is the single source of truth (CI re-uses it via
 # `pre-commit run --all-files` since 2026-04-28).
 #
-# For the per-service hook config, see `templates/.pre-commit-config.yaml`.
+# For the per-service hook config, see `templates/service/.pre-commit-config.yaml`.
 
 # Single-stage install — pre-push stage was retired in R5-L4 (May 2026);
 # `make smoke` + CI pr-smoke-lane.yml replace it.
@@ -56,7 +56,7 @@ repos:
       - id: black
         language_version: python3
         args: ["--line-length=120"]
-        files: ^(templates/service/|templates/common_utils/|examples/)
+        files: ^(templates/service/|examples/)
         exclude: >
           (?x)(
             ^\.venv/|
@@ -73,7 +73,7 @@ repos:
       - id: isort
         name: isort (python)
         args: ["--profile=black", "--line-length=120"]
-        files: ^(templates/service/|templates/common_utils/|examples/)
+        files: ^(templates/service/|examples/)
         exclude: >
           (?x)(
             ^\.venv/|
@@ -89,7 +89,7 @@ repos:
     hooks:
       - id: flake8
         args: ["--max-line-length=120", "--extend-ignore=E203,W503"]
-        files: ^(templates/service/|templates/common_utils/|examples/)
+        files: ^(templates/service/|examples/)
         exclude: >
           (?x)(
             ^\.venv/|
@@ -109,17 +109,24 @@ repos:
         exclude: ^.*\.md$
       - id: check-yaml
         args: ["--unsafe"]
+        # The Copier render root (templates/service/**) holds Jinja templates,
+        # not standalone YAML — `{@ … @}` tokens are not valid YAML until
+        # rendered. Their post-render validity is enforced by
+        # validate-templates.yml (kustomize build + kubeconform on the
+        # rendered overlays). yaml-linting the un-rendered templates is a
+        # category error, so exclude the render root here.
+        exclude: ^templates/service/
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
 
   # mypy + bandit scope: REAL Python only.
-  # `templates/service/src/{service}/` is template territory — the
-  # `{service}` segment is a placeholder that new-service.sh
+  # `templates/service/src/{@ service_slug @}/` is template territory — the
+  # `{@ service_slug @}` segment is a Jinja token that Copier
   # substitutes at scaffold time. Running static analysis on the
-  # un-substituted templates explodes (mypy: "{service} is not a
+  # un-substituted templates explodes (mypy: "{@ service_slug @} is not a
   # valid Python package name"). The scaffolded SERVICE gets its
-  # OWN per-service hook config (templates/.pre-commit-config.yaml).
+  # OWN per-service hook config (templates/service/.pre-commit-config.yaml).
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
@@ -128,7 +135,7 @@ repos:
           - "--python-version=3.11"
           - "--ignore-missing-imports"
           - "--no-strict-optional"
-        files: ^(templates/common_utils/|examples/|scripts/)
+        files: ^(templates/service/common_utils/|examples/|scripts/)
         exclude: >
           (?x)(
             ^\.venv/|
@@ -150,7 +157,7 @@ repos:
     hooks:
       - id: bandit
         args: ["-ll", "-i"]
-        files: ^(templates/common_utils/|examples/|scripts/)
+        files: ^(templates/service/common_utils/|examples/|scripts/)
         exclude: ^.*\/tests\/
 
   # Secret detection with gitleaks (D-17, D-18 invariants)
@@ -205,6 +212,6 @@ repos:
   #   - industry baseline: pre-commit < 5 s, pre-push < 30 s, CI per-PR
   #     3–10 min (Software Engineering at Google §4.2)
   # On-demand local runs:
-  #   make smoke              # alias of: bash scripts/test_scaffold.sh
+  #   make smoke              # alias of: bash scripts/test_scaffold.sh (Copier render)
   #   make validate-templates # full local validation chain
   # See docs/audit/ACTION_PLAN_R5.md §R5-L4 for the full decision record.

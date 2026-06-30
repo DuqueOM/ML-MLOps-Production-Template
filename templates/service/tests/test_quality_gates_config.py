@@ -1,7 +1,7 @@
 """Tests for QualityGatesConfig (PR-R2-7).
 
 These tests gate every PR that touches `configs/quality_gates.yaml`
-or `src/{service}/config.py`. They cover three concerns:
+or `src/{@ service_slug @}/config.py`. They cover three concerns:
 
 1. **Schema integrity**: every required field must be present;
    missing keys must fail with a clear ValidationError.
@@ -29,9 +29,9 @@ from pydantic import ValidationError
 
 # Put the scaffolded `src/` directory on sys.path. The scaffold test
 # runs pytest with `PYTHONPATH=.` from the service root, and the
-# pyproject.toml `name = "{service}"` does not currently declare a
+# pyproject.toml `name = "{@ service_slug @}"` does not currently declare a
 # setuptools `package-dir` pointing at `src/`, so `pip install -e .`
-# in the scaffold smoke does not make `{service}` directly importable.
+# in the scaffold smoke does not make `{@ service_slug @}` directly importable.
 # Re-anchoring sys.path here makes the test independent of that
 # packaging detail.
 _SRC = Path(__file__).resolve().parent.parent / "src"
@@ -39,13 +39,13 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 # We import dynamically via importlib because the template ships with
-# `{service}` as a literal placeholder — the scaffolder (new-service.sh)
+# `{@ service_slug @}` as a literal placeholder — the scaffolder (new-service.sh)
 # substitutes it into a real package name (e.g. `myservice`). A direct
-# `from {service}.config import ...` would be a syntax error before
+# `from {@ service_slug @}.config import ...` would be a syntax error before
 # substitution and would break `black` on the template itself.
-# `"{service}"` is a valid Python string literal, so this file parses
+# `"{@ service_slug @}"` is a valid Python string literal, so this file parses
 # cleanly pre- AND post-substitution.
-_cfg_module = importlib.import_module("{service}.config")
+_cfg_module = importlib.import_module("{@ service_slug @}.config")
 QualityGatesConfig = _cfg_module.QualityGatesConfig
 DEMOGRAPHIC_TARGET_TOKENS = _cfg_module.DEMOGRAPHIC_TARGET_TOKENS
 

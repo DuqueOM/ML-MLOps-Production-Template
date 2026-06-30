@@ -36,7 +36,7 @@ canonical:
     path: "AGENTS.md"
     authority: "AGENTS.md#Agent Permissions Matrix"
   dynamic_risk:
-    path: "templates/common_utils/risk_context.py"
+    path: "templates/service/common_utils/risk_context.py"
     authority: "docs/decisions/ADR-010-dynamic-behavior-protocol.md"
   ci_autofix_policy:
     path: "templates/config/ci_autofix_policy.yaml"
@@ -181,6 +181,9 @@ rules:
   - id: "14-api-contracts"
     source: "agentic/rules/14-api-contracts.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "15-template-lifecycle"
+    source: "agentic/rules/15-template-lifecycle.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
 
 # -----------------------------------------------------------------------------
 # Skills — canonical source is agentic/skills/. The authoritative set
@@ -257,6 +260,11 @@ skills:
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "scaffold-update"
+    source: "agentic/skills/scaffold-update/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "secret-breach-response"
     source: "agentic/skills/secret-breach-response/SKILL.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
@@ -328,6 +336,11 @@ workflows:
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "STOP"
     authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "scaffold-update"
+    source: "agentic/workflows/scaffold-update.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "secret-breach"
     source: "agentic/workflows/secret-breach.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
@@ -396,7 +409,7 @@ surfaces:
 # Only informative; the runtime code owns its own defaults.
 # -----------------------------------------------------------------------------
 context_consumers:
-  - module: "templates/common_utils/risk_context.py"
+  - module: "templates/service/common_utils/risk_context.py"
     reads:
       - "company.risk_appetite"
       - "company.monthly_budget_usd"
@@ -412,7 +425,7 @@ context_consumers:
 # -----------------------------------------------------------------------------
 reports:
   schema: "templates/config/report_schema.json"
-  library: "templates/common_utils/reports.py"
+  library: "templates/service/common_utils/reports.py"
   cli: "scripts/generate_report.py"
   storage_root: "ops/reports/"
   authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"

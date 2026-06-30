@@ -1,6 +1,6 @@
 """Contract test for ADR-019 — CI autofix + model routing policies.
 
-The two YAML files in `templates/config/` are governance artifacts.
+The two YAML files in `config/` are governance artifacts.
 They define what an Agent-CIRepair runtime is allowed to touch, with
 what blast radius, and which models route to which task class.
 
@@ -31,19 +31,31 @@ from pathlib import Path
 import pytest
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-AUTOFIX_POLICY = REPO_ROOT / "templates" / "config" / "ci_autofix_policy.yaml"
-ROUTING_POLICY = REPO_ROOT / "templates" / "config" / "model_routing_policy.yaml"
+
+def _find_repo_root() -> Path:
+    """Return the directory containing AGENTS.md (layout-flexible, ADR-030)."""
+    here = Path(__file__).resolve()
+    for ancestor in [here.parent] + list(here.parents):
+        if (ancestor / "AGENTS.md").is_file():
+            return ancestor
+    return here.parents[3]
+
+
+# Config dir is always <service_root>/config/ — in the template repo that's
+# templates/service/config/; in a generated service it's config/.
+_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+REPO_ROOT = _find_repo_root()
+AUTOFIX_POLICY = _CONFIG_DIR / "ci_autofix_policy.yaml"
+ROUTING_POLICY = _CONFIG_DIR / "model_routing_policy.yaml"
 
 # The kill list: paths that NO autofix mode may ever touch.
 # Drift here is a STOP-class incident.
 REQUIRED_PROTECTED_PATTERNS = {
     ".github/workflows/deploy-",
-    "templates/cicd/deploy-",
-    "templates/infra/terraform/",
-    "templates/k8s/overlays/",
-    "templates/common_utils/secrets.py",
-    "templates/common_utils/risk_context.py",
+    "infra/terraform/",
+    "k8s/overlays/",
+    "common_utils/secrets.py",
+    "common_utils/risk_context.py",
     "scripts/audit_record.py",
 }
 
@@ -170,7 +182,7 @@ def test_verifier_commands_reference_existing_repo_scripts(autofix: dict) -> Non
         for command in commands:
             parts = shlex.split(command)
             if len(parts) >= 2 and parts[0] in {"python", "python3", "bash"}:
-                candidate = REPO_ROOT / parts[1]
+                candidate = _CONFIG_DIR.parent / parts[1]
                 if parts[1].startswith("scripts/") and not candidate.exists():
                     missing.append(f"{group_name}: {parts[1]}")
     assert not missing, f"ADR-019 violation: verifier commands reference missing scripts: {missing}"
@@ -247,8 +259,8 @@ def test_policy_files_in_protected_paths(autofix: dict) -> None:
     autofix can never quietly rewrite the policy that governs it."""
     protected = "\n".join(autofix["protected_paths"])
     for required in (
-        "templates/config/ci_autofix_policy.yaml",
-        "templates/config/model_routing_policy.yaml",
+        "config/ci_autofix_policy.yaml",
+        "config/model_routing_policy.yaml",
     ):
         assert required in protected, (
             f"ADR-019 violation: policy file {required!r} is missing from "

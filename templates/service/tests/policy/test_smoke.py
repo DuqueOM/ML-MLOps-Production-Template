@@ -35,8 +35,16 @@ def test_scaffold_replaces_placeholders(scaffold_dir: Path) -> None:
         # Skip:
         # - cache/VCS dirs (__pycache__, .git, .dvc cache)
         # - the scaffolder's own scripts/ dir (contains placeholder docs)
+        # - tests/ dir (test files legitimately reference placeholder tokens)
+        # - agentic/ and .devin/ dirs (document Copier delimiters with raw blocks)
+        # - AGENTS.md, CLAUDE.md (document D-34 / grep examples with raw blocks)
         # - binary/compiled files (.pyc, .so, .whl, images)
-        if any(part in {".git", "__pycache__", ".dvc", "scripts", "node_modules"} for part in rel.parts):
+        if any(
+            part in {".git", "__pycache__", ".dvc", "scripts", "tests", "agentic", ".devin", "node_modules"}
+            for part in rel.parts
+        ):
+            continue
+        if path.name in {"AGENTS.md", "CLAUDE.md"}:
             continue
         if path.suffix in {".pyc", ".pyo", ".so", ".whl", ".png", ".jpg", ".ico"}:
             continue
@@ -47,9 +55,16 @@ def test_scaffold_replaces_placeholders(scaffold_dir: Path) -> None:
         # Use negative lookbehind so shell variables like ${SERVICE}
         # (legitimate in scaffolded CI workflow scripts) are not flagged.
         # Only bare {ServiceName} / {SERVICE} not preceded by $ are placeholders.
+        # Build Copier token strings dynamically to avoid Jinja2 parsing.
+        _at = "{" + "@"
+        _ate = "@" + "}"
         for pattern, token in (
             (r"(?<![$])\{ServiceName\}", "{ServiceName}"),
             (r"(?<![$])\{SERVICE\}", "{SERVICE}"),
+            (rf"\{_at} service_slug {_ate}", f"{_at} service_slug {_ate}"),
+            (rf"\{_at} service_name {_ate}", f"{_at} service_name {_ate}"),
+            (rf"\{_at} service_kebab {_ate}", f"{_at} service_kebab {_ate}"),
+            (rf"\{_at} SERVICE_NAME {_ate}", f"{_at} SERVICE_NAME {_ate}"),
         ):
             if re.search(pattern, text):
                 bad.append(f"{rel}: contains {token!r}")

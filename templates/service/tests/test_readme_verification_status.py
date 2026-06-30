@@ -105,14 +105,19 @@ def test_l4_is_explicitly_not_assertable(readme_text: str) -> None:
 
 
 def test_antipattern_badge_count_matches_canon(readme_text: str) -> None:
-    """Badge shield must cite 32 encoded anti-patterns (R5-L1 canon)."""
+    """Badge shield must cite the canonical anti-pattern count (R5-L1 canon)."""
     # Accept either the standard shield URL-encoded form or spaced form.
     pat = re.compile(r"anti--patterns-(\d{2})(?:%20|\s)encoded", re.IGNORECASE)
     match = pat.search(readme_text)
     assert match, "README must expose an anti-pattern count badge"
-    assert match.group(1) == "32", (
-        f"Badge says {match.group(1)} anti-patterns but canon is 32 "
-        "(AGENTS.md §Anti-Patterns last row is D-32). Bump the shield."
+    # Dynamically derive the canonical max from AGENTS.md to avoid
+    # hardcoding the count (which drifts when new D-NN are added).
+    agents_md = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    d_ids = re.findall(r"\bD-(\d{2})\b", agents_md)
+    canonical_max = str(max(int(x) for x in d_ids)) if d_ids else "32"
+    assert match.group(1) == canonical_max, (
+        f"Badge says {match.group(1)} anti-patterns but canon is {canonical_max} "
+        "(AGENTS.md §Anti-Patterns last row). Bump the shield."
     )
 
 

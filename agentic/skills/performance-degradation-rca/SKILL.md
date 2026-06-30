@@ -189,7 +189,7 @@ below. Ping the on-call owner for review before committing.
 - Sliced AUC drop: {tabla}
 - Drift report at REGRESSION_TS: {path}
 - Deploy correlated: {PR # / none}
-- Logger health: {%}
+- Logger health: (percent)
 
 ## Contributing factors
 - ...

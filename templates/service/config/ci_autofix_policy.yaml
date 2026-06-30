@@ -1,0 +1,138 @@
+version: 1
+defaults:
+  branch_prefix: codex/ci-fix
+  max_attempts_per_run: 2
+  stable_models_only: true
+  require_green_verification: true
+limits:
+  auto:
+    max_files_changed: 5
+    max_lines_changed: 120
+  consult:
+    max_files_changed: 12
+    max_lines_changed: 350
+protected_paths:
+- .github/workflows/deploy-*.yml
+- .github/workflows/deploy-*.yml
+- infra/terraform/**
+- k8s/overlays/*prod*/**
+- common_utils/secrets.py
+- common_utils/risk_context.py
+- scripts/audit_record.py
+- config/ci_autofix_policy.yaml
+- config/model_routing_policy.yaml
+failure_classes:
+  formatter_drift:
+    mode: AUTO
+    description: black/isort/ruff/whitespace drift; deterministic
+    allowed_paths:
+    - '**/*.py'
+    - '**/*.md'
+    - '**/*.yaml'
+    - '**/*.yml'
+    - '**/*.toml'
+    verifiers:
+    - lint-style
+  docs_quality_minor:
+    mode: AUTO
+    description: markdownlint, internal links, doc references
+    allowed_paths:
+    - docs/**
+    - README.md
+    - QUICK_START.md
+    - CHANGELOG.md
+    verifiers:
+    - docs-quality
+  syntax_config_minor:
+    mode: AUTO
+    description: invalid YAML/TOML/JSON in non-prod CI surfaces
+    allowed_paths:
+    - config/**
+    - .github/workflows/*.yml
+    - .github/workflows/*.yml
+    blocked_if_paths_match:
+    - .github/workflows/deploy-*.yml
+    - .github/workflows/deploy-*.yml
+    verifiers:
+    - yaml-parse
+    - workflow-lint
+  snapshot_regen_deterministic:
+    mode: AUTO
+    description: regenerable artifacts that drifted without semantic change
+    allowed_paths:
+    - '**/tests/contract/**'
+    - '**/openapi.snapshot.json'
+    verifiers:
+    - contract-tests
+  test_fixture_alignment:
+    mode: CONSULT
+    description: fixtures/mocks/payloads misaligned after refactor
+    allowed_paths:
+    - '**/tests/**'
+    - '**/conftest.py'
+    verifiers:
+    - targeted-tests
+  workflow_nonprod_fix:
+    mode: CONSULT
+    description: non-deploy CI workflow path/artifact/matrix
+    allowed_paths:
+    - .github/workflows/*.yml
+    - .github/workflows/*.yml
+    blocked_if_paths_match:
+    - .github/workflows/deploy-*.yml
+    - .github/workflows/deploy-*.yml
+    verifiers:
+    - workflow-lint
+    - targeted-tests
+  build_harness_fix:
+    mode: CONSULT
+    description: scaffolding/validation/contract test infra
+    allowed_paths:
+    - scripts/**
+    - scripts/**
+    - .github/workflows/**
+    verifiers:
+    - targeted-tests
+  dependency_pin_nonruntime:
+    mode: CONSULT
+    description: CI/lint/docs tooling pins (NOT runtime ML deps)
+    allowed_paths:
+    - .github/**
+    - pyproject.toml
+    - .pre-commit-config.yaml
+    verifiers:
+    - targeted-tests
+  security_or_auth:
+    mode: STOP
+    description: gitleaks, trivy, WIF, IRSA, secrets, signing
+  infra_or_deploy:
+    mode: STOP
+    description: Terraform, K8s prod/staging, deploy chain
+  quality_gate:
+    mode: STOP
+    description: fairness/drift/retrain/contract break
+  blast_radius_exceeded:
+    mode: STOP
+    description: exceeded max_files_changed / max_lines_changed / protected path
+verifier_groups:
+  lint-style:
+  - ruff check .
+  - black --check .
+  - isort --check-only .
+  docs-quality:
+  - python scripts/validate_agentic.py --strict
+  yaml-parse:
+  - python scripts/ci_verify_yaml.py
+  workflow-lint:
+  - python scripts/ci_verify_workflows.py
+  contract-tests:
+  - pytest tests/contract -q
+  targeted-tests:
+  - python scripts/ci_verify_targeted.py
+audit:
+  enabled: true
+  record_with: scripts/audit_record.py
+memory:
+  enabled: true
+  mode: advisory
+  max_similar_cases: 5

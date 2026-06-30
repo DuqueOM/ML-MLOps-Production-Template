@@ -31,7 +31,7 @@ updates:
 
   # Terraform (GCP)
   - package-ecosystem: "terraform"
-    directory: "/templates/infra/terraform/gcp"
+    directory: "/templates/service/infra/terraform/gcp"
     schedule:
       interval: "monthly"
     labels:
@@ -40,7 +40,7 @@ updates:
 
   # Terraform (AWS)
   - package-ecosystem: "terraform"
-    directory: "/templates/infra/terraform/aws"
+    directory: "/templates/service/infra/terraform/aws"
     schedule:
       interval: "monthly"
     labels:

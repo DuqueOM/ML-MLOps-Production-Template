@@ -35,7 +35,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 INVENTORY = REPO_ROOT / "docs" / "observability" / "dashboards-inventory.md"
-DASHBOARDS_DIR = REPO_ROOT / "templates" / "monitoring" / "grafana"
+DASHBOARDS_DIR = REPO_ROOT / "templates" / "service" / "monitoring" / "grafana"
 
 
 @pytest.fixture(scope="module")

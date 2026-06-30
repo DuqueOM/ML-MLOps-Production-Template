@@ -37,7 +37,7 @@ jobs:
 
       # 2. Hardcoded credential patterns the template specifically warns
       #    about. Mirror of the security-audit job inside the service CI
-      #    (templates/cicd/ci.yml) — applied to the template's own files.
+      #    (templates/service/.github/workflows/ci.yml) — applied to the template's own files.
       - name: Hardcoded credential patterns (D-17 redux)
         run: |
           set -euo pipefail
@@ -91,14 +91,14 @@ jobs:
 
       - name: tfsec (Terraform IaC — GCP)
         run: |
-          tfsec templates/infra/terraform/gcp \
+          tfsec templates/service/infra/terraform/gcp \
             --config-file .security-baselines/tfsec.yml \
             --format lovely \
             --no-colour
 
       - name: tfsec (Terraform IaC — AWS)
         run: |
-          tfsec templates/infra/terraform/aws \
+          tfsec templates/service/infra/terraform/aws \
             --config-file .security-baselines/tfsec.yml \
             --format lovely \
             --no-colour
@@ -144,7 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           status=0
-          search_dirs=".github/workflows templates/cicd"
+          search_dirs=".github/workflows templates/service/.github/workflows"
 
           # Drop grep-format lines that are YAML comments
           # (`file:lineno:     # ...`). This lint scans every workflow
@@ -257,7 +257,7 @@ jobs:
           set -euo pipefail
           status=0
           fastapi_app="templates/service/app/fastapi_app.py"
-          drift_py="templates/service/src/{service}/monitoring/drift_detection.py"
+          drift_py="templates/service/src/{@ service_slug @}/monitoring/drift_detection.py"
 
           if [ ! -f templates/service/app/_pandera_schema.py ]; then
             echo "::error::templates/service/app/_pandera_schema.py is missing (PR-R2-4)."
@@ -313,13 +313,13 @@ jobs:
       - name: Validate base manifests
         run: |
           kubeconform -strict -ignore-missing-schemas \
-            templates/k8s/base/deployment.yaml \
-            templates/k8s/base/hpa.yaml \
-            templates/k8s/base/service.yaml \
-            templates/k8s/base/serviceaccount.yaml \
-            templates/k8s/base/cronjob-drift.yaml \
-            templates/k8s/base/networkpolicy.yaml \
-            templates/k8s/base/rbac.yaml
+            templates/service/k8s/base/deployment.yaml \
+            templates/service/k8s/base/hpa.yaml \
+            templates/service/k8s/base/service.yaml \
+            templates/service/k8s/base/serviceaccount.yaml \
+            templates/service/k8s/base/cronjob-drift.yaml \
+            templates/service/k8s/base/networkpolicy.yaml \
+            templates/service/k8s/base/rbac.yaml
 
       - name: Install kustomize
         # Direct release tarball (not raw.githubusercontent.com/hack/).
@@ -336,7 +336,7 @@ jobs:
           kustomize version
 
       - name: Validate Kustomize build (base)
-        run: kustomize build templates/k8s/base/ > /dev/null
+        run: kustomize build templates/service/k8s/base/ > /dev/null
 
       - name: Base neutrality lint (PR-R2-3, audit R2)
         # The base manifest must NOT carry environment-specific values;
@@ -358,7 +358,7 @@ jobs:
           status=0
           # 1. No `environment:` label in base resources
           if grep -nE '^[[:space:]]+environment:' \
-               templates/k8s/base/*.yaml; then
+               templates/service/k8s/base/*.yaml; then
             echo "::error::Base manifests must not hardcode an environment label (PR-R2-3). Move it to the overlay."
             status=1
           fi
@@ -366,15 +366,15 @@ jobs:
           # Match `namespace:` at any indentation, on yaml files other
           # than kustomization.yaml.
           if grep -nE '^[[:space:]]+namespace:' \
-               templates/k8s/base/*.yaml \
-               | grep -v '^templates/k8s/base/kustomization.yaml:' \
-               | grep -v '^templates/k8s/base/[^:]*:[0-9]*:[[:space:]]*#' ; then
+               templates/service/k8s/base/*.yaml \
+               | grep -v '^templates/service/k8s/base/kustomization.yaml:' \
+               | grep -v '^templates/service/k8s/base/[^:]*:[0-9]*:[[:space:]]*#' ; then
             echo "::error::Base resources must not hardcode namespace: -- overlay namespace field is the single source of truth (PR-R2-3)."
             status=1
           fi
           # 3. Base deployment replicas must be >= HPA minReplicas.
-          dep_replicas=$(grep -E '^[[:space:]]+replicas:' templates/k8s/base/deployment.yaml | head -1 | awk '{print $2}')
-          hpa_min=$(grep -E '^[[:space:]]+minReplicas:' templates/k8s/base/hpa.yaml | head -1 | awk '{print $2}')
+          dep_replicas=$(grep -E '^[[:space:]]+replicas:' templates/service/k8s/base/deployment.yaml | head -1 | awk '{print $2}')
+          hpa_min=$(grep -E '^[[:space:]]+minReplicas:' templates/service/k8s/base/hpa.yaml | head -1 | awk '{print $2}')
           if [ -n "$dep_replicas" ] && [ -n "$hpa_min" ] && [ "$dep_replicas" -lt "$hpa_min" ]; then
             echo "::error::Deployment replicas ($dep_replicas) < HPA minReplicas ($hpa_min); HPA cannot scale below its floor (PR-R2-3)."
             status=1
@@ -388,8 +388,8 @@ jobs:
         run: |
           set -e
           for overlay in gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod; do
-            echo "→ Validating templates/k8s/overlays/$overlay"
-            kustomize build "templates/k8s/overlays/$overlay" > /dev/null
+            echo "→ Validating templates/service/k8s/overlays/$overlay"
+            kustomize build "templates/service/k8s/overlays/$overlay" > /dev/null
           done
           echo "✓ All 6 overlays render cleanly"
 
@@ -410,7 +410,7 @@ jobs:
           set -euo pipefail
           status=0
           for overlay in gcp-dev gcp-staging gcp-prod aws-dev aws-staging aws-prod; do
-            rendered=$(kustomize build "templates/k8s/overlays/$overlay")
+            rendered=$(kustomize build "templates/service/k8s/overlays/$overlay")
             unpinned=$(echo "$rendered" \
               | grep -E '^[[:space:]]+image:' \
               | grep -v '@sha256:' || true)
@@ -432,7 +432,7 @@ jobs:
             # in dev should use a versioned tag, not `:latest`, so audit
             # trail records what was actually deployed.
             if echo "$rendered" | grep -E '^[[:space:]]+image:.*:latest( |$)'; then
-              echo "::error file=templates/k8s/overlays/$overlay::Rendered overlay contains a ':latest' image reference. Use a versioned tag or pin by digest."
+              echo "::error file=templates/service/k8s/overlays/$overlay::Rendered overlay contains a ':latest' image reference. Use a versioned tag or pin by digest."
               status=1
             fi
           done
@@ -450,13 +450,13 @@ jobs:
 
       - name: Validate GCP (live)
         run: |
-          cd templates/infra/terraform/gcp
+          cd templates/service/infra/terraform/gcp
           terraform init -backend=false -upgrade=false
           terraform validate
 
       - name: Validate AWS (live)
         run: |
-          cd templates/infra/terraform/aws
+          cd templates/service/infra/terraform/aws
           terraform init -backend=false -upgrade=false
           terraform validate
 
@@ -466,13 +466,13 @@ jobs:
       # there's no `backend` block to disable.
       - name: Validate GCP (bootstrap)
         run: |
-          cd templates/infra/terraform/gcp/bootstrap
+          cd templates/service/infra/terraform/gcp/bootstrap
           terraform init -backend=false -upgrade=false
           terraform validate
 
       - name: Validate AWS (bootstrap)
         run: |
-          cd templates/infra/terraform/aws/bootstrap
+          cd templates/service/infra/terraform/aws/bootstrap
           terraform init -backend=false -upgrade=false
           terraform validate
 
@@ -638,7 +638,7 @@ jobs:
     name: Grafana Dashboard Inventory Gate
     runs-on: ubuntu-latest
     # May 2026 feedback triage gap 6.4. Every dashboard JSON shipped
-    # under templates/monitoring/grafana/ must be registered in
+    # under templates/service/monitoring/grafana/ must be registered in
     # INDEX.md. Prevents drift between "shipped" and "documented".
     steps:
       - uses: actions/checkout@v7
@@ -653,9 +653,9 @@ jobs:
     name: common_utils Drift Gate (ADR-025 Option A)
     runs-on: ubuntu-latest
     # ADR-025 Option A: until common_utils is distributed as a proper
-    # package, templates/common_utils/ MUST remain placeholder-free.
-    # new-service.sh copies it verbatim and then runs a global sed pass;
-    # any placeholder here would silently fork adopters' scaffolded copies.
+    # package, templates/service/common_utils/ MUST remain placeholder-free.
+    # Copier renders it verbatim; any placeholder here would silently fork
+    # adopters' scaffolded copies.
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python
@@ -669,9 +669,9 @@ jobs:
     name: CI/CD Template Drift Gate
     runs-on: ubuntu-latest
     # Dependabot's github-actions ecosystem only scans .github/workflows/.
-    # Action references in templates/cicd/ age silently and propagate to
-    # every scaffolded service. This gate fails when a shared action's
-    # version in templates/cicd/ lags the runtime workflows.
+    # Action references in templates/service/.github/workflows/ age silently
+    # and propagate to every scaffolded service. This gate fails when a
+    # shared action's version in templates lags the runtime workflows.
     # See docs/governance/cicd-templates-drift.md for the full rationale.
     steps:
       - uses: actions/checkout@v7
@@ -679,8 +679,26 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Check templates/cicd vs .github/workflows for action drift
+      - name: Check templates/service/.github/workflows vs .github/workflows for action drift
         run: python3 scripts/check_cicd_template_drift.py
+
+  vendored-runtime-drift:
+    name: Vendored Runtime Drift Gate
+    runs-on: ubuntu-latest
+    # Copier renders only templates/service/, so a handful of repo-root tools
+    # and runbooks that a scaffolded service needs at runtime
+    # (validate_quality_gates.py, audit_record.py, drift/retrain runbooks) are
+    # vendored into templates/service/. This gate fails when a vendored copy
+    # drifts from its canonical repo-root original.
+    # See scripts/check_vendored_runtime_drift.py for the full rationale.
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check vendored runtime files match canonical originals
+        run: python3 scripts/check_vendored_runtime_drift.py
 
   scaffold-e2e:
     name: Scaffolder End-to-End Test
@@ -696,7 +714,7 @@ jobs:
       - name: Install validation tools
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
+          pip install pytest "copier>=9.0.0" jsonschema
 
       - name: Install kustomize
         # Direct release tarball, pinned version (PR-R2-5).
@@ -709,16 +727,16 @@ jobs:
           sudo mv /tmp/kustomize /usr/local/bin/
           kustomize version
 
-      - name: Run scaffolder end-to-end test
-        # Executes templates/scripts/new-service.sh in a tmp dir. With
-        # SCAFFOLD_SMOKE=1, additionally:
+      - name: Run Copier scaffold end-to-end test
+        # Executes `copier copy` via templates/scripts/new-service.sh in a
+        # tmp dir. With SCAFFOLD_SMOKE=1, additionally:
         #   - creates a venv for the scaffolded service
         #   - installs requirements.txt
         #   - generates tests/contract/openapi.snapshot.json
         #   - runs pytest on test_api.py + test_training.py + contract/
         #
         # Without the flag, only structural validations run (kustomize,
-        # placeholders, syntax) — kept fast for local invocation.
+        # Jinja tokens, syntax) — kept fast for local invocation.
         env:
           SCAFFOLD_SMOKE: "1"
         run: bash scripts/test_scaffold.sh

@@ -1,0 +1,179 @@
+name: "Deploy — AWS (dev → staging → prod)"
+
+# Environment promotion chain with human-gated transitions (mirror of
+# deploy-gcp.yml; uses IRSA-compatible OIDC, NOT static AWS keys — D-18).
+#
+# Required Environments (configure manually in GitHub Settings):
+#   * aws-dev         — auto-deploy, no reviewers
+#   * aws-staging     — required_reviewers: 1 (tech lead)
+#   * aws-production  — required_reviewers: 2, wait_timer: 5m,
+#                       deployment_branches: main + version tags only
+#
+# Maintainership note (May 2026 audit HIGH-2): see deploy-gcp.yml header
+# and `.github/CODEOWNERS`. The "required_reviewers: 2" claim is
+# aspirational while the template has a single CODEOWNER.
+#
+# Required Environment SECRETS per environment:
+#   * AWS_ROLE_ARN (OIDC federated role for this env)
+# Required Environment VARS:
+#   * AWS_REGION, AWS_REGISTRY_ID, EKS_<ENV>_CLUSTER
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ vars.AWS_REGISTRY_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+
+jobs:
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.v }}
+      image_digests: ${{ steps.digests.outputs.json }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Authenticate to AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_BUILD_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password | docker login --username AWS --password-stdin ${{ env.REGISTRY }}
+
+      - name: Compute version
+        id: version
+        run: |
+          V="${GITHUB_REF_NAME}"
+          if [ "${V}" = "main" ]; then
+            V="main-$(git rev-parse --short HEAD)"
+          fi
+          echo "v=${V}" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        run: |
+          # Single-service default: image slug is kebab-case and build context is repo root.
+          # Multi-service adopters can replace SERVICES with service-root pairs.
+          for SERVICE in {@ service_kebab @}; do
+            IMAGE="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            docker build -t "$IMAGE" .
+            docker push "$IMAGE"
+          done
+
+      # Capture digests for downstream pinning (audit Critical-2).
+      - name: Capture image digests
+        id: digests
+        run: |
+          set -euo pipefail
+          DIGESTS_JSON='{}'
+          for SERVICE in {@ service_kebab @}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            DIGEST=$(docker buildx imagetools inspect "$IMG" --format '{{ .Manifest.Digest }}')
+            if [ -z "$DIGEST" ] || [ "$DIGEST" = "<no value>" ]; then
+              echo "::error::Could not resolve digest for $IMG"
+              exit 1
+            fi
+            DIGESTS_JSON=$(echo "$DIGESTS_JSON" | jq --arg s "$SERVICE" --arg d "$DIGEST" '. + {($s): $d}')
+            echo "✓ $SERVICE → $DIGEST"
+          done
+          echo "json=$(echo $DIGESTS_JSON | jq -c .)" >> $GITHUB_OUTPUT
+
+      # Cosign installer pin (audit High-3). Without this, `cosign sign`
+      # fails on a clean ubuntu-latest runner.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: v2.4.0
+
+      - name: Sign images with Cosign (keyless OIDC, by digest — D-19)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGESTS: ${{ steps.digests.outputs.json }}
+        run: |
+          for SERVICE in {@ service_kebab @}; do
+            DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
+            REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
+            cosign sign --yes "${@ gh_repo @}@${DIGEST}"
+          done
+
+      # SBOM + attestation (SLSA L1). Full L3 provenance via
+      # slsa-github-generator is documented as ROADMAP in deploy-gcp.yml
+      # (same approach applies to AWS once Dockerfile is reproducible).
+      # Generate one SBOM per service (multi-service safe — ADR-014 §5.7).
+      - name: Install Syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM per service (Syft / CycloneDX)
+        run: |
+          for SERVICE in {@ service_kebab @}; do
+            IMG="${{ env.REGISTRY }}/${SERVICE}-predictor:${{ steps.version.outputs.v }}"
+            syft "$IMG" -o cyclonedx-json > "sbom-${SERVICE}.cyclonedx.json"
+            echo "✓ SBOM generated: sbom-${SERVICE}.cyclonedx.json"
+          done
+
+      - name: Attach SBOM as attestation (by digest)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          DIGESTS: ${{ steps.digests.outputs.json }}
+        run: |
+          for SERVICE in {@ service_kebab @}; do
+            DIGEST=$(echo "$DIGESTS" | jq -r --arg s "$SERVICE" '.[$s]')
+            REPO="${{ env.REGISTRY }}/${SERVICE}-predictor"
+            cosign attest --yes --type cyclonedx \
+              --predicate "sbom-${SERVICE}.cyclonedx.json" "${@ gh_repo @}@${DIGEST}"
+          done
+
+  deploy-dev:
+    needs: build
+    uses: ./.github/workflows/deploy-common.yml
+    with:
+      cloud: aws
+      environment: dev
+      cluster_name: ${{ vars.EKS_DEV_CLUSTER }}
+      region: ${{ vars.AWS_REGION }}
+      overlay_path: k8s/overlays/aws-dev
+      version: ${{ needs.build.outputs.version }}
+      services: '["{@ service_kebab @}"]'
+      image_digests: ${{ needs.build.outputs.image_digests }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+
+  deploy-staging:
+    needs: [build, deploy-dev]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/deploy-common.yml
+    with:
+      cloud: aws
+      environment: staging
+      cluster_name: ${{ vars.EKS_STAGING_CLUSTER }}
+      region: ${{ vars.AWS_REGION }}
+      overlay_path: k8s/overlays/aws-staging
+      version: ${{ needs.build.outputs.version }}
+      services: '["{@ service_kebab @}"]'
+      image_digests: ${{ needs.build.outputs.image_digests }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+
+  deploy-prod:
+    needs: [build, deploy-staging]
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/deploy-common.yml
+    with:
+      cloud: aws
+      environment: production
+      cluster_name: ${{ vars.EKS_PROD_CLUSTER }}
+      region: ${{ vars.AWS_REGION }}
+      overlay_path: k8s/overlays/aws-prod
+      version: ${{ needs.build.outputs.version }}
+      services: '["{@ service_kebab @}"]'
+      image_digests: ${{ needs.build.outputs.image_digests }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}

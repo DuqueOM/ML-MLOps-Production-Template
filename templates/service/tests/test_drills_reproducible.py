@@ -79,7 +79,7 @@ def _service_root_and_extra_pythonpath(
       ``DRILL_PYTHONPATH`` at ``templates/`` so ``common_utils``
       resolves.
     - **Template repo w/o rendered src**: skip — the drill cannot
-      discover a service package with the raw ``{service}`` placeholder.
+      discover a service package with the raw ``{@ service_slug @}`` placeholder.
     """
     here = Path(__file__).resolve()
     candidate = here.parents[1]

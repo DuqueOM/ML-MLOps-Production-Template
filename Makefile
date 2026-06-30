@@ -1,6 +1,6 @@
 # Makefile — ML-MLOps Production Template (root)
 # For contributors working on the template itself.
-# For the per-service Makefile (train, serve, build, deploy), see templates/Makefile.
+# For the per-service Makefile (train, serve, build, deploy), see templates/service/Makefile.
 #
 # Usage:
 #   make help              # Show all targets
@@ -74,17 +74,17 @@ setup-github-check: ## Verify ADR-026 rulesets exist and are active — exits no
 lint-all: ## Lint all Python (templates/ + examples/)
 	@echo "$(GREEN)Running flake8...$(NC)"
 	flake8 --max-line-length=120 --extend-ignore=E203,W503 \
-		templates/service/ templates/common_utils/ examples/minimal/
+		templates/service/ examples/minimal/
 	@echo "$(GREEN)Running black check...$(NC)"
 	black --check --line-length=120 \
-		templates/service/ templates/common_utils/ examples/minimal/
+		templates/service/ examples/minimal/
 	@echo "$(GREEN)✓ Lint passed$(NC)"
 
 format-all: ## Auto-format all Python (templates/ + examples/)
 	@echo "$(GREEN)Formatting...$(NC)"
-	black --line-length=120 templates/service/ templates/common_utils/ examples/minimal/
+	black --line-length=120 templates/service/ examples/minimal/
 	isort --profile=black --line-length=120 \
-		templates/service/ templates/common_utils/ examples/minimal/
+		templates/service/ examples/minimal/
 	@echo "$(GREEN)✓ Format done$(NC)"
 
 # ═══════════════════════════════════════════════
@@ -93,16 +93,16 @@ format-all: ## Auto-format all Python (templates/ + examples/)
 
 validate-k8s: ## Validate K8s manifests with kustomize
 	@echo "$(GREEN)Validating K8s manifests...$(NC)"
-	kustomize build templates/k8s/base/ > /dev/null
+	kustomize build templates/service/k8s/base/ > /dev/null
 	@echo "$(GREEN)✓ K8s valid$(NC)"
 
 validate-tf: ## Validate Terraform syntax (no init — backends are partial config per env)
 	@echo "$(GREEN)Validating Terraform (GCP + AWS)...$(NC)"
 	@if command -v terraform >/dev/null 2>&1; then \
-		terraform -chdir=templates/infra/terraform/gcp init -backend=false -input=false >/dev/null && \
-		terraform -chdir=templates/infra/terraform/gcp validate && \
-		terraform -chdir=templates/infra/terraform/aws init -backend=false -input=false >/dev/null && \
-		terraform -chdir=templates/infra/terraform/aws validate && \
+		terraform -chdir=templates/service/infra/terraform/gcp init -backend=false -input=false >/dev/null && \
+		terraform -chdir=templates/service/infra/terraform/gcp validate && \
+		terraform -chdir=templates/service/infra/terraform/aws init -backend=false -input=false >/dev/null && \
+		terraform -chdir=templates/service/infra/terraform/aws validate && \
 		echo "$(GREEN)✓ Terraform valid$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠ terraform not installed, skipping$(NC)"; \
@@ -140,16 +140,16 @@ report-example: ## Print a syntactically valid example report. Usage: make repor
 	@if [ -z "$(TYPE)" ]; then echo "$(RED)error: TYPE=<release|drift|training|incident> required$(NC)"; exit 2; fi
 	python3 scripts/generate_report.py example $(TYPE)
 
-test-scaffold: ## End-to-end test: runs new-service.sh in a tmp dir and validates output
-	@echo "$(GREEN)Testing scaffolder end-to-end...$(NC)"
+test-scaffold: ## End-to-end test: runs copier copy via new-service.sh and validates output
+	@echo "$(GREEN)Testing Copier scaffold end-to-end...$(NC)"
 	@bash scripts/test_scaffold.sh
 
-smoke: test-scaffold ## Alias of test-scaffold. Run before push when touching templates/k8s/, templates/cicd/, or scripts/new-service.sh. CI runs the same script in pr-smoke-lane.yml; this is the local on-demand entry point (R5-L4).
+smoke: test-scaffold ## Alias of test-scaffold. Run before push when touching templates/service/ or copier.yml. CI runs the same script in pr-smoke-lane.yml; this is the local on-demand entry point (R5-L4).
 
 eda-validate: ## Validate EDA pipeline: syntax + run against example dataset
 	@echo "$(GREEN)Validating EDA pipeline...$(NC)"
-	python3 -c "import ast; ast.parse(open('templates/eda/eda_pipeline.py').read())"
-	python3 -m py_compile templates/eda/eda_pipeline.py
+	python3 -c "import ast; ast.parse(open('templates/service/eda/eda_pipeline.py').read())"
+	python3 -m py_compile templates/service/eda/eda_pipeline.py
 	@echo "$(GREEN)✓ EDA pipeline syntactically valid$(NC)"
 
 validate-templates: lint-all validate-k8s validate-agentic test-scaffold eda-validate ## Validate all templates (lint + K8s + agentic + scaffold + EDA)
@@ -188,7 +188,7 @@ test-examples: demo-install ## Run all example regression tests
 # Scaffolding
 # ═══════════════════════════════════════════════
 
-new-service: ## Scaffold a new service: make new-service NAME=FraudDetection SLUG=fraud_detection
+new-service: ## Scaffold a new service via Copier: make new-service NAME=FraudDetection SLUG=fraud_detection
 	@if [ -z "$(NAME)" ] || [ -z "$(SLUG)" ]; then \
 		echo "$(RED)Usage: make new-service NAME=FraudDetection SLUG=fraud_detection$(NC)"; \
 		exit 1; \

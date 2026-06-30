@@ -1,0 +1,245 @@
+# SLO/SLA PrometheusRule — {@ service_name @}
+# Defines Service Level Objectives as Prometheus recording and alerting rules.
+#
+# SLOs encode the contract between the ML service and its consumers:
+#   - Availability: >= 99.5% of requests succeed (non-5xx)
+#   - Latency: >= 95% of requests complete within 500ms (P95)
+#   - Prediction quality: Drift PSI stays below alert threshold
+#
+# These rules create:
+#   1. Recording rules for SLI (Service Level Indicator) calculations
+#   2. Alerting rules for SLO burn rate (multi-window / multi-burn-rate)
+#
+# Multi-window/multi-burn-rate (PR-C2 / Google SRE Workbook ch. 5):
+#   Each severity level requires BOTH a long and a short window to exceed
+#   the burn-rate threshold. The short window detects new incidents
+#   quickly; the long window prevents flapping after recovery. A pure
+#   1h-window alert keeps firing for 1h after the incident is fixed; an
+#   1h-AND-5m alert recovers in 5m. This is the canonical alerting
+#   shape for SLO-based paging.
+#
+# Severity → action contract (PR-C2):
+#   - severity=P1 + action=page    : on-call paged immediately
+#   - severity=P2 + action=page    : on-call paged on slow burn
+#   - severity=P3 + action=ticket  : ticket created, fix within 24h
+#   - severity=P4 + action=notify  : Slack/email notification only
+# Every alert MUST carry a `runbook_url` annotation (test enforced).
+#
+# TODO: Replace {@ service_slug @} with your service name.
+# TODO: Adjust SLO targets based on your service's requirements.
+# TODO: Apply to cluster: kubectl apply -f slo-prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: "{@ service_kebab @}-slo"
+  # Namespace owned by overlay (PR-R2-3, audit R2).
+  labels:
+    app: "{@ service_kebab @}"
+    role: slo
+    managed-by: kustomize
+spec:
+  groups:
+    # ─────────────────────────────────────────────
+    # Recording Rules — SLI calculations
+    # ─────────────────────────────────────────────
+    - name: "{@ service_slug @}.slo.recording"
+      interval: 30s
+      rules:
+        # Availability SLI: ratio of successful requests (non-5xx).
+        # The exporter (app/fastapi_app.py) emits `{@ service_slug @}_requests_total`
+        # with label set {status} where status ∈ {"200","500","503"}. The
+        # metric name itself is already service-prefixed so no `service=`
+        # selector is needed (and would always match nothing today).
+        - record: "{@ service_slug @}:sli:availability"
+          expr: |
+            1 - (
+              sum(rate({@ service_slug @}_requests_total{status=~"5.."}[5m]))
+              /
+              sum(rate({@ service_slug @}_requests_total[5m]))
+            )
+
+        # Latency SLI: ratio of requests within 500ms.
+        # Histogram is `{@ service_slug @}_request_duration_seconds_*` with label
+        # `endpoint` (e.g. "/predict", "/predict_batch"). We collapse
+        # across endpoints for the SLO; per-endpoint dashboards keep the
+        # `endpoint` label visible.
+        - record: "{@ service_slug @}:sli:latency_500ms"
+          expr: |
+            sum(rate({@ service_slug @}_request_duration_seconds_bucket{le="0.5"}[5m]))
+            /
+            sum(rate({@ service_slug @}_request_duration_seconds_count[5m]))
+
+        # Error budget remaining (30-day window)
+        - record: "{@ service_slug @}:error_budget:availability"
+          expr: |
+            1 - (
+              (1 - {@ service_slug @}:sli:availability)
+              /
+              (1 - 0.995)
+            )
+
+    # ─────────────────────────────────────────────
+    # Alerting Rules — SLO violations (multi-window / multi-burn-rate)
+    # ─────────────────────────────────────────────
+    # Burn-rate ladder (SLO target = 99.5%, error budget = 0.5%):
+    #   P1 page  : 14.4x burn over (1h AND 5m)   → 2% of monthly budget in 1h
+    #   P2 page  :    6x burn over (6h AND 30m)  → 5% in 6h
+    #   P3 ticket:    3x burn over (1d AND 2h)   → 10% in 24h
+    #   P4 notify:    1x burn over (3d AND 6h)   → trending poorly
+    # Each rule requires BOTH the long and short window to exceed the
+    # threshold so resolved incidents stop paging within the short window.
+    - name: "{@ service_slug @}.slo.alerts"
+      rules:
+        # ───── P1 fast burn (page) ─────
+        # 14.4x over 1h AND 5m. Both must agree → resolves within 5m.
+        - alert: "{@ service_upper @}_SLO_AvailabilityBurnRateCritical"
+          expr: |
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[1h]))
+                /
+                sum(rate({@ service_slug @}_requests_total[1h]))
+              ) > (14.4 * 0.005)
+            )
+            and
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[5m]))
+                /
+                sum(rate({@ service_slug @}_requests_total[5m]))
+              ) > (14.4 * 0.005)
+            )
+          for: 2m
+          labels:
+            severity: P1
+            service: "{@ service_kebab @}"
+            slo: availability
+            action: page
+            burn_rate: "14.4"
+          annotations:
+            summary: "{@ service_name @} SLO: availability burn rate CRITICAL (14.4x, 1h+5m)"
+            description: "Errors are consuming the 30-day availability budget at >14.4x over BOTH a 1h and a 5m window. At this rate the budget is exhausted in <2 days. Immediate action required."
+            runbook_url: "https://your-org.github.io/{@ service_kebab @}/operations/runbook/#p1-availability-burn-rate-critical"
+
+        # ───── P2 slow burn (page) ─────
+        # 6x over 6h AND 30m.
+        - alert: "{@ service_upper @}_SLO_AvailabilityBurnRateHigh"
+          expr: |
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[6h]))
+                /
+                sum(rate({@ service_slug @}_requests_total[6h]))
+              ) > (6 * 0.005)
+            )
+            and
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[30m]))
+                /
+                sum(rate({@ service_slug @}_requests_total[30m]))
+              ) > (6 * 0.005)
+            )
+          for: 15m
+          labels:
+            severity: P2
+            service: "{@ service_kebab @}"
+            slo: availability
+            action: page
+            burn_rate: "6"
+          annotations:
+            summary: "{@ service_name @} SLO: availability burn rate HIGH (6x, 6h+30m)"
+            description: "Errors are consuming the availability budget at >6x over BOTH a 6h and a 30m window. At this rate the budget is exhausted within ~5 days."
+            runbook_url: "https://your-org.github.io/{@ service_kebab @}/operations/runbook/#p2-availability-burn-rate-high"
+
+        # ───── P3 medium burn (ticket) ─────
+        # 3x over 1d AND 2h.
+        - alert: "{@ service_upper @}_SLO_AvailabilityBurnRateMedium"
+          expr: |
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[1d]))
+                /
+                sum(rate({@ service_slug @}_requests_total[1d]))
+              ) > (3 * 0.005)
+            )
+            and
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[2h]))
+                /
+                sum(rate({@ service_slug @}_requests_total[2h]))
+              ) > (3 * 0.005)
+            )
+          for: 1h
+          labels:
+            severity: P3
+            service: "{@ service_kebab @}"
+            slo: availability
+            action: ticket
+            burn_rate: "3"
+          annotations:
+            summary: "{@ service_name @} SLO: availability burn rate MEDIUM (3x, 1d+2h)"
+            description: "Sustained moderate error rate. Open ticket; fix within 24h before P2 fires."
+            runbook_url: "https://your-org.github.io/{@ service_kebab @}/operations/runbook/#p3-availability-burn-rate-medium"
+
+        # ───── P4 slow burn (notify) ─────
+        # 1x over 3d AND 6h. Trending poorly; informational.
+        - alert: "{@ service_upper @}_SLO_AvailabilityBurnRateSlow"
+          expr: |
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[3d]))
+                /
+                sum(rate({@ service_slug @}_requests_total[3d]))
+              ) > (1 * 0.005)
+            )
+            and
+            (
+              (
+                sum(rate({@ service_slug @}_requests_total{status=~"5.."}[6h]))
+                /
+                sum(rate({@ service_slug @}_requests_total[6h]))
+              ) > (1 * 0.005)
+            )
+          for: 3h
+          labels:
+            severity: P4
+            service: "{@ service_kebab @}"
+            slo: availability
+            action: notify
+            burn_rate: "1"
+          annotations:
+            summary: "{@ service_name @} SLO: availability burn rate SLOW (1x, 3d+6h)"
+            description: "Long-running low-grade errors. Track and investigate without urgency."
+            runbook_url: "https://your-org.github.io/{@ service_kebab @}/operations/runbook/#p4-availability-burn-rate-slow"
+
+        # ───── P2 latency SLO ─────
+        - alert: "{@ service_upper @}_SLO_LatencyBudgetBurning"
+          expr: |
+            {@ service_slug @}:sli:latency_500ms < 0.95
+          for: 10m
+          labels:
+            severity: P2
+            service: "{@ service_kebab @}"
+            slo: latency
+            action: page
+          annotations:
+            summary: "{@ service_name @} SLO: <95% of requests within 500ms latency target"
+            description: "P95 latency SLO is being violated — fewer than 95% of requests complete within 500ms."
+            runbook_url: "https://your-org.github.io/{@ service_kebab @}/operations/runbook/#p2-latency-slo"
+
+        # ───── P3 error budget low (ticket) ─────
+        - alert: "{@ service_upper @}_SLO_ErrorBudgetLow"
+          expr: |
+            {@ service_slug @}:error_budget:availability < 0.25
+          for: 30m
+          labels:
+            severity: P3
+            service: "{@ service_kebab @}"
+            slo: error_budget
+            action: ticket
+          annotations:
+            summary: "{@ service_name @} SLO: error budget below 25%"
+            description: "Less than 25% of the monthly availability error budget remains."
+            runbook_url: "https://your-org.github.io/{@ service_kebab @}/operations/runbook/#p3-error-budget-low"

@@ -1,0 +1,143 @@
+# ───────────────────────────────────────────────────────────────────────────
+# Copier configuration — ML-MLOps Production Template
+# ───────────────────────────────────────────────────────────────────────────
+# Render root is `templates/service/` (`_subdirectory`). The repository root
+# holds the META layer — the canonical agentic store (`templates/config/`),
+# governance (`templates/governance/`), cluster-level Kyverno policies
+# (`templates/k8s/policies/`), the scaffolder + template self-tests
+# (`templates/tests/`, `scripts/`) — which is NOT rendered into a generated
+# service.
+#
+# DELIMITERS (see ADR-030):
+#   variables  ->  {@ service_slug @}   (NOT {{ }} — that collides 325+ times
+#                  with GitHub Actions `${{ … }}` expressions and Python
+#                  f-strings; {{ }} is unusable here.)
+#   blocks     ->  {% if … %}            (native Jinja — `{%` verified 0×)
+#   comments   ->  {# … #}               (native Jinja — `{#` verified 0×)
+#
+# The `{@ … @}` pair was chosen empirically: it has 0 occurrences across the
+# 249 render-root files, every sigil ({ @ % #) is Windows-filename-safe (so the
+# path token `src/{@ service_slug @}/` checks out on all platforms), and it
+# cannot collide with lint-clean code — the service's own flake8 (E225) forbids
+# operator forms that could otherwise produce these sequences.
+# ───────────────────────────────────────────────────────────────────────────
+
+_min_copier_version: "9.0.0"
+
+_subdirectory: "templates/service"
+
+_answers_file: ".copier-answers.yml"
+
+# Render EVERY file's content through Jinja (inline-token template, not the
+# `.jinja`-suffix convention). Safe because the three start-strings ({@ {% {#)
+# are verified to have zero literal occurrences across the render root, so no
+# code is misparsed. Without this, Copier's v9 default (".jinja") would copy
+# file contents verbatim and leave {@ … @} tokens unrendered.
+_templates_suffix: ""
+
+_envops:
+  variable_start_string: "{@"
+  variable_end_string: "@}"
+  block_start_string: "{%"
+  block_end_string: "%}"
+  comment_start_string: "{#"
+  comment_end_string: "#}"
+  keep_trailing_newline: true
+
+# Working-tree cruft that must never reach a generated service. `.terraform/`
+# is local `terraform init` provider downloads (~99 MB, gitignored here);
+# `*.tfstate*` is environment state; the rest are build/run artifacts.
+_exclude:
+  - "copier.yml"
+  - "~*"
+  - "__pycache__"
+  - "*.py[cod]"
+  - ".terraform"
+  - "*.tfstate"
+  - "*.tfstate.*"
+  - "crash.log"
+  - ".DS_Store"
+  - "mlruns"
+  - "models/*.joblib"
+  - "models/*.pkl"
+  - ".pytest_cache"
+  - ".mypy_cache"
+  - ".ruff_cache"
+  - "*.egg-info"
+  - ".coverage"
+  - "coverage.xml"
+  - "htmlcov"
+
+# ── Questions ────────────────────────────────────────────────────────────────
+# Single source of truth is `service_slug` (snake_case). The PascalCase,
+# kebab-case and UPPER_CASE forms are DERIVED, never prompted — this removes the
+# whole class of "the three casings disagree" defects the old sed scaffolder
+# could produce.
+
+service_slug:
+  type: str
+  help: "Service machine name in snake_case (e.g. fraud_detection)"
+  placeholder: "fraud_detection"
+  validator: >-
+    {% if not (service_slug | regex_search('^[a-z][a-z0-9_]*$')) %}
+    service_slug must be snake_case — lowercase letters, digits and
+    underscores, starting with a letter (e.g. fraud_detection).
+    {% endif %}
+
+service_name:
+  type: str
+  help: "Service class name in PascalCase (derived from service_slug)"
+  default: "{@ service_slug.split('_') | map('capitalize') | join @}"
+  when: false
+
+service_kebab:
+  type: str
+  help: "Service DNS/kebab name (derived from service_slug)"
+  default: "{@ service_slug.replace('_', '-') @}"
+  when: false
+
+service_upper:
+  type: str
+  help: "Service constant prefix in UPPER_SNAKE (derived from service_slug)"
+  default: "{@ service_slug.upper() @}"
+  when: false
+
+gh_org:
+  type: str
+  help: "GitHub organization or owner that will host the service repo"
+  placeholder: "my-org"
+  validator: >-
+    {% if not (gh_org | regex_search('^[A-Za-z0-9][A-Za-z0-9-]*$')) %}
+    gh_org must be a valid GitHub owner (letters, digits, hyphens).
+    {% endif %}
+
+gh_repo:
+  type: str
+  help: "GitHub repository name (defaults to the kebab service name)"
+  default: "{@ service_kebab @}"
+  validator: >-
+    {% if not (gh_repo | regex_search('^[A-Za-z0-9._-]+$')) %}
+    gh_repo must be a valid GitHub repository name.
+    {% endif %}
+
+# ── Post-copy tasks ───────────────────────────────────────────────────────────
+# After rendering, sync adapter surfaces (.devin/, .cursor/, .claude/, .codex/)
+# from the canonical agentic/ store, then validate the manifest in strict mode.
+# This guarantees the generated service ships with a coherent agentic system
+# (ADR-023 / ADR-027 / ADR-030).
+_tasks:
+  - "python3 scripts/sync_agentic_adapters.py"
+  - "python3 scripts/validate_agentic_manifest.py --strict"
+
+# ── Post-copy guidance ─────────────────────────────────────────────────────────
+_message_after_copy: |
+  ✓ Service "{@ service_name @}" scaffolded.
+
+  Next steps:
+    1. cd into the generated project and review README.md
+    2. Create a virtualenv and `pip install -r requirements.txt`
+    3. Initialize git + push to {@ gh_org @}/{@ gh_repo @}
+    4. Run the local validation chain (see Makefile: `make help`)
+
+  Upgrade path: re-run `copier update` in this project to pull template
+  improvements without losing your changes.

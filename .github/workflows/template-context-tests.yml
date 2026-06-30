@@ -42,9 +42,13 @@ jobs:
         # Full requirements (incl. pyarrow + locust) so the prediction
         # logger and load_test module import cleanly — partial installs
         # were the source of 52 spurious lifespan errors (R6 §S1-2).
+        # Copier + jsonschema needed because policy tests scaffold a
+        # service via new-service.sh (Copier wrapper) with post-gen
+        # validation that requires jsonschema.
         run: |
           python -m pip install --upgrade pip
           pip install -r templates/service/requirements.txt
+          pip install "copier>=9.0.0" jsonschema
 
       - name: Run template-context suite
         # `-p no:locust`: locust self-registers as a pytest plugin and

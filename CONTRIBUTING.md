@@ -46,8 +46,9 @@ Make targets, per [`docs/audit/ACTION_PLAN_R5.md`](docs/audit/ACTION_PLAN_R5.md)
 When you touch any of the following, **run `make smoke` locally before push**:
 
 - `templates/scripts/new-service.sh`
+- `copier.yml` (Copier template configuration)
 - `templates/service/requirements.txt`
-- any `{placeholder}` introduced into `templates/`
+- any `{@ @}` Jinja token introduced into `templates/service/`
 - `templates/k8s/base/` or `templates/k8s/overlays/`
 - `templates/cicd/`
 
@@ -133,6 +134,10 @@ docs: clarify operational memory plane boundaries
 - Preserve the separation between training, serving, monitoring, and infrastructure concerns.
 - Avoid mutable image tags and static cloud credentials.
 - Keep production defaults safe by default.
+- When editing `templates/service/` files, remember Copier renders all
+  content through Jinja with `{@ @}` delimiters. Use `{% raw %}` blocks
+  around literal `{@ @}` text in documentation files to prevent
+  rendering errors (D-34).
 
 ### Documentation
 

@@ -41,7 +41,7 @@ permissions:
 
 env:
   # Single source of truth for service names used across this workflow.
-  # Mirrors the placeholder substitution that new-service.sh would do.
+  # Copier renders these via {@ service_slug @} tokens in the template.
   #
   # SERVICE_SLUG intentionally stays single-word here to keep the
   # workflow output readable. Snake-to-kebab rendering is covered by
@@ -69,12 +69,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Run new-service.sh
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Copier
+        run: pip install "copier>=9.0.0" jsonschema
+
+      - name: Scaffold service via Copier
         id: run
-        # IMPORTANT: new-service.sh ignores CWD; it always writes to
-        # $PROJECT_ROOT/$SERVICE_NAME (relative to the script's parent
-        # directory — i.e. $GITHUB_WORKSPACE in CI). Don't `cd` first;
-        # don't pass an output dir (the script doesn't accept one).
+        # new-service.sh is a thin wrapper around `copier copy`.
+        # It always writes to $REPO_ROOT/$SERVICE_NAME (relative to the
+        # script's parent directory — i.e. $GITHUB_WORKSPACE in CI).
         run: |
           set -euo pipefail
           bash "$GITHUB_WORKSPACE/templates/scripts/new-service.sh" \
@@ -174,7 +181,7 @@ jobs:
 
       - name: Capture image digest
         id: digest
-        # Mirrors the canonical step in templates/cicd/deploy-{gcp,aws}.yml.
+        # Mirrors the canonical step in templates/service/.github/workflows/deploy-{gcp,aws}.yml.
         # Without this, the rest of the chain (cosign sign by digest,
         # Kyverno admit by digest, kustomize edit set image @sha256)
         # has nothing to bind to.

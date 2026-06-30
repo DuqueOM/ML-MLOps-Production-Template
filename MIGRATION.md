@@ -17,6 +17,25 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## Copier scaffolding migration (ADR-030)
+
+The scaffolder (`templates/scripts/new-service.sh`) is now a thin wrapper
+around [Copier](https://copier.readthedocs.io/) instead of manual `cp -r`
++ `sed -i`. This is a structural change to how services are generated.
+
+| Change | Manual action required |
+|--------|------------------------|
+| **Scaffolding engine changed** | Install `copier` (`pip install copier`). The scaffolder will not work without it. |
+| **Placeholder syntax changed** | Old `{ServiceName}`, `{service}`, `{SERVICE}` placeholders are now Copier Jinja tokens: `{@ service_name @}`, `{@ service_slug @}`, etc. If you maintain custom template files, convert them. |
+| **`.copier-answers.yml` created in scaffolded services** | Keep this file committed — it tracks the template version and enables `copier update` for pulling future improvements. |
+| **Post-generation tasks run automatically** | Copier runs `sync_agentic_adapters.py` + `validate_agentic_manifest.py --strict` after render. If these fail, the scaffold is incomplete. |
+| **Upgrading existing services** | Use `copier update` (or the `/scaffold-update` workflow) to pull template improvements into services scaffolded under the new system. Services scaffolded under the old `cp + sed` system need a one-time manual migration: commit a `.copier-answers.yml` with the original template version, then run `copier update`. |
+
+**Tracking**: see `docs/decisions/ADR-030-copier-scaffolding-migration.md`
+and `CHANGELOG.md`.
+
+---
+
 ## v1.11.0 → v1.12.0 (2026-04-29)
 
 | Change | Manual action required |

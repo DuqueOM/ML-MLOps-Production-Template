@@ -21,7 +21,7 @@ Coverage map
       the outer except-Exception block does not swallow it.
 
 The Pandera schema used here is a self-contained fixture so the test
-file does not depend on the rendered ``{service}.schemas`` package
+file does not depend on the rendered ``{@ service_slug @}.schemas`` package
 (template-level tests run before scaffolding).
 """
 
@@ -44,7 +44,7 @@ from common_utils.input_validation import (
 
 
 # ---------------------------------------------------------------------------
-# Local Pandera fixture — mirrors templates/service/src/{service}/schemas.py
+# Local Pandera fixture — mirrors templates/service/src/{@ service_slug @}/schemas.py
 # without importing it (the package name is unrendered in template tests).
 # ---------------------------------------------------------------------------
 class _Schema(pa.DataFrameModel):

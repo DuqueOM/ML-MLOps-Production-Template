@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/quality_gates.schema.json",
   "title": "QualityGatesConfig",
-  "description": "Promotion thresholds and fairness requirements for a single service. The authoritative source is the Pydantic model `{service}.config.QualityGatesConfig`. This JSON Schema is a tool-agnostic export — used by `scripts/validate_quality_gates.py`, by editors via yaml-language-server, and by CI to fail fast before pip install. It is kept in sync with the Pydantic model by `templates/service/tests/test_quality_gates_schema_sync.py` (PR-B1).",
+  "description": "Promotion thresholds and fairness requirements for a single service. The authoritative source is the Pydantic model `{@ service_slug @}.config.QualityGatesConfig`. This JSON Schema is a tool-agnostic export — used by `scripts/validate_quality_gates.py`, by editors via yaml-language-server, and by CI to fail fast before pip install. It is kept in sync with the Pydantic model by `templates/service/tests/test_quality_gates_schema_sync.py` (PR-B1).",
   "type": "object",
   "additionalProperties": false,
   "required": [

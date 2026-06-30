@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 # =============================================================================
-# new-service.sh — Scaffold a new ML service from templates
+# new-service.sh — Thin wrapper around Copier for scaffolding a new ML service
 # =============================================================================
 # Usage:
 #   ./templates/scripts/new-service.sh FraudDetector fraud_detector
-#   ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
+#   ./templates/scripts/new-service.sh FraudDetector fraud_detector my-org my-repo
 #
-# Creates a new directory with all template files, placeholders replaced:
-#   {ServiceName}   → FraudDetector
-#   {service-name}  → fraud-detector   (kebab — RFC 1123 K8s names, image refs, URLs)
-#   {service}       → fraud_detector   (snake — Python identifiers, Prometheus metrics)
-#   {SERVICE}       → FRAUD_DETECTOR
+# This script delegates to `copier copy` (ADR-030). The Copier template lives
+# at the repository root (`copier.yml` with `_subdirectory: templates/service`).
+# Copier handles:
+#   - Token substitution ({@ service_slug @} → fraud_detector, etc.)
+#   - Path renaming (src/{@ service_slug @}/ → src/fraud_detector/)
+#   - Post-gen tasks (sync_agentic_adapters.py + validate_agentic_manifest.py)
 #
-# After scaffolding:
-#   1. cd into the new directory
-#   2. Edit src/{slug}/schemas.py with your actual features
-#   3. Edit src/{slug}/training/features.py with your feature engineering
-#   4. Run: make install && make train
+# The old manual cp+sed scaffolder was replaced because Copier provides:
+#   - Idempotent updates via `copier update` (ADR-030 §2)
+#   - Jinja-native templating with collision-free {@ @} delimiters
+#   - Structured answers in .copier-answers.yml for upgrade tracking
+#
+# Prerequisite: `pip install copier` (>= 9.0.0).
 # =============================================================================
 set -euo pipefail
 
@@ -31,38 +33,33 @@ error() { echo -e "${RED}[ERROR]${NC} $1" >&2; exit 1; }
 
 # --- Argument validation ---
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <ServiceName> <service_slug>"
+    echo "Usage: $0 <ServiceName> <service_slug> [gh_org] [gh_repo]"
     echo ""
     echo "  ServiceName  — PascalCase name (e.g., FraudDetector)"
     echo "  service_slug — snake_case slug  (e.g., fraud_detector)"
+    echo "  gh_org       — GitHub org/owner (optional, defaults to git remote)"
+    echo "  gh_repo      — GitHub repo name (optional, defaults to kebab slug)"
     echo ""
     echo "Example:"
     echo "  $0 FraudDetector fraud_detector"
+    echo "  $0 FraudDetector fraud_detector my-org fraud-detector"
     exit 1
 fi
 
 SERVICE_NAME="$1"
 SERVICE_SLUG="$2"
-SERVICE_UPPER=$(echo "$SERVICE_SLUG" | tr '[:lower:]' '[:upper:]')
 
-# May 2026 audit MED-10: substitute {ORG}/{REPO} placeholders in
-# Kyverno + cosign-related manifests so adopters do not silently ship
-# `subjectRegExp: "https://github.com/{ORG}/{REPO}/..."` to production.
-# Without substitution, Kyverno would accept signatures from a literal
-# repo path that does not exist — effectively bypassing image
-# verification.
-#
-# Resolution priority:
+# Resolve GitHub org/repo (same priority chain as the old scaffolder):
 #   1. CLI args $3 ($4)
 #   2. ML_TEMPLATE_ORG / ML_TEMPLATE_REPO env vars
 #   3. `git remote get-url origin` parse (HTTPS or SSH)
-#   4. Final fallback: ORG=YOUR_ORG REPO=YOUR_REPO with a loud warning
+#   4. Final fallback: YOUR_ORG / YOUR_REPO with a loud warning
 GH_ORG="${3:-${ML_TEMPLATE_ORG:-}}"
 GH_REPO="${4:-${ML_TEMPLATE_REPO:-}}"
 if [[ -z "$GH_ORG" || -z "$GH_REPO" ]]; then
-    if origin_url=$(git -C "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" config --get remote.origin.url 2>/dev/null); then
-        # https://github.com/<org>/<repo>(.git)?
-        # git@github.com:<org>/<repo>(.git)?
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    if origin_url=$(git -C "$REPO_ROOT" config --get remote.origin.url 2>/dev/null); then
         slug=$(echo "$origin_url" | sed -E 's#^(https?://[^/]+/|git@[^:]+:)([^/]+/[^/]+?)(\.git)?$#\2#')
         if [[ "$slug" == */* ]]; then
             GH_ORG="${GH_ORG:-${slug%%/*}}"
@@ -73,209 +70,64 @@ fi
 GH_ORG="${GH_ORG:-YOUR_ORG}"
 GH_REPO="${GH_REPO:-YOUR_REPO}"
 if [[ "$GH_ORG" == "YOUR_ORG" || "$GH_REPO" == "YOUR_REPO" ]]; then
-    warn "Could not resolve {ORG}/{REPO}; substituted YOUR_ORG/YOUR_REPO."
+    warn "Could not resolve GitHub org/repo; substituted YOUR_ORG/YOUR_REPO."
     warn "Edit Kyverno policies before deploying to production OR re-run with: $0 $SERVICE_NAME $SERVICE_SLUG <org> <repo>"
 fi
-# PR-A5b (ADR-015) — `{service-name}` is the kebab-case variant used
-# in any context that must satisfy RFC 1123 (Kubernetes resource
-# names, namespaces, labels, image refs, IRSA/WI annotations, URL
-# paths). It is derived from the snake_case slug by replacing `_`
-# with `-`. With a slug like `golden_path` the unrendered K8s
-# manifests previously yielded names such as `golden_path-dev` which
-# violate RFC 1123 (`_` not allowed); kustomize build then refused
-# the manifest with `Invalid value: "golden_path-dev": a lowercase
-# RFC 1123 label must consist of lower case alphanumeric characters
-# or '-'`. The two-placeholder split keeps `{service}` for snake-case
-# contexts (Python identifiers, Prometheus metric names) and uses
-# `{service-name}` for kebab-case contexts.
-SERVICE_KEBAB=$(echo "$SERVICE_SLUG" | tr '_' '-')
 
-# Locate the templates directory relative to this script
+# Locate the template root (repo root containing copier.yml)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROJECT_ROOT="$(cd "$TEMPLATE_ROOT/.." && pwd)"
-TARGET_DIR="$PROJECT_ROOT/$SERVICE_NAME"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TARGET_DIR="$REPO_ROOT/$SERVICE_NAME"
 
 if [[ -d "$TARGET_DIR" ]]; then
     error "Directory $TARGET_DIR already exists. Remove it first or choose a different name."
 fi
 
-info "Scaffolding $SERVICE_NAME ($SERVICE_SLUG) from templates..."
-info "Target: $TARGET_DIR"
-
-# --- Copy service template ---
-info "Copying service template..."
-cp -r "$TEMPLATE_ROOT/service" "$TARGET_DIR"
-
-# --- Copy K8s base and overlays ---
-info "Copying K8s manifests..."
-mkdir -p "$TARGET_DIR/k8s"
-cp -r "$TEMPLATE_ROOT/k8s/base" "$TARGET_DIR/k8s/base"
-cp -r "$TEMPLATE_ROOT/k8s/overlays" "$TARGET_DIR/k8s/overlays"
-
-# --- Copy infrastructure templates ---
-info "Copying Terraform templates..."
-cp -r "$TEMPLATE_ROOT/infra" "$TARGET_DIR/infra"
-
-# --- Copy CI/CD templates ---
-info "Copying CI/CD workflows..."
-mkdir -p "$TARGET_DIR/.github/workflows"
-cp "$TEMPLATE_ROOT/cicd/"*.yml "$TARGET_DIR/.github/workflows/"
-
-# --- Copy monitoring templates ---
-info "Copying monitoring templates..."
-cp -r "$TEMPLATE_ROOT/monitoring" "$TARGET_DIR/monitoring"
-
-# --- Copy documentation templates ---
-info "Copying documentation templates..."
-mkdir -p "$TARGET_DIR/docs"
-cp -r "$TEMPLATE_ROOT/docs/." "$TARGET_DIR/docs/"
-if [[ -d "$PROJECT_ROOT/docs/runbooks" ]]; then
-    mkdir -p "$TARGET_DIR/docs/runbooks"
-    # Merge repo-level Day-2 runbooks so the scaffolded Makefile and
-    # non-agentic adoption docs never point at missing files. Template-native
-    # files win when both surfaces define the same path.
-    for runbook in "$PROJECT_ROOT/docs/runbooks/"*.md; do
-        [[ -f "$runbook" ]] || continue
-        dest="$TARGET_DIR/docs/runbooks/$(basename "$runbook")"
-        [[ -e "$dest" ]] || cp "$runbook" "$dest"
-    done
+# --- Check prerequisites ---
+if ! python3 -m copier --version >/dev/null 2>&1; then
+    error "Copier is not installed. Run: pip install copier>=9.0.0"
 fi
 
-# --- Copy operational scripts ---
-info "Copying scripts..."
-mkdir -p "$TARGET_DIR/scripts"
-# Service-level helpers (deploy.sh, promote_model.sh, health_check.sh)
-# live under templates/scripts/. The audit_record.py CLI lives at the
-# repo root scripts/ (it's a project-wide tool, not a template
-# placeholder) and is REQUIRED at runtime: deploy-common.yml invokes
-# it on every deploy (success AND failure) to append to ops/audit.jsonl.
-# Without it the scaffolded repo's deploy fails at the audit-trail step
-# (ADR-014 §3.5; the golden-path workflow validates this end-to-end).
-for script in deploy.sh promote_model.sh health_check.sh; do
-    if [[ -f "$TEMPLATE_ROOT/scripts/$script" ]]; then
-        cp "$TEMPLATE_ROOT/scripts/$script" "$TARGET_DIR/scripts/"
-    fi
-done
-if [[ -f "$PROJECT_ROOT/scripts/audit_record.py" ]]; then
-    cp "$PROJECT_ROOT/scripts/audit_record.py" "$TARGET_DIR/scripts/"
-else
-    warn "scripts/audit_record.py missing in template repo — scaffolded deploys will fail at the audit-trail step"
-fi
+info "Scaffolding $SERVICE_NAME ($SERVICE_SLUG) via Copier..."
+info "Template: $REPO_ROOT (copier.yml _subdirectory: templates/service)"
+info "Target:   $TARGET_DIR"
+info "GitHub:   $GH_ORG/$GH_REPO"
 
-# PR-B1 (ADR-015) — quality_gates.yaml validator. Required at runtime
-# by the scaffolded `.github/workflows/ci.yml` lint job
-# (`python scripts/validate_quality_gates.py --require-at-least-one`).
-# Without it CI fails on the very first push with a confusing
-# `python: can't open file scripts/validate_quality_gates.py` error.
-if [[ -f "$PROJECT_ROOT/scripts/validate_quality_gates.py" ]]; then
-    cp "$PROJECT_ROOT/scripts/validate_quality_gates.py" "$TARGET_DIR/scripts/"
-else
-    warn "scripts/validate_quality_gates.py missing — scaffolded CI will fail at the quality-gate validation step (PR-B1)"
-fi
+# --- Run Copier ---
+# --defaults   : use default values for derived questions (service_name, service_kebab, etc.)
+# --overwrite  : overwrite if target exists (safe — we checked above)
+# --trust      : allow post-gen tasks (sync + validate)
+# --vcs-ref HEAD : use the current working tree (includes uncommitted changes)
+# --quiet      : suppress Copier's file-by-file output (post-gen sync is verbose enough)
+python3 -m copier copy \
+    --data "service_slug=$SERVICE_SLUG" \
+    --data "gh_org=$GH_ORG" \
+    --data "gh_repo=$GH_REPO" \
+    --vcs-ref HEAD \
+    --defaults \
+    --overwrite \
+    --trust \
+    --quiet \
+    "$REPO_ROOT" \
+    "$TARGET_DIR"
 
-# audit_record.py imports from common_utils/agent_context.py (already
-# copied below). _lib/ holds shared helpers; ship them too.
-if [[ -d "$PROJECT_ROOT/scripts/_lib" ]]; then
-    mkdir -p "$TARGET_DIR/scripts/_lib"
-    cp -r "$PROJECT_ROOT/scripts/_lib/." "$TARGET_DIR/scripts/_lib/"
-fi
+# --- Create standard data directories (not in the template — adopter-specific) ---
+mkdir -p "$TARGET_DIR/data/raw" \
+         "$TARGET_DIR/data/processed" \
+         "$TARGET_DIR/data/reference" \
+         "$TARGET_DIR/data/production" \
+         "$TARGET_DIR/data/validated" \
+         "$TARGET_DIR/models" \
+         "$TARGET_DIR/reports" \
+         "$TARGET_DIR/eda/reports" \
+         "$TARGET_DIR/eda/artifacts" \
+         "$TARGET_DIR/eda/notebooks"
 
-# PR-C3 (ADR-015) — operational drills. Each drill exercises a
-# production code path (drift detection, champion/challenger gate)
-# against deterministic synthetic inputs and writes evidence to
-# docs/runbooks/drills/. Required at runtime by
-# `tests/test_drills_reproducible.py` (scaffold smoke chain).
-if [[ -d "$TEMPLATE_ROOT/scripts/drills" ]]; then
-    mkdir -p "$TARGET_DIR/scripts/drills"
-    cp -r "$TEMPLATE_ROOT/scripts/drills/." "$TARGET_DIR/scripts/drills/"
-else
-    warn "templates/scripts/drills/ missing — scaffolded service will fail PR-C3 drill tests"
-fi
-
-# --- Copy DVC templates ---
-if [[ -f "$TARGET_DIR/dvc.yaml" ]]; then
-    info "DVC pipeline template already present"
-else
-    info "DVC templates included (dvc.yaml + .dvc/config)"
-fi
-
-# --- Copy EDA module ---
-if [[ -d "$TEMPLATE_ROOT/eda" ]]; then
-    info "Copying EDA module (6-phase exploratory analysis pipeline)..."
-    cp -r "$TEMPLATE_ROOT/eda" "$TARGET_DIR/eda"
-    mkdir -p "$TARGET_DIR/eda/reports" "$TARGET_DIR/eda/artifacts" "$TARGET_DIR/eda/notebooks"
-fi
-
-# --- Copy integration test templates ---
-info "Copying integration test templates..."
-mkdir -p "$TARGET_DIR/tests/integration"
-for f in conftest.py test_service_integration.py; do
-    if [[ -f "$TEMPLATE_ROOT/tests/integration/$f" ]]; then
-        cp "$TEMPLATE_ROOT/tests/integration/$f" "$TARGET_DIR/tests/integration/"
-    fi
-done
-
-# --- Copy DX files ---
-for f in Makefile .pre-commit-config.yaml .gitleaks.toml .env.example docker-compose.demo.yml; do
-    if [[ -f "$TEMPLATE_ROOT/$f" ]]; then
-        cp "$TEMPLATE_ROOT/$f" "$TARGET_DIR/"
-    fi
-done
-
-# --- Copy common_utils ---
-info "Copying common_utils..."
-cp -r "$TEMPLATE_ROOT/common_utils" "$TARGET_DIR/common_utils"
-
-# --- Rename {service} directory ---
-if [[ -d "$TARGET_DIR/src/{service}" ]]; then
-    mv "$TARGET_DIR/src/{service}" "$TARGET_DIR/src/$SERVICE_SLUG"
-    info "Renamed src/{service} → src/$SERVICE_SLUG"
-fi
-
-# --- Replace placeholders in all files ---
-info "Replacing placeholders..."
-find "$TARGET_DIR" -type f \( -name "*.py" -o -name "*.yaml" -o -name "*.yml" \
-    -o -name "*.tf" -o -name "*.md" -o -name "*.toml" -o -name "*.sh" \
-    -o -name "Dockerfile" -o -name ".dockerignore" -o -name "Makefile" \
-    -o -name "*.json" -o -name "*.txt" -o -name "*.env*" \) | while read -r file; do
-    # Replace in order: specific first, general last.
-    # `{service-name}` MUST be substituted before `{service}` so the
-    # snake replacement doesn't accidentally consume the kebab placeholder
-    # (their literal forms differ at the closing brace, but specific-first
-    # is the safer code hygiene). PR-A5b (ADR-015).
-    sed -i "s/{ServiceName}/$SERVICE_NAME/g" "$file"
-    sed -i "s/{service-name}/$SERVICE_KEBAB/g" "$file"
-    sed -i "s/{service}/$SERVICE_SLUG/g" "$file"
-    # GitHub org/repo for Kyverno + cosign trust roots (May 2026 audit MED-10).
-    sed -i "s|{ORG}|$GH_ORG|g" "$file"
-    sed -i "s|{REPO}|$GH_REPO|g" "$file"
-    # Do not rewrite shell variables like `${SERVICE}`; only the literal
-    # template placeholder `{SERVICE}` should become the upper snake value.
-    perl -0pi -e "s/(?<!\\\$)\\{SERVICE\\}/$SERVICE_UPPER/g" "$file"
-done
-
-# --- Create standard directories ---
-# Phase 1.4: data path convention is `raw → processed → reference` for
-# training (consumed by `train.py` + `dvc.yaml`) and `production/` for
-# drift inputs (consumed by the drift CronJob — `cronjob-drift.yaml`
-# mounts `data/production/latest.csv` as the `--current` argument).
-# Without `data/production/` the first drift run fails with FileNotFound.
-# See `docs/data-paths.md` for the full contract.
-mkdir -p "$TARGET_DIR/data/raw"
-mkdir -p "$TARGET_DIR/data/processed"
-mkdir -p "$TARGET_DIR/data/reference"
-mkdir -p "$TARGET_DIR/data/production"
-mkdir -p "$TARGET_DIR/data/validated"
-mkdir -p "$TARGET_DIR/models"
-mkdir -p "$TARGET_DIR/reports"
-
-# --- Create .gitkeep files for empty directories ---
-touch "$TARGET_DIR/data/raw/.gitkeep"
-touch "$TARGET_DIR/data/processed/.gitkeep"
-touch "$TARGET_DIR/data/reference/.gitkeep"
-touch "$TARGET_DIR/data/production/.gitkeep"
-touch "$TARGET_DIR/models/.gitkeep"
+touch "$TARGET_DIR/data/raw/.gitkeep" \
+      "$TARGET_DIR/data/processed/.gitkeep" \
+      "$TARGET_DIR/data/reference/.gitkeep" \
+      "$TARGET_DIR/data/production/.gitkeep" \
+      "$TARGET_DIR/models/.gitkeep"
 
 # --- Summary ---
 echo ""

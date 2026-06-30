@@ -1,0 +1,45 @@
+# =============================================================================
+# Kustomize overlay — GCP Staging (GKE)
+# =============================================================================
+# Mirror of gcp-prod with reduced resources + baseline PSS enforce. Used by
+# the dev → staging → prod chain in .github/workflows/deploy-gcp.yml.
+#
+# Differences vs gcp-prod:
+#   - 1 replica (vs 2)
+#   - PSS enforce=baseline + warn/audit=restricted (shift-left)
+#   - smaller resource requests
+#
+# Deploy: kustomize build k8s/overlays/gcp-staging/ | kubectl apply -f -
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: "{@ service_kebab @}-staging"
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: "{@ service_kebab @}-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{@ service_kebab @}-predictor"
+    newTag: "v1.0.0"
+  # Init container CLI — staging pins by digest (PR-R2-2, ADR-016).
+  # CI lint (validate-templates.yml) WARNS until digest is set; the
+  # bootstrap runbook (`docs/runbooks/digest-pin-init-image.md`)
+  # documents the operator-side resolve step.
+  - name: "cloud-cli-image"
+    newName: "gcr.io/google.com/cloudsdktool/google-cloud-cli"
+    newTag: "slim"
+    # digest: "sha256:<resolve via bootstrap runbook>"
+
+patches:
+  - path: patch-deployment.yaml
+  - path: patch-serviceaccount.yaml
+  # R5-M3: narrow NetworkPolicy cloud-storage egress from 0.0.0.0/0 to
+  # GCP private-googleapis CIDRs. Non-dev MUST carry this patch;
+  # tests/test_networkpolicy_egress_hygiene.py fails otherwise.
+  - path: patch-networkpolicy.yaml
+    target:
+      kind: NetworkPolicy
+      name: "{@ service_kebab @}-network-policy"

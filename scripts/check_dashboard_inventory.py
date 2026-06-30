@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Verify that every Grafana dashboard JSON in
-``templates/monitoring/grafana/`` is referenced by ``INDEX.md``.
+``templates/service/monitoring/grafana/`` is referenced by ``INDEX.md``.
 
 External-feedback gap 6.4 (May 2026 triage): dashboards exist but
 are not centrally registered. The INDEX is the source of truth.
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DASHBOARDS_DIR = REPO_ROOT / "templates" / "monitoring" / "grafana"
+DASHBOARDS_DIR = REPO_ROOT / "templates" / "service" / "monitoring" / "grafana"
 INDEX = DASHBOARDS_DIR / "INDEX.md"
 
 

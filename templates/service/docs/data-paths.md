@@ -46,7 +46,7 @@ Three failure modes that this convention prevents:
    `data/production/latest.csv`. If the directory does not exist at
    pod start, `--current data/production/latest.csv` hits FileNotFound
    and the metric `drift_detection_last_run_timestamp` never advances,
-   which then causes the `{service}DriftDetectionHeartbeatMissing`
+   which then causes the `{@ service_slug @}DriftDetectionHeartbeatMissing`
    alert to fire 48 h later. (Phase 1.4 fix: scaffolder now mkdir-s
    the directory on `new-service.sh`.)
 2. **Retrain workflow points at a moving target** — `retrain-service.yml`

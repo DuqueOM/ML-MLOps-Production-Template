@@ -15,9 +15,9 @@ import pandas as pd
 import pytest
 import yaml
 
-# Import from templates/service/src/{service}/monitoring/ground_truth.py
-# The scaffolded service will have its own slug in place of {service}.
-_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "service" / "src" / "{service}" / "monitoring"
+# Import from templates/service/src/{@ service_slug @}/monitoring/ground_truth.py
+# The scaffolded service will have its own slug in place of {@ service_slug @}.
+_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "service" / "src" / "{@ service_slug @}" / "monitoring"
 sys.path.insert(0, str(_TEMPLATE_PATH))
 
 from ground_truth import (  # type: ignore[import-not-found]  # noqa: E402

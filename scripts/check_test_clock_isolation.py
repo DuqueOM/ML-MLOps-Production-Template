@@ -74,7 +74,7 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
             "in production code, but tests force off_hours explicitly)",
         ),
     ],
-    "templates/tests/integration/conftest.py": [
+    "templates/service/tests/integration/conftest.py": [
         (
             28,
             "time.time",
@@ -88,7 +88,7 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
             "absolute clock value never asserted",
         ),
     ],
-    "templates/tests/integration/test_service_integration.py": [
+    "templates/service/tests/integration/test_service_integration.py": [
         (
             95,
             "time.time",
@@ -130,7 +130,7 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TEST_ROOTS = [
     REPO_ROOT / "templates" / "tests" / "unit",
-    REPO_ROOT / "templates" / "tests" / "integration",
+    REPO_ROOT / "templates" / "service" / "tests" / "integration",
     REPO_ROOT / "templates" / "tests" / "contract",
 ]
 

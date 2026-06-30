@@ -12,8 +12,8 @@ A clear and concise description of the problem. Ex. "When deploying to EKS, I ne
 **Which layer does this affect?**
 - [ ] Templates (`templates/`)
 - [ ] Agentic system (`agentic/rules/`, `agentic/skills/`, `agentic/workflows/`)
-- [ ] CI/CD (`templates/cicd/`)
-- [ ] Infrastructure (`templates/infra/`)
+- [ ] CI/CD (`templates/service/.github/workflows/`)
+- [ ] Infrastructure (`templates/service/infra/`)
 - [ ] Documentation (`templates/docs/`)
 
 **Describe the solution you'd like**

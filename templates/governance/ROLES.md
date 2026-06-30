@@ -36,7 +36,7 @@ Scales down to solo projects (one person plays all roles) without adding frictio
 **Owns**: K8s cluster, Terraform infrastructure, CI/CD pipelines, secrets.
 
 **Approves**:
-- Changes to `templates/k8s/` and `templates/infra/`
+- Changes to `templates/k8s/` and `templates/service/infra/`
 - New service scaffolds that require infrastructure (new IAM roles, buckets)
 - Modifications to GitHub Environments configuration
 
