@@ -36,8 +36,15 @@ def test_scaffold_replaces_placeholders(scaffold_dir: Path) -> None:
         # - cache/VCS dirs (__pycache__, .git, .dvc cache)
         # - the scaffolder's own scripts/ dir (contains placeholder docs)
         # - tests/ dir (test files legitimately reference placeholder tokens)
+        # - agentic/ and .devin/ dirs (document Copier delimiters with raw blocks)
+        # - AGENTS.md, CLAUDE.md (document D-34 / grep examples with raw blocks)
         # - binary/compiled files (.pyc, .so, .whl, images)
-        if any(part in {".git", "__pycache__", ".dvc", "scripts", "tests", "node_modules"} for part in rel.parts):
+        if any(
+            part in {".git", "__pycache__", ".dvc", "scripts", "tests", "agentic", ".devin", "node_modules"}
+            for part in rel.parts
+        ):
+            continue
+        if path.name in {"AGENTS.md", "CLAUDE.md"}:
             continue
         if path.suffix in {".pyc", ".pyo", ".so", ".whl", ".png", ".jpg", ".ico"}:
             continue

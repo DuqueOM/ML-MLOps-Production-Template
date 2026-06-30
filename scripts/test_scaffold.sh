@@ -170,7 +170,8 @@ JINJA_REGEX='\{@.*@\}|\{%.*%\}|\{#.*#\}'
 # literal text when documenting Copier delimiters (D-33/D-34 rules).
 # The {% raw %} blocks ensure Copier doesn't try to render them, but the
 # literal text remains in the output as intended.
-# Also exclude AGENTS.md (root) which documents D-34 with literal {@ @} examples.
+# Also exclude AGENTS.md and CLAUDE.md (root) which document D-34 / grep
+# examples with literal {@ @} tokens wrapped in {% raw %} blocks.
 PLACEHOLDER_HITS=$({
   grep -rE "$JINJA_REGEX" \
     "$SERVICE_DIR" \
@@ -178,7 +179,7 @@ PLACEHOLDER_HITS=$({
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="*.json" \
     --include="*.txt" --include="Dockerfile" --include="Makefile" \
-    2>/dev/null | grep -v '/AGENTS\.md:' || true
+    2>/dev/null | grep -v '/AGENTS\.md:' | grep -v '/CLAUDE\.md:' || true
 } | wc -l)
 
 if [[ "$PLACEHOLDER_HITS" -eq 0 ]]; then
