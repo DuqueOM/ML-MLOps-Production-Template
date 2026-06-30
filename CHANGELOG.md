@@ -10,8 +10,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+---
+
+## [v0.19.0] — 2026-06-30
+
 ### Added
 
+- **Copier scaffolding migration (Wave 1)**: Replaced manual `cp -r` + `sed`
+  scaffolding with [Copier](https://copier.readthedocs.io/) using custom Jinja2
+  delimiters `{@ @}` to avoid conflicts with Python f-strings and shell
+  variables. `templates/scripts/new-service.sh` is now a thin wrapper around
+  `copier copy`. All template files use `{@ service_slug @}`, `{@ service_name @}`,
+  `{@ service_kebab @}`, `{@ SERVICE_NAME @}` tokens instead of legacy
+  `{service}`, `{ServiceName}`, `{SERVICE}` placeholders.
+- **D-33 — Manual file copying or sed-based placeholder substitution in the
+  scaffolder**: Anti-pattern forbidding `cp -r` + `sed -i` in favor of
+  `copier copy`.
+- **D-34 — Unquoted Jinja tokens in YAML lists**: Anti-pattern requiring all
+  `{@ @}` tokens in YAML list items to be quoted (`- "{@ service_name @}"`)
+  because unquoted `- {@ service_name @}` is invalid YAML.
 - **ADR-029 — Agentic Adoption Contract & Interoperability Strategy**
   (`docs/decisions/ADR-029-agentic-adoption-contract.md`): ratifies the
   five-condition gate that routes all industry-adoption improvements (Copier,
@@ -26,6 +43,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ### Fixed
 
+- **Copier Jinja2 token handling in tests**: Dynamically construct `{@ @}`
+  strings in Python test files to prevent Jinja2 from parsing them as template
+  expressions during Copier render. Updated `_normalise_metric_name` in
+  `test_metrics_contract.py` to handle Copier tokens in PromQL expressions.
+  Updated `test_red_team_regression.py` paths to match new
+  `templates/service/` prefixed protected_paths in `ci_autofix_policy.yaml`.
 - **tfsec archival workaround**: Pinned tfsec to v1.28.14 (last working release)
   in `.github/workflows/validate-templates.yml` after aquasecurity archived the
   project and `/releases/latest` began returning 404. Long-term migration to
@@ -35,6 +58,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   - `actions/checkout` v4 → v7 (13 references across 8 template files)
   - `codecov/codecov-action` v4 → v7 (1 reference in `ci.yml`)
   - `bridgecrewio/checkov-action` v12.3105.0 → v12.3107.0 (1 reference in `ci-infra.yml`)
+- **Link checker**: Ignore `../SECURITY.md` relative link (returns 400 from
+  GitHub link checker).
 
 ### Changed
 
