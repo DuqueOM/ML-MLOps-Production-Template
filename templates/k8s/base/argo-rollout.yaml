@@ -1,9 +1,9 @@
 # =============================================================================
-# Argo Rollouts — Canary Deployment for {ServiceName}
+# Argo Rollouts — Canary Deployment for [[ service_name ]]
 # =============================================================================
 # OPT-IN. Not included in `templates/k8s/base/kustomization.yaml` because
 # Argo Rollouts and Deployment cannot both manage the same selector
-# (`app: {service-name}`) — name collision. To enable the progressive-
+# (`app: [[ service_kebab ]]`) — name collision. To enable the progressive-
 # delivery path, in your overlay's `kustomization.yaml`:
 #
 #   resources:
@@ -15,7 +15,7 @@
 #         apiVersion: apps/v1
 #         kind: Deployment
 #         metadata:
-#           name: {service-name}-predictor
+#           name: [[ service_kebab ]]-predictor
 #
 # Progressive delivery: sends traffic to the new model version incrementally
 # while monitoring Prometheus metrics via the AnalysisTemplate (champion/
@@ -51,20 +51,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: "{service-name}-predictor"
+  name: "[[ service_kebab ]]-predictor"
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     managed-by: kustomize
 spec:
   replicas: 2
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: "{service-name}"
+      app: "[[ service_kebab ]]"
   template:
     metadata:
       labels:
-        app: "{service-name}"
+        app: "[[ service_kebab ]]"
         version: v1.0.0
       annotations:
         prometheus.io/scrape: "true"
@@ -74,7 +74,7 @@ spec:
         # Patched by `deploy-common.yml` at apply time. See deployment.yaml.
         windsurf.io/deployment-id: "local"
     spec:
-      serviceAccountName: "{service-name}-sa"
+      serviceAccountName: "[[ service_kebab ]]-sa"
 
       # Pod-level securityContext — PSS 'restricted' (parity with deployment.yaml).
       securityContext:
@@ -101,7 +101,7 @@ spec:
           command:
             - gsutil
             - cp
-            - gs://{MODEL_BUCKET}/{service-name}/model.joblib
+            - gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib
             - /models/model.joblib
           securityContext:
             allowPrivilegeEscalation: false
@@ -121,11 +121,11 @@ spec:
       terminationGracePeriodSeconds: 30
 
       containers:
-        - name: "{service-name}-predictor"
+        - name: "[[ service_kebab ]]-predictor"
           # Image is patched by Kustomize overlay (`images:` mapping) — never
           # leave `:latest` rendered in staging/prod (the validate-templates
           # workflow lints the rendered overlay).
-          image: "{service-name}-predictor:latest"
+          image: "[[ service_kebab ]]-predictor:latest"
           command: ["uvicorn"]
           args:
             - "app.main:app"
@@ -143,7 +143,7 @@ spec:
             - name: BACKGROUND_DATA_PATH
               value: /app/data/reference/background.csv
             - name: SERVICE_METRIC_PREFIX
-              value: "{service}"
+              value: "[[ service_slug ]]"
             # PR-C1 — DEPLOYMENT_ID via Downward API. See deployment.yaml.
             - name: DEPLOYMENT_ID
               valueFrom:
@@ -196,7 +196,7 @@ spec:
 
   strategy:
     canary:
-      # Canary analysis — runs '{service-name}-cc-online' (ADR-008).
+      # Canary analysis — runs '[[ service_kebab ]]-cc-online' (ADR-008).
       # The AnalysisTemplate itself lives in
       # analysistemplate-champion-challenger.yaml so the C/C rules are
       # version-controlled independently of the rollout manifest.
@@ -204,10 +204,10 @@ spec:
       # error rate vs stable, score-distribution shift, p95 latency).
       analysis:
         templates:
-          - templateName: "{service-name}-cc-online"
+          - templateName: "[[ service_kebab ]]-cc-online"
         args:
           - name: service-name
-            value: "{service}"
+            value: "[[ service_slug ]]"
           # Populated by Argo Rollouts at canary time:
           - name: canary-version
             valueFrom:

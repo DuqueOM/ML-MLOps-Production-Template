@@ -10,20 +10,20 @@
 #
 # Deploy: kustomize build k8s/overlays/aws-prod/ | kubectl apply -f -
 #
-# TODO: Replace {AWS_ACCOUNT_ID}, {REGION}, {service} with your values.
+# TODO: Replace {AWS_ACCOUNT_ID}, {REGION}, [[ service_slug ]] with your values.
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: "{service-name}-prod"
+namespace: "[[ service_kebab ]]-prod"
 
 resources:
   - ../../base
   - namespace.yaml
 
 images:
-  - name: "{service-name}-predictor"
-    newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{service-name}-predictor"
+  - name: "[[ service_kebab ]]-predictor"
+    newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/[[ service_kebab ]]-predictor"
     # newTag is overwritten by deploy-common.yml's `Pin image to digest`
     # step using the digest emitted by the build job (D-19, ADR-014 §B2).
     newTag: "v1.0.0"
@@ -44,4 +44,4 @@ patches:
   - path: patch-networkpolicy.yaml
     target:
       kind: NetworkPolicy
-      name: "{service-name}-network-policy"
+      name: "[[ service_kebab ]]-network-policy"

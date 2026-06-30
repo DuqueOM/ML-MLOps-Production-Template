@@ -1,4 +1,4 @@
-# {ServiceName}
+# [[ service_name ]]
 
 > {One sentence describing the business problem solved by this service}
 
@@ -13,7 +13,7 @@
 pip install -r requirements.txt
 
 # Train model
-python src/{service}/training/train.py --data data/raw/dataset.csv
+python src/[[ service_slug ]]/training/train.py --data data/raw/dataset.csv
 
 # Run API locally
 uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -110,4 +110,4 @@ TOTAL: ${X}/mo
 
 - **Grafana Dashboard**: {URL}
 - **AlertManager**: P1-P4 alerts configured
-- **Metrics**: `{service}_predictions_total`, `{service}_prediction_latency_seconds`, `{service}_psi_score`
+- **Metrics**: `[[ service_slug ]]_predictions_total`, `[[ service_slug ]]_prediction_latency_seconds`, `[[ service_slug ]]_psi_score`

@@ -1,4 +1,4 @@
-"""API endpoint tests for {ServiceName}.
+"""API endpoint tests for [[ service_name ]].
 
 Real integration tests using FastAPI TestClient and the mocked-model
 fixtures from ``conftest.py``. Covers:

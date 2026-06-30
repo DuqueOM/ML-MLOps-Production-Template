@@ -1,4 +1,4 @@
-"""Fairness and bias audit module for {ServiceName}.
+"""Fairness and bias audit module for [[ service_name ]].
 
 Computes group-level fairness metrics across protected attributes to detect
 disparate impact and equal opportunity violations. Produces a structured

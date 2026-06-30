@@ -35,9 +35,9 @@ on:
         required: true
         type: string
       services:
-        description: "JSON array of service slugs, e.g. '[\"billing\",\"fraud\"]'. Scaffolder substitutes kebab-case {service-name} for single-service repos."
+        description: "JSON array of service slugs, e.g. '[\"billing\",\"fraud\"]'. Scaffolder substitutes kebab-case [[ service_kebab ]] for single-service repos."
         required: false
-        default: '["{service-name}"]'
+        default: '["[[ service_kebab ]]"]'
         type: string
       image_digests:
         description: "JSON object mapping service name → image digest (sha256:...). Required for staging/prod (D-19 + Kyverno digest gate). Falls back to overlay's tag if empty (dev only)."
@@ -45,7 +45,7 @@ on:
         default: '{}'
         type: string
       namespace:
-        description: "K8s namespace where the deploy lands (default: {service}-{env}). Used by smoke test to address services with FQDN."
+        description: "K8s namespace where the deploy lands (default: [[ service_slug ]]-{env}). Used by smoke test to address services with FQDN."
         required: false
         default: ''
         type: string

@@ -38,9 +38,9 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          # Single-service: scaffolder substitutes {ServiceName}.
+          # Single-service: scaffolder substitutes [[ service_name ]].
           # Multi-service: replace with explicit list of service dirnames.
-          - {ServiceName}
+          - [[ service_name ]]
     steps:
       - uses: actions/checkout@v7
 

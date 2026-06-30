@@ -1,4 +1,4 @@
-# Day-2 operations — {ServiceName}
+# Day-2 operations — [[ service_name ]]
 
 > Routine, NON-incident operational procedures. For severity-driven
 > incident response see `runbook-template.md` (P1–P4 incident playbook).
@@ -29,7 +29,7 @@ deliberately rejected the two-runbook split (`CHECKLIST_DAY2_GCP.md`
 # Run BEFORE any cluster-touching procedure.
 kubectl config current-context           # confirm intended cluster
 kubectl get nodes                        # cluster reachable + healthy
-kubectl get pods -n {service-name}-prod  # service pods running
+kubectl get pods -n [[ service_kebab ]]-prod  # service pods running
 kubectl version --short                  # client/server version skew
 ```
 
@@ -41,17 +41,17 @@ common cause of accidental cross-environment changes.
 
 ```bash
 # 1. Inspect current state
-kubectl get hpa {service-name}-hpa -n {service-name}-prod
+kubectl get hpa [[ service_kebab ]]-hpa -n [[ service_kebab ]]-prod
 
 # 2a. Adjust HPA bounds (preferred — scaling stays autonomic)
-kubectl patch hpa {service-name}-hpa -n {service-name}-prod \
+kubectl patch hpa [[ service_kebab ]]-hpa -n [[ service_kebab ]]-prod \
   --type=merge -p '{"spec":{"minReplicas":3,"maxReplicas":15}}'
 
 # 2b. Force a fixed replica count (escape hatch — disables autoscaling temporarily)
-kubectl scale deployment/{service-name}-predictor -n {service-name}-prod --replicas=10
+kubectl scale deployment/[[ service_kebab ]]-predictor -n [[ service_kebab ]]-prod --replicas=10
 
 # 3. Verify
-kubectl get pods -l app={service-name} -n {service-name}-prod -w
+kubectl get pods -l app=[[ service_kebab ]] -n [[ service_kebab ]]-prod -w
 ```
 
 **Invariant**: `replicas >= 2` in prod (PDB enforces). If you need
@@ -77,7 +77,7 @@ kubectl drain <node-name> \
   --timeout=10m
 
 # 3. Confirm pods rescheduled
-kubectl get pods -l app={service-name} -n {service-name}-prod -o wide
+kubectl get pods -l app=[[ service_kebab ]] -n [[ service_kebab ]]-prod -o wide
 
 # 4. After maintenance, uncordon
 kubectl uncordon <node-name>
@@ -96,23 +96,23 @@ cert-manager auto-rotates 30 days before expiry. Manual force-rotation:
 kubectl get pods -n cert-manager
 
 # Inspect the certificate
-kubectl get certificate -n {service-name}-prod
-kubectl describe certificate {service-name}-tls -n {service-name}-prod
+kubectl get certificate -n [[ service_kebab ]]-prod
+kubectl describe certificate [[ service_kebab ]]-tls -n [[ service_kebab ]]-prod
 
 # Force renewal
-kubectl annotate certificate {service-name}-tls \
+kubectl annotate certificate [[ service_kebab ]]-tls \
   cert-manager.io/issue-temporary-certificate=true \
-  -n {service-name}-prod --overwrite
+  -n [[ service_kebab ]]-prod --overwrite
 
 # Watch the new cert get issued (within ~60s)
-kubectl get certificate {service-name}-tls -n {service-name}-prod -w
+kubectl get certificate [[ service_kebab ]]-tls -n [[ service_kebab ]]-prod -w
 ```
 
 If renewal stalls, see ACME challenge debugging:
 
 ```bash
 kubectl get challenges --all-namespaces
-kubectl describe challenge <name> -n {service-name}-prod
+kubectl describe challenge <name> -n [[ service_kebab ]]-prod
 ```
 
 ## Procedure: secret rotation (planned)
@@ -130,11 +130,11 @@ kubectl describe challenge <name> -n {service-name}-prod
 # 1. Add new version to the secret store (cloud command above)
 
 # 2. Force pod restart so the External Secrets / CSI driver reloads
-kubectl rollout restart deployment/{service-name}-predictor -n {service-name}-prod
-kubectl rollout status deployment/{service-name}-predictor -n {service-name}-prod
+kubectl rollout restart deployment/[[ service_kebab ]]-predictor -n [[ service_kebab ]]-prod
+kubectl rollout status deployment/[[ service_kebab ]]-predictor -n [[ service_kebab ]]-prod
 
 # 3. Verify the new version is in use (this assumes you log a hash, not the value)
-kubectl logs -l app={service-name} -n {service-name}-prod --tail=20 | grep secret_version
+kubectl logs -l app=[[ service_kebab ]] -n [[ service_kebab ]]-prod --tail=20 | grep secret_version
 ```
 
 **Invariant** (D-17, D-18): credentials are NEVER in code, NEVER in
@@ -143,19 +143,19 @@ the cloud secret store.
 
 ## Procedure: cost spike triage
 
-Triggered by AlertManager `{service-name}MonthlyCostBudgetExceeded`
+Triggered by AlertManager `[[ service_kebab ]]MonthlyCostBudgetExceeded`
 or by manual review.
 
 ```bash
 # 1. Snapshot current resource consumption
-kubectl top pod -l app={service-name} -n {service-name}-prod
+kubectl top pod -l app=[[ service_kebab ]] -n [[ service_kebab ]]-prod
 kubectl top node
 
 # 2. Inspect HPA history — has it been pegged at maxReplicas?
-kubectl describe hpa {service-name}-hpa -n {service-name}-prod | tail -20
+kubectl describe hpa [[ service_kebab ]]-hpa -n [[ service_kebab ]]-prod | tail -20
 
 # 3. Cross-check Prometheus for traffic spike
-# Open Grafana → {ServiceName} dashboard → "Requests/sec" panel
+# Open Grafana → [[ service_name ]] dashboard → "Requests/sec" panel
 ```
 
 | Cloud | Cost API |
@@ -218,12 +218,12 @@ rollback didn't auto-complete (e.g. Argo Rollouts had its own bug).
 
 ```bash
 # 1. Find the last good revision
-kubectl rollout history deployment/{service-name}-predictor -n {service-name}-prod
+kubectl rollout history deployment/[[ service_kebab ]]-predictor -n [[ service_kebab ]]-prod
 
 # 2. Roll back
-kubectl rollout undo deployment/{service-name}-predictor -n {service-name}-prod \
+kubectl rollout undo deployment/[[ service_kebab ]]-predictor -n [[ service_kebab ]]-prod \
   --to-revision=<N>
-kubectl rollout status deployment/{service-name}-predictor -n {service-name}-prod
+kubectl rollout status deployment/[[ service_kebab ]]-predictor -n [[ service_kebab ]]-prod
 
 # 3. MLflow side: re-promote the previous model version
 python scripts/promote_to_mlflow.py --version <prev_version> --skip-evidence-gate \

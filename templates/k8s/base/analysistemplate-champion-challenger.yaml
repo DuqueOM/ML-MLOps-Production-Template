@@ -9,14 +9,14 @@
 #      - Tri-state: promote / keep / block (exit codes 0 / 1 / 2)
 #      - Blocks image promotion on exit 2
 #
-#   2. ONLINE (this file — '{service-name}-cc-online')
+#   2. ONLINE (this file — '[[ service_kebab ]]-cc-online')
 #      - Proxy metrics during the 8-minute canary window
 #      - Ground-truth labels have NOT arrived yet → cannot compute AUC/F1
 #      - Uses: prediction_log error rate, score-distribution shift,
 #        http error rate per version, p95 latency
 #      - Failures auto-rollback via Argo Rollouts
 #
-#   3. POST-DEPLOY (this file — '{service-name}-cc-post-deploy')
+#   3. POST-DEPLOY (this file — '[[ service_kebab ]]-cc-post-deploy')
 #      - Real business metrics from performance_monitor CronJob
 #      - Runs as a scheduled CronJob after labels accumulate
 #      - Labels vary by service (hours to weeks)
@@ -28,7 +28,7 @@
 #   - performance_monitor CronJob pushing sliced metrics
 #   - Argo Rollouts v1.5+
 #
-# TODO: Replace {service} with your actual service name.
+# TODO: Replace [[ service_slug ]] with your actual service name.
 # TODO: Adjust thresholds — baseline them against 7-day production metrics.
 # =============================================================================
 ---
@@ -38,9 +38,9 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: "{service-name}-cc-online"
+  name: "[[ service_kebab ]]-cc-online"
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     analysis-type: online
 spec:
   args:
@@ -149,9 +149,9 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-  name: "{service-name}-cc-post-deploy"
+  name: "[[ service_kebab ]]-cc-post-deploy"
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     analysis-type: post-deploy
 spec:
   args:
@@ -163,10 +163,10 @@ spec:
     # 1. Global AUC must not regress below baseline (ADR-007)
     # -------------------------------------------------------------------------
     # performance_monitor pushes
-    #   '{service}_performance_metric{slice_name="__global__", slice_value="__all__", metric="auc"}'
+    #   '[[ service_slug ]]_performance_metric{slice_name="__global__", slice_value="__all__", metric="auc"}'
     # after every CronJob run. To get per-version metrics, ensure
     # configs/slices.yaml declares 'model_version' as a slice so the monitor
-    # emits '{service}_performance_metric{slice_name="model_version", slice_value="<ver>", metric="auc"}'.
+    # emits '[[ service_slug ]]_performance_metric{slice_name="model_version", slice_value="<ver>", metric="auc"}'.
     - name: per-version-auc
       interval: 1h
       count: 24       # evaluate over a 24h window

@@ -1,4 +1,4 @@
-"""Prediction handler for {ServiceName}.
+"""Prediction handler for [[ service_name ]].
 
 Provides model loading and prediction logic for both single and batch inference.
 Used by the FastAPI app and by CLI batch processing.
@@ -8,7 +8,7 @@ Usage:
     result_df = predictor.predict(input_df)
     predictor.predict_batch("data/new_customers.csv", "results/predictions.csv")
 
-TODO: Rename ServicePredictor → {ServiceName}Predictor.
+TODO: Rename ServicePredictor → [[ service_name ]]Predictor.
 TODO: Adjust risk_level thresholds for your domain.
 """
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class ServicePredictor:
-    """Model loading and prediction for {ServiceName}.
+    """Model loading and prediction for [[ service_name ]].
 
     Handles both Pipeline models (preprocessor built-in) and legacy models
     where the preprocessor is saved separately.

@@ -4,7 +4,7 @@ Goal: every Prometheus metric referenced in alert/rule YAML files has a
 corresponding `Counter | Gauge | Histogram` declaration in the service
 code (or is on the standard external allow-list). Catches:
 
-- An alert that references `{service}_request_duration_secs` (typo: missing
+- An alert that references `[[ service_slug ]]_request_duration_secs` (typo: missing
   `_seconds` suffix).
 - A metric renamed in `fastapi_app.py` without updating the SLO rule.
 - A new alert that points at a metric that does not exist yet.
@@ -51,7 +51,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # We accept either:
 #   - a literal string:   Counter("svc_requests_total", ...)
 #   - an f-string:        Counter(f"{_PREFIX}_requests_total", ...)
-#   - a placeholder:      Gauge("{service}_psi_score", ...)
+#   - a placeholder:      Gauge("[[ service_slug ]]_psi_score", ...)
 # In the f-string case, we replace `{<expr>}` with the literal token
 # `__PREFIX__` so we can match `<service>_*` references without having
 # to evaluate Python.
@@ -196,15 +196,15 @@ def _extract_declared_metrics() -> set[str]:
     """
     sources = [
         REPO_ROOT / "app" / "fastapi_app.py",
-        REPO_ROOT / "src" / "{service}" / "monitoring" / "drift_detection.py",
-        REPO_ROOT / "src" / "{service}" / "monitoring" / "performance_monitor.py",
+        REPO_ROOT / "src" / "[[ service_slug ]]" / "monitoring" / "drift_detection.py",
+        REPO_ROOT / "src" / "[[ service_slug ]]" / "monitoring" / "performance_monitor.py",
     ]
     # Service-name placeholder may have been substituted by the scaffolder
-    # already (test_scaffold.sh runs `sed s/{service}/test_svc/g`). Try the
+    # already (test_scaffold.sh runs `sed s/[[ service_slug ]]/test_svc/g`). Try the
     # generic and the substituted layout; whichever exists wins.
     rendered_root = REPO_ROOT / "src"
     for child in rendered_root.iterdir() if rendered_root.is_dir() else []:
-        if child.is_dir() and child.name not in {"{service}", "__pycache__"}:
+        if child.is_dir() and child.name not in {"[[ service_slug ]]", "__pycache__"}:
             sources.append(child / "monitoring" / "drift_detection.py")
             sources.append(child / "monitoring" / "performance_monitor.py")
 
@@ -333,7 +333,7 @@ def test_alert_metric_references_have_declarations(declared_metrics: set[str], y
         # head as ``<PFX>_<suffix>`` (because we cannot evaluate Python
         # at parse time) while the YAML may already be rendered with
         # the literal service name (the scaffolder substitutes
-        # ``{service}`` → e.g. ``test_svc``). Match on suffix instead.
+        # ``[[ service_slug ]]`` → e.g. ``test_svc``). Match on suffix instead.
         prefixed_suffixes = {m[len("<PFX>") :] for m in declared_metrics if m.startswith("<PFX>")}
         if any(ref.endswith(s) for s in prefixed_suffixes):
             continue
@@ -354,7 +354,7 @@ def test_alert_metric_references_have_declarations(declared_metrics: set[str], y
 def test_recording_rule_cross_references_resolve() -> None:
     """A recording rule referenced by an alert must itself exist.
 
-    The SLO file declares records like ``{service}:sli:availability``
+    The SLO file declares records like ``[[ service_slug ]]:sli:availability``
     and then references them in alert exprs. If the alert names a
     record that was renamed but not retained, Prometheus silently
     evaluates to NaN and the alert never fires.

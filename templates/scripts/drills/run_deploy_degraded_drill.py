@@ -14,7 +14,7 @@ What it exercises:
   - Challenger: a deliberately degraded model trained on the SAME
     features but with shuffled labels (pure noise → AUC ≈ 0.50).
   - Holdout: a fresh sample from the same generative process.
-  - Gate: ``{service}.evaluation.champion_challenger.compare_models``
+  - Gate: ``[[ service_slug ]].evaluation.champion_challenger.compare_models``
     — the production decision engine.
 
 The expected verdict is ``block``; the drill fails (exit 1) if any

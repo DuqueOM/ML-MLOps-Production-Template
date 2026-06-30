@@ -1,4 +1,4 @@
-"""Training pipeline for {ServiceName}.
+"""Training pipeline for [[ service_name ]].
 
 Implements the mandatory training sequence:
 1. load_data + Pandera validation
@@ -97,8 +97,8 @@ logger = logging.getLogger(__name__)
 #     expensive training step
 # Hyperparameters that DO NOT belong in the governance contract
 # (Optuna trials, CV folds, RNG seed) stay here.
-EXPERIMENT_NAME = "{ServiceName}-Production"
-MODEL_REGISTRY_NAME = "{ServiceName}Classifier"
+EXPERIMENT_NAME = "[[ service_name ]]-Production"
+MODEL_REGISTRY_NAME = "[[ service_name ]]Classifier"
 
 DEFAULT_QUALITY_GATES_PATH = "configs/quality_gates.yaml"
 
@@ -776,7 +776,7 @@ if __name__ == "__main__":
     import argparse
     import sys
 
-    parser = argparse.ArgumentParser(description="Train {ServiceName} model")
+    parser = argparse.ArgumentParser(description="Train [[ service_name ]] model")
     parser.add_argument("--data", help="Path to training CSV (required unless --validate-config-only)")
     parser.add_argument("--experiment", default=EXPERIMENT_NAME, help="MLflow experiment name")
     parser.add_argument("--optuna-trials", type=int, default=OPTUNA_TRIALS, help="Optuna trials")

@@ -1,4 +1,4 @@
-"""Command-line interface for {ServiceName}.
+"""Command-line interface for [[ service_name ]].
 
 Subcommands:
     train      — Train a new model from CSV data
@@ -6,13 +6,13 @@ Subcommands:
     predict    — Batch predictions on new data
 
 Usage:
-    python -m src.{service}.cli train --config configs/config.yaml --input data/raw/train.csv
-    python -m src.{service}.cli evaluate \
+    python -m src.[[ service_slug ]].cli train --config configs/config.yaml --input data/raw/train.csv
+    python -m src.[[ service_slug ]].cli evaluate \
         --config configs/config.yaml --input data/raw/test.csv --model models/model.joblib
-    python -m src.{service}.cli predict \
+    python -m src.[[ service_slug ]].cli predict \
         --input data/new.csv --output results/predictions.csv --model models/model.joblib
 
-TODO: Rename imports from src.{service} to your actual service package name.
+TODO: Rename imports from src.[[ service_slug ]] to your actual service package name.
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ def predict_command(args: argparse.Namespace) -> int:
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser with train/evaluate/predict subcommands."""
     parser = argparse.ArgumentParser(
-        description="{ServiceName} — ML prediction system",
+        description="[[ service_name ]] — ML prediction system",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--seed", type=int, help="Random seed for reproducibility")

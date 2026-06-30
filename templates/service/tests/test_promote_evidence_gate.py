@@ -24,10 +24,12 @@ _TEMPLATES = Path(__file__).resolve().parent.parent.parent
 if str(_TEMPLATES) not in sys.path:
     sys.path.insert(0, str(_TEMPLATES))
 
-# We import the promote module by file path to avoid the `{service}`
+# We import the promote module by file path to avoid the `[[ service_slug ]]`
 # placeholder in the on-disk path (which is not a legal Python module
 # name). importlib.util gives us a clean handle.
-_PROMOTE_PATH = Path(__file__).resolve().parent.parent / "src" / "{service}" / "training" / "promote_to_mlflow.py"
+_PROMOTE_PATH = (
+    Path(__file__).resolve().parent.parent / "src" / "[[ service_slug ]]" / "training" / "promote_to_mlflow.py"
+)
 
 
 @pytest.fixture(scope="module")

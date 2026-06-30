@@ -1,4 +1,4 @@
-"""Custom classifiers and model wrappers for {ServiceName}.
+"""Custom classifiers and model wrappers for [[ service_name ]].
 
 Provides a ResampleClassifier that wraps any sklearn estimator with optional
 resampling strategies for imbalanced datasets:
@@ -7,7 +7,7 @@ resampling strategies for imbalanced datasets:
 - Class weight balancing (built-in)
 
 Usage:
-    from src.{service}.models import ResampleClassifier
+    from src.[[ service_slug ]].models import ResampleClassifier
     clf = ResampleClassifier(
         estimator=RandomForestClassifier(),
         strategy="oversample",

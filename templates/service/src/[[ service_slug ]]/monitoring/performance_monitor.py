@@ -21,7 +21,7 @@ Invariants:
     - No prediction is counted twice (dedup by prediction_id)
 
 Usage:
-    python -m src.{service}.monitoring.performance_monitor \\
+    python -m src.[[ service_slug ]].monitoring.performance_monitor \\
         --predictions data/predictions_log \\
         --labels data/labels_log \\
         --slices configs/slices.yaml \\
@@ -306,24 +306,24 @@ def push_to_prometheus(report: dict[str, Any], pushgateway_url: str, service: st
     registry = CollectorRegistry()
 
     perf_gauge = Gauge(
-        f"{service}_performance_metric",
+        "[[ service_slug ]]_performance_metric",
         "Sliced performance metrics (AUC, F1, precision, recall, Brier)",
         ["slice_name", "slice_value", "metric"],
         registry=registry,
     )
     sample_gauge = Gauge(
-        f"{service}_performance_sample_size",
+        "[[ service_slug ]]_performance_sample_size",
         "Joined predictions+labels sample size per slice",
         ["slice_name", "slice_value"],
         registry=registry,
     )
     last_run_gauge = Gauge(
-        f"{service}_performance_last_run_timestamp",
+        "[[ service_slug ]]_performance_last_run_timestamp",
         "Last successful performance check (unix ts)",
         registry=registry,
     )
     status_gauge = Gauge(
-        f"{service}_performance_status",
+        "[[ service_slug ]]_performance_status",
         "0=ok, 1=warning, 2=alert, -1=insufficient_data",
         registry=registry,
     )
@@ -350,7 +350,7 @@ def push_to_prometheus(report: dict[str, Any], pushgateway_url: str, service: st
     status_map = {"ok": 0, "warning": 1, "alert": 2, "insufficient_data": -1, "insufficient_joined_samples": -1}
     status_gauge.set(status_map.get(report.get("status", "ok"), 0))
 
-    push_to_gateway(pushgateway_url, job=f"{service}-performance", registry=registry)
+    push_to_gateway(pushgateway_url, job="[[ service_slug ]]-performance", registry=registry)
     logger.info("Performance metrics pushed to %s", pushgateway_url)
 
 
@@ -371,7 +371,7 @@ def main() -> int:
     parser.add_argument("--output", help="Report JSON path")
     parser.add_argument("--push-metrics", action="store_true")
     parser.add_argument("--pushgateway", default=os.getenv("PUSHGATEWAY_URL", "pushgateway:9091"))
-    parser.add_argument("--service", default=os.getenv("SERVICE_NAME", "{service}"))
+    parser.add_argument("--service", default=os.getenv("SERVICE_NAME", "[[ service_slug ]]"))
     args = parser.parse_args()
 
     now = datetime.now(tz=timezone.utc)

@@ -1,4 +1,4 @@
-# Dependency Analysis: {ServiceName}
+# Dependency Analysis: [[ service_name ]]
 
 > Document known dependency conflicts and resolution strategies.
 > This prevents teams from hitting the same issues repeatedly.

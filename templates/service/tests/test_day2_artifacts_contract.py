@@ -95,26 +95,26 @@ def test_day2_runbook_covers_both_clouds() -> None:
 
 
 def test_day2_runbook_uses_kebab_for_k8s_names() -> None:
-    """A K8s name in a runbook command MUST use ``{service-name}``
-    (kebab) per PR-A5b. A snake `{service}` here would break copy-
+    """A K8s name in a runbook command MUST use ``[[ service_kebab ]]``
+    (kebab) per PR-A5b. A snake `[[ service_slug ]]` here would break copy-
     pasted commands at deploy time on snake_case slugs.
     """
     text = _runbook_path().read_text(encoding="utf-8")
     bad: list[tuple[int, str]] = []
-    # Match `kubectl ... {service}` patterns where {service} is in a
+    # Match `kubectl ... [[ service_slug ]]` patterns where [[ service_slug ]] is in a
     # K8s name position (preceding/trailing kebab chars).
     rx = re.compile(r"\{service\}-[a-z]|kubectl[^\n]*\{service\}\b")
     for n, line in enumerate(text.splitlines(), 1):
         if rx.search(line):
             # Allow one explicit Prometheus query line that documents
-            # the snake-case rationale by carrying both `{service}` and
+            # the snake-case rationale by carrying both `[[ service_slug ]]` and
             # the words "Prometheus" or "snake-case".
             if "Prometheus" in line or "snake-case" in line.lower():
                 continue
             bad.append((n, line.strip()))
     assert not bad, (
-        "day-2-operations.md uses `{service}` (snake) in a K8s-name "
-        "context (must be `{service-name}` kebab per PR-A5b):\n" + "\n".join(f"  L{n}: {ln}" for n, ln in bad)
+        "day-2-operations.md uses `[[ service_slug ]]` (snake) in a K8s-name "
+        "context (must be `[[ service_kebab ]]` kebab per PR-A5b):\n" + "\n".join(f"  L{n}: {ln}" for n, ln in bad)
     )
 
 

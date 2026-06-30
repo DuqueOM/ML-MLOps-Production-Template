@@ -50,7 +50,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(_REPO_ROOT / "templates") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "templates"))
 
-drift = importlib.import_module("{service}.monitoring.drift_detection")
+drift = importlib.import_module("[[ service_slug ]].monitoring.drift_detection")
 import common_utils.eda_artifacts as ea  # noqa: E402
 
 # ---------------------------------------------------------------------------

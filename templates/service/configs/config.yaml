@@ -1,5 +1,5 @@
 # =============================================================================
-# {ServiceName} — Centralized Configuration
+# [[ service_name ]] — Centralized Configuration
 # =============================================================================
 # This YAML drives the entire ML pipeline: training, serving, monitoring.
 # Customize each section for your specific service.
@@ -175,7 +175,7 @@ api:
 # --- Deployment ---
 deployment:
   environment: "development"               # development, staging, production
-  docker_image: "{service}-predictor"
+  docker_image: "[[ service_slug ]]-predictor"
   docker_tag: "latest"
   monitoring:
     prometheus_enabled: true
@@ -191,5 +191,5 @@ security:
 # --- MLflow ---
 mlflow:
   tracking_uri: "file:./mlruns"            # Change to MLflow server URI in production
-  experiment_name: "{ServiceName}-Production"
+  experiment_name: "[[ service_name ]]-Production"
   enabled: true

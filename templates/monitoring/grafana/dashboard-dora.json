@@ -1,8 +1,8 @@
 {
   "__comment": "DORA metrics Grafana dashboard. Companion to scripts/dora_metrics.py which writes ops/dora/{YYYY-MM}-metrics.json. To populate Prometheus, an adopter cron job MUST push the JSON values to a Pushgateway with the metric names below. See templates/monitoring/grafana/INDEX.md and docs/runbooks/performance-review.md for the full pipeline.",
   "dashboard": {
-    "title": "{ServiceName} — DORA Metrics",
-    "tags": ["dora", "delivery", "{service}"],
+    "title": "[[ service_name ]] — DORA Metrics",
+    "tags": ["dora", "delivery", "[[ service_slug ]]"],
     "timezone": "utc",
     "refresh": "1h",
     "schemaVersion": 38,
@@ -11,7 +11,7 @@
         {
           "name": "service",
           "type": "constant",
-          "query": "{service}",
+          "query": "[[ service_slug ]]",
           "hide": 0
         }
       ]

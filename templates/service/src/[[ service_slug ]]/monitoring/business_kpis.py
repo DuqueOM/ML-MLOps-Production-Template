@@ -1,4 +1,4 @@
-"""Business KPIs derived from model predictions for {ServiceName}.
+"""Business KPIs derived from model predictions for [[ service_name ]].
 
 Translates model metrics into business-meaningful indicators.
 Provides functions to compute KPIs from confusion matrix components.

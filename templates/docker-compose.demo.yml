@@ -11,7 +11,7 @@
 #   curl http://localhost:8000/health
 #   curl http://localhost:5000/health
 #
-# TODO: Replace {service} with your actual service name.
+# TODO: Replace [[ service_slug ]] with your actual service name.
 # TODO: Update build context to point to your service directory.
 
 services:
@@ -46,9 +46,9 @@ services:
   # ─────────────────────────────────────────────
   # ML Service (your service from templates/service/)
   # ─────────────────────────────────────────────
-  # TODO: Replace {service} with your service name
+  # TODO: Replace [[ service_slug ]] with your service name
   ml-service:
-    image: ml-template-{service}:latest
+    image: ml-template-[[ service_slug ]]:latest
     build:
       context: ./service
       dockerfile: Dockerfile
@@ -64,7 +64,7 @@ services:
       - MODEL_PATH=/app/models/model.joblib
       - LOG_FORMAT=json
       - LOG_LEVEL=INFO
-      - SERVICE_NAME={service}
+      - SERVICE_NAME=[[ service_slug ]]
       - PYTHONUNBUFFERED=1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

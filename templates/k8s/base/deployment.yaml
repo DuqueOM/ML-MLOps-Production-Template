@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{service-name}-predictor"
+  name: "[[ service_kebab ]]-predictor"
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     version: v1.0.0
     # `environment:` label is OWNED by the overlay (commonLabels in
     # k8s/overlays/<cloud>-<env>/kustomization.yaml). Adding it here
@@ -17,7 +17,7 @@ spec:
   replicas: 2
   selector:
     matchLabels:
-      app: "{service-name}"
+      app: "[[ service_kebab ]]"
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -26,7 +26,7 @@ spec:
   template:
     metadata:
       labels:
-        app: "{service-name}"
+        app: "[[ service_kebab ]]"
         version: v1.0.0
       annotations:
         prometheus.io/scrape: "true"
@@ -41,7 +41,7 @@ spec:
         # report `deployment_id=local`, which is honest and queryable.
         windsurf.io/deployment-id: "local"
     spec:
-      serviceAccountName: "{service-name}-sa"
+      serviceAccountName: "[[ service_kebab ]]-sa"
 
       # Pod-level securityContext — satisfies PSS 'restricted' (v1.8.1).
       # All containers inherit runAsNonRoot + the seccomp profile.
@@ -80,13 +80,13 @@ spec:
             - sh
             - -ec
             - |
-              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib /models/model.joblib
+              gsutil cp gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib /models/model.joblib
               # Signature files are best-effort here; the verifier
               # init container fails the pod fast if they are required
               # but missing.
-              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib.sig /models/model.joblib.sig 2>/dev/null || \
+              gsutil cp gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib.sig /models/model.joblib.sig 2>/dev/null || \
                 echo "[model-downloader] WARNING: signature file not found in bucket"
-              gsutil cp gs://{MODEL_BUCKET}/{service-name}/model.joblib.pem /models/model.joblib.pem 2>/dev/null || \
+              gsutil cp gs://{MODEL_BUCKET}/[[ service_kebab ]]/model.joblib.pem /models/model.joblib.pem 2>/dev/null || \
                 echo "[model-downloader] WARNING: certificate file not found in bucket"
           securityContext:
             # PSS restricted: init container must also pass the gate.
@@ -117,8 +117,8 @@ spec:
         # --certificate-oidc-issuer) match the workflow identity the
         # retrain-service.yml job uses. Adopters MUST update the regexp
         # if they fork to a different org/repo/workflow path —
-        # `templates/scripts/new-service.sh` substitutes {ORG} and
-        # {REPO} at scaffold time (May 2026 audit MED-10).
+        # `templates/scripts/new-service.sh` substitutes [[ gh_org ]] and
+        # [[ gh_repo ]] at scaffold time (May 2026 audit MED-10).
         - name: model-verifier
           image: gcr.io/projectsigstore/cosign:v2.4.1@sha256:placeholder
           # Image digest is a placeholder until the first overlay sets
@@ -143,7 +143,7 @@ spec:
               cosign verify-blob \
                 --certificate /models/model.joblib.pem \
                 --signature  /models/model.joblib.sig \
-                --certificate-identity-regexp "https://github.com/{ORG}/{REPO}/.github/workflows/retrain-service\.yml@.*" \
+                --certificate-identity-regexp "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/retrain-service\.yml@.*" \
                 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
                 /models/model.joblib
               echo "[model-verifier] OK: model signature verified."
@@ -183,8 +183,8 @@ spec:
           effect: NoSchedule
 
       containers:
-        - name: "{service-name}-predictor"
-          image: "{service-name}-predictor:latest"   # Patched by Kustomize overlay
+        - name: "[[ service_kebab ]]-predictor"
+          image: "[[ service_kebab ]]-predictor:latest"   # Patched by Kustomize overlay
           command: ["uvicorn"]
           args:
             - "app.main:app"
@@ -209,7 +209,7 @@ spec:
             # Metric name prefix — fastapi_app.py reads this at import time
             # to build Counter/Histogram names. Audit Critical-3.
             - name: SERVICE_METRIC_PREFIX
-              value: "{service}"
+              value: "[[ service_slug ]]"
             # PR-C1 (ADR-015) — DEPLOYMENT_ID is the canonical correlation
             # key that joins this running pod back to the deploy workflow
             # that produced it. Sourced from the Pod's annotations via the

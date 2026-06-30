@@ -32,7 +32,7 @@ import yaml
 
 # Skip the whole module if the heavy training-module deps (mlflow,
 # optuna, sklearn) aren't installed — the gate logic itself is stdlib
-# only, but importing ``{service}.training.train`` pulls them in via
+# only, but importing ``[[ service_slug ]].training.train`` pulls them in via
 # its top-level imports. The scaffold-smoke run installs the real
 # requirements.txt so these tests execute there.
 pytest.importorskip("mlflow")
@@ -43,10 +43,10 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-# Import the templated module directly. The literal ``{service}`` path
+# Import the templated module directly. The literal ``[[ service_slug ]]`` path
 # component is intentional — these tests run against the unsubstituted
 # template, exactly the way `test_quality_gates_config.py` does.
-train_module = importlib.import_module("{service}.training.train")
+train_module = importlib.import_module("[[ service_slug ]].training.train")
 EDAGateError = train_module.EDAGateError
 
 import common_utils.eda_artifacts as ea  # noqa: E402

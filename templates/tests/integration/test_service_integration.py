@@ -1,4 +1,4 @@
-"""Integration tests for {ServiceName} ML service.
+"""Integration tests for [[ service_name ]] ML service.
 
 Validates the full running service: health, predictions, SHAP, metrics.
 Requires the service to be running before executing.

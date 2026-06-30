@@ -1,4 +1,4 @@
-# Model Card: {ServiceName}
+# Model Card: [[ service_name ]]
 
 > Based on [Model Cards for Model Reporting](https://arxiv.org/abs/1810.03993) (Mitchell et al., 2019)
 
@@ -6,7 +6,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Model Name** | {ServiceName} |
+| **Model Name** | [[ service_name ]] |
 | **Model Version** | v1.0.0 |
 | **Model Type** | {Classification / Regression / NLP} |
 | **Algorithm** | {e.g., StackingClassifier (LightGBM + XGBoost + LogisticRegression)} |

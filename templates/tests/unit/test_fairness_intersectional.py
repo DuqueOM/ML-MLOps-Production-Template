@@ -9,10 +9,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-_SVC = Path(__file__).resolve().parents[2] / "service" / "src" / "{service}"
+_SVC = Path(__file__).resolve().parents[2] / "service" / "src" / "[[ service_slug ]]"
 sys.path.insert(0, str(_SVC.parent.parent))
 
-# The template service dir is literally "{service}" — dynamic import.
+# The template service dir is literally "[[ service_slug ]]" — dynamic import.
 import importlib.util
 
 spec = importlib.util.spec_from_file_location("fairness", _SVC / "fairness.py")

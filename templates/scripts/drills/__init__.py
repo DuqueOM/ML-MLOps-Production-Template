@@ -1,4 +1,4 @@
-"""Reproducible operational drills for {ServiceName} (PR-C3).
+"""Reproducible operational drills for [[ service_name ]] (PR-C3).
 
 Each drill is a STANDALONE script that exercises a real production
 code path against synthetic deterministic inputs and writes evidence

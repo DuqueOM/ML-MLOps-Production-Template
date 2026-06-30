@@ -1,16 +1,16 @@
-"""PSI-based drift detection for {ServiceName}.
+"""PSI-based drift detection for [[ service_name ]].
 
 Calculates Population Stability Index per feature using quantile-based bins.
 Pushes results to Prometheus via Pushgateway and optionally triggers retraining.
 
 Usage:
-    python src/{service}/monitoring/drift_detection.py \\
+    python src/[[ service_slug ]]/monitoring/drift_detection.py \\
         --reference data/reference/reference.csv \\
         --current data/production/latest.csv \\
         --output drift_report.json
 
-    python src/{service}/monitoring/drift_detection.py --push-metrics
-    python src/{service}/monitoring/drift_detection.py --update-reference
+    python src/[[ service_slug ]]/monitoring/drift_detection.py --push-metrics
+    python src/[[ service_slug ]]/monitoring/drift_detection.py --update-reference
 """
 
 import argparse
@@ -95,7 +95,7 @@ DEFAULT_WARNING = 0.10
 DEFAULT_ALERT = 0.20
 
 PUSHGATEWAY_URL = "pushgateway:9091"
-JOB_NAME = "{service}-drift-detection"
+JOB_NAME = "[[ service_slug ]]-drift-detection"
 
 
 def calculate_psi(
@@ -372,14 +372,14 @@ def detect_drift(
 def push_metrics(results: dict) -> None:
     """Push PSI scores to Prometheus via Pushgateway.
 
-    PR-C1 (ADR-015): also pushes a ``{service}_drift_run_info`` gauge
+    PR-C1 (ADR-015): also pushes a ``[[ service_slug ]]_drift_run_info`` gauge
     labelled with ``drift_run_id`` so post-incident queries can JOIN
     Prometheus samples to the JSON report and the audit entry.
     """
     registry = CollectorRegistry()
 
     psi_gauge = Gauge(
-        "{service}_psi_score",
+        "[[ service_slug ]]_psi_score",
         "PSI drift score per feature",
         ["feature"],
         registry=registry,
@@ -392,7 +392,7 @@ def push_metrics(results: dict) -> None:
     )
 
     drift_run_info = Gauge(
-        "{service}_drift_run_info",
+        "[[ service_slug ]]_drift_run_info",
         "Drift run correlation key (always 1; the value carries the timestamp)",
         ["drift_run_id"],
         registry=registry,
@@ -488,7 +488,7 @@ def main() -> int:
     """
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
-    parser = argparse.ArgumentParser(description="Drift detection for {ServiceName}")
+    parser = argparse.ArgumentParser(description="Drift detection for [[ service_name ]]")
     parser.add_argument(
         "--reference",
         help=(

@@ -1,10 +1,10 @@
-# DVC Pipeline — {ServiceName}
+# DVC Pipeline — [[ service_name ]]
 # Data versioning and pipeline reproducibility.
 #
 # Setup:
 #   dvc init
-#   dvc remote add -d storage gs://your-bucket/dvc/{service}    # GCP
-#   dvc remote add -d storage s3://your-bucket/dvc/{service}    # AWS
+#   dvc remote add -d storage gs://your-bucket/dvc/[[ service_slug ]]    # GCP
+#   dvc remote add -d storage s3://your-bucket/dvc/[[ service_slug ]]    # AWS
 #
 # Usage:
 #   dvc repro              # Run full pipeline
@@ -12,34 +12,34 @@
 #   dvc pull               # Pull data/models from remote
 #   dvc dag                # View pipeline DAG
 #
-# TODO: Replace {service} and {ServiceName} with your values.
+# TODO: Replace [[ service_slug ]] and [[ service_name ]] with your values.
 # TODO: Update paths and parameters for your actual pipeline.
 
 stages:
   validate:
-    cmd: python src/{service}/training/validate_data.py --input data/raw/dataset.csv
+    cmd: python src/[[ service_slug ]]/training/validate_data.py --input data/raw/dataset.csv
     deps:
       - data/raw/dataset.csv
-      - src/{service}/schemas.py
+      - src/[[ service_slug ]]/schemas.py
     outs:
       - data/validated/dataset.csv:
           cache: true
 
   featurize:
-    cmd: python src/{service}/training/features.py --input data/validated/dataset.csv --output data/processed/features.csv
+    cmd: python src/[[ service_slug ]]/training/features.py --input data/validated/dataset.csv --output data/processed/features.csv
     deps:
       - data/validated/dataset.csv
-      - src/{service}/training/features.py
+      - src/[[ service_slug ]]/training/features.py
     outs:
       - data/processed/features.csv:
           cache: true
 
   train:
-    cmd: python src/{service}/training/train.py --data data/processed/features.csv
+    cmd: python src/[[ service_slug ]]/training/train.py --data data/processed/features.csv
     deps:
       - data/processed/features.csv
-      - src/{service}/training/model.py
-      - src/{service}/training/train.py
+      - src/[[ service_slug ]]/training/model.py
+      - src/[[ service_slug ]]/training/train.py
     outs:
       - models/model.joblib:
           cache: true
@@ -53,7 +53,7 @@ stages:
           cache: false
 
   evaluate:
-    cmd: python src/{service}/training/evaluate.py --model models/model.joblib --data data/processed/features.csv
+    cmd: python src/[[ service_slug ]]/training/evaluate.py --model models/model.joblib --data data/processed/features.csv
     deps:
       - models/model.joblib
       - data/processed/features.csv

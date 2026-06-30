@@ -14,15 +14,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: "{service-name}-staging"
+namespace: "[[ service_kebab ]]-staging"
 
 resources:
   - ../../base
   - namespace.yaml
 
 images:
-  - name: "{service-name}-predictor"
-    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{service-name}-predictor"
+  - name: "[[ service_kebab ]]-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/[[ service_kebab ]]-predictor"
     newTag: "v1.0.0"
   # Init container CLI — staging pins by digest (PR-R2-2, ADR-016).
   # CI lint (validate-templates.yml) WARNS until digest is set; the
@@ -42,4 +42,4 @@ patches:
   - path: patch-networkpolicy.yaml
     target:
       kind: NetworkPolicy
-      name: "{service-name}-network-policy"
+      name: "[[ service_kebab ]]-network-policy"

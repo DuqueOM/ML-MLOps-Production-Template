@@ -2,7 +2,7 @@
 # Ground-truth source configuration (ADR-006)
 # =============================================================================
 # This file describes where delayed labels come from. The ingester
-# (src/{service}/monitoring/ground_truth.py) reads this and calls
+# (src/[[ service_slug ]]/monitoring/ground_truth.py) reads this and calls
 # fetch_labels_from_source() with the config dict.
 #
 # The stub implementation supports source_type=csv (local testing only).

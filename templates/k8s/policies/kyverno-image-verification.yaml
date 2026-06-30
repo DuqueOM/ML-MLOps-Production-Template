@@ -64,19 +64,19 @@ spec:
             - entries:
                 # future: when push moves to ci.yml
                 - keyless:
-                    subject: "https://github.com/{ORG}/{REPO}/.github/workflows/ci.yml@*"
+                    subject: "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/ci.yml@*"
                     issuer: "https://token.actions.githubusercontent.com"
                     rekor:
                       url: https://rekor.sigstore.dev
                 # current: GCP push+sign
                 - keyless:
-                    subject: "https://github.com/{ORG}/{REPO}/.github/workflows/deploy-gcp.yml@*"
+                    subject: "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/deploy-gcp.yml@*"
                     issuer: "https://token.actions.githubusercontent.com"
                     rekor:
                       url: https://rekor.sigstore.dev
                 # current: AWS push+sign
                 - keyless:
-                    subject: "https://github.com/{ORG}/{REPO}/.github/workflows/deploy-aws.yml@*"
+                    subject: "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/deploy-aws.yml@*"
                     issuer: "https://token.actions.githubusercontent.com"
                     rekor:
                       url: https://rekor.sigstore.dev
@@ -103,17 +103,17 @@ spec:
                 # instead of subjectRegExp.
                 - entries:
                     - keyless:
-                        subject: "https://github.com/{ORG}/{REPO}/.github/workflows/ci.yml@*"
+                        subject: "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/ci.yml@*"
                         issuer: "https://token.actions.githubusercontent.com"
                         rekor:
                           url: https://rekor.sigstore.dev
                     - keyless:
-                        subject: "https://github.com/{ORG}/{REPO}/.github/workflows/deploy-gcp.yml@*"
+                        subject: "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/deploy-gcp.yml@*"
                         issuer: "https://token.actions.githubusercontent.com"
                         rekor:
                           url: https://rekor.sigstore.dev
                     - keyless:
-                        subject: "https://github.com/{ORG}/{REPO}/.github/workflows/deploy-aws.yml@*"
+                        subject: "https://github.com/[[ gh_org ]]/[[ gh_repo ]]/.github/workflows/deploy-aws.yml@*"
                         issuer: "https://token.actions.githubusercontent.com"
                         rekor:
                           url: https://rekor.sigstore.dev

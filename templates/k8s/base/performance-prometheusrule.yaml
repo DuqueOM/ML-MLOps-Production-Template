@@ -8,24 +8,24 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: "{service-name}-performance-alerts"
+  name: "[[ service_kebab ]]-performance-alerts"
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     prometheus: kube-prometheus
 spec:
   groups:
-    - name: "{service}.performance"
+    - name: "[[ service_slug ]].performance"
       rules:
         # ---------------------------------------------------------------
         # Global concept drift: AUC below hard threshold
         # ---------------------------------------------------------------
-        - alert: "{ServiceName}GlobalAUCBelowAlert"
+        - alert: "[[ service_name ]]GlobalAUCBelowAlert"
           expr: |
-            {service}_performance_metric{slice_name="__global__", metric="auc"} < 0.65
+            [[ service_slug ]]_performance_metric{slice_name="__global__", metric="auc"} < 0.65
           for: 30m
           labels:
             severity: critical
-            service: "{service-name}"
+            service: "[[ service_kebab ]]"
             category: concept_drift
             action: page
           annotations:
@@ -39,15 +39,15 @@ spec:
         # ---------------------------------------------------------------
         # Sliced concept drift: a single slice degraded severely
         # ---------------------------------------------------------------
-        - alert: "{ServiceName}SlicedAUCBelowAlert"
+        - alert: "[[ service_name ]]SlicedAUCBelowAlert"
           expr: |
-            {service}_performance_metric{slice_name!="__global__", metric="auc"} < 0.65
+            [[ service_slug ]]_performance_metric{slice_name!="__global__", metric="auc"} < 0.65
             and
-            {service}_performance_sample_size >= 50
+            [[ service_slug ]]_performance_sample_size >= 50
           for: 30m
           labels:
             severity: critical
-            service: "{service-name}"
+            service: "[[ service_kebab ]]"
             category: sliced_concept_drift
             action: page
           annotations:
@@ -62,15 +62,15 @@ spec:
         # ---------------------------------------------------------------
         # F1 collapse — even if AUC is okay
         # ---------------------------------------------------------------
-        - alert: "{ServiceName}F1BelowAlert"
+        - alert: "[[ service_name ]]F1BelowAlert"
           expr: |
-            {service}_performance_metric{metric="f1"} < 0.45
+            [[ service_slug ]]_performance_metric{metric="f1"} < 0.45
             and
-            {service}_performance_sample_size >= 50
+            [[ service_slug ]]_performance_sample_size >= 50
           for: 30m
           labels:
             severity: warning
-            service: "{service-name}"
+            service: "[[ service_kebab ]]"
             category: performance_regression
             action: ticket
           annotations:
@@ -83,19 +83,19 @@ spec:
         # ---------------------------------------------------------------
         # Heartbeat: performance monitor stopped reporting
         # ---------------------------------------------------------------
-        - alert: "{ServiceName}PerformanceMonitorStale"
+        - alert: "[[ service_name ]]PerformanceMonitorStale"
           expr: |
-            time() - {service}_performance_last_run_timestamp > 172800
+            time() - [[ service_slug ]]_performance_last_run_timestamp > 172800
           for: 1h
           labels:
             severity: warning
-            service: "{service-name}"
+            service: "[[ service_kebab ]]"
             category: monitoring_health
             action: ticket
           annotations:
             summary: "Performance monitor has not reported in 48h"
             description: |
-              The {service-name}-performance-monitor CronJob has not pushed metrics
+              The [[ service_kebab ]]-performance-monitor CronJob has not pushed metrics
               in > 48h. Verify the CronJob is running and ground-truth
               ingestion is producing labels.
             runbook_url: "https://github.com/{owner}/{repo}/blob/main/RUNBOOK.md#performance-monitor-stale"
@@ -103,16 +103,16 @@ spec:
         # ---------------------------------------------------------------
         # Prediction log failure rate high
         # ---------------------------------------------------------------
-        - alert: "{ServiceName}PredictionLogErrorsHigh"
+        - alert: "[[ service_name ]]PredictionLogErrorsHigh"
           expr: |
-            rate({service}_prediction_log_errors_total[15m])
+            rate([[ service_slug ]]_prediction_log_errors_total[15m])
             /
-            (rate({service}_prediction_log_total[15m]) + 0.001)
+            (rate([[ service_slug ]]_prediction_log_total[15m]) + 0.001)
             > 0.05
           for: 15m
           labels:
             severity: warning
-            service: "{service-name}"
+            service: "[[ service_kebab ]]"
             category: observability_degraded
             action: ticket
           annotations:

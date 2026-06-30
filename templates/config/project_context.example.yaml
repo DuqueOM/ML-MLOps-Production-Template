@@ -17,7 +17,7 @@
 version: 1
 
 project:
-  name: "{ServiceName}"
+  name: "[[ service_name ]]"
   # Short sentence. Reviewers read this first; keep it declarative.
   business_goal: "{One-line business outcome this service delivers}"
 

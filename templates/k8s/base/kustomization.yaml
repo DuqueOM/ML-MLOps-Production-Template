@@ -6,14 +6,14 @@
 #   kustomize build k8s/overlays/gcp-{dev,staging,prod}/  # Render GCP overlay
 #   kustomize build k8s/overlays/aws-{dev,staging,prod}/  # Render AWS overlay
 #
-# TODO: Replace {service} with your actual service name.
+# TODO: Replace [[ service_slug ]] with your actual service name.
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Default namespace ONLY for `kustomize build templates/k8s/base` standalone.
 # Every overlay overrides this via its own `namespace:` field
-# (e.g. `{service-name}-prod`, `{service-name}-staging`, `{service-name}-dev`),
+# (e.g. `[[ service_kebab ]]-prod`, `[[ service_kebab ]]-staging`, `[[ service_kebab ]]-dev`),
 # which is the supported deployment path. Audit R2 / PR-R2-3
 # ensured no resource hardcodes `namespace: ml-services` so the
 # overlay's value reaches every Role / RoleBinding / NetworkPolicy /
@@ -22,7 +22,7 @@ namespace: ml-services
 
 labels:
   - pairs:
-      app: "{service-name}"
+      app: "[[ service_kebab ]]"
       managed-by: kustomize
 
 resources:

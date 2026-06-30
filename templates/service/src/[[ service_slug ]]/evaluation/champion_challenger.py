@@ -27,7 +27,7 @@ Exit codes:
     0 = promote, 1 = keep, 2 = block
 
 Usage:
-    python -m src.{service}.evaluation.champion_challenger \\
+    python -m src.[[ service_slug ]].evaluation.champion_challenger \\
         --champion models/champion.joblib \\
         --challenger models/challenger.joblib \\
         --holdout data/holdout.csv --target churn \\

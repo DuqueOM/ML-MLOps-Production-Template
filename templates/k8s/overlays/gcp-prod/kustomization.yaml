@@ -11,20 +11,20 @@
 # Deploy:
 #   kustomize build k8s/overlays/gcp-prod/ | kubectl apply -f -
 #
-# TODO: Replace {PROJECT_ID}, {REGION}, {service} with your actual values.
+# TODO: Replace {PROJECT_ID}, {REGION}, [[ service_slug ]] with your actual values.
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: "{service-name}-prod"
+namespace: "[[ service_kebab ]]-prod"
 
 resources:
   - ../../base
   - namespace.yaml          # PSS labels: enforce=restricted (D-29)
 
 images:
-  - name: "{service-name}-predictor"
-    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{service-name}-predictor"
+  - name: "[[ service_kebab ]]-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/[[ service_kebab ]]-predictor"
     # Tag is replaced by digest in CI via deploy-common.yml's
     # `Pin image to digest` step (D-19, ADR-014 §B2). Keep a placeholder
     # tag here only so `kustomize build` works locally before CI runs.
@@ -49,4 +49,4 @@ patches:
   - path: patch-networkpolicy.yaml
     target:
       kind: NetworkPolicy
-      name: "{service-name}-network-policy"
+      name: "[[ service_kebab ]]-network-policy"

@@ -14,15 +14,15 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: "{service-name}-pdb"
+  name: "[[ service_kebab ]]-pdb"
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     managed-by: kustomize
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: "{service-name}"
+      app: "[[ service_kebab ]]"
   # K8s 1.26+ (GKE 1.27+, EKS 1.28+): tolerate involuntary disruptions by
   # still allowing eviction when the cluster is truly stuck. In older
   # clusters this key is silently ignored — safe to leave in.

@@ -1,4 +1,4 @@
-"""FastAPI application entry point for {ServiceName}.
+"""FastAPI application entry point for [[ service_name ]].
 
 Provides:
     /predict       — Single prediction (async, ThreadPoolExecutor)
@@ -16,7 +16,7 @@ Architecture decisions:
     - Model loaded at startup via lifespan, NOT per request
     - readiness gates traffic until both model load and warm-up complete
 
-TODO: Replace {ServiceName} with your actual service name.
+TODO: Replace [[ service_name ]] with your actual service name.
 TODO: Define CORS_ORIGINS only for browser clients that need it.
 """
 
@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
     """Load model artifacts + warm up + start closed-loop logger at startup; drain at shutdown."""
     global _warmed_up
 
-    logger.info("Starting {ServiceName} API — loading model artifacts...")
+    logger.info("Starting [[ service_name ]] API — loading model artifacts...")
     try:
         fastapi_app.load_model_artifacts()
         logger.info("Model artifacts loaded successfully")
@@ -96,13 +96,13 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Shutting down {ServiceName} API")
+    logger.info("Shutting down [[ service_name ]] API")
     _warmed_up = False  # K8s will stop sending traffic via readiness
     await fastapi_app._stop_prediction_logger()
 
 
 app = FastAPI(
-    title="{ServiceName} API",
+    title="[[ service_name ]] API",
     description="{One sentence describing the business problem solved}",
     version=os.getenv("MODEL_VERSION", "0.1.0"),
     docs_url="/docs",
@@ -266,7 +266,7 @@ async def model_reload() -> dict:
 async def root() -> dict:
     """API root — service identification."""
     return {
-        "message": "{ServiceName} API",
+        "message": "[[ service_name ]] API",
         "version": os.getenv("MODEL_VERSION", "0.1.0"),
         "docs": "/docs",
     }

@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for {ServiceName} test suite.
+"""Shared pytest fixtures for [[ service_name ]] test suite.
 
 The fastapi app (`app.main`) uses a lifespan that loads model artifacts
 from disk and runs a warm-up. Tests cannot rely on real artifacts being

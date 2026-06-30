@@ -1,15 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: "{service-name}-dev"
+namespace: "[[ service_kebab ]]-dev"
 
 resources:
   - ../../base
   - namespace.yaml
 
 images:
-  - name: "{service-name}-predictor"
-    newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{service-name}-predictor"
+  - name: "[[ service_kebab ]]-predictor"
+    newName: "{AWS_ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/[[ service_kebab ]]-predictor"
     newTag: "v1.0.0"
   # Init container CLI — dev tier may use a moving tag (PR-R2-2, ADR-016).
   # Staging/prod overlays must add `digest: sha256:...`; see bootstrap
@@ -31,4 +31,4 @@ patches:
       group: networking.k8s.io
       version: v1
       kind: NetworkPolicy
-      name: "{service-name}-network-policy"
+      name: "[[ service_kebab ]]-network-policy"

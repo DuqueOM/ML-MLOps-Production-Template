@@ -7,23 +7,23 @@
 #   3. Allows egress to DNS, cloud storage (model download), and MLflow
 #   4. Denies all other traffic by default
 #
-# TODO: Replace {service} with your service name.
+# TODO: Replace [[ service_slug ]] with your service name.
 # TODO: Adjust namespaceSelector and podSelector for your cluster layout.
 # TODO: Add CIDR blocks for your cloud provider's storage endpoints if needed.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: "{service-name}-network-policy"
+  name: "[[ service_kebab ]]-network-policy"
   # Namespace is OWNED by the overlay (kustomization.yaml `namespace:`).
   # Hardcoding it here would silently route traffic to the wrong NS in
   # any env whose overlay uses a different namespace (PR-R2-3, audit R2).
   labels:
-    app: "{service-name}"
+    app: "[[ service_kebab ]]"
     managed-by: kustomize
 spec:
   podSelector:
     matchLabels:
-      app: "{service-name}"
+      app: "[[ service_kebab ]]"
   policyTypes:
     - Ingress
     - Egress

@@ -1,4 +1,4 @@
-# {ServiceName}
+# [[ service_name ]]
 
 > {One sentence describing the business problem solved}
 
@@ -6,7 +6,7 @@
 
 ```bash
 pip install -r requirements.txt
-python src/{service}/training/train.py --data data/raw/dataset.csv
+python src/[[ service_slug ]]/training/train.py --data data/raw/dataset.csv
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -64,7 +64,7 @@ curl -X POST http://localhost:8000/predict \
 
 - **Metric**: PSI with quantile-based bins
 - **Schedule**: Daily at 02:00 UTC via K8s CronJob
-- **Thresholds**: See `src/{service}/monitoring/drift_detection.py`
+- **Thresholds**: See `src/[[ service_slug ]]/monitoring/drift_detection.py`
 
 ## Deploy
 
