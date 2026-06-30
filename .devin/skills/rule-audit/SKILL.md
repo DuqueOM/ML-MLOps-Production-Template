@@ -1,6 +1,6 @@
 ---
 name: rule-audit
-description: Automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-32 — produces a PASS/FAIL report with file:line evidence
+description: Automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-34 — produces a PASS/FAIL report with file:line evidence
 allowed-tools:
   - Read
   - Grep
@@ -38,7 +38,7 @@ STOP because they affect all future services.
 - **On third-party code** — this skill is scoped to the template's own
   conventions.
 
-## Invariant catalogue (D-01 → D-32)
+## Invariant catalogue (D-01 → D-34)
 
 The checks below map one-to-one onto the AGENTS.md anti-pattern table.
 The agent runs the matching query for each ID and records PASS/FAIL +
@@ -110,6 +110,15 @@ evidence (file:line or metric) per service.
 | D-30 | Deploy workflow missing `cosign attest --type cyclonedx` after the SBOM step | `rg -n "cosign attest" .github/workflows/deploy-*.yml` |
 | D-31 | Single IAM identity reused across ci/deploy/runtime/drift/retrain | `tests/test_iam_least_privilege.py` (no wildcard principals, no `Action: "*"`) |
 | D-32 | K8s manifest references a Python path with kebab placeholder (`src/{service-name}/...`) | `tests/policy/test_anti_patterns.py::test_d32_drift_cronjob_python_path` |
+
+### Template lifecycle (D-33 → D-34)
+
+| ID | Check | Command |
+|----|-------|---------|
+| D-33 | Manual `cp -r` + `sed -i` in the scaffolder instead of `copier copy` | `rg -n "sed.*-i.*\{service\}\|cp.*-r.*templates/service" templates/scripts/new-service.sh` |
+{% raw %}
+| D-34 | Unquoted `{@ @}` Jinja tokens in YAML list items | `rg -n '^\s*- \{@' templates/service/ --glob "*.yml"` |
+{% endraw %}
 
 ## Execution flow
 
@@ -189,6 +198,7 @@ For large repos the agent can restrict scope:
 - `--subset security` → D-17, D-18, D-19, D-30, D-31
 - `--subset closed-loop` → D-20, D-21, D-22, D-24
 - `--subset contracts` → D-28, D-32
+- `--subset template` → D-33, D-34
 - `--subset all` (default) → every invariant
 
 ## What this skill is NOT

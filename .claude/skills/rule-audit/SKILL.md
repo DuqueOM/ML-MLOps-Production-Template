@@ -1,6 +1,6 @@
 ---
 name: rule-audit
-description: "Automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-32 — produces a PASS/FAIL report with file:line evidence (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
+description: "Automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-34 — produces a PASS/FAIL report with file:line evidence (Mode: AUTO — AGENTS.md Agent Behavior Protocol applies.)"
 ---
 
 # rule-audit

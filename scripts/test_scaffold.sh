@@ -166,13 +166,19 @@ info "Checking for unreplaced Jinja tokens..."
 # Copier uses {@ @} for variables, {% %} for blocks, {# #} for comments.
 # After rendering, none of these should appear in any file.
 JINJA_REGEX='\{@.*@\}|\{%.*%\}|\{#.*#\}'
+# Exclude agentic/ and .devin/ docs — they legitimately mention {@ @} as
+# literal text when documenting Copier delimiters (D-33/D-34 rules).
+# The {% raw %} blocks ensure Copier doesn't try to render them, but the
+# literal text remains in the output as intended.
+# Also exclude AGENTS.md (root) which documents D-34 with literal {@ @} examples.
 PLACEHOLDER_HITS=$({
   grep -rE "$JINJA_REGEX" \
     "$SERVICE_DIR" \
+    --exclude-dir="agentic" --exclude-dir=".devin" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="*.json" \
     --include="*.txt" --include="Dockerfile" --include="Makefile" \
-    2>/dev/null || true
+    2>/dev/null | grep -v '/AGENTS\.md:' || true
 } | wc -l)
 
 if [[ "$PLACEHOLDER_HITS" -eq 0 ]]; then
@@ -181,9 +187,10 @@ else
   fail "$PLACEHOLDER_HITS lines still contain Jinja tokens:"
   grep -rEn "$JINJA_REGEX" \
     "$SERVICE_DIR" \
+    --exclude-dir="agentic" --exclude-dir=".devin" \
     --include="*.py" --include="*.yaml" --include="*.yml" --include="*.md" \
     --include="*.toml" --include="*.sh" --include="*.tf" --include="Dockerfile" \
-    --include="Makefile" 2>/dev/null | head -10 >&2
+    --include="Makefile" 2>/dev/null | grep -v '/AGENTS\.md:' | head -10 >&2
 fi
 
 # ════════════════════════════════════════════════

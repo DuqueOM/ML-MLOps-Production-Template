@@ -181,6 +181,9 @@ rules:
   - id: "14-api-contracts"
     source: "agentic/rules/14-api-contracts.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "15-template-lifecycle"
+    source: "agentic/rules/15-template-lifecycle.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
 
 # -----------------------------------------------------------------------------
 # Skills — canonical source is agentic/skills/. The authoritative set

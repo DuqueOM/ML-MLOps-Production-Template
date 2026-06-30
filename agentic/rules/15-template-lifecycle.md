@@ -1,0 +1,66 @@
+---
+name: template-lifecycle
+trigger: glob
+globs: ["copier.yml", "templates/service/**", "templates/scripts/new-service.sh", "scripts/test_scaffold.sh"]
+description: Copier template lifecycle — scaffolding, upgrading, and maintaining the template itself — D-33/34
+---
+
+# Rule 15 — Template Lifecycle (Copier)
+
+Applies to the **template repository** (this repo), not to scaffolded
+services. Scaffolded services inherit the vendored copy at
+`templates/service/agentic/rules/15-template-lifecycle.md` which carries
+adjusted paths.
+
+## D-33 — Manual file copying or sed-based placeholder substitution in the scaffolder
+
+The scaffolder (`templates/scripts/new-service.sh`) MUST delegate to
+`copier copy`. Manual `cp -r` + `sed -i` placeholder substitution is
+forbidden because:
+
+- It cannot handle conditional logic (e.g. skip files per variable).
+- It cannot rename directories dynamically (Copier renders path templates).
+- It drifts from the template source — `copier update` is impossible.
+- Placeholder regexes miss edge cases (e.g. `{service}` inside JSON strings).
+
+**Check**: `rg -n "sed.*-i.*\{service\}|cp.*-r.*templates/service"
+templates/scripts/new-service.sh` must return zero hits.
+
+## D-34 — Unquoted Jinja tokens in YAML lists
+
+{% raw %}
+Copier's custom delimiters `{@ @}` produce valid YAML **only when
+quoted** in list contexts. An unquoted `- {@ service_name @}` is invalid
+YAML because the `@` character cannot start a token.
+
+**Rule**: All `{@ @}` tokens in YAML list items MUST be quoted:
+```yaml
+# WRONG — invalid YAML
+service:
+  - {@ service_name @}
+
+# CORRECT — valid YAML, Copier renders to "MyService"
+service:
+  - "{@ service_name @}"
+```
+
+**Check**: `rg -n '^\s+- \{@' templates/service/ --glob "*.yml"` must
+return zero hits. Every match is an unquoted Jinja token in a YAML list.
+{% endraw %}
+
+## Scaffolding invariant
+
+`scripts/test_scaffold.sh` MUST validate:
+{% raw %}
+1. Zero unreplaced Jinja tokens (`{@ @}`, `{% %}`, `{# #}`) in rendered output.
+{% endraw %}
+2. Post-gen agentic tasks ran (`.devin/rules/` exists, manifest present).
+3. All 6 Kustomize overlays render from the scaffolded service.
+4. `ci_verify_workflows.py` passes on the scaffolded service.
+
+## Upgrade path
+
+`copier update` is the canonical upgrade mechanism for scaffolded
+services. The template MUST maintain backward-compatible `copier.yml`
+question names — renaming a question breaks `.copier-answers.yml` on
+every scaffolded service.
