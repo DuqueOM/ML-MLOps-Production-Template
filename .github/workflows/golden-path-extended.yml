@@ -90,7 +90,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Copier
-        run: pip install "copier>=9.0.0"
+        run: pip install "copier>=9.0.0" jsonschema
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v5

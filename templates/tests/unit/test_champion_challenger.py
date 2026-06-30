@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "service" / "src" / "[[ service_slug ]]" / "evaluation"
+_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "service" / "src" / "{@ service_slug @}" / "evaluation"
 sys.path.insert(0, str(_TEMPLATE_PATH))
 
 from champion_challenger import (  # type: ignore[import-not-found]  # noqa: E402

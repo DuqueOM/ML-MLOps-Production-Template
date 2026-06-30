@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "service" / "src" / "[[ service_slug ]]" / "monitoring"
+_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "service" / "src" / "{@ service_slug @}" / "monitoring"
 sys.path.insert(0, str(_TEMPLATE_PATH))
 
 from performance_monitor import (  # type: ignore[import-not-found]  # noqa: E402

@@ -58,11 +58,15 @@ def scaffold_dir() -> Iterator[Path]:
     tmp_root = Path(tempfile.mkdtemp(prefix="mlops-policy-scaffold-"))
 
     try:
-        # The scaffolder resolves PROJECT_ROOT as $TEMPLATE_ROOT/.. — so we
-        # place templates/ inside tmp_root and the service lands beside it.
-        shutil.copytree(REPO_ROOT / "templates", tmp_root / "templates")
-        if (REPO_ROOT / "common_utils").is_dir():
-            shutil.copytree(REPO_ROOT / "common_utils", tmp_root / "common_utils")
+        # Copier needs copier.yml at the repo root plus templates/service/.
+        # We rsync the entire repo root (excluding .git) into the tmpdir
+        # so Copier can use it as the template source.
+        import subprocess as _sp
+
+        _sp.run(
+            ["rsync", "-a", "--exclude=.git", f"{REPO_ROOT}/", f"{tmp_root}/"],
+            check=True,
+        )
 
         scaffolder = tmp_root / "templates" / "scripts" / "new-service.sh"
         if not scaffolder.is_file():
