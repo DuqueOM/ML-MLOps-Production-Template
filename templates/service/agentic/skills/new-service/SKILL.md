@@ -71,10 +71,10 @@ bash templates/scripts/new-service.sh "$service-name" "$service-slug"
 
 Verify no remaining placeholders:
 ```bash
-grep -r "{ServiceName}\|{service}\|{SERVICE}" $service-name/ --include="*.py" --include="*.yaml" | head -20
+grep -r "{@ service_name @}\|{@ service_slug @}\|{@ SERVICE_NAME @}" $service-name/ --include="*.py" --include="*.yaml" | head -20
 ```
 
-**Success criteria**: Directory created with zero remaining `{ServiceName}`, `{service}`, or `{SERVICE}` placeholders. Run `examples/minimal/` if this is the first time to validate template works.
+**Success criteria**: Directory created with zero remaining `{@ service_name @}`, `{@ service_slug @}`, or `{@ SERVICE_NAME @}` placeholders. Run `examples/minimal/` if this is the first time to validate template works.
 
 ### 3. Data Validation (Agent-DataValidator)
 
@@ -169,7 +169,7 @@ grep -r "{ServiceName}\|{service}\|{SERVICE}" $service-name/ --include="*.py" --
 
 ### 10. Monitoring (Agent-MonitoringSetup)
 
-1. Verify `/metrics` exports `{service}_requests_total`, `{service}_request_duration_seconds`
+1. Verify `/metrics` exports `{@ service_slug @}_requests_total`, `{@ service_slug @}_request_duration_seconds`
 2. Create Grafana dashboard from `templates/monitoring/grafana-dashboard.json`
 3. Configure P1-P4 alerts in AlertManager
 4. Verify Pushgateway connectivity for drift metrics

@@ -81,7 +81,7 @@ A contract test (`test_context_files_hygiene.py`) fails CI if:
   (regex: PEM blocks, AKIA prefix, AIza prefix, bearer tokens, URLs
   with embedded credentials).
 - Any `*.example.yaml` contains a company/project name that is not a
-  placeholder (`{CompanyName}`, `{ServiceName}`, or a deliberately
+  placeholder (`{CompanyName}`, `{@ service_name @}`, or a deliberately
   fictional example from `docs/agentic/contextualization.md`).
 
 The `example.yaml` contents are syntactically valid YAML that also
