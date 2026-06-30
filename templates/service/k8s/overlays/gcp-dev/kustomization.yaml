@@ -2,7 +2,7 @@
 # Kustomize overlay — GCP Dev (GKE)
 # =============================================================================
 # Smallest footprint: 1 replica, dev-tier resources, baseline PSS.
-# Used by templates/cicd/deploy-gcp.yml for auto-deploy on every push to main.
+# Used by .github/workflows/deploy-gcp.yml for auto-deploy on every push to main.
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

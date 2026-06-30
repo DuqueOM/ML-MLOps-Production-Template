@@ -3,7 +3,7 @@
 Authority: ACTION_PLAN_R5 §R5-M3; May 2026 audit MED-11.
 
 Since MED-11 the base NetworkPolicy at
-``templates/k8s/base/networkpolicy.yaml`` ships ZERO public egress
+``templates/service/k8s/base/networkpolicy.yaml`` ships ZERO public egress
 (default-deny). Defense-in-depth must fail closed: when an overlay
 forgets its patch, the init container cannot reach cloud storage and
 the rollout fails visibly instead of running with a wildcard egress.
@@ -48,8 +48,8 @@ except ModuleNotFoundError:  # pragma: no cover
     yaml = None  # type: ignore
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-BASE_NETPOL = REPO_ROOT / "templates" / "k8s" / "base" / "networkpolicy.yaml"
-OVERLAY_ROOT = REPO_ROOT / "templates" / "k8s" / "overlays"
+BASE_NETPOL = REPO_ROOT / "templates" / "service" / "k8s" / "base" / "networkpolicy.yaml"
+OVERLAY_ROOT = REPO_ROOT / "templates" / "service" / "k8s" / "overlays"
 
 NON_DEV_OVERLAYS = ["gcp-staging", "gcp-prod", "aws-staging", "aws-prod"]
 DEV_OVERLAYS = ["gcp-dev", "aws-dev"]

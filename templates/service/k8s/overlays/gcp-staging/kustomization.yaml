@@ -2,7 +2,7 @@
 # Kustomize overlay — GCP Staging (GKE)
 # =============================================================================
 # Mirror of gcp-prod with reduced resources + baseline PSS enforce. Used by
-# the dev → staging → prod chain in templates/cicd/deploy-gcp.yml.
+# the dev → staging → prod chain in .github/workflows/deploy-gcp.yml.
 #
 # Differences vs gcp-prod:
 #   - 1 replica (vs 2)

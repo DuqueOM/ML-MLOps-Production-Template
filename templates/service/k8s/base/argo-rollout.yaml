@@ -1,7 +1,7 @@
 # =============================================================================
 # Argo Rollouts — Canary Deployment for {@ service_name @}
 # =============================================================================
-# OPT-IN. Not included in `templates/k8s/base/kustomization.yaml` because
+# OPT-IN. Not included in `k8s/base/kustomization.yaml` because
 # Argo Rollouts and Deployment cannot both manage the same selector
 # (`app: {@ service_kebab @}`) — name collision. To enable the progressive-
 # delivery path, in your overlay's `kustomization.yaml`:

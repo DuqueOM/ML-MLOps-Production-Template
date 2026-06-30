@@ -39,11 +39,11 @@ ROUTING_POLICY = REPO_ROOT / "templates" / "config" / "model_routing_policy.yaml
 # Drift here is a STOP-class incident.
 REQUIRED_PROTECTED_PATTERNS = {
     ".github/workflows/deploy-",
-    "templates/cicd/deploy-",
-    "templates/infra/terraform/",
-    "templates/k8s/overlays/",
-    "templates/common_utils/secrets.py",
-    "templates/common_utils/risk_context.py",
+    "templates/service/.github/workflows/deploy-",
+    "templates/service/infra/terraform/",
+    "templates/service/k8s/overlays/",
+    "templates/service/common_utils/secrets.py",
+    "templates/service/common_utils/risk_context.py",
     "scripts/audit_record.py",
 }
 

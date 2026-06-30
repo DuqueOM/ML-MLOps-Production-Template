@@ -30,11 +30,15 @@ import pytest
 
 def _find_repo_root() -> Path | None:
     here = Path(__file__).resolve()
-    for ancestor in [here.parent] + list(here.parents):
-        if (ancestor / "templates" / "infra" / "terraform").is_dir():
+    ancestors = [here.parent] + list(here.parents)
+    # Pass 1: template-repo layout — ancestor has templates/service/infra/terraform/
+    for ancestor in ancestors:
+        if (ancestor / "templates" / "service" / "infra" / "terraform").is_dir():
             return ancestor
+    # Pass 2: generated-service layout — ancestor has infra/terraform/ at its root
+    for ancestor in ancestors:
         if (ancestor / "infra" / "terraform").is_dir():
-            return ancestor.parent if (ancestor / "infra").is_dir() else ancestor
+            return ancestor
     return None
 
 
@@ -45,8 +49,8 @@ def _tf_files(cloud: str) -> str:
     if REPO_ROOT is None:
         pytest.skip("Repo root not found")
     cloud_dir = (
-        REPO_ROOT / "templates" / "infra" / "terraform" / cloud
-        if (REPO_ROOT / "templates" / "infra" / "terraform" / cloud).is_dir()
+        REPO_ROOT / "templates" / "service" / "infra" / "terraform" / cloud
+        if (REPO_ROOT / "templates" / "service" / "infra" / "terraform" / cloud).is_dir()
         else REPO_ROOT / "infra" / "terraform" / cloud
     )
     if not cloud_dir.is_dir():
@@ -200,12 +204,12 @@ def test_deny_default_networkpolicy_exists() -> None:
     """Namespace baseline NetworkPolicy denies all traffic by default."""
     if REPO_ROOT is None:
         pytest.skip("Repo root not found")
-    base = REPO_ROOT / "templates" / "k8s" / "base"
+    base = REPO_ROOT / "templates" / "service" / "k8s" / "base"
     if not base.is_dir():
         pytest.skip("k8s base not in this layout")
 
     deny_default = base / "networkpolicy-deny-default.yaml"
-    assert deny_default.is_file(), "templates/k8s/base/networkpolicy-deny-default.yaml missing (PR-A3)"
+    assert deny_default.is_file(), "templates/service/k8s/base/networkpolicy-deny-default.yaml missing (PR-A3)"
 
     import yaml
 
@@ -227,7 +231,7 @@ def test_deny_default_is_in_kustomization() -> None:
     """The deny-default policy is included in the base kustomization."""
     if REPO_ROOT is None:
         pytest.skip("Repo root not found")
-    kustomization = REPO_ROOT / "templates" / "k8s" / "base" / "kustomization.yaml"
+    kustomization = REPO_ROOT / "templates" / "service" / "k8s" / "base" / "kustomization.yaml"
     if not kustomization.is_file():
         pytest.skip("kustomization not in this layout")
 
@@ -246,7 +250,7 @@ def test_base_deployment_has_workload_toleration() -> None:
     """Without the toleration, ML pods are unschedulable on the tainted workload pool."""
     if REPO_ROOT is None:
         pytest.skip("Repo root not found")
-    deployment_yaml = REPO_ROOT / "templates" / "k8s" / "base" / "deployment.yaml"
+    deployment_yaml = REPO_ROOT / "templates" / "service" / "k8s" / "base" / "deployment.yaml"
     if not deployment_yaml.is_file():
         pytest.skip("deployment.yaml not in this layout")
 

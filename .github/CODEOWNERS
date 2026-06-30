@@ -11,7 +11,7 @@
 #
 #   * Bus factor = 1: the entire governance surface (AGENTS.md, ADRs,
 #     CI/CD, K8s, Terraform, security configs) is owned by one human.
-#   * Environment Protection Rules in `templates/cicd/deploy-*.yml`
+#   * Environment Protection Rules in `templates/service/.github/workflows/deploy-*.yml`
 #     reference "1 reviewer (staging)" / "2 reviewers (production)".
 #     With one CODEOWNER, the production-2-reviewer claim is aspirational
 #     until a co-maintainer is onboarded. Adopters configuring their
@@ -40,16 +40,17 @@
 /.claude/                               @DuqueOM
 /docs/decisions/                        @DuqueOM
 
-# Delivery and platform
-/templates/cicd/                        @DuqueOM
+# Delivery and platform (service-bound templates under templates/service/)
+/templates/service/.github/workflows/  @DuqueOM
 /templates/k8s/                         @DuqueOM
-/templates/infra/                       @DuqueOM
+/templates/service/k8s/                @DuqueOM
+/templates/service/infra/              @DuqueOM
 /templates/scripts/                     @DuqueOM
 
 # Shared contracts and runtime
-/templates/common_utils/                @DuqueOM
+/templates/service/common_utils/        @DuqueOM
 /templates/service/                     @DuqueOM
-/templates/monitoring/                  @DuqueOM
+/templates/service/monitoring/          @DuqueOM
 
 # Repository governance
 /CONTRIBUTING.md                        @DuqueOM

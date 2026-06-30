@@ -165,7 +165,7 @@ resource "google_container_node_pool" "workload" {
 
     # NoSchedule taint — pods without a matching toleration cannot land here.
     # ML service Deployments must add the matching toleration (see PR-A3
-    # docs in templates/k8s/base/deployment.yaml).
+    # docs in k8s/base/deployment.yaml).
     taint {
       key    = var.workload_node_taint_key
       value  = var.workload_node_taint_value

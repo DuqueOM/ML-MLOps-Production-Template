@@ -779,7 +779,7 @@ async def metrics() -> Response:
     NOT behind `verify_api_key`. Adding token auth here would break
     Prometheus scraping (the upstream prom client does not authenticate
     by default). Network-level restriction is the correct layer:
-    `templates/k8s/base/networkpolicy.yaml` only allows ingress on this
+    `k8s/base/networkpolicy.yaml` only allows ingress on this
     port from pods labeled `app: prometheus` in the `monitoring`
     namespace. Adopters running a multi-tenant cluster MUST keep that
     NetworkPolicy enforced; if Prometheus runs in a different namespace

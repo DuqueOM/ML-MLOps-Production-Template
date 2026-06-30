@@ -1,10 +1,10 @@
 # =============================================================================
 # Alertmanager routing config — R4-M5.
 # =============================================================================
-# Routes Prometheus alerts emitted by `templates/monitoring/alertmanager-rules.yaml`
+# Routes Prometheus alerts emitted by `monitoring/alertmanager-rules.yaml`
 # to the right receiver based on severity + action labels.
 #
-# Contract (locked by `templates/monitoring/tests/test_alertmanager_routing.py`):
+# Contract (locked by `monitoring/tests/test_alertmanager_routing.py`):
 #   severity=critical + action=page   → `oncall-pager`     (P1, < 2 min)
 #   severity=warning  + action=ticket → `platform-tickets` (P2, < 1 h)
 #   severity=warning  + action=retrain→ `ml-retrain`       (P3, < 24 h)

@@ -2,7 +2,7 @@
 # Production-like local setup for ML experiment tracking.
 #
 # Usage:
-#   docker compose -f templates/infra/docker-compose.mlflow.yml up -d
+#   docker compose -f infra/docker-compose.mlflow.yml up -d
 #
 # Access:
 #   MLflow UI:     http://localhost:5000

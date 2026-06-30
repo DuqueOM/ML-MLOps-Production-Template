@@ -1,7 +1,7 @@
 # JSON 6902 patch — R5-M3 egress narrowing for AWS staging.
 #
 # Replaces the base NetworkPolicy's wildcard `0.0.0.0/0:443` egress
-# (index 3 in templates/k8s/base/networkpolicy.yaml) with an AWS-focused
+# (index 3 in k8s/base/networkpolicy.yaml) with an AWS-focused
 # allowlist. Staging + prod MUST use this patch; dev keeps the wildcard.
 #
 # Target egress destinations on AWS:

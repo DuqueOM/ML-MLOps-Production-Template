@@ -36,7 +36,7 @@ canonical:
     path: "AGENTS.md"
     authority: "AGENTS.md#Agent Permissions Matrix"
   dynamic_risk:
-    path: "templates/common_utils/risk_context.py"
+    path: "templates/service/common_utils/risk_context.py"
     authority: "docs/decisions/ADR-010-dynamic-behavior-protocol.md"
   ci_autofix_policy:
     path: "templates/config/ci_autofix_policy.yaml"
@@ -396,7 +396,7 @@ surfaces:
 # Only informative; the runtime code owns its own defaults.
 # -----------------------------------------------------------------------------
 context_consumers:
-  - module: "templates/common_utils/risk_context.py"
+  - module: "templates/service/common_utils/risk_context.py"
     reads:
       - "company.risk_appetite"
       - "company.monthly_budget_usd"
@@ -412,7 +412,7 @@ context_consumers:
 # -----------------------------------------------------------------------------
 reports:
   schema: "templates/config/report_schema.json"
-  library: "templates/common_utils/reports.py"
+  library: "templates/service/common_utils/reports.py"
   cli: "scripts/generate_report.py"
   storage_root: "ops/reports/"
   authority: "docs/decisions/ADR-023-agentic-portability-and-context.md"
