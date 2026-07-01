@@ -34,7 +34,7 @@ It fits:
 - a **platform team** standardizing how ML services are built, deployed, monitored, and governed across multiple squads
 - a **solo engineer or tech lead** who needs a reference implementation to anchor technical decisions and ADRs
 
-It is not designed for data science notebooks, batch-only pipelines, or teams that have already adopted a full ML platform such as Vertex AI Pipelines or SageMaker Pipelines end-to-end.
+It is not designed for data science notebooks, batch-only pipelines, or teams that have already adopted a full ML platform such as Vertex AI Pipelines or SageMaker Pipelines end-to-end. Two narrow on-ramps exist for the last two, without diluting that scope: a [`batch-only` Kustomize overlay](templates/service/k8s/overlays/batch-only/) (ADR-036) for teams that only need scheduled scoring, no live API; and [`docs/EXPORTING.md`](docs/EXPORTING.md), which documents registering this template's own signed container image in Vertex AI Model Registry or as a SageMaker Model Package — the artifacts travel, the orchestration does not.
 
 ---
 

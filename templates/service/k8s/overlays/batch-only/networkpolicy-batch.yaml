@@ -1,0 +1,59 @@
+# =============================================================================
+# NetworkPolicy — batch CronJob egress (ADR-036)
+# =============================================================================
+# k8s/base/networkpolicy.yaml is shaped for the online path: its
+# podSelector matches `app: "{@ service_kebab @}"` and its ingress rules
+# admit nginx + Prometheus scraping on port 8000 — none of which applies
+# to a CronJob pod with no listening port. Reusing it as-is would NOT
+# select this pod at all (label mismatch), leaving the batch pod covered
+# only by networkpolicy-deny-default.yaml's namespace-wide deny — i.e.
+# no DNS, no cloud storage egress, and the init containers would hang.
+#
+# This policy selects the batch pod by its actual label and grants only
+# the egress it needs. No ingress rules: a batch Job never listens.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{@ service_kebab @}-batch-network-policy"
+  labels:
+    app: "{@ service_kebab @}-batch"
+    managed-by: kustomize
+spec:
+  podSelector:
+    matchLabels:
+      app: "{@ service_kebab @}-batch"
+  policyTypes:
+    - Egress
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # MLflow tracking server (optional — only if batch.py logs runs)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mlflow
+      ports:
+        - protocol: TCP
+          port: 5000
+
+    # -----------------------------------------------------------------
+    # Cloud storage egress (model download + input/output URIs).
+    # Same default-deny-then-overlay-narrows posture as the online path
+    # (May 2026 audit MED-11) — this overlay ships ZERO public egress by
+    # default. Add a cloud-specific FQDN/CIDR rule here (mirroring
+    # k8s/overlays/gcp-dev/patch-networkpolicy.yaml) before relying on
+    # this in staging/prod.
+    # -----------------------------------------------------------------
+    # Intentionally empty: add your cloud's storage egress rule here.

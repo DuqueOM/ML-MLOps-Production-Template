@@ -90,8 +90,10 @@ Each capability is rated **per environment**. Definitions:
 | Local-first profile (`--profile local`) | ready | — | — | ADR-033; no Docker/K8s/TF/cloud creds (D-35) |
 | Stack profile switching | ready | ready | ready | ADR-033; `/stack-switch` workflow (CONSULT) |
 | CCDS layout mapping | ready | ready | ready | ADR-034; `docs/CCDS_MAPPING.md` |
-| Adopter context file (`/onboard`) | ready | ready | ready | ADR-035; `*_context.local.yaml` (gitignored, no secrets) |
+| Adopter context file (`/onboard`) | ready | ready | ready | ADR-029 Wave 3; `*_context.local.yaml` validated against `adopter_context.schema.json` (gitignored, no secrets) |
 | `uv sync` support | ready | ready | ready | ADR-035; `make install-uv` (pip retained) |
+| Batch-only deployment topology | ready | ready | ready | ADR-036; `k8s/overlays/batch-only/` — no Deployment/Service/HPA, just the scoring `CronJob` |
+| Vertex AI / SageMaker export surface | ready | ready | ready | `docs/EXPORTING.md`; registers the same signed container image, not a pipeline port |
 
 ### Governance
 

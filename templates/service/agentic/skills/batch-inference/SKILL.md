@@ -39,6 +39,14 @@ skew AND training/batch skew — the classic silent-ML-failure mode.
   that is real-time; use /predict.
 - **Training-adjacent batch** (e.g., feature backfill for re-training)
   — that belongs in the training pipeline, not a batch scoring job.
+- **You will never run the live API at all** — this skill scaffolds
+  batch scoring *alongside* the existing Deployment/Service/HPA. If your
+  team only ever needs scheduled scoring, start from the shipped
+  `k8s/overlays/batch-only/` overlay instead (ADR-036) — it already
+  excludes the online-serving resources and ships a working
+  `cronjob-batch.yaml`; copy `src/<service>/batch.py` from Step 2 below
+  into that context rather than scaffolding a live Deployment you'll
+  never use.
 
 ## Architecture
 

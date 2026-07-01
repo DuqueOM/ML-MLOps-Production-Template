@@ -1,0 +1,159 @@
+# =============================================================================
+# CronJob — scheduled batch scoring (ADR-036, batch-only topology)
+# =============================================================================
+# Runs the SAME predictor image and model artifact as the online path would,
+# via `src/{@ service_slug @}/batch.py` (scaffold this module with the
+# `batch-inference` skill — it shares `predictor.predict_batch()` with the
+# live API so batch and real-time never diverge). This manifest ships as a
+# working example; adjust `schedule`, `INPUT_URI`/`OUTPUT_URI`, and resource
+# sizing to your actual row volume.
+#
+# Model loading follows the exact same init-container pattern as
+# k8s/base/deployment.yaml (D-11 — no model baked into the image):
+# `model-downloader` fetches the artifact, `model-verifier` checks its
+# Cosign signature (warn-only by default; set MODEL_SIGNATURE_VERIFY=true
+# to enforce, same as the online path's production overlays).
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{@ service_kebab @}-batch"
+  labels:
+    app: "{@ service_kebab @}-batch"
+    managed-by: kustomize
+spec:
+  schedule: "0 2 * * *"   # Nightly at 02:00 UTC — adjust to your cadence
+  concurrencyPolicy: Forbid   # two overlapping runs would double-write output
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600   # 1h hard cap
+      template:
+        metadata:
+          labels:
+            app: "{@ service_kebab @}-batch"
+        spec:
+          serviceAccountName: "{@ service_kebab @}-sa"
+          restartPolicy: Never
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+
+          tolerations:
+            - key: workload-type
+              operator: Equal
+              value: ml-services
+              effect: NoSchedule
+
+          # Same two-step model load + verify as k8s/base/deployment.yaml.
+          initContainers:
+            - name: model-downloader
+              image: cloud-cli-image:placeholder   # rewritten per overlay
+              command:
+                - sh
+                - -ec
+                - |
+                  gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib /models/model.joblib
+                  gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.sig /models/model.joblib.sig 2>/dev/null || \
+                    echo "[model-downloader] WARNING: signature file not found in bucket"
+                  gsutil cp gs://{MODEL_BUCKET}/{@ service_kebab @}/model.joblib.pem /models/model.joblib.pem 2>/dev/null || \
+                    echo "[model-downloader] WARNING: certificate file not found in bucket"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: "50m", memory: "64Mi" }
+                limits:   { cpu: "500m", memory: "256Mi" }
+              volumeMounts:
+                - name: model-storage
+                  mountPath: /models
+            - name: model-verifier
+              image: gcr.io/projectsigstore/cosign:v2.4.1@sha256:placeholder
+              command:
+                - sh
+                - -ec
+                - |
+                  set -eu
+                  MODE="${MODEL_SIGNATURE_VERIFY:-warn}"
+                  if [ ! -f /models/model.joblib.sig ] || [ ! -f /models/model.joblib.pem ]; then
+                    if [ "$MODE" = "true" ] || [ "$MODE" = "enforce" ]; then
+                      echo "[model-verifier] FATAL: signature or certificate missing (enforce mode)"
+                      exit 1
+                    fi
+                    echo "[model-verifier] WARNING: signature missing; warn mode"
+                    exit 0
+                  fi
+                  cosign verify-blob \
+                    --certificate /models/model.joblib.pem \
+                    --signature  /models/model.joblib.sig \
+                    --certificate-identity-regexp "https://github.com/{@ gh_org @}/{@ gh_repo @}/.github/workflows/retrain-service\.yml@.*" \
+                    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                    /models/model.joblib
+                  echo "[model-verifier] OK: model signature verified."
+              env:
+                - name: MODEL_SIGNATURE_VERIFY
+                  value: "warn"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: "50m",  memory: "64Mi" }
+                limits:   { cpu: "300m", memory: "192Mi" }
+              volumeMounts:
+                - name: model-storage
+                  mountPath: /models
+
+          containers:
+            - name: batch
+              image: "{@ service_kebab @}-predictor:latest"   # same image as online path
+              command:
+                - python
+                - src/{@ service_slug @}/batch.py
+                - --input
+                - "$(INPUT_URI)"
+                - --output
+                - "$(OUTPUT_URI)"
+              env:
+                - name: MODEL_PATH
+                  value: /models/model.joblib
+                - name: MODEL_VERSION
+                  value: "v1.0.0"
+                - name: INPUT_URI
+                  value: "gs://{DATA_BUCKET}/{@ service_kebab @}/batch-input/"
+                - name: OUTPUT_URI
+                  value: "gs://{DATA_BUCKET}/{@ service_kebab @}/batch-output/"
+                - name: SERVICE_METRIC_PREFIX
+                  value: "{@ service_slug @}"
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 65532
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                # Batch rows are processed in bulk (not one request at a
+                # time like the online path) — size up from the online
+                # defaults. Tune to your actual row volume.
+                requests: { cpu: "2",   memory: "4Gi" }
+                limits:   { cpu: "4",   memory: "8Gi" }
+              volumeMounts:
+                - name: model-storage
+                  mountPath: /models
+                  readOnly: true
+
+          volumes:
+            - name: model-storage
+              emptyDir: {}

@@ -1,0 +1,5 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: "{@ service_kebab @}-cc-online"
+$patch: delete

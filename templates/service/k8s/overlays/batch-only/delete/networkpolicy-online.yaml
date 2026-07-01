@@ -1,0 +1,9 @@
+# Deletes the online-shaped NetworkPolicy (ingress from nginx/Prometheus on
+# port 8000 — meaningless for a CronJob with no listening port). Replaced
+# by ../networkpolicy-batch.yaml, which selects the batch pod's actual
+# label and grants only the egress a batch job needs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: "{@ service_kebab @}-network-policy"
+$patch: delete

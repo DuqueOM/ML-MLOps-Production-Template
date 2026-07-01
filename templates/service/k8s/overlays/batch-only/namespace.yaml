@@ -1,0 +1,17 @@
+# =============================================================================
+# Namespace — batch-only topology, PSS enforce=restricted
+# =============================================================================
+# A batch-only namespace runs no long-lived, internet-facing workload, so it
+# can default straight to `restricted` (no `baseline` on-ramp needed the way
+# the online-serving dev overlay uses one). Adjust if your CronJob's init
+# containers need capabilities `restricted` forbids.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: "{@ service_kebab @}-batch"
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    app.kubernetes.io/managed-by: kustomize
+    environment: batch

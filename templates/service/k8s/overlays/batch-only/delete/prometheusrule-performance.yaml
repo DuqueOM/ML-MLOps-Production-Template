@@ -1,0 +1,5 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: "{@ service_kebab @}-performance-alerts"
+$patch: delete

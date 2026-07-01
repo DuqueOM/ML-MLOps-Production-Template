@@ -1,0 +1,60 @@
+# =============================================================================
+# Kustomize overlay — batch-only topology (ADR-036)
+# =============================================================================
+# For adopters who NEVER run the live /predict API — only scheduled batch
+# scoring. Includes the FULL `../../base` (Kustomize's load restrictor
+# forbids referencing individual sibling files across directory
+# boundaries — only whole kustomization directories) and then deletes the
+# online-serving-only resources (Deployment, Service, HPA, PDB,
+# AnalysisTemplates, performance/drift CronJobs + their PrometheusRules,
+# the online-shaped NetworkPolicy) via `$patch: delete`, one resource per
+# file under `delete/`. See ADR-036 for the full rationale.
+#
+# One resource per file is deliberate, not stylistic: the bundled
+# kustomize/kyaml version panics (nil-pointer dereference) on a
+# multi-document strategic-merge patch file referenced by a single
+# `patches: - path:` entry. Verified locally with `kubectl kustomize`;
+# single-document files are the reproducibly stable path.
+#
+# Usage:
+#   kubectl kustomize k8s/overlays/batch-only/
+#
+# Scaffold `src/{@ service_slug @}/batch.py` with the `batch-inference`
+# skill before applying (see agentic/skills/batch-inference/SKILL.md).
+#
+# Adding a cloud: copy the `images:` + `patches:` block from
+# k8s/overlays/gcp-dev/kustomization.yaml (or aws-dev/) — this overlay is
+# deliberately cloud-agnostic; see ADR-036 §Scope.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: "{@ service_kebab @}-batch"
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - cronjob-batch.yaml
+  - networkpolicy-batch.yaml
+
+patches:
+  - path: delete/deployment.yaml
+  - path: delete/service.yaml
+  - path: delete/hpa.yaml
+  - path: delete/pdb.yaml
+  - path: delete/analysistemplate-cc-online.yaml
+  - path: delete/analysistemplate-cc-post-deploy.yaml
+  - path: delete/prometheusrule-slo.yaml
+  - path: delete/prometheusrule-performance.yaml
+  - path: delete/cronjob-performance-monitor.yaml
+  - path: delete/cronjob-ground-truth-ingester.yaml
+  - path: delete/cronjob-drift-detection.yaml
+  - path: delete/networkpolicy-online.yaml
+
+images:
+  - name: "{@ service_kebab @}-predictor"
+    newName: "{REGION}-docker.pkg.dev/{PROJECT_ID}/ml-images/{@ service_kebab @}-predictor"
+    newTag: "v1.0.0"
+  - name: "cloud-cli-image"
+    newName: "gcr.io/google.com/cloudsdktool/google-cloud-cli"
+    newTag: "slim"

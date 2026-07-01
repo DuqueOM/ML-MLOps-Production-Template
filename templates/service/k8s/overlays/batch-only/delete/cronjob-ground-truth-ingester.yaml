@@ -1,0 +1,5 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{@ service_kebab @}-ground-truth-ingester"
+$patch: delete

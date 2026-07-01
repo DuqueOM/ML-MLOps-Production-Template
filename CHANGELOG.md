@@ -10,6 +10,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Added
+
+- **ADR-036 — Batch-only deployment topology**
+  (`docs/decisions/ADR-036-batch-only-deployment-topology.md`): a new
+  `templates/service/k8s/overlays/batch-only/` Kustomize overlay for
+  adopters who never run the live `/predict` API — only scheduled batch
+  scoring. Includes the full `../../base` and removes the online-serving
+  resources (Deployment, Service, HPA, PDB, both `AnalysisTemplate`s,
+  performance/drift `CronJob`s + their `PrometheusRule`s, the
+  online-shaped `NetworkPolicy`) via one-resource-per-file
+  `$patch: delete` — a multi-document patch file panics the bundled
+  kustomize/kyaml version (verified locally); ships a working
+  `cronjob-batch.yaml` and a dedicated `networkpolicy-batch.yaml` (the
+  base policy's `podSelector` would not match the batch pod's label,
+  silently leaving it with no egress at all).
+- **`docs/EXPORTING.md`**: the Vertex AI / SageMaker "export surface"
+  documentation promised by `README.md`'s non-claims list — what travels
+  (the signed container image, API/data contracts, quality evidence) vs.
+  what doesn't (K8s manifests, Terraform, Kyverno policies), with worked
+  `gcloud ai models upload` and SageMaker Model Package registration steps
+  for the *same* image this template's CI already builds and signs.
+- `agentic/skills/batch-inference/SKILL.md`: cross-references the new
+  `batch-only` overlay for adopters who need scheduled scoring with no
+  live API at all (previously the skill only covered adding batch
+  scoring *alongside* an existing online Deployment).
+- `docs/ADOPTION.md`: two new maturity-matrix rows (batch-only topology,
+  export surface); corrected a pre-existing citation (`/onboard` was
+  attributed to ADR-035 — it is ADR-029 Wave 3).
+
 ---
 
 ## [v0.20.0] — 2026-07-01

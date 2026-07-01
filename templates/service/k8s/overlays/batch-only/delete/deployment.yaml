@@ -1,0 +1,9 @@
+# One resource per file (not consolidated) — a known crash in the bundled
+# kustomize/kyaml version (nil-pointer panic) triggers on multi-document
+# strategic-merge patch files; single-document files are the proven-stable
+# path. See ADR-036.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{@ service_kebab @}-predictor"
+$patch: delete
