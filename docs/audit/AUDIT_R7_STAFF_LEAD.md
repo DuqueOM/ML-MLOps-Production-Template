@@ -26,7 +26,7 @@ releases — three items of which are already fixed in this pass.
 |-----------|-------|----------------|
 | Agentic identity coherence | A | 16 rules / 17 skills / 13 workflows / 4 adapters; all 4 validators green; canonical store + thin adapters, no policy duplication |
 | Structure & hierarchy | A | Canonical `agentic/` + generated adapters; META vs render-root layering is deliberate and validated |
-| Security / supply chain | A | IRSA/WIF default, no static creds, cosign+SBOM+Kyverno chain, pre-commit gitleaks/bandit, per-purpose IAM (D-31) tested |
+| Security / supply chain | A | IRSA/WIF default, no static creds, Cosign + SBOM + Kyverno chain, pre-commit gitleaks and bandit, per-purpose IAM (D-31) tested |
 | Reliability / testing | A | 677 passed / 41 skipped / 0 failed; probes+warmup+graceful-shutdown invariants; SLO PrometheusRules |
 | Cloud-agnosticism | A− | GCP+AWS parity via overlays + per-env backends; Vertex/SageMaker explicitly out of scope (by design) |
 | Code / syntax / scripts | A | Scaffolder is a thin Copier wrapper; `{@ @}` delimiter choice is sound and documented (ADR-030) |
