@@ -21,6 +21,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   importlib is safe). A new **"Root suite collects" guard step** in
   `template-context-tests.yml` runs `pytest --collect-only -q` from the root
   so this supported dev flow can never break without CI signal again.
+  Second layer, exposed by CI run 28552562658: invocations with paths under
+  `templates/service/` resolve rootdir to the SERVICE `pyproject.toml`, so
+  the flag is set there too — and it ships to scaffolded services, which
+  carry the same three-sibling `tests` layout.
 - **Alertmanager routing contract revived** —
   (`templates/service/monitoring/tests/test_alertmanager_routing.py`): the
   module anchored its config paths at `parents[3]` from before the Copier

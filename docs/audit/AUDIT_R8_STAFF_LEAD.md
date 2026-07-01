@@ -603,7 +603,7 @@ de agent-local (+ su `releases/v0.6.0.md`).
 | R8-02 | ✅ Fixed | 500 genérico con `error_id` de correlación + regression test |
 | R8-03 | ✅ Fixed | Canal `reflection_notes` → `generate()` (**ADR-009**) + 2 tests (incl. no-evidencia-para-verifier) |
 | R8-04 | ✅ Fixed | SSoT `core.__version__` (0.6.0), pyproject `dynamic`, superficie importa; **el gate nuevo atrapó una 5.ª copia** en `app/__init__.py` en su primera ejecución |
-| R8-05 | ✅ Fixed | `--import-mode=importlib` en addopts raíz + guard `--collect-only` en CI. **Bonus**: la colisión enmascaraba un módulo muerto — `test_alertmanager_routing.py` con paths pre-Stage-2a (`templates/templates/…`); revivido (paths file-relative + X_OK guard para amtool), 14/14 verde, y ahora ejecutado por el lane template-context |
+| R8-05 | ✅ Fixed | `--import-mode=importlib` en addopts raíz **y del pyproject del servicio** (los invokes con paths bajo `templates/service/` resuelven rootdir ahí, y ese pyproject viaja al servicio scaffoldeado — segunda capa expuesta por el primer run de CI) + guard `--collect-only` en CI. **Bonus**: la colisión enmascaraba un módulo muerto — `test_alertmanager_routing.py` con paths pre-Stage-2a (`templates/templates/…`); revivido (paths file-relative + X_OK guard para amtool), 14/14 verde, y ahora ejecutado por el lane template-context |
 | R8-06 | ✅ Fixed | Lint CI a superficie completa (`conftest.py`, `evals/`, `scripts/`); drift de black aplicado |
 | R8-07 | ✅ Fixed | Gate por ratio (≥0.90) + exit code, tz-aware, p95 con clamp, inglés |
 | R8-08 | ✅ Fixed | `asyncio_mode="auto"` raíz + plugin en lane. Suite raíz: **963 passed, 0 failed** |
