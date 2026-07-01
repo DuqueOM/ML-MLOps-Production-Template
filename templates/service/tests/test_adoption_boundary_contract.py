@@ -56,6 +56,9 @@ WORKFLOW_TO_MAKE: dict[str, str] = {
     "new-adr": "new-adr",
     "secret-breach": "secret-breach-check",
     "scaffold-update": "scaffold-update",
+    "doc-coherence": "doc-coherence",
+    "stack-switch": "switch-profile",
+    "onboard": "onboard",
 }
 
 

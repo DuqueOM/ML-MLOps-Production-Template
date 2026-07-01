@@ -700,6 +700,24 @@ jobs:
       - name: Check vendored runtime files match canonical originals
         run: python3 scripts/check_vendored_runtime_drift.py
 
+  doc-coherence-gate:
+    name: Documentation Coherence Gate (rule 16, ADR-031)
+    runs-on: ubuntu-latest
+    # Rule 16 / ADR-031: every fact restated across documents has one source
+    # of truth and may not drift from it. This deterministic gate fails when
+    # VERSION ≠ CHANGELOG, llms.txt lags the version, the anti-pattern count
+    # or agentic surface counts disagree across docs, or an ADR number is
+    # silently dropped without a tombstone. The `doc-coherence` skill fixes
+    # drift; this gate enforces it (agents accelerate, CI enforces).
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check cross-document coherence
+        run: python3 scripts/check_doc_coherence.py
+
   scaffold-e2e:
     name: Scaffolder End-to-End Test
     runs-on: ubuntu-latest

@@ -1,0 +1,36 @@
+# =============================================================================
+# Adopter Context — ADR-029 Wave 3 (template-onboard skill / /onboard workflow)
+# =============================================================================
+# Distinct from company_context.example.yaml (ADR-023 risk/compliance context,
+# consumed by risk_context.py). This file captures adopter-specific
+# infrastructure wiring — cloud provider, registry, tracking URIs — and is
+# validated against `config/adopter_context.schema.json`, never `context.schema.json`.
+#
+# Adopter workflow:
+#   1. Copy this file to `<service_slug>_context.local.yaml` at the repo root
+#      (gitignored — NEVER commit the .local variant). `make onboard` does
+#      this for you.
+#   2. Replace every placeholder value below with your real settings.
+#   3. Validate: see the command printed by `make onboard`.
+#
+# What does NOT belong in this file (D-17/D-18):
+#   - Credentials, API tokens, service-account JSON, webhook URLs.
+#     Those live in AWS Secrets Manager / GCP Secret Manager, mounted via
+#     IRSA / Workload Identity. See rule 12-security-secrets.
+# =============================================================================
+
+cloud_provider: local  # gcp | aws | local
+
+container_registry: null  # e.g. gcr.io/my-org/ — null when profile is local
+
+mlflow_tracking_uri: "file://./mlruns"  # tracking server URL for staging/prod
+
+dvc_remote: null  # e.g. gs://my-bucket/dvc/ or s3://my-bucket/dvc/
+
+github_org: "my-org"
+
+monitoring_endpoint: null  # Prometheus push gateway URL
+
+log_level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+
+profile: local  # must match configs/profiles/active_profile.yaml (ADR-033)

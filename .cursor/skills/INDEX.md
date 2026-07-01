@@ -15,6 +15,7 @@ no skill body lives here.
 | `debug-ml-inference` | `AUTO` | `agentic/skills/debug-ml-inference/SKILL.md` |
 | `deploy-aws` | `CONSULT` | `agentic/skills/deploy-aws/SKILL.md` |
 | `deploy-gke` | `CONSULT` | `agentic/skills/deploy-gke/SKILL.md` |
+| `doc-coherence` | `AUTO` | `agentic/skills/doc-coherence/SKILL.md` |
 | `drift-detection` | `AUTO` | `agentic/skills/drift-detection/SKILL.md` |
 | `eda-analysis` | `AUTO` | `agentic/skills/eda-analysis/SKILL.md` |
 | `model-retrain` | `CONSULT` | `agentic/skills/model-retrain/SKILL.md` |
@@ -24,6 +25,8 @@ no skill body lives here.
 | `rollback` | `STOP` | `agentic/skills/rollback/SKILL.md` |
 | `rule-audit` | `AUTO` | `agentic/skills/rule-audit/SKILL.md` |
 | `scaffold-update` | `CONSULT` | `agentic/skills/scaffold-update/SKILL.md` |
+| `stack-switch` | `CONSULT` | `agentic/skills/stack-switch/SKILL.md` |
+| `template-onboard` | `AUTO` | `agentic/skills/template-onboard/SKILL.md` |
 | `secret-breach-response` | `STOP` | `agentic/skills/secret-breach-response/SKILL.md` |
 | `security-audit` | `AUTO` | `agentic/skills/security-audit/SKILL.md` |
 

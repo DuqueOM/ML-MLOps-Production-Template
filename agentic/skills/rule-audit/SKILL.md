@@ -38,7 +38,7 @@ STOP because they affect all future services.
 - **On third-party code** — this skill is scoped to the template's own
   conventions.
 
-## Invariant catalogue (D-01 → D-34)
+## Invariant catalogue (D-01 → D-35)
 
 The checks below map one-to-one onto the AGENTS.md anti-pattern table.
 The agent runs the matching query for each ID and records PASS/FAIL +
@@ -222,8 +222,8 @@ For large repos the agent can restrict scope:
 
 ## Related
 
-- AGENTS.md anti-pattern table (D-01..D-34)
+- AGENTS.md anti-pattern table (D-01..D-35)
 - `agentic/skills/security-audit/SKILL.md` — deeper security scan
-- `agentic/skills/debug-ml-inference/SKILL.md` — uses D-01..D-34 as
+- `agentic/skills/debug-ml-inference/SKILL.md` — uses D-01..D-35 as
   diagnostic checklist
 - `common_utils/agent_context.py::AuditLog` — audit trail integration

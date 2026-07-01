@@ -13,7 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        # 3.13 added (audit R7 F-4): the Docker base image is python:3.13-slim,
+        # so CI must exercise 3.13 to catch deps that break on the shipped runtime.
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v7
 

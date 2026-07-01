@@ -270,6 +270,7 @@ GitHub Actions flow with required_reviewers.
 {% raw %}
 | D-34 | Unquoted Jinja tokens (`{@ @}`) in YAML list items | An unquoted `- {@ service_name @}` is invalid YAML (`@` cannot start a token). All `{@ @}` tokens in YAML lists MUST be quoted: `- "{@ service_name @}"`. Enforced by `rg -n '^\s*- \{@' templates/service/ --glob "*.yml"` returning zero hits |
 {% endraw %}
+| D-35 | A `local` stack profile that accepts cloud credentials or targets a cluster | The `local` profile (`configs/profiles/local.yaml`) MUST set `requires.cloud_credentials: false`, `requires.kubernetes: false`, `requires.docker: false`, and `deploy.enabled: false`. A local profile that imports cloud creds or targets a cluster violates the local-first contract (ADR-033). Enforced by `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps` |
 
 ## Session Initialization Protocol
 
@@ -288,7 +289,7 @@ When starting a new session in a project derived from this template:
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
 - `security-audit` — pre-build/pre-deploy scans: gitleaks, trivy, cosign verify, IAM review
 - `secret-breach-response` — incident playbook when a secret is leaked (detect → rotate → audit → postmortem)
-- `debug-ml-inference` — diagnose serving issues (starts with D-01..D-34 checklist)
+- `debug-ml-inference` — diagnose serving issues (starts with D-01..D-35 checklist)
 - `drift-detection` — analyze PSI drift + concept drift (sliced performance)
 - `concept-drift-analysis` — root-cause sliced performance regressions with ground truth
 - `model-retrain` — execute retraining with quality gates + Champion/Challenger
@@ -298,8 +299,11 @@ When starting a new session in a project derived from this template:
 - `cost-audit` — monthly cloud cost review
 - `batch-inference` — scaffold + run batch scoring jobs (CronJob + Parquet output) reusing the service's model and feature-engineering code
 - `performance-degradation-rca` — end-to-end RCA for a performance-degradation incident: correlates sliced metrics, drift, deploy history, upstream data changes, and prediction logs into one evidence-backed root cause
-- `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-34; produces a PASS/FAIL report with file:line evidence
+- `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-35; produces a PASS/FAIL report with file:line evidence
 - `scaffold-update` — update an existing scaffolded service with the latest template changes via `copier update`
+- `stack-switch` — switch a scaffolded service between stack profiles (local, staging, prod)
+- `template-onboard` — interview the adopter and emit a `*_context.local.yaml` (no secrets)
+- `doc-coherence` — keep cross-document facts coherent (version, CHANGELOG, ADRs, anti-pattern + surface counts); drives `scripts/check_doc_coherence.py` (rule 16, ADR-031)
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -315,11 +319,14 @@ When starting a new session in a project derived from this template:
 - `/performance-review` — monthly sliced-performance review using ground-truth metrics (detect silent concept drift, document findings)
 - `/rollback` — emergency rollback of a production ML service — pairs with the `rollback` skill (STOP-class operation)
 - `/scaffold-update` — pull template improvements into an existing scaffolded service via `copier update`
+- `/stack-switch` — switch stack profile (local, staging, prod)
+- `/onboard` — generate adopter context file (interview + validate, no secrets)
+- `/doc-coherence` — restore + verify cross-document coherence (version, CHANGELOG, ADRs, anti-pattern + surface counts)
 
 ## Agentic Configuration
 
 ```
-agentic/                                # Canonical agentic source (ADR-027) — 16 rules, 17 skills, 13 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 17 rules, 20 skills, 16 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
@@ -336,14 +343,16 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── 12-security-secrets.md          # always_on — D-17/D-18/D-19, no hardcoded creds
 │   ├── 13-closed-loop-monitoring.md    # glob: prediction_logger/ground_truth/performance_monitor — D-20/21/22
 │   ├── 14-api-contracts.md             # glob: **/app/schemas.py, **/tests/contract/** — D-28, OpenAPI snapshot + semver
-│   └── 15-template-lifecycle.md        # glob: copier.yml, templates/service/** — D-33/34, Copier scaffolding invariants
-├── skills/                             # 17 multi-step operational procedures
+│   ├── 15-template-lifecycle.md        # glob: copier.yml, templates/service/** — D-33/34, Copier scaffolding invariants
+│   └── 16-doc-coherence.md             # glob: VERSION, CHANGELOG.md, llms.txt, docs/decisions/** — cross-doc coherence (ADR-031)
+├── skills/                             # 18 multi-step operational procedures
 │   ├── batch-inference/SKILL.md
 │   ├── concept-drift-analysis/SKILL.md
 │   ├── cost-audit/SKILL.md
 │   ├── debug-ml-inference/SKILL.md
 │   ├── deploy-aws/SKILL.md
 │   ├── deploy-gke/SKILL.md
+│   ├── doc-coherence/SKILL.md
 │   ├── drift-detection/SKILL.md
 │   ├── eda-analysis/SKILL.md
 │   ├── model-retrain/SKILL.md
@@ -354,9 +363,12 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── rule-audit/SKILL.md
 │   ├── scaffold-update/SKILL.md
 │   ├── secret-breach-response/SKILL.md
-│   └── security-audit/SKILL.md
-└── workflows/                          # 13 slash-command workflows
+│   ├── security-audit/SKILL.md
+│   ├── stack-switch/SKILL.md
+│   └── template-onboard/SKILL.md
+└── workflows/                          # 16 slash-command workflows
     ├── cost-review.md                  # /cost-review
+    ├── doc-coherence.md                # /doc-coherence
     ├── drift-check.md                  # /drift-check
     ├── eda.md                          # /eda
     ├── incident.md                     # /incident
@@ -368,7 +380,9 @@ agentic/                                # Canonical agentic source (ADR-027) —
     ├── retrain.md                      # /retrain
     ├── rollback.md                     # /rollback (STOP-class)
     ├── scaffold-update.md              # /scaffold-update
-    └── secret-breach.md                # /secret-breach (STOP-class)
+    ├── secret-breach.md                # /secret-breach (STOP-class)
+    ├── stack-switch.md                 # /stack-switch
+    └── onboard.md                      # /onboard
 ```
 
 ### Skills → Workflow Cross-References
@@ -384,6 +398,7 @@ agentic/                                # Canonical agentic source (ADR-027) —
 | Tag push (GKE) | `deploy-gke` | — |
 | Tag push (EKS) | `deploy-aws` | — |
 | Scheduled retrain | `model-retrain` | `/drift-check` post-deploy |
+| New ADR / version bump / surface change | `doc-coherence` | `/doc-coherence` (propagate + gate) |
 | New ML service request | `new-service` | `/new-service` |
 | Monthly cost review | `cost-audit` | `/cost-review` |
 

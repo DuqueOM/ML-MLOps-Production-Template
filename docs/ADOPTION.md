@@ -81,13 +81,25 @@ Each capability is rated **per environment**. Definitions:
 | Rollback runbook + automation | ready | ready | ready | `/rollback` workflow + `make rollback` |
 | Reproducible drills (drift, deploy-degraded) | ready | ready | ready | PR-C3; evidence under `docs/runbooks/drills/` |
 
+### Scaffolding & local-first
+
+| Capability | dev | staging | prod | Notes |
+|---|---|---|---|---|
+| Copier-based scaffolding (`copier copy`) | ready | ready | ready | ADR-030; `new-service.sh` is a thin wrapper |
+| `copier update` for template upgrades | ready | ready | ready | ADR-030; `/scaffold-update` workflow |
+| Local-first profile (`--profile local`) | ready | — | — | ADR-033; no Docker/K8s/TF/cloud creds (D-35) |
+| Stack profile switching | ready | ready | ready | ADR-033; `/stack-switch` workflow (CONSULT) |
+| CCDS layout mapping | ready | ready | ready | ADR-034; `docs/CCDS_MAPPING.md` |
+| Adopter context file (`/onboard`) | ready | ready | ready | ADR-035; `*_context.local.yaml` (gitignored, no secrets) |
+| `uv sync` support | ready | ready | ready | ADR-035; `make install-uv` (pip retained) |
+
 ### Governance
 
 | Capability | dev | staging | prod | Notes |
 |---|---|---|---|---|
-| ADRs for non-trivial decisions | ready | ready | ready | 17 ADRs cover all design choices |
+| ADRs for non-trivial decisions | ready | ready | ready | 35 ADRs cover all design choices |
 | Audit trail (append-only `ops/audit.jsonl`) | ready | ready | ready | ADR-014; CLI `scripts/audit_record.py` |
-| Anti-pattern policy tests on scaffolded output | ready | ready | ready | PR-R2-11; D-01..D-34 enforced |
+| Anti-pattern policy tests on scaffolded output | ready | ready | ready | PR-R2-11; D-01..D-35 enforced |
 | Agent risk-context dynamic mode (AUTO→CONSULT→STOP) | ready | ready | ready | ADR-014; risk signals from Prometheus |
 | SOC2 / HIPAA controls | roadmap | roadmap | roadmap | Organizational, not template (ADR-001) |
 
@@ -121,6 +133,9 @@ inheriting the agentic surface.
 | `/new-adr` | `make new-adr TITLE='<title>'` | `docs/decisions/template.md` |
 | `/secret-breach` | `make secret-breach-check` (gitleaks scan) + escalation runbook | `docs/runbooks/secret-breach.md` |
 | `/scaffold-update` | `make scaffold-update` (copier update) | `MIGRATION.md` |
+| `/doc-coherence` | `make doc-coherence` (runs `scripts/check_doc_coherence.py`) | `agentic/skills/doc-coherence/SKILL.md` (rule 16, ADR-031) |
+| `/stack-switch` | `make switch-profile PROFILE=local\|staging\|prod` | `agentic/skills/stack-switch/SKILL.md` (ADR-033) |
+| `/onboard` | `make onboard` (copies `config/adopter_context.example.yaml`, prints the schema-validation command) | `agentic/skills/template-onboard/SKILL.md` (ADR-029 Wave 3) |
 
 ### Skill → CLI / runbook map
 
@@ -139,7 +154,10 @@ underlying CLI tool plus the corresponding human runbook:
 | `cost-audit` | `make cost-review` + `docs/runbooks/cost-review.md` |
 | `security-audit` | `make security-audit` (gitleaks + bandit + trivy) |
 | `secret-breach-response` | `make secret-breach-check` + `docs/runbooks/secret-breach.md` |
-| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-34 are documented) |
+| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-35 are documented) |
+| `doc-coherence` | `make doc-coherence` (cross-document coherence gate; rule 16, ADR-031) |
+| `stack-switch` | `make switch-profile PROFILE=<local\|staging\|prod>` (ADR-033) |
+| `template-onboard` | `make onboard` (ADR-029 Wave 3) |
 | `debug-ml-inference` | `docs/runbooks/debug-ml-inference.md` (manual procedure; no CLI equivalent — pure RCA reasoning) |
 | `performance-degradation-rca` | `docs/runbooks/performance-degradation-rca.md` (manual RCA procedure) |
 | `concept-drift-analysis` | `make performance-review` + `docs/runbooks/concept-drift-analysis.md` |
@@ -158,7 +176,7 @@ If your team adopts the template **without agents**, you lose:
 
 You **do not** lose:
 
-- any of the production invariants (D-01..D-34 are codified in tests, not
+- any of the production invariants (D-01..D-35 are codified in tests, not
   agent behavior)
 - contract tests (run on every PR via the same CI workflows)
 - supply-chain security (Cosign + SBOM + Kyverno are pipeline, not agent)

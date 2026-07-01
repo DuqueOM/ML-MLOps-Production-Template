@@ -5,9 +5,9 @@
 Two clearly labeled tracks below. Pick ONE — do not mix them on a first read.
 
 - **Track A** — 5-minute taste: runs the `examples/minimal/` demo. Confirms your laptop is ready. No scaffolding, no cluster, no Docker.
-- **Track B** — 10-minute scaffold: generates a full-shape service via `new-service.sh` and runs its test suite locally. Still no cluster.
+- **Track B** — 10-minute scaffold: generates a full-shape service via `copier copy` and runs its test suite locally. Still no cluster.
 
-If you need the longer "Day 1 to Month 2" arc (cluster deploys, production overlay, closed-loop retraining), read [`docs/PROGRESSION.md`](docs/PROGRESSION.md) AFTER finishing Track A or B.
+If you need the longer "Day 1 to Month 2" arc (cluster deploys, production overlay, closed-loop retraining), read [`docs/PROGRESSION.md`](docs/PROGRESSION.md) AFTER finishing Track A or B. For a narrated walk-through from notebook to production, see [`docs/TUTORIAL.md`](docs/TUTORIAL.md).
 
 ---
 
@@ -73,10 +73,13 @@ cd ML-MLOps-Production-Template
 pip install copier
 
 # Scaffold a new service (Copier renders templates/service/ with your answers)
-./templates/scripts/new-service.sh ChurnPredictor churn_predictor
+copier copy https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
+
+# Or via the thin wrapper script
+# ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
 
 # Or via Make
-make new-service NAME=ChurnPredictor SLUG=churn_predictor
+# make new-service NAME=ChurnPredictor SLUG=churn_predictor
 ```
 
 This creates a complete service directory:
@@ -120,6 +123,9 @@ cd ChurnPredictor
 #    Edit src/churn_predictor/training/model.py
 
 # 5. Install, train, serve, and verify the FastAPI contract
+# Option A: uv (recommended, 10× faster)
+uv sync
+# Option B: pip (compatible)
 pip install -r requirements.txt
 make train DATA=data/raw/your-dataset.csv
 pytest tests/test_fastapi_template_contract.py -v
@@ -165,6 +171,8 @@ If using Windsurf Cascade, Claude Code, or Cursor, the template includes pre-con
 # In your AI assistant:
 /new-service       # Scaffold a new ML service
 /scaffold-update   # Pull template improvements into an existing service
+/onboard           # Generate adopter context file (interview + validate)
+/stack-switch      # Switch stack profile (local, staging, prod)
 /retrain           # Retrain with quality gates
 /drift-check       # Run PSI drift analysis
 /release           # Full multi-cloud release
@@ -210,6 +218,7 @@ Requirements:
 ## Next Steps
 
 - **[README.md](README.md)** — Full documentation, architecture, invariants
+- **[docs/TUTORIAL.md](docs/TUTORIAL.md)** — Narrated notebook-to-production walk-through
 - **[RUNBOOK.md](RUNBOOK.md)** — Template operations reference
 - **[CHANGELOG.md](CHANGELOG.md)** — Release history
 - **[examples/minimal/](examples/minimal/)** — Working fraud detection demo

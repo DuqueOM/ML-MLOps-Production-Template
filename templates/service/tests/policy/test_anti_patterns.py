@@ -401,6 +401,38 @@ def test_d32_drift_cronjob_python_path(scaffold_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# D-35: Local profile accepting cloud credentials or targeting a cluster
+# ---------------------------------------------------------------------------
+
+
+def test_d35_local_profile_no_cloud_deps(scaffold_dir: Path) -> None:
+    """The `local` profile YAML must not accept cloud creds, K8s, Docker,
+    or enable deploy.
+
+    Invariant: the `local` profile is the zero-cloud-dependency on-ramp
+    (ADR-033). A `local` profile that imports cloud creds or targets a
+    cluster violates the local-first contract and defeats the adoption
+    purpose of the profile.
+    """
+    profile_yaml = scaffold_dir / "configs" / "profiles" / "local.yaml"
+    if not profile_yaml.is_file():
+        pytest.skip("configs/profiles/local.yaml not produced by scaffolder")
+
+    yaml = pytest.importorskip("yaml")
+    data = yaml.safe_load(profile_yaml.read_text())
+
+    requires = data.get("requires", {})
+    assert (
+        requires.get("cloud_credentials") is False
+    ), "D-35 violation: local profile has requires.cloud_credentials != false"
+    assert requires.get("kubernetes") is False, "D-35 violation: local profile has requires.kubernetes != false"
+    assert requires.get("docker") is False, "D-35 violation: local profile has requires.docker != false"
+
+    deploy = data.get("deploy", {})
+    assert deploy.get("enabled") is False, "D-35 violation: local profile has deploy.enabled != false"
+
+
+# ---------------------------------------------------------------------------
 # Process-only anti-patterns — documented but not statically inspectable.
 # These SKIP explicitly so the coverage table stays complete.
 # ---------------------------------------------------------------------------

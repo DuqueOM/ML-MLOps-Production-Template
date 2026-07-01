@@ -184,6 +184,9 @@ rules:
   - id: "15-template-lifecycle"
     source: "agentic/rules/15-template-lifecycle.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "16-doc-coherence"
+    source: "agentic/rules/16-doc-coherence.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
 
 # -----------------------------------------------------------------------------
 # Skills — canonical source is agentic/skills/. The authoritative set
@@ -219,6 +222,11 @@ skills:
     source: "agentic/skills/deploy-gke/SKILL.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "CONSULT"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "doc-coherence"
+    source: "agentic/skills/doc-coherence/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
   - id: "drift-detection"
     source: "agentic/skills/drift-detection/SKILL.md"
@@ -283,6 +291,11 @@ skills:
 workflows:
   - id: "cost-review"
     source: "agentic/workflows/cost-review.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "doc-coherence"
+    source: "agentic/workflows/doc-coherence.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"

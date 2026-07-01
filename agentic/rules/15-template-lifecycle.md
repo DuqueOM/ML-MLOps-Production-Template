@@ -48,6 +48,27 @@ service:
 return zero hits. Every match is an unquoted Jinja token in a YAML list.
 {% endraw %}
 
+## D-35 — Local profile accepting cloud credentials or targeting a cluster
+
+The `local` stack profile (`configs/profiles/local.yaml`) MUST NOT accept
+cloud credentials, target a Kubernetes cluster, or require Docker. This
+enforces the local-first contract (ADR-033): the `local` profile is the
+zero-cloud-dependency on-ramp for adopters evaluating the template.
+
+**Required fields in `configs/profiles/local.yaml`**:
+```yaml
+requires:
+  cloud_credentials: false
+  kubernetes: false
+  docker: false
+deploy:
+  enabled: false
+```
+
+**Check**: `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps`
+parses the scaffolded `configs/profiles/local.yaml` and asserts all four
+fields are `false`.
+
 ## Scaffolding invariant
 
 `scripts/test_scaffold.sh` MUST validate:

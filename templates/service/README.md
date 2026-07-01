@@ -5,10 +5,19 @@
 ## Quick Start
 
 ```bash
+# Option A: uv (recommended, 10x faster) — make install-uv
+uv sync
+
+# Option B: pip (compatible, e.g. air-gapped environments)
 pip install -r requirements.txt
+
 python src/{@ service_slug @}/training/train.py --data data/raw/dataset.csv
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+Coming from a Cookiecutter Data Science background? See
+[docs/CCDS_MAPPING.md](docs/CCDS_MAPPING.md) for how this layout maps to the
+`data/ notebooks/ models/ references/` vocabulary (ADR-034).
 
 ## Model
 

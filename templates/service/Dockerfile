@@ -1,7 +1,7 @@
 # =============================================================================
 # Multi-stage Dockerfile for {@ service_name @}
 # =============================================================================
-# Target image size: ~600MB (Python 3.11 slim + ML deps)
+# Target image size: ~600MB (Python 3.13 slim + ML deps)
 #
 # Stage 1 (builder): Install system build tools + Python packages in a venv
 # Stage 2 (runtime): Copy only the venv + app code into a clean slim image

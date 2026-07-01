@@ -1,0 +1,32 @@
+# Production profile — full stack targeting prod cluster.
+# Requires Docker, K8s, Terraform (prod), and cloud credentials via IRSA/WI.
+# All deploy operations are STOP-class (GitHub Actions only).
+# See ADR-033 (Local-first stack profiles).
+
+profile: prod
+
+requires:
+  docker: true
+  kubernetes: true
+  terraform: true
+  cloud_credentials: true
+
+mlflow:
+  tracking_uri: "http://mlflow.mlflow-system.svc.cluster.local:5000"
+  experiment_name: "{@ service_slug @}_prod"
+
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+drift:
+  schedule: cronjob
+  cron: "0 */6 * * *"
+
+deploy:
+  enabled: true
+  mode: STOP
+  overlays:
+    - "gcp-prod"
+    - "aws-prod"

@@ -52,7 +52,7 @@ When starting a new session:
 - **ALWAYS** compatible release pinning (`~=`) — `numpy 2.x` corrupts joblib models
 - **ALWAYS** ADR for non-trivial decisions
 
-## Anti-Patterns (D-01 to D-34)
+## Anti-Patterns (D-01 to D-35)
 
 Compact summary; full table with corrective actions in `AGENTS.md`.
 
@@ -67,10 +67,12 @@ Compact summary; full table with corrective actions in `AGENTS.md`.
 | D-26..D-27 | Promotion gates + PodDisruptionBudget |
 | D-28..D-30 | API contract semver + Pod Security Standards + SBOM attestation |
 | D-31..D-32 | Per-purpose IAM identities (ADR-017) + snake_case Python package paths in K8s manifests |
+| D-33..D-34 | Copier scaffolding (scaffolder delegates to `copier copy`; quote Jinja tokens in YAML list items) |
+| D-35 | `local` stack profile must not accept cloud credentials or target a cluster (ADR-033) |
 
 The full anti-pattern table with corrective actions and file references
 lives in `AGENTS.md`. The `rule-audit` skill scans a service against
-all 32 invariants and reports file:line evidence for any failure.
+all 35 invariants and reports file:line evidence for any failure.
 
 ## Key Commands
 
@@ -92,7 +94,7 @@ kustomize build templates/k8s/base/ > /dev/null
 ## File Structure
 
 ```
-AGENTS.md              → Full architecture, invariants D-01..D-34, anti-patterns (canonical source)
+AGENTS.md              → Full architecture, invariants D-01..D-35, anti-patterns (canonical source)
 CLAUDE.md              → This file (Claude Code context, condensed)
 QUICK_START.md         → 10-minute setup guide (standalone)
 RUNBOOK.md             → Template operations reference
@@ -122,10 +124,10 @@ examples/minimal/      → Working fraud detection demo (5 min)
 scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
 releases/              → Release notes: active v0.x line + legacy v1.x audit snapshots (see releases/README.md)
-.claude/rules/         → 15 path-scoped rule pointers (this IDE)
-.claude/skills/        → 16 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
-agentic/             → Canonical: 15 rules + 16 skills + 12 workflows
-.cursor/rules/         → 15 glob-scoped .mdc rule pointers
+.claude/rules/         → 17 path-scoped rule pointers (this IDE)
+.claude/skills/        → 20 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
+agentic/             → Canonical: 17 rules + 20 skills + 16 workflows
+.cursor/rules/         → 17 glob-scoped .mdc rule pointers
 ```
 
 ## Recent template audit (closed)

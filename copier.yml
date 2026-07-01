@@ -120,6 +120,15 @@ gh_repo:
     gh_repo must be a valid GitHub repository name.
     {% endif %}
 
+profile:
+  type: str
+  help: "Stack profile: local (no cloud deps), staging (dev/staging cluster), prod (prod cluster)"
+  default: "local"
+  choices:
+    - "local"
+    - "staging"
+    - "prod"
+
 # ── Post-copy tasks ───────────────────────────────────────────────────────────
 # After rendering, sync adapter surfaces (.devin/, .cursor/, .claude/, .codex/)
 # from the canonical agentic/ store, then validate the manifest in strict mode.
@@ -131,7 +140,7 @@ _tasks:
 
 # ── Post-copy guidance ─────────────────────────────────────────────────────────
 _message_after_copy: |
-  ✓ Service "{@ service_name @}" scaffolded.
+  ✓ Service "{@ service_name @}" scaffolded (profile: {@ profile @}).
 
   Next steps:
     1. cd into the generated project and review README.md
@@ -139,5 +148,11 @@ _message_after_copy: |
     3. Initialize git + push to {@ gh_org @}/{@ gh_repo @}
     4. Run the local validation chain (see Makefile: `make help`)
 
-  Upgrade path: re-run `copier update` in this project to pull template
-  improvements without losing your changes.
+  Profile: {@ profile @}
+    - local:    `make local-loop` runs train → serve → drift (no cloud deps)
+    - staging:  `make deploy` targets dev/staging cluster (CONSULT)
+    - prod:     `make deploy` targets prod cluster (STOP — via GitHub Actions)
+
+  Switch profile: `make switch-profile PROFILE=staging`
+  Upgrade path:   re-run `copier update` in this project to pull template
+                  improvements without losing your changes.

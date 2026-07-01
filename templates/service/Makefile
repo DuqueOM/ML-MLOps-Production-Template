@@ -12,10 +12,11 @@
 #
 # TODO: Replace {@ service_slug @} and {SERVICE_SLUG} with your actual service names.
 
-.PHONY: help install train serve test lint format build deploy health-check clean \
+.PHONY: help install install-uv train serve test lint format build deploy health-check clean \
         new-service eda drift-check retrain release-checklist rollback \
         incident-runbook performance-review cost-review new-adr \
-        secret-breach-check security-audit audit-rules batch-inference
+        secret-breach-check security-audit audit-rules batch-inference doc-coherence \
+        local-loop switch-profile onboard
 
 # Colors
 RED    := \033[0;31m
@@ -29,7 +30,10 @@ SERVICE_SLUG ?= {@ service_slug @}
 MODEL_PATH   ?= models/model.joblib
 DATA_PATH    ?= data/raw/dataset.csv
 IMAGE_TAG    ?= $(SERVICE_SLUG):latest
+VERSION      ?= latest
+CLOUD        ?= gcp
 PORT         ?= 8000
+PROFILE      ?= local
 
 help: ## Show this help message
 	@echo "$(GREEN)ML Service — Available Commands:$(NC)"
@@ -53,6 +57,12 @@ install-dev: ## Install dev dependencies + pre-commit hooks
 	pre-commit install
 	@echo "$(GREEN)✓ Dev environment ready$(NC)"
 
+install-uv: ## Install dependencies with uv (faster, reproducible)
+	@echo "$(GREEN)Installing dependencies with uv...$(NC)"
+	uv sync
+	@echo "$(GREEN)✓ Dependencies installed via uv$(NC)"
+	@echo "$(GREEN)  (requirements.txt retained for pip compatibility)$(NC)"
+
 # ═══════════════════════════════════════════════
 # ML Pipeline
 # ═══════════════════════════════════════════════
@@ -65,6 +75,38 @@ train: ## Run training pipeline
 serve: ## Start local dev server (uvicorn)
 	@echo "$(GREEN)Starting dev server on port $(PORT)...$(NC)"
 	MODEL_PATH=$(MODEL_PATH) uvicorn app.main:app --host 0.0.0.0 --port $(PORT) --reload
+
+# ═══════════════════════════════════════════════
+# Stack Profiles (ADR-033)
+# ═══════════════════════════════════════════════
+
+local-loop: ## Run train → serve → drift in local mode (no Docker/K8s/TF)
+	@echo "$(GREEN)Running local loop (profile=local)...$(NC)"
+	python src/$(SERVICE_SLUG)/training/train.py --data $(DATA_PATH)
+	@echo "$(GREEN)Starting server...$(NC)"
+	@MODEL_PATH=$(MODEL_PATH) uvicorn app.main:app --host 0.0.0.0 --port $(PORT) &
+	@sleep 2 && curl -sf http://localhost:$(PORT)/health && echo " $(GREEN)✓ healthy$(NC)" || echo " $(RED)✗ unhealthy$(NC)"
+	@echo "$(GREEN)Running drift check...$(NC)"
+	@if [ -f scripts/drills/run_drift_drill.py ]; then \
+		python scripts/drills/run_drift_drill.py; \
+	else \
+		echo "$(YELLOW)No drift drill script found — skipping.$(NC)"; \
+	fi
+	@echo "$(GREEN)✓ Local loop complete$(NC)"
+
+switch-profile: ## Switch stack profile (PROFILE=local|staging|prod)
+	@echo "$(GREEN)Switching to profile $(PROFILE)...$(NC)"
+	@if [ -z "$(PROFILE)" ]; then \
+		echo "$(RED)Usage:$(NC) make switch-profile PROFILE=staging"; \
+		exit 1; \
+	fi
+	@if [ ! -f configs/profiles/$(PROFILE).yaml ]; then \
+		echo "$(RED)Profile $(PROFILE) not found in configs/profiles/$(NC)"; \
+		exit 1; \
+	fi
+	@sed -i.bak 's/^profile: .*/profile: "$(PROFILE)"/' configs/profiles/active_profile.yaml && rm -f configs/profiles/active_profile.yaml.bak
+	@echo "$(GREEN)✓ Active profile set to $(PROFILE)$(NC)"
+	@echo "$(YELLOW)This is a CONSULT-class operation — review deploy targets before proceeding.$(NC)"
 
 # ═══════════════════════════════════════════════
 # Quality & Testing
@@ -121,8 +163,13 @@ scan: ## Run Trivy security scan on Docker image
 # ═══════════════════════════════════════════════
 
 deploy: ## Deploy to K8s (requires kubectl context)
+	@if [ -f configs/profiles/active_profile.yaml ] && grep -q '^profile: "local"' configs/profiles/active_profile.yaml; then \
+		echo "$(RED)✗ Blocked:$(NC) active profile is 'local' (ADR-033 / D-35) — the local profile must not target a cluster."; \
+		echo "$(YELLOW)Switch first:$(NC) make switch-profile PROFILE=staging"; \
+		exit 1; \
+	fi
 	@echo "$(GREEN)Deploying to Kubernetes...$(NC)"
-	bash scripts/deploy.sh $(SERVICE_SLUG) $(IMAGE_TAG)
+	bash scripts/deploy.sh --service $(SERVICE_SLUG) --version $(VERSION) --cloud $(CLOUD)
 
 health-check: ## Check health of deployed service
 	@echo "$(GREEN)Checking service health...$(NC)"
@@ -261,6 +308,26 @@ secret-breach-check: ## Scan for leaked secrets (gitleaks)
 scaffold-update: ## Update this service from the template (copier update)
 	@echo "$(GREEN)Updating from template...$(NC)"
 	copier update --trust --defaults
+
+doc-coherence: ## Check cross-document coherence (version, CHANGELOG, ADRs, counts)
+	@echo "$(GREEN)Checking documentation coherence...$(NC)"
+	@if [ -f scripts/check_doc_coherence.py ]; then \
+		python3 scripts/check_doc_coherence.py; \
+	else \
+		echo "$(YELLOW)See agentic/skills/doc-coherence/SKILL.md (rule 16, ADR-031)$(NC)"; \
+	fi
+
+onboard: ## Generate an adopter context file from the example template (non-agentic /onboard equivalent)
+	@echo "$(GREEN)Generating adopter context file...$(NC)"
+	@if [ -f $(SERVICE_SLUG)_context.local.yaml ]; then \
+		echo "$(YELLOW)$(SERVICE_SLUG)_context.local.yaml already exists — not overwriting.$(NC)"; \
+	elif [ -f config/adopter_context.example.yaml ]; then \
+		cp config/adopter_context.example.yaml $(SERVICE_SLUG)_context.local.yaml; \
+		echo "$(GREEN)✓ Created $(SERVICE_SLUG)_context.local.yaml — edit it with your real settings.$(NC)"; \
+	else \
+		echo "$(YELLOW)See agentic/skills/template-onboard/SKILL.md (ADR-029 Wave 3)$(NC)"; \
+	fi
+	@echo "$(YELLOW)Validate:$(NC) python3 -c \"import json,yaml,jsonschema; jsonschema.validate(yaml.safe_load(open('$(SERVICE_SLUG)_context.local.yaml')), json.load(open('config/adopter_context.schema.json')))\""
 
 security-audit: ## Run combined security audit (gitleaks + bandit + trivy)
 	@echo "$(GREEN)Running security audit...$(NC)"

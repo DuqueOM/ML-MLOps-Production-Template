@@ -44,13 +44,16 @@ curl -X POST http://localhost:8000/predict \
 
 ## Stage 2 — Day 2–3 (2–4 h) : scaffold YOUR service locally
 
-**Goal**: use `new-service.sh` to generate a full-shape service, run
+**Goal**: use `copier copy` to generate a full-shape service, run
 its unit tests + contract tests on your laptop. No cluster yet.
 
 **Run**:
 ```bash
-./templates/scripts/new-service.sh ChurnPredictor churn_predictor
+copier copy https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
 cd ChurnPredictor
+# Option A: uv (recommended, 10× faster)
+uv sync
+# Option B: pip (compatible)
 make install
 make test            # unit + integration
 make contract-test   # schema + policy contracts

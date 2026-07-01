@@ -1,0 +1,5 @@
+# Active profile — set at scaffold time by Copier (ADR-033).
+# This file is the single source of truth for which stack profile is active.
+# To switch profiles, use `/stack-switch` or `make switch-profile PROFILE=<name>.
+
+profile: "{@ profile @}"

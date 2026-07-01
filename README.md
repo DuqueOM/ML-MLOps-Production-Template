@@ -11,18 +11,16 @@ Opinionated, production-grade template for building and operating ML systems on 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
-[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-34%20encoded-red.svg)](#anti-patterns-encoded)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-35%20encoded-red.svg)](#anti-patterns-encoded)
 [![Agentic](https://img.shields.io/badge/agentic-Windsurf_%7C_Cursor_%7C_Claude_%7C_Codex-blueviolet.svg)](#agentic-system)
 
 ```bash
 # scaffold a new ML service in under a minute
-git clone https://github.com/DuqueOM/ML-MLOps-Production-Template.git
-cd ML-MLOps-Production-Template
-pip install copier
-./templates/scripts/new-service.sh ChurnPredictor churn_predictor
+copier copy https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
+# or: git clone + ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
 ```
 
-**Start here:** [QUICK_START.md](QUICK_START.md) | [RUNBOOK.md](RUNBOOK.md) | [AGENTS.md](AGENTS.md) | [CONTRIBUTING.md](CONTRIBUTING.md)
+**Start here:** [QUICK_START.md](QUICK_START.md) | [docs/TUTORIAL.md](docs/TUTORIAL.md) | [RUNBOOK.md](RUNBOOK.md) | [AGENTS.md](AGENTS.md) | [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
@@ -42,23 +40,30 @@ It is not designed for data science notebooks, batch-only pipelines, or teams th
 
 ## How this compares
 
-Three open-source projects are widely treated as references in the MLOps space. They are excellent, and this template deliberately borrows ergonomics from each — through its own canonical layer, never by forking them (see [ADR-029](docs/decisions/ADR-029-agentic-adoption-contract.md)). They optimize for different things:
+Four open-source projects are widely treated as references in the MLOps space. They are excellent, and this template deliberately borrows ergonomics from each — through its own canonical layer, never by forking them (see [ADR-029](docs/decisions/ADR-029-agentic-adoption-contract.md)). They optimize for different things:
 
-| | This template | [Made With ML](https://github.com/GokuMohandas/Made-With-ML) | [Cookiecutter Data Science](https://github.com/drivendataorg/cookiecutter-data-science) | [ZenML](https://github.com/zenml-io/zenml) |
-|---|---|---|---|---|
-| **Primary optimization** | Production discipline + governance | Teaching the *why* | Recognizable project structure | Infra-agnostic pipelines |
-| **Production hardening** | leader | medium | low | medium |
-| **Multi-cloud (GKE + EKS)** | leader | no | no | via stacks |
-| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 34 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium |
-| **Entry friction** | higher (K8s/Terraform-oriented) | medium | very low | low |
-| **Standardized scaffolding** | Copier | n/a | de-facto | CLI |
-| **Pedagogy / learning arc** | reviewer-oriented today → tutorial (roadmap) | leader | medium | good |
+| | This template | [Made With ML](https://github.com/GokuMohandas/Made-With-ML) | [Cookiecutter Data Science](https://github.com/drivendataorg/cookiecutter-data-science) | [ZenML](https://github.com/zenml-io/zenml) | [Kubeflow](https://github.com/kubeflow/kubeflow) |
+|---|---|---|---|---|---|
+| **Primary optimization** | Production discipline + governance | Teaching the *why* | Recognizable project structure | Infra-agnostic pipelines | Full ML platform (pipelines, KServe, Katib) |
+| **Production hardening** | leader | medium | low | medium | high |
+| **Multi-cloud (GKE + EKS)** | leader | no | no | via stacks | via distro |
+| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 35 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium | low (platform, not policy) |
+| **Entry friction** | medium (local-first profile, `copier copy`) | medium | very low | low | very high (needs a platform team) |
+| **Standardized scaffolding** | Copier | n/a | de-facto | CLI | n/a |
+| **Pedagogy / learning arc** | narrated tutorial + anti-pattern walk-through | leader | medium | good | low |
 
-**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin/Windsurf, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 34 contract-tested anti-patterns.
+**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin/Windsurf, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 35 contract-tested anti-patterns.
 
 **Where we are improving adoption** — standardized scaffolding (Copier), a local-first on-ramp (stack profiles), a recognizable layout, and a guided tutorial — is tracked transparently in [`docs/audit/ACTION_PLAN_ADAPTABILITY.md`](docs/audit/ACTION_PLAN_ADAPTABILITY.md). Every one of those improvements is required to flow through the canonical agentic layer, so adoption ergonomics never dilute the governance that differentiates the template.
 
-If you want a guided course on ML fundamentals, start with Made With ML. If you want a minimal, deployment-agnostic project skeleton, start with Cookiecutter Data Science. If you want orchestrator portability, look at ZenML. If you want a **governed, production-hardened, multi-cloud service template with an agentic operating model**, you are in the right place.
+If you want a guided course on ML fundamentals, start with Made With ML. If you want a minimal, deployment-agnostic project skeleton, start with Cookiecutter Data Science. If you want orchestrator portability, look at ZenML. If you have a dedicated platform team and want a full ML platform (pipelines, KServe, Katib), graduate to Kubeflow or Vertex AI Pipelines. If you want a **governed, production-hardened, multi-cloud service template with an agentic operating model**, you are in the right place.
+
+### Tools we compose with, not against
+
+Two adjacent tools are complementary rather than alternatives, and are tracked as deliberate seams:
+
+- **[BentoML](https://github.com/bentoml/BentoML)** — best-in-class model packaging and serving DX (adaptive batching, `bentoml.Service`). Our serving path (FastAPI + `asyncio.run_in_executor` + `ThreadPoolExecutor`) is correct and dependency-light, but BentoML is evaluated as an *optional alternative serving backend* behind the same K8s/HPA invariants (1 worker, CPU-only HPA, init-container model load) — see [ADR-032](docs/decisions/ADR-032-bentoml-alternative-serving-backend.md). The stance is *evaluate, don't mandate*.
+- **[Evidently](https://github.com/evidentlyai/evidently)** — already used for drift and data-quality checks; the drift workflow can additionally emit an Evidently HTML report as a reviewer-friendly artifact (roadmap).
 
 ---
 
@@ -175,7 +180,8 @@ See [`docs/runbooks/progressive-delivery.md`](docs/runbooks/progressive-delivery
 | If you want to... | Read first | Then |
 |-------------------|------------|------|
 | Orient yourself — Day 1 to Month 2 | [docs/PROGRESSION.md](docs/PROGRESSION.md) | [QUICK_START.md](QUICK_START.md) |
-| Scaffold a new ML service | [QUICK_START.md](QUICK_START.md) | `./templates/scripts/new-service.sh` |
+| Scaffold a new ML service | [QUICK_START.md](QUICK_START.md) | `copier copy` or `./templates/scripts/new-service.sh` |
+| Follow the narrated tutorial | [docs/TUTORIAL.md](docs/TUTORIAL.md) | [QUICK_START.md](QUICK_START.md) |
 | Understand the operating model | [AGENTS.md](AGENTS.md) | [docs/decisions/](docs/decisions/) |
 | Review deployment and rollback flow | [RUNBOOK.md](RUNBOOK.md) | `templates/cicd/` and `templates/k8s/` |
 | Evaluate security posture | [SECURITY.md](SECURITY.md) | `templates/infra/`, `templates/k8s/`, `templates/cicd/` |
@@ -298,7 +304,7 @@ The governance pattern is now single-source:
 - `templates/config/agentic_manifest.yaml` declares which surfaces consume each asset.
 - `.cursor/`, `.claude/`, and `.codex/` contain generated pointer adapters only.
 
-Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 16 rule files, 17 skills, and 13 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "15 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
+Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 17 rule files, 20 skills, and 16 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "17 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
 
 ### Static decision protocol
 
@@ -501,7 +507,7 @@ How the two repositories integrate (they are **deliberately separate**, never me
 
 ## Anti-patterns encoded
 
-The template encodes and audits 34 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
+The template encodes and audits 35 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
 
 | ID | Anti-pattern | Corrective action |
 |----|--------------|-------------------|
@@ -539,6 +545,7 @@ The template encodes and audits 34 production anti-patterns across serving, trai
 | D-32 | K8s manifests reference Python paths with kebab-case placeholders | Python module paths use `{service}` (snake), never `{service-name}` (kebab); enforced by `tests/policy/test_anti_patterns.py::test_d32_drift_cronjob_python_path`. |
 | D-33 | Manual file copying or sed-based placeholder substitution in the scaffolder | The scaffolder (`templates/scripts/new-service.sh`) MUST delegate to `copier copy`. Manual `cp -r` + `sed -i` cannot handle conditional logic, directory renaming, or upgrade paths. Enforced by `scripts/test_scaffold.sh`. |
 | D-34 | Unquoted Jinja tokens in YAML list items | All `{@ @}` tokens in YAML lists MUST be quoted: `- "{@ service_name @}"`. Unquoted tokens are invalid YAML. Enforced by `rg -n '^\s*- \{@' templates/service/ --glob "*.yml"` returning zero hits. |
+| D-35 | `local` stack profile accepts cloud credentials or targets a cluster | A `local` profile MUST have `requires.kubernetes`, `requires.docker`, `requires.terraform` all `false` and `deploy.enabled` is `false`. Enforced by `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps`. |
 
 The full invariant text and operating rules live in [AGENTS.md](AGENTS.md).
 
@@ -760,7 +767,7 @@ For platform reviewers asking *"is this ready for our org?"* and teams that want
 - **Non-agentic on-ramp**: every `/slash` workflow has a `make` equivalent or runbook reference; teams that don't use AI assistants get the same safety guarantees through `make` targets and contract tests
 - **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference). *LLM serving is intentionally out of scope here and lives in the sibling [`agent-local`](https://github.com/DuqueOM/agent-local) repo — see "Local model plane" above.*
 
-The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-34) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
+The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-35) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
 
 ---
 

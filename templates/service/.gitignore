@@ -1,0 +1,127 @@
+# ─── Python ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-wheel-metadata/
+
+# ─── Testing & Coverage ──────────────────────────────
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+junit.xml
+results/
+
+# ─── Type checking ───────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# ─── Virtual environments ────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+!.env.example
+
+# ─── uv (ADR-035) — lockfile is adopter-specific, never committed ──
+uv.lock
+
+# ─── ML artifacts (never commit models or data) ──────
+*.joblib
+*.pkl
+*.pickle
+*.h5
+*.pt
+*.pth
+*.onnx
+mlruns/
+mlflow.db
+artifacts/
+
+# Data directories are DVC/pipeline outputs; keep the directory
+# structure (.gitkeep) so a fresh clone has the expected layout, but
+# never commit the payloads themselves. (data/interim/ is a CCDS
+# mapping-only vocabulary term — see docs/CCDS_MAPPING.md — this
+# template's real directory is data/validated/, per ADR-034 I-034-3.)
+data/raw/*
+data/processed/*
+data/reference/*
+data/production/*
+data/validated/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/reference/.gitkeep
+!data/production/.gitkeep
+!data/validated/.gitkeep
+models/*
+!models/.gitkeep
+
+# ─── Jupyter ─────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── Infrastructure state (never commit) ─────────────
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+!terraform.tfvars.example
+
+# ─── Docker ──────────────────────────────────────────
+.docker/
+
+# ─── IDE / OS ─────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Secrets & credentials ───────────────────────────
+*.pem
+*.key
+*.p12
+secrets/
+credentials/
+service-account*.json
+gcp-sa-key.json
+aws-credentials
+
+# ─── Reports & logs ──────────────────────────────────
+logs/
+*.log
+reports/*
+!reports/.gitkeep
+*.csv.gz
+
+# ─── Adopter-specific context files (ADR-023, ADR-029) ───────────
+# Example files (`config/*_context.example.yaml`) are tracked; the
+# `.local.yaml` variants contain adopter-specific configuration and
+# live only on the adopter's workstation. Required by the
+# `template-onboard` skill / `/onboard` workflow precondition check.
+*_context.local.yaml
+*_context.*.local.yaml
+*_context.local.*.yaml
+
+# ─── Stack profile switching scratch (ADR-033) ───────────────────
+configs/profiles/active_profile.yaml.bak

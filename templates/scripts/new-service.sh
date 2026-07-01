@@ -5,6 +5,7 @@
 # Usage:
 #   ./templates/scripts/new-service.sh FraudDetector fraud_detector
 #   ./templates/scripts/new-service.sh FraudDetector fraud_detector my-org my-repo
+#   ./templates/scripts/new-service.sh FraudDetector fraud_detector my-org my-repo staging
 #
 # This script delegates to `copier copy` (ADR-030). The Copier template lives
 # at the repository root (`copier.yml` with `_subdirectory: templates/service`).
@@ -33,21 +34,28 @@ error() { echo -e "${RED}[ERROR]${NC} $1" >&2; exit 1; }
 
 # --- Argument validation ---
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <ServiceName> <service_slug> [gh_org] [gh_repo]"
+    echo "Usage: $0 <ServiceName> <service_slug> [gh_org] [gh_repo] [profile]"
     echo ""
     echo "  ServiceName  — PascalCase name (e.g., FraudDetector)"
     echo "  service_slug — snake_case slug  (e.g., fraud_detector)"
     echo "  gh_org       — GitHub org/owner (optional, defaults to git remote)"
     echo "  gh_repo      — GitHub repo name (optional, defaults to kebab slug)"
+    echo "  profile      — Stack profile: local|staging|prod (optional, default: local; ADR-033)"
     echo ""
     echo "Example:"
     echo "  $0 FraudDetector fraud_detector"
     echo "  $0 FraudDetector fraud_detector my-org fraud-detector"
+    echo "  $0 FraudDetector fraud_detector my-org fraud-detector staging"
     exit 1
 fi
 
 SERVICE_NAME="$1"
 SERVICE_SLUG="$2"
+PROFILE="${5:-local}"
+case "$PROFILE" in
+    local|staging|prod) ;;
+    *) error "profile must be one of: local, staging, prod (got: $PROFILE)" ;;
+esac
 
 # Resolve GitHub org/repo (same priority chain as the old scaffolder):
 #   1. CLI args $3 ($4)
@@ -92,6 +100,7 @@ info "Scaffolding $SERVICE_NAME ($SERVICE_SLUG) via Copier..."
 info "Template: $REPO_ROOT (copier.yml _subdirectory: templates/service)"
 info "Target:   $TARGET_DIR"
 info "GitHub:   $GH_ORG/$GH_REPO"
+info "Profile:  $PROFILE"
 
 # --- Run Copier ---
 # --defaults   : use default values for derived questions (service_name, service_kebab, etc.)
@@ -103,6 +112,7 @@ python3 -m copier copy \
     --data "service_slug=$SERVICE_SLUG" \
     --data "gh_org=$GH_ORG" \
     --data "gh_repo=$GH_REPO" \
+    --data "profile=$PROFILE" \
     --vcs-ref HEAD \
     --defaults \
     --overwrite \
@@ -127,7 +137,9 @@ touch "$TARGET_DIR/data/raw/.gitkeep" \
       "$TARGET_DIR/data/processed/.gitkeep" \
       "$TARGET_DIR/data/reference/.gitkeep" \
       "$TARGET_DIR/data/production/.gitkeep" \
-      "$TARGET_DIR/models/.gitkeep"
+      "$TARGET_DIR/data/validated/.gitkeep" \
+      "$TARGET_DIR/models/.gitkeep" \
+      "$TARGET_DIR/reports/.gitkeep"
 
 # --- Summary ---
 echo ""

@@ -97,6 +97,13 @@ VENDORED_PAIRS: list[tuple[str, str]] = [
         "templates/service/scripts/validate_agentic.py",
     ),
     (
+        # Doc-coherence gate (rule 16, ADR-031). Invoked by the generated
+        # Makefile (`make doc-coherence`); context-adaptive so it runs
+        # correctly inside a scaffolded service that tracks no VERSION/CHANGELOG.
+        "scripts/check_doc_coherence.py",
+        "templates/service/scripts/check_doc_coherence.py",
+    ),
+    (
         "scripts/ci_verify_yaml.py",
         "templates/service/scripts/ci_verify_yaml.py",
     ),
@@ -112,6 +119,13 @@ VENDORED_PAIRS: list[tuple[str, str]] = [
     (
         "templates/config/context.schema.json",
         "templates/service/config/context.schema.json",
+    ),
+    (
+        # Adopter/infra context (ADR-029 Wave 3, template-onboard skill) — a
+        # distinct shape from context.schema.json (ADR-023 company/project
+        # risk context). Kept as its own pair to avoid conflating the two.
+        "templates/config/adopter_context.schema.json",
+        "templates/service/config/adopter_context.schema.json",
     ),
     (
         "templates/config/company_context.example.yaml",

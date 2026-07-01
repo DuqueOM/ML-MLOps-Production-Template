@@ -13,7 +13,7 @@
   `AGENTS.md`, `templates/config/agentic_manifest.yaml`, ADR-023 / ADR-027, and
   the `agentic/{rules,skills,workflows}/` canonical store; comparison against the
   three reference benchmarks below.
-- **Status**: OPEN — Wave 0 shipped (positioning + guardrail); Waves 1–4 pending.
+- **Status**: CLOSED — Wave 0 + Wave 1 + Wave 2 + Wave 3 + Wave 4 shipped.
   This document is the living tracker; every closed item updates its checkbox
   here AND adds a row to `VALIDATION_LOG.md`.
 - **Classification**: **PUBLIC / version-controlled.** Rationale: consistent with
@@ -196,44 +196,49 @@ Acceptance: ADR-029 merged; README section live; all agentic validators still gr
 
 ### Wave 1 — Standard scaffolding via Copier (B1) — highest ROI
 
-- [ ] **W1.1** **ADR-030 — Copier-based scaffolding migration** (decision,
+- [x] **W1.1** **ADR-030 — Copier-based scaffolding migration** (decision,
   alternatives, Jinja-delimiter collision mitigation, post-gen hook, retirement
-  path for `new-service.sh`).
-- [ ] **W1.2** `copier.yml` at repo root with custom delimiters (e.g. `[[ ]]`) to
-  avoid collision with literal `{ServiceName}` placeholders; `_subdirectory` and
-  `_tasks` (post-gen) defined.
-- [ ] **W1.3** Post-generation task runs `scripts/sync_agentic_adapters.py` then
+  path for `new-service.sh`). Shipped: `docs/decisions/ADR-030-copier-scaffolding-migration.md`.
+- [x] **W1.2** `copier.yml` at repo root with custom delimiters (`{@ @}` family,
+  superseded the initial `[[ ]]` choice — see ADR-030 §2.2) to avoid collision
+  with literal `{ServiceName}` placeholders; `_subdirectory` and `_tasks`
+  (post-gen) defined. Shipped: `copier.yml`.
+- [x] **W1.3** Post-generation task runs `scripts/sync_agentic_adapters.py` then
   `validate_agentic_manifest.py --strict` so generated projects nail surfaces and
-  fail loud on drift.
-- [ ] **W1.4** `new-service.sh` becomes a thin wrapper over `copier copy`
-  (backward compatibility; deprecation notice).
-- [ ] **W1.5** `copier update` documented as the canonical template-upgrade path;
-  evaluate demoting the manual `cicd-template-drift` gate to advisory.
-- [ ] **W1.5b** License/provenance verification (§1.1): confirm + record each
-  reference repo's SPDX license in ADR-030 §Related; confirm no literal code was
-  vendored; update `NOTICE` only if a snippet is ever vendored.
-- [ ] **W1.6** New anti-pattern **D-33** (canonical-only edits — promote I-027-4 to
-  a detectable anti-pattern) and **D-34** (`copier update` on a forked-surface
-  service) in `AGENTS.md`; add `agentic/rules/15-template-lifecycle.md`.
-- [ ] **W1.7** New skill `agentic/skills/scaffold-update/SKILL.md` (CONSULT): diff →
+  fail loud on drift. Shipped: `copier.yml` `_tasks` section.
+- [x] **W1.4** `new-service.sh` becomes a thin wrapper over `copier copy`
+  (backward compatibility; deprecation notice). Shipped:
+  `templates/scripts/new-service.sh`.
+- [x] **W1.5** `copier update` documented as the canonical template-upgrade path;
+  evaluate demoting the manual `cicd-template-drift` gate to advisory. Shipped:
+  `MIGRATION.md` §Copier scaffolding migration.
+- [x] **W1.5b** License/provenance verification (§1.1): confirm + record each
+  reference repo's SPDX license in ADR-030 §6; confirm no literal code was
+  vendored; `NOTICE` unchanged (no snippet vendored).
+- [x] **W1.6** New anti-pattern **D-33** (manual file copying or sed-based
+  placeholder substitution in the scaffolder) and **D-34** (unquoted Jinja tokens
+  in YAML list items) in `AGENTS.md`; `agentic/rules/15-template-lifecycle.md`
+  added. Shipped: `AGENTS.md` anti-pattern table, rule file.
+- [x] **W1.7** New skill `agentic/skills/scaffold-update/SKILL.md` (CONSULT): diff →
   re-sync → re-validate → run `rule-audit`. New workflow
-  `agentic/workflows/scaffold-update.md` (`/scaffold-update`).
-- [ ] **W1.8** Manifest entries for D-33/D-34, the new rule, skill, workflow — each
-  with `authority:`. Run sync. Update `rule-audit` catalogue to D-34.
+  `agentic/workflows/scaffold-update.md` (`/scaffold-update`). Shipped.
+- [x] **W1.8** Manifest entries for D-33/D-34, the new rule, skill, workflow — each
+  with `authority:`. Sync run. `rule-audit` catalogue updated to D-34. Shipped:
+  `templates/config/agentic_manifest.yaml`.
 
 Acceptance: a fresh `copier copy` produces a service whose `.cursor/.claude/.codex/.devin`
 surfaces pass `sync --check`; `copier update` re-syncs cleanly; all validators green.
 
 ### Wave 2 — Local-first stack profiles (B2)
 
-- [ ] **W2.1** **ADR-031 — Stack profiles (local / staging / prod)** inspired by
+- [x] **W2.1** **ADR-033 — Stack profiles (local / staging / prod)** inspired by
   ZenML; profile selection at scaffold time; profiles governed by AUTO/CONSULT/STOP.
-- [ ] **W2.2** `local` profile runs `train → serve → drift` with no Docker/K8s/TF
+- [x] **W2.2** `local` profile runs `train → serve → drift` with no Docker/K8s/TF
   requirement (extends the existing `examples/minimal` ergonomics to scaffolded
   services).
-- [ ] **W2.3** New anti-pattern **D-35** (a `local` profile that accepts cloud
+- [x] **W2.3** New anti-pattern **D-35** (a `local` profile that accepts cloud
   credentials or targets a cluster) + contract test.
-- [ ] **W2.4** New skill `agentic/skills/stack-switch/SKILL.md` (CONSULT) +
+- [x] **W2.4** New skill `agentic/skills/stack-switch/SKILL.md` (CONSULT) +
   workflow `/stack-switch`; manifest + sync.
 
 Acceptance: scaffold with `--profile local` runs the full local loop on a laptop;
@@ -241,13 +246,13 @@ D-35 contract test fails a `local` profile that imports cloud creds.
 
 ### Wave 3 — Recognizability & pedagogy (B3, B4)
 
-- [ ] **W3.1** **ADR-032 — CCDS-aligned generated layout** (mapping of bespoke
+- [x] **W3.1** **ADR-034 — CCDS-aligned generated layout** (mapping of bespoke
   paths to recognizable `data/ notebooks/ models/ references/` as a generated
   view; no change to the production architecture).
-- [ ] **W3.2** `docs/TUTORIAL.md` — narrated "from notebook to production" arc that
+- [x] **W3.2** `docs/TUTORIAL.md` — narrated "from notebook to production" arc that
   ties 6–8 key anti-patterns to the concrete failure each prevents (Made With ML
   lens).
-- [ ] **W3.3** New skill `agentic/skills/template-onboard/SKILL.md` (AUTO) +
+- [x] **W3.3** New skill `agentic/skills/template-onboard/SKILL.md` (AUTO) +
   workflow `/onboard` that interviews the adopter and emits
   `*_context.local.yaml` (never writes secrets); manifest + sync.
 
@@ -256,10 +261,10 @@ produces a valid context file that passes `context.schema.json`.
 
 ### Wave 4 — Modernization & discoverability (B5, B6)
 
-- [ ] **W4.1** Adopt `uv` + `pyproject` in the scaffolded service
+- [x] **W4.1** Adopt `uv` + `pyproject` in the scaffolded service
   (`requirements.txt` retained as export for compatibility).
-- [ ] **W4.2** Publish as an indexable Copier template; add comparison badges.
-- [ ] **W4.3** `docs/PROGRESSION.md` + `docs/ADOPTION.md` updated to reference the
+- [x] **W4.2** Publish as an indexable Copier template; add comparison badges.
+- [x] **W4.3** `docs/PROGRESSION.md` + `docs/ADOPTION.md` updated to reference the
   new on-ramps (local-first, Copier update path).
 
 Acceptance: `uv sync` works in a scaffolded service; template discoverable via
@@ -272,9 +277,10 @@ its Copier index entry.
 | ADR | Title | Wave | Status |
 |---|---|---|---|
 | **ADR-029** | Agentic Adoption Contract & Interoperability Strategy | W0 | [x] |
-| **ADR-030** | Copier-based scaffolding migration | W1 | [ ] |
-| **ADR-031** | Local-first stack profiles | W2 | [ ] |
-| **ADR-032** | CCDS-aligned generated layout | W3 | [ ] |
+| **ADR-030** | Copier-based scaffolding migration | W1 | [x] |
+| **ADR-033** | Local-first stack profiles | W2 | [x] |
+| **ADR-034** | CCDS-aligned generated layout | W3 | [x] |
+| **ADR-035** | uv adoption + Copier index publication | W4 | [x] |
 
 Each ADR follows the house format (Status, Date, Deciders, Context, Decision,
 Invariants, Scope, Consequences, Revisit triggers, Alternatives, Related) and is
@@ -286,9 +292,9 @@ indexed in `templates/config/agentic_manifest.yaml` where it carries policy.
 
 | ID | Anti-pattern | Corrective action | Wave | Status |
 |---|---|---|---|---|
-| **D-33** | Hand-editing a generated agent surface (`.cursor/.claude/.codex/.devin`) | Edit `agentic/...` then run `sync_agentic_adapters.py`; promotes ADR-027 I-027-4 to a `rule-audit`-detectable anti-pattern | W1 | [ ] |
-| **D-34** | `copier update` on a service with forked/uncommitted agent-surface edits | Commit, run `sync --check`, resolve in canonical store before updating | W1 | [ ] |
-| **D-35** | A `local` stack profile that accepts cloud credentials or targets a cluster | `local` profile refuses cloud creds; contract test asserts the boundary | W2 | [ ] |
+| **D-33** | Manual file copying or sed-based placeholder substitution in the scaffolder | The scaffolder MUST delegate to `copier copy`; enforced by `scripts/test_scaffold.sh` | W1 | [x] |
+| **D-34** | Unquoted Jinja tokens (`{@ @}`) in YAML list items | All `{@ @}` tokens in YAML lists MUST be quoted; enforced by `rg -n '^\s*- \{@'` returning zero hits | W1 | [x] |
+| **D-35** | A `local` stack profile that accepts cloud credentials or targets a cluster | `local` profile refuses cloud creds; contract test asserts the boundary | W2 | [x] |
 
 Adding these requires updating, in lockstep: `AGENTS.md` §Anti-Patterns table,
 `README.md` anti-pattern badge/count, the `rule-audit` skill catalogue,
@@ -298,13 +304,13 @@ Adding these requires updating, in lockstep: `AGENTS.md` §Anti-Patterns table,
 
 | Kind | Name | Mode | Wave | Status |
 |---|---|---|---|---|
-| rule | `agentic/rules/15-template-lifecycle.md` | always_on / glob | W1 | [ ] |
-| skill | `scaffold-update` | CONSULT | W1 | [ ] |
-| workflow | `/scaffold-update` | — | W1 | [ ] |
-| skill | `stack-switch` | CONSULT | W2 | [ ] |
-| workflow | `/stack-switch` | — | W2 | [ ] |
-| skill | `template-onboard` | AUTO | W3 | [ ] |
-| workflow | `/onboard` | — | W3 | [ ] |
+| rule | `agentic/rules/15-template-lifecycle.md` | always_on / glob | W1 | [x] |
+| skill | `scaffold-update` | CONSULT | W1 | [x] |
+| workflow | `/scaffold-update` | — | W1 | [x] |
+| skill | `stack-switch` | CONSULT | W2 | [x] |
+| workflow | `/stack-switch` | — | W2 | [x] |
+| skill | `template-onboard` | AUTO | W3 | [x] |
+| workflow | `/onboard` | — | W3 | [x] |
 | **MCP** | **none** | — | — | **Intentional: registry already covers docker/postgres/prometheus/github/kubectl; Copier and local-first need no live capability. Adding an MCP here would violate the calibration principle and ADR-023 I-3 (CONSULT cost).** |
 
 ---
@@ -313,22 +319,22 @@ Adding these requires updating, in lockstep: `AGENTS.md` §Anti-Patterns table,
 
 | Document | Action | Driven by | Status |
 |---|---|---|---|
-| `docs/decisions/ADR-029..032` | **create** | W0–W3 | [ ] |
-| `docs/audit/ACTION_PLAN_ADAPTABILITY.md` (this file) | **maintain** (living tracker) | all | [~] |
-| `README.md` | update §"How this compares", anti-pattern count/badge, on-ramps, agentic table | W0, W1, W2 | [ ] |
-| `QUICK_START.md` | update Track A/B for Copier; add `--profile local`; link TUTORIAL | W1, W2, W3 | [ ] |
-| `docs/TUTORIAL.md` | **create** | W3 | [ ] |
-| `docs/ADOPTION.md` | update maturity matrix rows (scaffolding, update path, local profile) | W1, W2 | [ ] |
-| `docs/PROGRESSION.md` | update Day-1→Month-2 arc with local-first entry | W2, W4 | [ ] |
-| `CONTRIBUTING.md` | document `copier`/`copier update` contributor workflow | W1 | [ ] |
-| `AGENTS.md` | add D-33..D-35; reference ADR-029..032; keep at root | W1, W2 | [ ] |
-| `templates/config/agentic_manifest.yaml` | add rules/skills/workflows/ADR authorities | W1–W3 | [ ] |
-| `CHANGELOG.md` | one `### Added/Changed` block per wave under `[Unreleased]` | each wave | [ ] |
-| `releases/vX.Y.Z.md` | release note per shipped wave (per `docs/RELEASING.md`) | each release | [ ] |
-| `VALIDATION_LOG.md` | one evidence row per closed item | each item | [ ] |
-| `MIGRATION.md` | adopter migration note for `new-service.sh` → `copier` | W1 | [ ] |
-| `NOTICE` | update **only if** literal third-party code is ever vendored (§1.1 gate) | W1+ | [ ] |
-| `CLAUDE.md` / `*_context.md` | refresh counts (rules/skills/workflows) after each surface addition | W1–W3 | [ ] |
+| `docs/decisions/ADR-029..035` | **create** | W0–W4 | [x] (all shipped) |
+| `docs/audit/ACTION_PLAN_ADAPTABILITY.md` (this file) | **maintain** (living tracker) | all | [x] (CLOSED) |
+| `README.md` | update §"How this compares", anti-pattern count/badge, on-ramps, agentic table | W0, W1, W2 | [x] |
+| `QUICK_START.md` | update Track A/B for Copier; add `--profile local`; link TUTORIAL | W1, W2, W3 | [x] |
+| `docs/TUTORIAL.md` | **create** | W3 | [x] |
+| `docs/ADOPTION.md` | update maturity matrix rows (scaffolding, update path, local profile) | W1, W2, W4 | [x] |
+| `docs/PROGRESSION.md` | update Day-1→Month-2 arc with local-first entry | W2, W4 | [x] |
+| `CONTRIBUTING.md` | document `copier`/`copier update` contributor workflow | W1 | [x] |
+| `AGENTS.md` | add D-33..D-35; reference ADR-029..035; keep at root | W1, W2, W3 | [x] |
+| `templates/config/agentic_manifest.yaml` | add rules/skills/workflows/ADR authorities | W1–W4 | [x] |
+| `CHANGELOG.md` | one `### Added/Changed` block per wave under `[Unreleased]` | each wave | [x] |
+| `releases/vX.Y.Z.md` | release note per shipped wave (per `docs/RELEASING.md`) | each release | [ ] (deferred to release cut) |
+| `VALIDATION_LOG.md` | one evidence row per closed item | each item | [x] (Entries 012–014) |
+| `MIGRATION.md` | adopter migration note for `new-service.sh` → `copier` | W1 | [x] |
+| `NOTICE` | update **only if** literal third-party code is ever vendored (§1.1 gate) | W1+ | [ ] (no vendored code) |
+| `CLAUDE.md` / `*_context.md` | refresh counts (rules/skills/workflows) after each surface addition | W1–W3 | [x] |
 
 ---
 

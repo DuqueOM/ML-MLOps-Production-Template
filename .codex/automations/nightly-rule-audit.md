@@ -13,7 +13,7 @@ Cron: every weekday 02:00 UTC (off-hours per the default
 
 1. Runs `rule-audit` against `templates/service/` and `templates/k8s/`.
 2. Aggregates findings into a Markdown table grouped by
-   D-01..D-32 anti-pattern code.
+   D-01..D-35 anti-pattern code.
 3. If a previous open issue tagged `audit:rule-audit` exists,
    updates its body. Otherwise opens a new issue with the same tag.
 4. Failures with severity `STOP` (per AGENTS.md mode mapping) are

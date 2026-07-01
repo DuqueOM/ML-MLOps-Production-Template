@@ -47,7 +47,7 @@ When you touch any of the following, **run `make smoke` locally before push**:
 
 - `templates/scripts/new-service.sh`
 - `copier.yml` (Copier template configuration)
-- `templates/service/requirements.txt`
+- `templates/service/pyproject.toml` or `templates/service/requirements.txt`
 - any `{@ @}` Jinja token introduced into `templates/service/`
 - `templates/k8s/base/` or `templates/k8s/overlays/`
 - `templates/cicd/`
@@ -61,8 +61,10 @@ CI will catch the same class of bug, but the local feedback loop is faster.
 3. **Install local checks (mandatory)**:
 
    ```bash
-   pip install pre-commit
-   pre-commit install
+   # Option A: uv (recommended)
+   uv sync && uv run pre-commit install
+   # Option B: pip (compatible)
+   pip install pre-commit && pre-commit install
    ```
 
    This installs the pre-commit hooks (black, isort, flake8, mypy,
@@ -138,6 +140,12 @@ docs: clarify operational memory plane boundaries
   content through Jinja with `{@ @}` delimiters. Use `{% raw %}` blocks
   around literal `{@ @}` text in documentation files to prevent
   rendering errors (D-34).
+- The scaffolded service has both `pyproject.toml` (source of truth) and
+  `requirements.txt` (pip-compatible export). When adding a dependency,
+  add it to `pyproject.toml` first, then regenerate `requirements.txt`.
+  `uv sync` reads `pyproject.toml` natively (ADR-035).
+- `copier update` can pull template improvements into an existing
+  scaffolded service. See `/scaffold-update` workflow.
 
 ### Documentation
 

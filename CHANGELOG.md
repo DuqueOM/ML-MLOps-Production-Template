@@ -12,6 +12,205 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ---
 
+## [v0.20.0] — 2026-07-01
+
+### Added
+
+- **ADR-033 — Local-first stack profiles**
+  (`docs/decisions/ADR-033-local-first-stack-profiles.md`): a `local`
+  profile that requires no Docker, K8s, Terraform, or cloud credentials,
+  enabling a laptop-only inner loop. Stack profiles are selectable at
+  scaffold time via Copier `profile` question and switchable post-scaffold
+  via `/stack-switch` workflow.
+- **ADR-034 — CCDS-aligned generated layout**
+  (`docs/decisions/ADR-034-ccds-aligned-generated-layout.md`):
+  documentation-only mapping from the template's production directory
+  layout to the Cookiecutter Data Science (CCDS) vocabulary. No directory
+  rename — the mapping lives in `templates/service/docs/CCDS_MAPPING.md`.
+- **ADR-035 — uv adoption + Copier index publication**
+  (`docs/decisions/ADR-035-uv-adoption-copier-index.md`): `uv sync` as
+  a first-class install option alongside pip (requirements.txt retained
+  as compatibility export). Template is indexable via
+  `copier copy https://github.com/DuqueOM/ML-MLOps-Production-Template.git`.
+- **D-35 — `local` stack profile accepts cloud credentials or targets a
+  cluster**: Anti-pattern forbidding cloud credentials in the `local`
+  profile. Enforced by `tests/contract/test_d35_local_profile_no_cloud_deps.py`.
+- **Stack profile configs**: `templates/config/stack-profiles/local.yaml`,
+  `staging.yaml`, `production.yaml` with `requires.*` and `deploy.enabled`
+  flags.
+- **Makefile `local-loop` + `switch-profile` targets**: local training →
+  serving → drift check loop; profile switching with validation.
+- **`stack-switch` skill + `/stack-switch` workflow** (CONSULT mode):
+  switch a scaffolded service between stack profiles.
+- **`template-onboard` skill + `/onboard` workflow** (AUTO mode):
+  interviews the adopter and emits a validated `*_context.local.yaml`
+  (gitignored, no secrets).
+- **`docs/TUTORIAL.md`**: narrated "from notebook to production" arc
+  covering 8 anti-patterns tied to concrete failures each prevents.
+- **`templates/service/docs/CCDS_MAPPING.md`**: CCDS → production layout
+  mapping table for recognizability.
+- **Makefile `install-uv` target**: `uv sync` as faster alternative to
+  `pip install -r requirements.txt` (ADR-035).
+- **`docs/ADOPTION.md` "Scaffolding & local-first" maturity matrix section**:
+  7 new capability rows (Copier scaffolding, copier update, local-first
+  profile, stack switching, CCDS mapping, adopter context, uv sync).
+- **`docs/PROGRESSION.md` Stage 2 updated**: `copier copy` as primary
+  scaffolding command, `uv sync` as recommended install option.
+
+### Changed
+
+- Anti-pattern count: 34 → 35 (D-35 added).
+- Agentic surface counts: 19 skills → 20, 15 workflows → 16
+  (`template-onboard` + `/onboard` added).
+- README comparison table: "Entry friction" lowered from "higher" to
+  "medium (local-first profile, `copier copy`)"; "Pedagogy / learning
+  arc" updated from "roadmap" to "narrated tutorial + anti-pattern
+  walk-through".
+- README quick-start: `copier copy` as primary, `new-service.sh` as
+  fallback. TUTORIAL.md linked from README and QUICK_START.
+- QUICK_START Track B: `copier copy` as primary scaffolding command.
+- CONTRIBUTING: `uv sync` option documented; `pyproject.toml` noted as
+  source of truth for dependencies.
+- `templates/config/agentic_manifest.yaml`: `template-onboard` skill
+  (AUTO) and `onboard` workflow (AUTO) added.
+
+### Fixed
+
+- **Documentation coherence drift**: README anti-pattern badge 34→35;
+  llms.txt range D-01 to D-34 → D-01 to D-35; CLAUDE.md surface counts
+  18 skills / 14 workflows → 20 skills / 16 workflows; AGENT_CONTEXT.md
+  D-01..D-34 → D-01..D-35; rule-audit and debug-ml-inference skill
+  descriptions updated from D-01..D-34 to D-01..D-35 in canonical and
+  generated surfaces.
+
+### Added
+
+- **Documentation Coherence System (rule 16 + ADR-031)**: a single-source-of-truth
+  contract for facts restated across documents, enforced like every other
+  invariant — a deterministic gate plus an agentic surface that fixes drift.
+  - `scripts/check_doc_coherence.py` — blocking gate (sibling of the
+    `check_*_drift.py` family): version SSoT, `llms.txt` version, anti-pattern
+    count, agentic surface counts, ADR traceability/no-silent-gaps.
+  - `agentic/rules/16-doc-coherence.md` (SSoT register + cascade map),
+    `agentic/skills/doc-coherence/` (the agent that applies the cascade with
+    CONSULT/STOP boundaries), `agentic/workflows/doc-coherence.md` (`/doc-coherence`).
+  - CI job `doc-coherence-gate` in `validate-templates.yml` (blocking, seeded green).
+- **ADR-031 — Documentation Coherence System**
+  (`docs/decisions/ADR-031-documentation-coherence-system.md`): records why the
+  contract is composed in-repo (no single external tool spans cross-document
+  coherence) and based on Keep a Changelog, towncrier/changesets,
+  release-please, MADR/Log4brains, Vale, and Diátaxis patterns.
+
+### Fixed
+
+- **Documentation coherence drift (audit R7, `docs/audit/AUDIT_R7_STAFF_LEAD.md`)**:
+  `VERSION` 0.18.0 → 0.19.0 to match the latest released CHANGELOG heading;
+  rewrote a `llms.txt` frozen in the v1.3.0 era (advertised "12 anti-patterns",
+  "5 rules", "8 skills") to current reality (D-34, 17 rules, 18 skills, 14
+  workflows, v0.19.0); corrected both `CLAUDE.md` files ("32 invariants" → 34,
+  added the D-33/D-34 partition row, surface counts 15/16/12 → 17/18/14);
+  `Dockerfile` header comment "Python 3.11 slim" → 3.13 to match its base image.
+- **Python 3.13 CI coverage (audit R7 F-4)**: `ci-examples.yml` test matrix
+  extended `["3.11", "3.12"]` → `["3.11", "3.12", "3.13"]` so the runtime the
+  Docker image ships (3.13-slim-bookworm) is actually exercised in CI.
+
+### Added (R7 follow-up)
+
+- **ADR-032 — BentoML as an Optional Alternative Serving Backend** (Proposed)
+  (`docs/decisions/ADR-032-bentoml-alternative-serving-backend.md`): records
+  the invariant contract (D-01/D-02/D-11/D-23/D-25/D-04) any future BentoML
+  backend must satisfy; no code shipped — documentation-only seam per the R7
+  audit recommendation ("evaluate, don't mandate").
+- **README §"How this compares"**: added a Kubeflow column (full-platform
+  reference point) and a "Tools we compose with, not against" subsection
+  covering BentoML (→ ADR-032) and Evidently report artifacts.
+
+### Fixed — Wave 2–4 implementation audit (this pass)
+
+An independent Staff/Lead review verified every file the Wave 2–4 ADRs
+(033/034/035) claimed to ship, ran the full validator + test suite, and
+exercised a real `copier copy` render end-to-end (scaffold → `make deploy`
+blocked on `local` → `make onboard` → `make switch-profile PROFILE=staging` →
+`make deploy` proceeds). The following defects were found and fixed:
+
+- **Broken `/onboard` schema validation (functional bug)**: `template-onboard`
+  SKILL.md / `/onboard` workflow validated their adopter-infra YAML
+  (`cloud_provider`, `container_registry`, `mlflow_tracking_uri`, …) against
+  `context.schema.json` — the ADR-023 company/project risk-context schema,
+  which requires `{version, company}` or `{version, project, kpis}` with
+  `additionalProperties: false`. Validation would have failed on every
+  invocation. Fixed by adding a dedicated `config/adopter_context.schema.json`
+  (+ `config/adopter_context.example.yaml`) and repointing the skill/workflow
+  at it. Verified end-to-end against a real scaffold.
+- **Missing `templates/service/.gitignore` (never existed, pre-dates Waves
+  2-4)**: a scaffolded service had no `.gitignore` at all — `.terraform/`,
+  `*.tfstate*`, secrets, model artifacts, and `mlruns/` were all committable,
+  and the `/onboard` precondition check (`grep "_context.local.yaml"
+  .gitignore`) would always fail. Added a full `.gitignore` (Python, testing,
+  venvs, ML artifacts with `.gitkeep`-preserved data dirs, Terraform state,
+  secrets, and the ADR-023/029 `*_context.local.yaml` pattern).
+- **Unenforced ADR-033 invariant**: ADR-033 §2.5 states the `local` profile's
+  `deploy` must be **blocked**, but `make deploy` had no guard. Added a check
+  reading `configs/profiles/active_profile.yaml` that refuses to proceed
+  when the active profile is `local`. Verified: blocks on `local`, proceeds
+  on `staging`.
+- **`make deploy` / `scripts/deploy.sh` CLI contract mismatch** (pre-existing,
+  surfaced by the end-to-end verification): the Makefile called `deploy.sh`
+  with positional args; `deploy.sh` only accepts `--service/--version/--cloud`
+  flags. Fixed the Makefile invocation; added `VERSION`/`CLOUD` variables.
+- **Missing non-agentic on-ramp for two new workflows**: `/onboard` and
+  `/stack-switch` had no `make` target registered (PR-R2-12 violation,
+  caught by `test_adoption_boundary_contract.py`). Added `make onboard`,
+  mapped `/stack-switch` → the pre-existing `make switch-profile`, and
+  documented both in `docs/ADOPTION.md`.
+- **Vendored-runtime drift (7 files)**: `stack-switch`/`template-onboard`
+  skills and the `onboard`/`stack-switch` workflows were added to canonical
+  `agentic/` but never propagated into `templates/service/agentic/`
+  (`scripts/check_vendored_runtime_drift.py` was red). Re-synced.
+- **Stale anti-pattern range citations left over from the D-35 bump**: the
+  weaker-model wave updated most but not all citations when D-35 was added.
+  Fixed: `docs/decisions/ADR-014-gap-remediation-plan.md` (`D-01..D-34` →
+  `D-01..D-35`, caught by `test_anti_pattern_count_consistency.py`);
+  `agentic/skills/rule-audit/SKILL.md` heading (same file already said D-35
+  twice elsewhere); `templates/service/docs/ADOPTION.md` (3 instances);
+  `docs/TUTORIAL.md` (cited a non-existent test name
+  `test_d32_drift_cronjob_module_exists` → corrected to
+  `test_d32_drift_cronjob_python_path`); `README.md` D-35 row (cited a
+  non-existent path `tests/contract/test_d35_local_profile_no_cloud_deps.py`
+  → corrected to the real
+  `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps`).
+- **Stale ADR-count claims**: `llms.txt` and `docs/ADOPTION.md` /
+  `templates/service/docs/ADOPTION.md` said "17 ADRs" / "30 ADR files
+  (ADR-001 → ADR-031)"; the repo now has 35 (`ADR-001` → `ADR-035`, `012`
+  tombstoned). Corrected all four call-sites.
+- **`new-service.sh` had no `--profile` passthrough** despite ADR-033's own
+  acceptance criterion ("scaffold with `--profile local`"). Added a 5th
+  optional positional arg, validated against `local|staging|prod`, forwarded
+  to Copier as `--data profile=$PROFILE`.
+- **`new-service.sh` didn't create `.gitkeep` for `data/validated/` or
+  `reports/`** even though it created the directories. Fixed.
+
+### Known follow-ons
+
+- `templates/service/docs/ADOPTION.md` is a hand-maintained near-copy of
+  `docs/ADOPTION.md` and had drifted in more ways than the citations fixed
+  above (it is missing the `doc-coherence` rows this release adds to the
+  root copy). Not currently a registered vendored pair, so
+  `check_vendored_runtime_drift.py` does not catch this class of drift.
+  Tracked for a future pass: either register it as a vendored pair or
+  formally scope it as an independent, service-specific document.
+- The on-ramps recommended by the R7 audit for batch-only pipelines and a
+  Vertex AI / SageMaker "export surface" doc are not part of this release
+  (out of scope for the Wave 2–4 verification pass); still open.
+- `check_doc_coherence.py` validates anti-pattern counts and agentic surface
+  counts but not free-text "N ADRs" claims (the class of drift found in
+  `llms.txt`/`ADOPTION.md` this pass) — a candidate C6 check, deferred to
+  avoid rushing a repo-wide regex against historical/point-in-time documents
+  (CHANGELOG, VALIDATION_LOG, past `ACTION_PLAN_*` audits) that must NOT be
+  "corrected".
+
+---
+
 ## [v0.19.0] — 2026-06-30
 
 ### Added

@@ -1,68 +1,59 @@
 # ML-MLOps-Production-Template
 
 > Agent-driven template for production ML systems.
-> Version: v1.3.0 | License: MIT | Author: DuqueOM
+> Version: v0.20.0 | License: MIT | Author: DuqueOM
 
 ## What this is
-A complete, opinionated MLOps template for shipping ML models to production.
-Includes an agentic system for Windsurf, Claude Code, and Cursor, production
-templates for every stack layer, and 12 encoded anti-patterns (D-01 to D-12).
-Scope: classical ML (scikit-learn, XGBoost, LightGBM). Not LLM/GenAI.
+A complete, opinionated MLOps template for shipping classical ML models to
+production across two clouds (GKE + EKS), with an agentic operating model,
+governed CI/CD, and 35 encoded anti-patterns (D-01 to D-35). Every non-trivial
+decision is captured in an ADR with measured trade-offs.
+Scope: classical ML (scikit-learn, XGBoost, LightGBM). LLM/GenAI *serving* is
+out of scope (lives in the sibling `agent-local` repo); LLM-*assisted* ops are
+governed by ADR-028.
+
+> Versioning: the active public line is `v0.x` hardening. Tags `v1.0.0`–`v1.12.0`
+> remain immutable historical audit snapshots; `v1.0.0` is reserved for the first
+> real cloud E2E validation across GKE and EKS. Single source of truth = `VERSION`;
+> coherence across docs is enforced by `scripts/check_doc_coherence.py` (rule 16).
 
 ## Key files
-- AGENTS.md: Root agent rules, 12 anti-patterns D-01→D-12, invariants, skills/workflow index
+- AGENTS.md: canonical constitution — anti-patterns D-01→D-35, invariants, agent/skill/workflow index
 - CLAUDE.md: Claude Code project context (stack, invariants, file structure)
 - QUICK_START.md: 10-minute onboarding (example, scaffold, MLflow)
-- RUNBOOK.md: Operations reference (scaffolding, secrets, MLflow, releases)
-- CHANGELOG.md: Full version history (v1.0.0 → v1.3.0)
-- docs/decisions/ADR-001-template-scope-boundaries.md: Why LLM/multi-tenancy/Vault/feature-store deferred
+- RUNBOOK.md / docs/RELEASING.md: operations + versioning policy
+- CHANGELOG.md: full version history (Keep a Changelog + SemVer)
+- docs/decisions/: 35 ADR files (ADR-001 → ADR-035; ADR-012 is an immutable tombstone)
 
-## Agentic system
-- .claude/rules/ — 5 Claude Code rules (paths: frontmatter triggers)
-  - 01-serving.md: async inference, SHAP, Prometheus (paths: **/app/*.py)
-  - 02-training.md: pipeline, quality gates, fairness (paths: **/training/*.py)
-  - 03-kubernetes.md: 1-worker, CPU HPA, init container (paths: k8s/**/*.yaml)
-  - 04-terraform.md: remote state, no secrets (paths: **/*.tf)
-  - 05-examples.md: simplified patterns (paths: examples/**/*)
-- .cursor/rules/ — 5 Cursor MDC rules (globs: frontmatter triggers)
-  - 01-mlops-conventions.mdc: session protocol, full D-01→D-12 (globs: **/*.*)
-  - 02-kubernetes.mdc: HPA, init container, probes (globs: k8s/**/*.yaml)
-  - 03-python-serving.mdc: async, SHAP, metrics (globs: **/app/*.py)
-  - 04-python-training.mdc: pipeline, gates, fairness (globs: **/training/*.py)
-  - 05-docker.mdc: multi-stage, non-root, no model (globs: **/Dockerfile*)
-- agentic/rules/ — 10 context-aware behavioral constraints
-- agentic/skills/ — 8 operational procedures (debug, deploy-gke, deploy-aws, drift, retrain, release, new-service, cost-audit)
-- agentic/workflows/ — 8 slash-command workflows (/new-service, /retrain, /incident, /drift-check, /release, /cost-review, /load-test, /new-adr)
+## Agentic system (canonical store: `agentic/`, ADR-027)
+- agentic/rules/ — 17 path-scoped behavioral rules (incl. 16-doc-coherence)
+- agentic/skills/ — 20 operational procedures (deploy-gke/aws, drift, retrain,
+  release-checklist, rule-audit, security-audit, scaffold-update, doc-coherence,
+  stack-switch, template-onboard, …)
+- agentic/workflows/ — 16 slash-command workflows (/new-service, /retrain,
+  /incident, /drift-check, /release, /new-adr, /doc-coherence, /stack-switch,
+  /onboard, …)
+- Surfaces (generated, ADR-027): `.claude/` `.cursor/` `.codex/` thin pointers;
+  `.devin/` full-body mirror. `scripts/sync_agentic_adapters.py` renders them;
+  `--check` enforces byte-parity in CI.
+- Behavior protocol: AUTO / CONSULT / STOP per the Agent Permissions Matrix.
 
 ## Template structure
-- templates/service/ — FastAPI + training + monitoring + fairness + DVC boilerplate
-  - app/fastapi_app.py: async inference, SHAP /predict?explain=true, 5 Prometheus metrics
-  - src/{service}/fairness.py: DIR, Equal Opportunity, Demographic Parity (190 lines)
-  - src/{service}/config.py: Pydantic config with YAML loading
-  - dvc.yaml: DVC pipeline (validate → featurize → train → evaluate)
-  - codecov.yml: coverage configuration template
-- templates/k8s/ — base/ (10 manifests incl. RBAC, NetworkPolicy, SLO PrometheusRule) + overlays/gcp + overlays/aws
-- templates/infra/terraform/ — GCP (GKE + Workload Identity) + AWS (EKS + IRSA)
-- templates/infra/docker-compose.mlflow.yml — MLflow + PostgreSQL + MinIO
-- templates/cicd/ — GitHub Actions (CI, deploy, drift detection, retrain)
-- templates/monitoring/ — Prometheus alerts + Grafana dashboard (9 panels)
-- templates/tests/integration/ — conftest.py + test_service_integration.py
-- templates/tests/infra/policies/kubernetes.rego — OPA/Conftest policies (14 rules, incl. D-01/D-02)
-- templates/docs/ — ADR template, model card, release checklist, mkdocs.yml
-- templates/common_utils/ — seed, logging (JSONFormatter), model_persistence, telemetry
-- examples/minimal/ — Working fraud detection: train → serve → test → drift (proven in CI e2e job)
-
-## CI/CD
-- validate-templates.yml: Python lint, K8s manifests, Terraform, Dockerfile, + example-e2e job
-- example-e2e: train → verify artifacts → start server → pytest → drift check → quality gates
+- templates/service/ — FastAPI async serving + training + monitoring + fairness + DVC
+- templates/k8s/ — base/ + 6 env×cloud overlays (gcp/aws × dev/staging/prod) with PSS
+- templates/infra/terraform/ — GCP (GKE + Workload Identity) + AWS (EKS + IRSA), per-env state
+- templates/cicd/ — GitHub Actions: build → digest-pin → Cosign sign+attest → Kyverno verify
+- templates/common_utils/ — seed, logging, model_persistence, agent_context, risk_context, memory_*
+- examples/minimal/ — working fraud detection: train → serve → test → drift
 
 ## Key invariants (never violate)
-- uvicorn --workers 1 only (HPA scales horizontally)
-- HPA uses CPU only (never memory for ML pods)
-- CPU-bound inference via run_in_executor(ThreadPoolExecutor)
-- SHAP in original feature space via predict_proba_wrapper
-- No model artifacts in Docker images (init container pattern)
+- uvicorn --workers 1 only (HPA scales horizontally; CPU-only HPA for ML pods)
+- CPU-bound inference via run_in_executor(ThreadPoolExecutor) — never block the event loop
+- KernelExplainer SHAP in ORIGINAL feature space
+- No model artifacts in Docker images (init container + emptyDir)
 - DIR >= 0.80 fairness gate before every model promotion
+- IRSA (AWS) / Workload Identity (GCP) — no static credentials
+- `~=` ML package pinning (numpy 2.x corrupts joblib models)
 
 ## Releases
-v1.3.0 (latest), v1.2.0, v1.1.0, v1.0.0
+Active line: v0.20.0 (latest). Historical audit snapshots: v1.0.0 → v1.12.0 (immutable).

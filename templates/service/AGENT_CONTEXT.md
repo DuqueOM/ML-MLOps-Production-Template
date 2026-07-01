@@ -15,7 +15,7 @@ promotion, monitoring, drift detection, and agentic governance.
 
 ## Read first (universal, 5 files)
 
-- `AGENTS.md` — invariants D-01..D-34, AUTO/CONSULT/STOP protocol,
+- `AGENTS.md` — invariants D-01..D-35, AUTO/CONSULT/STOP protocol,
   permissions matrix, handoff schema. **Authority for all behaviour.**
 - `README.md` — user-facing maturity claims; watch the Verification
   Status matrix (L1 / L2 / L3 / L4 layers).

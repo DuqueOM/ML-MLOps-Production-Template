@@ -1248,9 +1248,9 @@ $ .venv/bin/python -m pytest templates/service/tests/test_anti_pattern_count_con
 
 ### What was NOT validated (pending)
 
-- **Waves 1–4** (Copier migration, local-first stack profiles, CCDS layout, tutorial): NOT started. Owner: maintainer. Tracking: `docs/audit/ACTION_PLAN_ADAPTABILITY.md` §6.
-- **ADR-030..032**: NOT authored. Tracking: ADR ledger §7 of the action plan.
-- **Reference-license SPDX verification (W1.5b)**: scheduled for Wave 1; published licenses recorded in action plan §1.1 but not yet pinned in ADR-030.
+- **Wave 1** (Copier migration): shipped — see Entry 012 below.
+- **Waves 2–4** (local-first stack profiles, CCDS layout, tutorial): NOT started. Owner: maintainer. Tracking: `docs/audit/ACTION_PLAN_ADAPTABILITY.md` §6.
+- **ADR-031..032**: NOT authored. Tracking: ADR ledger §7 of the action plan.
 - **Full template test suite + `pre-commit run --all-files`**: not run for this docs-only wave; CI re-runs them per PR.
 
 ### Conclusion (Entry 011)
@@ -1262,6 +1262,515 @@ four agentic/contract checks confirm the spine is intact: adding the adoption AD
 changed no canonical body, caused no surface drift, and kept the manifest
 authority chain resolvable. This entry materially supports the README §"How this
 compares" section and the Agentic controls maturity row; it makes no L4 claim.
+
+---
+
+## Entry 012 — Wave 1 Copier scaffolding migration (ADR-030)
+
+- **Date**: 2026-06-30
+- **Branch**: `main` (v0.19.0)
+- **Base commit**: v0.19.0 release
+- **Environment**: local Linux developer workstation, Python 3.13, no cloud account
+- **Operator**: Maintainer
+- **Scope**: validate that the Copier-based scaffolder (ADR-030) produces a working service and all Wave 1 deliverables are in place
+
+### What was executed
+
+#### 1. ADR-030 shipped (Accepted)
+
+`docs/decisions/ADR-030-copier-scaffolding-migration.md` — Status: Accepted.
+Covers: tool selection (Copier over Cookiecutter), custom Jinja delimiters
+(`{@ @}` family, superseding initial `[[ ]]`), render model, questionnaire,
+vendoring + drift gate, post-gen tasks, retirement path for `new-service.sh`,
+staged rollout, invariants I-030-1..5.
+
+#### 2. copier.yml with custom delimiters
+
+`copier.yml` at repo root: `_subdirectory: templates/service`,
+`_templates_suffix: ""`, `_envops` with `{@ @}` / `{% %}` / `{# #}`.
+Single source of truth: `service_slug` (snake_case); `service_name`,
+`service_kebab`, `service_upper` derived.
+
+#### 3. new-service.sh is a thin Copier wrapper
+
+`templates/scripts/new-service.sh` delegates to `python3 -m copier copy`
+with `--data service_slug=... --defaults --trust --quiet`.
+
+#### 4. Post-gen tasks wired
+
+`copier.yml` `_tasks`: `sync_agentic_adapters.py` +
+`validate_agentic_manifest.py --strict`.
+
+#### 5. Anti-patterns D-33/D-34 + rule 15
+
+`AGENTS.md` anti-pattern table: D-33 (manual cp/sed scaffolding), D-34
+(unquoted Jinja tokens in YAML lists). `agentic/rules/15-template-lifecycle.md`
+shipped.
+
+#### 6. scaffold-update skill + workflow
+
+`agentic/skills/scaffold-update/SKILL.md` (CONSULT mode) and
+`agentic/workflows/scaffold-update.md` shipped.
+
+#### 7. Manifest entries
+
+`templates/config/agentic_manifest.yaml`: rule 15, skill scaffold-update,
+workflow scaffold-update — all with `authority:` anchors.
+
+#### 8. MIGRATION.md
+
+`MIGRATION.md` §Copier scaffolding migration documents the adopter-visible
+change: install copier, placeholder syntax change, `.copier-answers.yml`.
+
+#### 9. Vendored runtime drift gate
+
+`scripts/check_vendored_runtime_drift.py` asserts byte-identity between
+canonical repo-root files and their vendored copies in `templates/service/`
+(`audit_record.py`, `validate_quality_gates.py`, Day-2 runbooks, agentic
+scripts, config, ADRs, identity files).
+
+### What was NOT validated (pending)
+
+- **Real `copier copy` execution**: the scaffold smoke test (`scripts/test_scaffold.sh`)
+  is wired in CI but was not run locally in this entry. CI lane `scaffold-e2e`
+  validates the render end-to-end per PR.
+- **`copier update` on an existing generated project**: documented in MIGRATION.md
+  but not exercised in this entry.
+- **Waves 3–4**: NOT started. Tracking: `docs/audit/ACTION_PLAN_ADAPTABILITY.md` §6.
+  Wave 2 shipped in Entry 013.
+
+### Conclusion (Entry 012)
+
+Wave 1 ships the Copier-based scaffolding migration (ADR-030), the highest-ROI
+adoption lever. All 8 items (W1.1–W1.8) are materialized in the repo: `copier.yml`,
+the thin `new-service.sh` wrapper, D-33/D-34 anti-patterns, rule 15, the
+`scaffold-update` skill + workflow, manifest entries, MIGRATION.md, and the
+vendored runtime drift gate. This entry materially supports the README §"How
+this compares" scaffolding row and the ADOPTION.md maturity matrix scaffolding
+row; it makes no L4 claim.
+
+---
+
+## Entry 013 — Wave 2: Local-first stack profiles (ADR-033 + D-35 + stack-switch)
+
+
+
+- **Date**: 2026-06-30
+- **Branch**: main (working tree)
+- **Base commit**: HEAD at time of edit
+- **Environment**: local (no cluster, no cloud)
+- **Operator**: Template maintainer (`@DuqueOM`)
+- **Scope**: Validated Wave 2 of the Adaptability Action Plan — stack profiles,
+  D-35 anti-pattern, and the stack-switch skill/workflow.
+
+### What was executed
+
+#### 1. ADR-033 — Local-first stack profiles
+
+`docs/decisions/ADR-033-local-first-stack-profiles.md` created with full
+house format: Context, Decision (profile definitions, selection at scaffold
+time, configuration overlay, Makefile integration, governance mapping),
+Invariants (I-033-1 through I-033-5), Scope, Consequences, License,
+Alternatives, Revisit triggers, Related.
+
+#### 2. Profile configuration files
+
+Four YAML files created under `templates/service/configs/profiles/`:
+- `local.yaml` — `requires: {docker: false, kubernetes: false,
+  terraform: false, cloud_credentials: false}`, `deploy.enabled: false`,
+  `mlflow.tracking_uri: file://./mlruns`, `drift.schedule: manual`.
+- `staging.yaml` — full stack, `deploy.mode: CONSULT`, overlays for
+  gcp-dev/staging, aws-dev/staging.
+- `prod.yaml` — full stack, `deploy.mode: STOP`, overlays for gcp-prod,
+  aws-prod.
+- `active_profile.yaml` — rendered at scaffold time with `{@ profile @}`.
+
+#### 3. Copier profile question
+
+`copier.yml` gains `profile` question (type: str, default: "local",
+choices: local/staging/prod). Post-copy message updated to show selected
+profile and local-loop instructions.
+
+#### 4. Makefile targets
+
+- `PROFILE` variable added (default: `local`).
+- `local-loop` target: runs `train → serve → drift` with no Docker/K8s/TF.
+- `switch-profile` target: updates `active_profile.yaml` via `sed`,
+  validates profile exists, emits CONSULT-mode warning.
+
+#### 5. D-35 anti-pattern
+
+- `AGENTS.md` (both repo-root and template service): D-35 row added to
+  anti-pattern table.
+- `agentic/rules/15-template-lifecycle.md` (both canonical and vendored):
+  D-35 section with required fields and check reference.
+- `templates/service/tests/policy/test_anti_patterns.py`:
+  `test_d35_local_profile_no_cloud_deps` — parses scaffolded
+  `configs/profiles/local.yaml`, asserts `requires.cloud_credentials`,
+  `requires.kubernetes`, `requires.docker` are all `false` and
+  `deploy.enabled` is `false`.
+- `debug-ml-inference` and `rule-audit` skill descriptions updated from
+  D-01..D-34 to D-01..D-35 in both AGENTS.md copies.
+
+#### 6. stack-switch skill + workflow
+
+- `agentic/skills/stack-switch/SKILL.md` — CONSULT mode, 6-step procedure
+  (pre-flight, inspect, review, apply, validate, commit), escalation
+  triggers (uncommitted changes, cloud creds in local, active incident).
+- `agentic/workflows/stack-switch.md` — `/stack-switch` workflow with
+  matching steps.
+
+#### 7. Manifest entries
+
+`templates/config/agentic_manifest.yaml`: skill `stack-switch` (CONSULT)
+and workflow `stack-switch` (CONSULT) added with `authority:` anchors.
+
+#### 8. Agentic adapter sync
+
+```
+$ python3 scripts/sync_agentic_adapters.py
+updated .claude/skills/stack-switch/SKILL.md
+updated .claude/skills/INDEX.md
+updated .claude/commands/stack-switch.md
+updated .codex/skills/stack-switch.md
+updated .codex/workflows/stack-switch.md
+updated .cursor/skills/stack-switch.md
+updated .cursor/skills/INDEX.md
+updated .cursor/commands/stack-switch.md
+updated .devin/rules/15-template-lifecycle.md
+updated .devin/skills/stack-switch/SKILL.md
+updated .devin/workflows/stack-switch.md
+```
+
+#### 9. Manifest validation
+
+```
+$ python3 scripts/validate_agentic_manifest.py --strict
+[ OK ] authority_chain
+[ OK ] source_paths
+[ OK ] surface_roots
+[ OK ] adapter_pointers
+[ OK ] mode_enum
+[ OK ] context_examples
+[ OK ] context_pointers
+[ OK ] reports_block
+```
+
+All 8 validation checks passed.
+
+#### 10. AGENTS.md agentic configuration tree updated
+
+Skill count: 18 → 19. Workflow count: 14 → 15. `stack-switch/SKILL.md`
+and `stack-switch.md` added to the tree in both AGENTS.md copies.
+
+#### 11. ACTION_PLAN_ADAPTABILITY.md updated
+
+Wave 2 items W2.1–W2.4 marked `[x]`. ADR ledger updated (ADR-033 [x],
+ADR-034 pending). D-35 ledger status `[x]`. Agentic surfaces ledger:
+stack-switch skill + workflow `[x]`. Overall status: "Wave 0 + Wave 1 +
+Wave 2 shipped; Waves 3–4 pending."
+
+### What was NOT validated (pending)
+
+- **Real `copier copy` with `--profile local`**: the scaffold smoke test
+  (`scripts/test_scaffold.sh`) was not run locally in this entry. CI lane
+  `scaffold-e2e` validates the render end-to-end per PR.
+- **`make local-loop` execution**: the target is defined but was not
+  executed (requires a scaffolded service with training data).
+- **`make switch-profile PROFILE=staging` execution**: the target is
+  defined but was not executed against a real scaffolded service.
+- **D-35 contract test execution**: `test_d35_local_profile_no_cloud_deps`
+  is written but was not run (requires `scaffold_dir` fixture which
+  invokes `new-service.sh` with Copier).
+- **Waves 3–4**: Shipped in Entry 014. Tracking: `docs/audit/ACTION_PLAN_ADAPTABILITY.md` §6.
+
+### Conclusion (Entry 013)
+
+Wave 2 ships local-first stack profiles (ADR-033), the second-highest-ROI
+adoption lever. All 4 items (W2.1–W2.4) are materialized: ADR-033, profile
+YAML configs, Copier `profile` question, Makefile `local-loop` +
+`switch-profile` targets, D-35 anti-pattern + contract test, `stack-switch`
+skill + `/stack-switch` workflow, manifest entries, and adapter sync. This
+entry materially supports the README §"How this compares" local-first row
+and the ADOPTION.md maturity matrix local-profile row; it makes no L4
+claim.
+
+---
+
+## Entry 014 — Waves 3+4: CCDS layout, TUTORIAL, template-onboard, uv, Copier index
+
+
+
+- **Date**: 2026-06-30
+- **Branch**: main (working tree)
+- **Base commit**: HEAD at time of edit
+- **Environment**: local (no cluster, no cloud)
+- **Operator**: Template maintainer (`@DuqueOM`)
+- **Scope**: Validated Waves 3 and 4 of the Adaptability Action Plan —
+  CCDS layout mapping, narrated tutorial, template-onboard skill,
+  uv adoption, and Copier index publication.
+
+### What was executed
+
+#### Wave 3 — Recognizability & pedagogy
+
+##### 1. ADR-034 — CCDS-aligned generated layout
+
+`docs/decisions/ADR-034-ccds-aligned-generated-layout.md` created with
+full house format: Context (CCDS vs production layout gap), Decision
+(documentation-only mapping, no directory rename), Invariants
+(I-034-1 through I-034-3), Scope, Consequences, License, Alternatives,
+Revisit triggers, Related.
+
+##### 2. CCDS_MAPPING.md template file
+
+`templates/service/docs/CCDS_MAPPING.md` created — maps CCDS
+directories (`data/raw/`, `notebooks/`, `models/`, `references/`,
+`src/`) to the template's production layout. Includes a
+"Directories with no CCDS equivalent" table for `app/`, `k8s/`,
+`infra/`, `monitoring/`, etc.
+
+##### 3. docs/TUTORIAL.md
+
+`docs/TUTORIAL.md` created — narrated "from notebook to production"
+arc covering 8 anti-patterns (D-01, D-03, D-05, D-06, D-13, D-15,
+D-24, D-35) tied to concrete failures each prevents. 8-step
+walk-through: scaffold → explore → EDA → train → serve → drift →
+local-loop → switch to staging.
+
+##### 4. template-onboard skill + /onboard workflow
+
+- `agentic/skills/template-onboard/SKILL.md` — AUTO mode, 6-step
+  procedure (pre-flight, interview, write, validate, secret-scan,
+  report). Escalation triggers: secret in context → STOP, invalid
+  schema → STOP.
+- `agentic/workflows/onboard.md` — `/onboard` workflow with matching
+  steps.
+
+##### 5. Manifest entries + sync
+
+`templates/config/agentic_manifest.yaml`: skill `template-onboard`
+(AUTO) and workflow `onboard` (AUTO) added with `authority:` anchors.
+
+```
+$ python3 scripts/sync_agentic_adapters.py
+updated .claude/skills/template-onboard/SKILL.md
+updated .claude/skills/INDEX.md
+updated .claude/commands/onboard.md
+updated .codex/skills/template-onboard.md
+updated .codex/workflows/onboard.md
+updated .cursor/skills/template-onboard.md
+updated .cursor/skills/INDEX.md
+updated .cursor/commands/onboard.md
+updated .devin/skills/template-onboard/SKILL.md
+updated .devin/workflows/onboard.md
+```
+
+```
+$ python3 scripts/validate_agentic_manifest.py --strict
+[ OK ] authority_chain
+[ OK ] source_paths
+[ OK ] surface_roots
+[ OK ] adapter_pointers
+[ OK ] mode_enum
+[ OK ] context_examples
+[ OK ] context_pointers
+[ OK ] reports_block
+```
+
+All 8 validation checks passed.
+
+##### 6. AGENTS.md updates
+
+Both AGENTS.md copies updated: skill count 19 → 20, workflow count
+15 → 16. `template-onboard/SKILL.md` and `onboard.md` added to the
+agentic configuration tree.
+
+#### Wave 4 — Modernization & discoverability
+
+##### 7. ADR-035 — uv adoption + Copier index publication
+
+`docs/decisions/ADR-035-uv-adoption-copier-index.md` created with
+full house format: Context (B5 pip vs uv, B6 discoverability),
+Decision (uv additive, Copier URL as index), Invariants
+(I-035-1 through I-035-4), Scope, Consequences, Alternatives,
+Revisit triggers, Related.
+
+##### 8. Makefile install-uv target
+
+`templates/service/Makefile`: `install-uv` target added (`uv sync`).
+`.PHONY` list updated. `requirements.txt` retained for pip
+compatibility (I-035-1).
+
+##### 9. PROGRESSION.md updated
+
+Stage 2 updated: `copier copy` replaces `new-service.sh`, `uv sync`
+mentioned as recommended option, `make install` as pip fallback.
+
+##### 10. ADOPTION.md updated
+
+New "Scaffolding & local-first" section added to maturity matrix with
+7 capability rows: Copier scaffolding, copier update, local-first
+profile, stack profile switching, CCDS layout mapping, adopter
+context file, uv sync. D-01..D-34 → D-01..D-35 in governance row.
+
+##### 11. ACTION_PLAN_ADAPTABILITY.md updated
+
+Waves 3+4 items marked `[x]`. ADR ledger: ADR-034 [x], ADR-035 [x].
+Agentic surfaces ledger: template-onboard + /onboard [x]. Overall
+status: CLOSED — all waves shipped.
+
+### What was NOT validated (pending)
+
+- **Real `copier copy` with `--profile local`**: the scaffold smoke
+  test was not run locally. CI lane `scaffold-e2e` validates per PR.
+- **`uv sync` execution**: the target is defined but was not run (uv
+  not installed in this environment).
+- **`/onboard` end-to-end**: the skill is written but was not invoked
+  against a real scaffolded service.
+- **`docs/TUTORIAL.md` linked from README + QUICK_START**: the
+  tutorial is created but README/QUICK_START cross-links are not yet
+  added (tracked in doc impact matrix).
+- **CHANGELOG.md**: no `[Unreleased]` block added for Waves 2–4 yet.
+- **`releases/vX.Y.Z.md`**: no release note created yet.
+
+### Conclusion (Entry 014)
+
+Waves 3 and 4 complete the Adaptability Action Plan. All 6 items
+(W3.1–W3.3, W4.1–W4.3) are materialized: ADR-034 (CCDS mapping),
+ADR-035 (uv + Copier index), `docs/TUTORIAL.md`, `CCDS_MAPPING.md`
+template, `template-onboard` skill + `/onboard` workflow, Makefile
+`install-uv` target, PROGRESSION.md + ADOPTION.md updates, manifest
+entries, and adapter sync. The action plan status is now CLOSED.
+This entry makes no L4 claim.
+
+---
+
+## Entry 015 — Independent audit of Waves 2–4 (ADR-033/034/035) + v0.20.0 release cut
+
+- **Date**: 2026-07-01
+- **Branch**: main (working tree)
+- **Base commit**: HEAD at time of edit
+- **Environment**: local (no cluster, no cloud) — WSL Ubuntu-24.04, `.venv`
+- **Operator**: Independent reviewer (Claude Code, Sonnet 5), at the
+  maintainer's explicit request to verify Entry 013/014's claims before
+  release, given the closing note in those entries admitted several
+  unvalidated items.
+- **Scope**: Re-verify, file-by-file, everything Entries 013/014 marked
+  `[x]`/CLOSED; run every validator and the full test suite; exercise a
+  real `copier copy` render end-to-end; fix every defect found; cut the
+  `v0.20.0` release.
+
+### What was executed
+
+#### 1. Static verification against disk
+
+Confirmed the following files exist and match what ADR-033/034/035
+describe: `copier.yml` `profile` question, `configs/profiles/
+{local,staging,prod,active_profile}.yaml`, Makefile `PROFILE`/
+`local-loop`/`switch-profile`/`install-uv` targets, `docs/CCDS_MAPPING.md`,
+`docs/TUTORIAL.md`, `agentic/skills/{stack-switch,template-onboard}/
+SKILL.md`, `agentic/workflows/{stack-switch,onboard}.md`, D-35 row in
+`AGENTS.md` + its contract test.
+
+#### 2. Validator + drift gate sweep (before fixes)
+
+`check_vendored_runtime_drift.py` — **RED** (7 files: new skills/workflows
+never propagated to `templates/service/agentic/`).
+`test_anti_pattern_count_consistency.py` — **RED** (`ADR-014` stale
+`D-01..D-34` citation). `test_adoption_boundary_contract.py` — **RED**
+(`onboard` + `stack-switch` workflows had no `make` target mapping,
+PR-R2-12 violation).
+
+#### 3. Deep-read verification (caught what the gates could not)
+
+- `template-onboard`'s Step 4 validated its generated YAML against
+  `config/context.schema.json` (ADR-023's company/project schema,
+  `additionalProperties: false`, requires `company` or `project`+`kpis`
+  keys) — the skill's own example output has neither. This would fail on
+  every real invocation. **Functional bug, not caught by any existing
+  test** (no test previously exercised `/onboard` end-to-end).
+- `templates/service/.gitignore` does not exist and never has
+  (`git log --all -- templates/service/.gitignore` is empty) — a
+  scaffolded service commits `.terraform/`, `*.tfstate*`, secrets, and
+  `mlruns/` by default, and `/onboard`'s own precondition check
+  (`grep "_context.local.yaml" .gitignore`) would always fail.
+- `make deploy` had no guard for the `local` profile despite ADR-033 §2.5
+  stating deploy must be blocked there.
+- README.md's D-35 row and `docs/TUTORIAL.md` each cited a test file/name
+  that does not exist (`tests/contract/test_d35_local_profile_no_cloud_deps.py`;
+  `test_d32_drift_cronjob_module_exists`).
+- `llms.txt` and both `ADOPTION.md` copies claimed "17 ADRs" / "30 ADR
+  files (→ ADR-031)"; actual count is 35 (`ADR-001` → `ADR-035`).
+
+#### 4. Fixes applied
+
+All of the above, plus: `adopter_context.schema.json` (+ example file) as
+a dedicated, correct schema; `make onboard` target; `stack-switch`/
+`onboard` registered in the adoption-boundary map and `docs/ADOPTION.md`;
+`new-service.sh` `--profile` passthrough + missing `.gitkeep` touches;
+`scripts/deploy.sh` Makefile invocation corrected to its real
+`--service/--version/--cloud` flag contract (pre-existing, unrelated to
+Waves 2–4, surfaced by the end-to-end run); `agentic/skills/rule-audit/
+SKILL.md` internal D-34/D-35 inconsistency (same file, two other lines
+already said D-35).
+
+#### 5. Real end-to-end verification (not just static review)
+
+Rendered a live service via `copier copy --data profile=local`:
+`.gitignore` present with the `_context.local.yaml` pattern; `make deploy`
+correctly **blocked** ("active profile is 'local' … must not target a
+cluster", exit non-zero); `make onboard` created the context file; the
+file **validated successfully** against the new
+`adopter_context.schema.json`; `make switch-profile PROFILE=staging`
+updated `active_profile.yaml`; `make deploy` then **proceeded** past the
+guard (failed later only on the unrelated, now-also-fixed CLI-flag
+mismatch). Cleaned up the temp render afterward.
+
+#### 6. Full re-verification (after fixes)
+
+`validate_agentic.py`, `validate_agentic_manifest.py --strict` (8/8),
+`sync_agentic_adapters.py --check`, `check_doc_coherence.py`,
+`check_vendored_runtime_drift.py`, `check_common_utils_drift.py`,
+`check_cicd_template_drift.py`, `check_dashboard_inventory.py` — all
+green. Full suite: **679 passed, 40 skipped, 0 failed** (matches the
+pre-audit baseline; no regression introduced by the fixes).
+
+#### 7. Release cut
+
+`[Unreleased]` → `## [v0.20.0] — 2026-07-01` in `CHANGELOG.md`;
+`VERSION` → `0.20.0`; `llms.txt` version + counts refreshed;
+`releases/v0.19.0.md` (backfilled — was missing) and `releases/v0.20.0.md`
+created, both with `## Known follow-ons`.
+
+### What was NOT validated (pending)
+
+- `templates/service/docs/ADOPTION.md` was fixed only for the concrete
+  stale citations found; it is not a registered vendored pair with the
+  root `docs/ADOPTION.md` and remains only partially reconciled (missing
+  the `doc-coherence` rows). Tracked as a known follow-on, not fixed here.
+- A candidate C6 `check_doc_coherence.py` check for free-text "N ADRs"
+  claims was scoped but deliberately **not** implemented this pass — the
+  regex risk of false-positiving on historical/point-in-time documents
+  (CHANGELOG, VALIDATION_LOG, past `ACTION_PLAN_R*` audits) needs more
+  care than the remaining time in this pass allowed.
+- No real cluster deploy was exercised (`staging`/`prod` profile paths
+  beyond the guard-bypass check) — the `v1.0.0` L4 gate is unaffected by
+  and independent of this release.
+- CI (`GitHub Actions`) was not observed green for this exact commit at
+  the time this entry was written — push and CI-watch happen after this
+  entry per the maintainer's request sequencing.
+
+### Conclusion (Entry 015)
+
+Entries 013/014's core claims held up: every Wave 2–4 file existed and
+matched its ADR. But "exists" was not "correct" — one functional bug
+(`/onboard` schema mismatch) would have failed on first real use, one
+invariant (D-35 deploy block) was undocumented-as-tested but actually
+unenforced, and several citation/count drifts had accumulated exactly as
+Entries 013/014's own "not validated" sections predicted. All are fixed
+and independently re-verified, including one real end-to-end scaffold
+render (not just static file reads). `v0.20.0` is cut on this basis.
 
 ---
 

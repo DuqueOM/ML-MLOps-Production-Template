@@ -1,0 +1,26 @@
+# Local profile — no Docker, K8s, Terraform, or cloud credentials required.
+# Runs train → serve → drift entirely on a laptop.
+# See ADR-033 (Local-first stack profiles).
+
+profile: local
+
+requires:
+  docker: false
+  kubernetes: false
+  terraform: false
+  cloud_credentials: false
+
+mlflow:
+  tracking_uri: "file://./mlruns"
+  experiment_name: "{@ service_slug @}_local"
+
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+drift:
+  schedule: manual
+
+deploy:
+  enabled: false
