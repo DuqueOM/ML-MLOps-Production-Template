@@ -99,7 +99,13 @@ warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-v --tb=short"
+# --import-mode=importlib: three sibling test packages are all named `tests`
+# (tests/, eda/tests/, monitoring/tests/); the default `prepend` mode
+# collides in sys.modules when more than one is collected in the same run
+# (AUDIT R8-05 — same fix as the template-repo root pyproject). Verified:
+# no test imports `from tests…`, so importlib is safe here and in
+# scaffolded services.
+addopts = "-v --tb=short --import-mode=importlib"
 pythonpath = [".", "src"]
 markers = [
     "scaffold_context: needs a scaffolded service (data/ dirs, generated openapi snapshot, trained model); excluded from the template-context CI lane and exercised by the scaffold smoke instead",
