@@ -12,6 +12,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ### Added
 
+- **AUDIT R8 — Staff/Lead dual-repo audit (template + agent-local)**
+  (`docs/audit/AUDIT_R8_STAFF_LEAD.md`): first audit round covering
+  `agent-local` as a full audit subject alongside this template. Verdicts:
+  template 9.1/10 (no new architecture/security/supply-chain findings; two
+  local-DX findings — root `pytest -q` collection collision between three
+  sibling `tests` packages, and missing `pytest-asyncio` in the root env),
+  agent-local 7.9/10 (12 findings, worst: synchronous multi-LLM loop inside
+  an `async def` endpoint — the D-24 class — plus exception-detail leak,
+  discarded `reflect()` output, and a triple version drift with no coherence
+  gate). Includes a governance-parity matrix (every discipline that traveled
+  to agent-local without its gate has a live finding), per-dimension scoring
+  for both repos, structural knowledge-graph verification of D-24 across all
+  10 `.predict*` call sites, and a prioritized P0/P1/P2 action plan.
 - **ADR-037 — Dual-namespace retrieval separation (operational memory vs.
   pedagogical RAG)**
   (`docs/decisions/ADR-037-dual-namespace-retrieval-separation.md`):
