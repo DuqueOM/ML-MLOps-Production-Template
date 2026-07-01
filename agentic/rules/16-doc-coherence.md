@@ -32,7 +32,8 @@ the gate enforces.
 
 | Fact | Canonical owner | Mirrors that MUST track it |
 |------|-----------------|-----------------------------|
-| Release version | `VERSION` | `CHANGELOG.md` latest released heading, `llms.txt` `> Version:`, README badges |
+| Release version | `VERSION` | `CHANGELOG.md` latest released heading, `llms.txt` `> Version:`, README badges, `releases/vX.Y.Z.md` |
+| Release publication | `releases/vX.Y.Z.md` | the GitHub Release (title = its H1, body = the file) — published automatically by `.github/workflows/release-on-tag.yml` on tag push, never by hand |
 | Anti-pattern catalogue size | `AGENTS.md` (highest `D-NN` row) | README "N anti-patterns", `llms.txt` `(D-01 to D-NN)`, CLAUDE.md header + skills |
 | Agentic surface counts | `agentic/{rules,skills,workflows}/` on disk | CLAUDE.md "N rules + N skills + N workflows", `llms.txt`, AGENTS.md index |
 | ADR set + numbering | `docs/decisions/ADR-*.md` files | CHANGELOG entries, ADR index, any "N ADRs" claim |
@@ -78,7 +79,7 @@ decision → ADR-NNN  ⇄  CHANGELOG [Unreleased] entry  ⇄  release vX.Y.Z  �
 
 | If you change… | You MUST also update… |
 |----------------|------------------------|
-| `VERSION` / cut a release | `CHANGELOG.md` heading, `llms.txt` version, README badges |
+| `VERSION` / cut a release | `CHANGELOG.md` dated heading, `llms.txt` version, README badges, `releases/vX.Y.Z.md` (title + body the GitHub Release will use), git tag `vX.Y.Z` pushed |
 | Add/remove an anti-pattern in `AGENTS.md` | README count, `llms.txt` range, CLAUDE.md header + table, rule-audit + debug-ml-inference skills |
 | Add/remove a rule, skill, or workflow | `agentic_manifest.yaml`, run `sync_agentic_adapters.py`, CLAUDE.md counts, AGENTS.md index, `llms.txt` |
 | Add/withdraw an ADR | `CHANGELOG.md` reference, ADR index, any "N ADRs" claim; withdrawals get a tombstone |
@@ -94,10 +95,26 @@ python3 scripts/check_doc_coherence.py
 #   → skill: doc-coherence   workflow: /doc-coherence
 ```
 
-The gate runs five checks: version SSoT (C1), `llms.txt` version (C2),
+The gate runs six checks: version SSoT (C1), `llms.txt` version (C2),
 anti-pattern count (C3), agentic surface counts (C4), ADR traceability /
-no-silent-gaps (C5). A failing gate blocks the PR — coherence is a release
-invariant, not a suggestion.
+no-silent-gaps (C5), release note existence (C6). A failing gate blocks
+the PR — coherence is a release invariant, not a suggestion.
+
+## Release publication is automatic — never a manual step
+
+A tag push (`git tag -a vX.Y.Z ... && git push origin vX.Y.Z`) is the
+**only** action a release requires beyond the coherence steps above.
+`.github/workflows/release-on-tag.yml` then publishes (or updates, if one
+already exists) the GitHub Release automatically: title from
+`releases/vX.Y.Z.md`'s H1, body from the full file, `--latest` computed
+correctly for the active `v0.x` line. **If you find yourself running
+`gh release create` or `gh release edit` by hand, that is a signal the
+automation is broken (or `releases/vX.Y.Z.md` is missing, C6) — fix the
+root cause, do not paper over it with a one-off manual command.** This
+exact failure mode shipped once (2026-07-01): a CHANGELOG heading format
+change silently broke the workflow's extraction regex, and the resulting
+generic release body was "fixed" by hand instead of at the source — see
+the workflow file's header comment for the full incident and the fix.
 
 ## Related
 

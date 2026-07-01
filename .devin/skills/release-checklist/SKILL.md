@@ -60,6 +60,14 @@ authorization_mode:
 
 ## Version Tagging
 
+Before tagging, confirm the coherence gate is green — it checks (among
+other things, C6) that `releases/v{VERSION}.md` exists, which is what the
+GitHub Release will be built from:
+
+```bash
+python3 scripts/check_doc_coherence.py
+```
+
 ```bash
 # Update version
 export VERSION=v{MAJOR}.{MINOR}.{PATCH}
@@ -68,6 +76,21 @@ export VERSION=v{MAJOR}.{MINOR}.{PATCH}
 git tag -a ${VERSION} -m "Release ${VERSION}: {summary}"
 git push origin ${VERSION}
 ```
+
+**Do not run `gh release create` / `gh release edit` after this.** Pushing
+the tag triggers `.github/workflows/release-on-tag.yml` (AUTO), which
+publishes the GitHub Release automatically — title from
+`releases/${VERSION}.md`'s H1, full file as the body, `--latest` computed
+for the active `v0.x` line. Verify it published correctly instead:
+
+```bash
+gh release view ${VERSION}   # confirm title/body/latest look right
+```
+
+If the published Release has the wrong title/body, the fix is in
+`release-on-tag.yml` or `releases/${VERSION}.md` — not a manual
+`gh release edit` patching the symptom (rule 16 §"Release publication is
+automatic").
 
 ## Build and Push Images
 

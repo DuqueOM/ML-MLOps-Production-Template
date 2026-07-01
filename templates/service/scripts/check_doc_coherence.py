@@ -30,6 +30,13 @@ C5  ADR traceability — every integer in ``[1 .. max ADR]`` must have a file
     in ``docs/decisions/``; a missing number is only allowed if a tombstone
     file documents it (``Status: Withdrawn``). Catches silently dropped ADRs
     and undocumented numbering gaps.
+C6  Release note existence — the current ``VERSION`` must have a matching
+    ``releases/vX.Y.Z.md``. ``docs/RELEASING.md`` requires one per release,
+    and ``.github/workflows/release-on-tag.yml`` prefers it as the source
+    for the GitHub Release title + body; without it, a tag push falls back
+    to a generic, unpolished release body (the exact failure this check
+    exists to catch before it ships — see that workflow's file header for
+    the 2026-07-01 incident this closes).
 
 Exit codes
 ----------
@@ -55,6 +62,7 @@ RULES_DIR = REPO_ROOT / "agentic" / "rules"
 SKILLS_DIR = REPO_ROOT / "agentic" / "skills"
 WORKFLOWS_DIR = REPO_ROOT / "agentic" / "workflows"
 ADR_DIR = REPO_ROOT / "docs" / "decisions"
+RELEASES_DIR = REPO_ROOT / "releases"
 
 
 def _norm_version(raw: str) -> str:
@@ -211,12 +219,34 @@ def check_adr_traceability() -> list[str]:
     return problems
 
 
+def check_release_note_exists() -> list[str]:
+    """C6 — the current VERSION has a matching releases/vX.Y.Z.md.
+
+    Context-adaptive like the other checks: a repo with no VERSION or no
+    releases/ directory (e.g. a scaffolded service) has nothing to verify
+    here.
+    """
+    version_raw = _read(VERSION_FILE)
+    if version_raw is None or not RELEASES_DIR.is_dir():
+        return []
+    version = _norm_version(version_raw)
+    note = RELEASES_DIR / f"v{version}.md"
+    if not note.is_file():
+        return [
+            f"releases/v{version}.md is missing for the current VERSION ({version}). "
+            f"docs/RELEASING.md requires a release note per release; "
+            f"release-on-tag.yml falls back to a generic body without it."
+        ]
+    return []
+
+
 CHECKS = [
     ("C1 version-sot", check_version_sot),
     ("C2 llms-version", check_llms_version),
     ("C3 anti-pattern-count", check_anti_pattern_count),
     ("C4 surface-counts", check_surface_counts),
     ("C5 adr-traceability", check_adr_traceability),
+    ("C6 release-note-exists", check_release_note_exists),
 ]
 
 
@@ -227,7 +257,7 @@ def main() -> int:
             all_problems.append((label, problem))
 
     if not all_problems:
-        print("[doc-coherence] OK — all 5 cross-document checks pass.")
+        print("[doc-coherence] OK — all 6 cross-document checks pass.")
         return 0
 
     print(f"[doc-coherence] {len(all_problems)} coherence violation(s):")

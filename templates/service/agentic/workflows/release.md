@@ -21,8 +21,20 @@ pytest --cov=src --cov-report=term-missing --cov-fail-under=90
 ## 3. Tag the Release
 
 ```bash
+# Confirm releases/v{VERSION}.md exists first — check_doc_coherence.py C6
+python3 scripts/check_doc_coherence.py
+
 git tag -a v{VERSION} -m "Release v{VERSION}: {summary}"
 git push origin v{VERSION}
+```
+
+Pushing the tag triggers `.github/workflows/release-on-tag.yml`, which
+publishes the GitHub Release automatically (title + body from
+`releases/v{VERSION}.md`). Do not follow up with a manual
+`gh release create`/`edit` — verify instead:
+
+```bash
+gh release view v{VERSION}
 ```
 
 ## 4. Build and Push Docker Images (GCP)

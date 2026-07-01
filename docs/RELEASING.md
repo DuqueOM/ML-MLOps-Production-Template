@@ -154,9 +154,22 @@ Every release MUST satisfy the following before tagging:
       `test_phase0_disclosure.py` is updated alongside in the SAME PR
       that flips the Status.
 - [ ] Release notes file `releases/vX.Y.Z.md` exists with the same bump
-      rationale.
+      rationale. `scripts/check_doc_coherence.py` (check C6) enforces this.
 - [ ] Tag is annotated (`git tag -a vX.Y.Z -m '...'`) and pushed to
       origin alongside the merge commit.
+- [ ] GitHub Release publication is **automatic** —
+      `.github/workflows/release-on-tag.yml` (AUTO mode) fires on the tag
+      push and publishes (or updates, idempotently) the Release, sourcing
+      its title and body from `releases/vX.Y.Z.md`. Verify with
+      `gh release view vX.Y.Z` after pushing; do **not** run
+      `gh release create`/`edit` by hand — if the published Release looks
+      wrong, the bug is in the workflow or the release note, not something
+      to patch over manually (rule 16 §"Release publication is automatic").
+      0.x releases are never GitHub-flagged `--prerelease`: verified
+      empirically that a prerelease is structurally excluded from ever
+      being `--latest`, which would misrepresent the active line's newest
+      release as stale. The pre-GA nuance is communicated in this
+      document and every release note instead.
 
 ---
 

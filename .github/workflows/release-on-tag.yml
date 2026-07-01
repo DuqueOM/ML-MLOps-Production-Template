@@ -7,11 +7,40 @@
 # 1,400+ lines yet invisible to anyone using GitHub's Releases UI,
 # producing the "no releases = abandoned" perception.
 #
-# This workflow extracts the matching CHANGELOG section for the
-# pushed tag and creates a Release with that body. If the section
-# cannot be found (e.g. the tag was created before the matching
-# changelog entry was written), the Release is created with a
-# fallback body pointing to CHANGELOG.md.
+# Fixed 2026-07-01 (rule 16 / ADR-031 incident): the first version of
+# this workflow only extracted from CHANGELOG.md with a regex that
+# assumed the heading format `## [X.Y.Z] - YYYY-MM-DD` (no leading `v`
+# inside the brackets, hyphen separator). Once CHANGELOG.md headings
+# moved to `## [vX.Y.Z] — YYYY-MM-DD` (leading `v`, em-dash) starting at
+# v0.19.0, the regex silently stopped matching and every release fell
+# back to the generic "Auto-published from tag" body — requiring manual
+# `gh release edit` to fix, exactly the manual-intervention failure mode
+# this workflow exists to eliminate. Fixed by:
+#   1. Preferring `releases/vX.Y.Z.md` (title = its H1, body = the full
+#      file) as the primary source — it is the polished, human-authored
+#      release note `docs/RELEASING.md` already requires for every
+#      non-hotfix release.
+#   2. A CHANGELOG.md fallback regex tolerant of both heading formats.
+#   3. Idempotent create-or-edit (a re-run, or a release someone already
+#      touched, no longer fails the job).
+#   4. Explicit, computed `--latest` for the newest tag on the active
+#      v0.x line — never flagged `--prerelease`. An earlier draft of
+#      this fix tried flagging every 0.x tag as a GitHub "prerelease" to
+#      signal the pre-GA hardening channel (docs/RELEASING.md §2).
+#      Verified empirically against the real API: a `--prerelease`
+#      release is **structurally excluded** from ever being "Latest" —
+#      `--latest` on a prerelease is silently dropped, and the badge
+#      falls back to the newest non-prerelease release instead (which
+#      may be an old 0.x tag, or a frozen v1.x historical snapshot).
+#      That is a materially worse outcome than the semantic-purity of
+#      the prerelease flag: a visitor would see a stale "Latest release"
+#      pointing at a genuinely older cut. The pre-GA nuance is
+#      communicated in prose instead (this repo already does that
+#      consistently — docs/RELEASING.md, every releases/vX.Y.Z.md, and
+#      README's verification-status section all say so explicitly),
+#      not via a UI flag with this side effect. Matches the observed,
+#      100%-consistent history: every release ever published in this
+#      repo (v1.1.0 through v0.19.0) has `prerelease=false`.
 #
 # Mode (per AGENTS.md): AUTO. Releases are additive and reversible
 # (a Release can be deleted without affecting tags or the repo).
@@ -24,7 +53,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write   # required for `gh release create`
+  contents: write   # required for `gh release create` / `gh release edit`
 
 jobs:
   publish-release:
@@ -33,61 +62,92 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # full history + tags — required for the --latest comparison below
 
-      - name: Extract CHANGELOG section for this tag
-        id: changelog
+      - name: Build release title + body
+        id: release
         env:
           TAG: ${{ github.ref_name }}
         run: |
           set -eu
-          # Strip the leading 'v' for the section header lookup.
           version="${TAG#v}"
-          # CHANGELOG sections are: ## [X.Y.Z] - YYYY-MM-DD
-          # Capture from that header to the next "## [" header.
-          if grep -qE "^## \[${version}\] " CHANGELOG.md; then
-            awk -v v="${version}" '
-              $0 ~ "^## \\["v"\\] " {capture=1; print; next}
-              capture && /^## \[/ {capture=0}
-              capture {print}
-            ' CHANGELOG.md > /tmp/release-body.md
-            echo "Extracted $(wc -l < /tmp/release-body.md) line(s) for ${TAG}."
+          note_file="releases/${TAG}.md"
+
+          if [ -f "$note_file" ]; then
+            echo "Using release note: ${note_file}"
+            title="$(grep -m1 '^# ' "$note_file" | sed -E 's/^# +//')"
+            cp "$note_file" /tmp/release-body.md
           else
-            echo "No CHANGELOG section for ${TAG}; using fallback body."
-            cat > /tmp/release-body.md <<'EOF'
+            # Tolerant of both heading conventions ever used in this repo:
+            #   ## [0.18.0] - 2026-06-10      (no leading v, hyphen)
+            #   ## [v0.20.0] — 2026-07-01     (leading v, em-dash)
+            if grep -qE "^## \[v?${version}\] " CHANGELOG.md; then
+              echo "No ${note_file}; extracting CHANGELOG.md section for ${TAG}."
+              title="${TAG}"
+              awk -v v="${version}" '
+                $0 ~ ("^## \\[v?" v "\\] ") {capture=1; next}
+                capture && /^## \[/ {capture=0}
+                capture {print}
+              ' CHANGELOG.md > /tmp/release-body.md
+            else
+              echo "No ${note_file} and no matching CHANGELOG.md section; using generic body."
+              title="${TAG}"
+              cat > /tmp/release-body.md <<'EOF'
           Auto-published from tag. See `CHANGELOG.md` for the full change list.
           EOF
+            fi
           fi
 
-      - name: Determine if this is a prerelease
-        id: prerelease
+          echo "title=${title}" >> "$GITHUB_OUTPUT"
+
+      - name: Determine latest flag
+        id: flags
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          # 0.x is the active hardening line; v1.0.0 is the L4-validated
-          # cut. Until v1.0.0 is reached, every 0.x tag is flagged as
-          # prerelease so the GitHub UI surfaces 0.x clearly while the
-          # historical v1.x snapshots remain Latest=v1.12.0 unless a new
-          # v1.x is cut.
+          set -eu
+          # Never --prerelease (see the file header — it structurally
+          # breaks --latest on the GitHub API). "Latest" tracks the
+          # newest tag on the ACTIVE v0.x line; the frozen v1.x
+          # historical snapshots (docs/RELEASING.md §2) never compete
+          # for it. A future real v1.x GA cut (not one of the existing
+          # frozen snapshots) becomes latest unconditionally.
           if [[ "${TAG}" =~ ^v0\. ]]; then
-            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
+            highest_v0="$(git tag --list 'v0.*' | sort -V | tail -1)"
+            if [ "${TAG}" = "${highest_v0}" ]; then
+              echo "latest=--latest" >> "$GITHUB_OUTPUT"
+            else
+              echo "latest=--latest=false" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "flag=" >> "$GITHUB_OUTPUT"
+            echo "latest=--latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-          PRE: ${{ steps.prerelease.outputs.flag }}
+          TITLE: ${{ steps.release.outputs.title }}
+          LATEST: ${{ steps.flags.outputs.latest }}
         run: |
           set -eu
-          # --notes-file uses the extracted CHANGELOG section as body.
-          # --verify-tag asserts the tag exists in the repo (defense in
-          # depth, since the trigger already implies it).
-          gh release create "${TAG}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "${TAG}" \
-            --notes-file /tmp/release-body.md \
-            --verify-tag \
-            ${PRE}
+          # Idempotent: a re-run of this workflow, or a release someone
+          # already touched by hand, updates in place instead of failing
+          # on "release already exists".
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${TAG} exists — updating."
+            gh release edit "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${TITLE}" \
+              --notes-file /tmp/release-body.md \
+              --prerelease=false \
+              ${LATEST}
+          else
+            echo "Release ${TAG} does not exist — creating."
+            gh release create "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${TITLE}" \
+              --notes-file /tmp/release-body.md \
+              --verify-tag \
+              ${LATEST}
+          fi
