@@ -1,7 +1,8 @@
 # ACTION PLAN — Framework Agéntico LLM Local (WhatsApp + Asistente de Tienda + Plano de Mantenimiento)
 
-> **Autoridad**: ADR-028 (LLM-assist, 4 tiers), AGENTS.md (AUTO/CONSULT/STOP),
-> guía oficial Gemma 4.
+> **Autoridad**: ADR-028 (LLM-assist, 4 tiers), ADR-037 (separación dual de
+> namespaces de retrieval — memoria operativa vs. RAG pedagógico),
+> AGENTS.md (AUTO/CONSULT/STOP), guía oficial Gemma 4.
 > **Este documento es el ÚNICO plan vigente del plano LLM** — absorbe y
 > reemplaza a `ACTION_PLAN_ADR028.md` (hoy un stub que apunta aquí). Los
 > lanes de mantenimiento del template viven en la sección "PLANO DE
@@ -11,10 +12,12 @@
 > de aceptación. **No improvises fuera de los pasos: si un gate falla, detente
 > y reporta.**
 >
-> **Última actualización**: 2026-06-15 (**v3.1** — `agent-local` ejecutado:
-> refactor a **plataforma reutilizable** `core/` + `usecases/<dominio>/`,
-> repo público, gate de routing F1 **PASADO 20/20** y **F2.0**
-> (ExecutiveController + circuit breaker) hecho; ver
+> **Última actualización**: 2026-07-01 (**v3.2** — canonicalizado **L-2b: RAG
+> pedagógico**, hermano namespace-disjoint de L-2, con separación enterprise
+> obligatoria de la memoria operativa; ver ADR-037 y agent-local ADR-008).
+> v3.1: `agent-local` ejecutado: refactor a **plataforma reutilizable** `core/`
+> + `usecases/<dominio>/`, repo público, gate de routing F1 **PASADO 20/20** y
+> **F2.0** (ExecutiveController + circuit breaker) hecho; ver
 > "Estado de ejecución" abajo. v3 base: supervivientes de la revisión
 > adversarial R1–R10, `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
 
@@ -51,8 +54,10 @@
   retrieval · policy · agent · controller · telemetry · circuit`.
 - `usecases/tienda/` (ejemplo): `config.yaml · tools.py · prompts/ · grammars/ ·
   policies/policy.yaml · budgets.yaml · data/ · evals/sets/01..10`.
-- 5 ADRs en `agent-local/docs/decisions/` (001 plataforma · 002 infra · 003
-  policy-as-data · 004 verificación cruzada · 005 telemetría).
+- 8 ADRs en `agent-local/docs/decisions/` (001 plataforma · 002 infra · 003
+  policy-as-data · 004 verificación cruzada · 005 telemetría · 006 contrato de
+  capacidades de tools · 007 tool-calling estructurado · 008 aislamiento por
+  llamador — ver ADR-037 de este repo).
 - **77 tests** verdes; `flake8` + `mypy` limpios; CI sin modelos.
 
 **Comando para verificar el estado en cualquier momento:**
@@ -339,6 +344,8 @@ agent-local/
 ├── Dockerfile docker-compose.yml pyproject.toml
 └── docs/decisions/        # ADR-001 plataforma · 002 infra calibrada · 003 policy-as-data
                            #   · 004 verificación cruzada · 005 telemetría de decisiones
+                           #   · 006 capability contract · 007 tool-calling estructurado
+                           #   · 008 aislamiento por llamador (retrieval, ver ADR-037)
 ```
 
 **Crear un dominio nuevo** = nueva carpeta `usecases/<nombre>/` (config + tools +
@@ -759,6 +766,61 @@ drift sembrados (mutar un conteo, renombrar un overlay) → ≥9/10 detectados c
 3. Eval: 20 preguntas históricas con respuesta conocida; recall@5 ≥ 80% o se
    reevalúa vector store (no antes).
 
+### L-2b RAG pedagógico — hermano namespace-disjoint de L-2 (ADR-037)
+
+> **Canónico desde v3.2.** Nace de una pregunta natural ("¿podemos reusar el
+> stack de `agent-local` para que newcomers pregunten sobre el template?") que
+> es peligrosa sin una separación explícita: mezclar el corpus pedagógico con
+> runbooks/evidencia operativa en el MISMO índice arriesga filtraciones
+> operativas hacia una superficie más expuesta (posible widget en el sitio de
+> docs). **ADR-037** formaliza la separación; esto la ejecuta.
+
+1. **Nunca el mismo script que L-2.** `scripts/pedagogy_query.py` (nuevo) es un
+   entrypoint separado de `scripts/memory_query.py` — jamás un flag
+   `--namespace` sobre el mismo script. Un flag puede quedar mal por defecto u
+   olvidarse en un call site; dos scripts obligan a nombrar el equivocado a
+   propósito.
+2. **Corpus disjunto, hardcodeado, nunca parametrizable por request**:
+   `REDACTED-PRIVATE-REPO/docs/*.md`, `docs/decisions/ADR-*.md` (solo prosa —
+   contexto/decisión/consecuencias leídos como material pedagógico, nunca como
+   bitácora operativa), `docs/TUTORIAL.md`, `docs/CCDS_MAPPING.md`, glosario.
+   **Prohibido**: `ops/`, `docs/incidents/`, `VALIDATION_LOG.md`,
+   `releases/*.md` — eso es exclusivamente L-2/ADR-018.
+3. **Índice propio, nunca compartido**: `pedagogy_query.py` construye su propio
+   `BM25Index` en proceso — ningún objeto, archivo o tabla se comparte con el
+   índice de L-2. Lo único que ambos scripts comparten es el endpoint E4B de
+   `agent-local` (`http://127.0.0.1:8091/...`), seguro de compartir
+   precisamente porque el tier no tiene estado entre requests (agent-local
+   ADR-008) — compartir el tier es una decisión de costo de hardware, no una
+   concesión de separación.
+4. **Citas con validación de namespace (el backstop en runtime)**: además de
+   "sin cita se descarta" (regla ya vigente en L-2), una cita que NO resuelva
+   dentro del allow-list del namespace que respondió se descarta y genera un
+   evento de integridad — nunca se sirve. Es lo que convierte "lo diseñamos
+   separado" en "verificamos en cada query que siguió separado".
+5. **Telemetría con `namespace` obligatorio** (`"operational"|"pedagogical"`,
+   enum cerrado de 2 valores) en cada línea — auditable con
+   `grep namespace ops/*.jsonl`.
+6. **Gate CI dedicado**: `tests/test_retrieval_namespace_isolation.py` (nuevo)
+   verifica que los dos allow-lists no se intersecten y que ninguno resuelve
+   (vía glob) a un archivo del root exclusivo del otro.
+7. **No es una fase de ADR-018.** El Operational Memory Plane tiene su propio
+   threat model (tokens de CI filtrados, redacción de secretos, tenancy) que
+   el contenido pedagógico no tiene y no debe fingir tener. Este lane es un
+   mecanismo propio, más ligero, BM25-first — nunca un `memory_type` nuevo
+   dentro del `MemoryUnit` de ADR-018.
+
+**Aceptación de L-2b**: `test_retrieval_namespace_isolation.py` verde · un
+test unitario de "cita fuera de namespace se rechaza y se loggea" · ambos
+scripts emiten `namespace` validado contra el enum cerrado · REDACTED-PRIVATE-REPO
+[§46.11](https://github.com/DuqueOM/REDACTED-PRIVATE-REPO/blob/main/docs/46_RETRIEVAL_MEMORIA_POLITICAS.md)
+describe la separación para un lector humano, no solo en código.
+
+**Estado**: especificado (este ADR + esta sección), NO implementado — igual
+que L-2 mismo, gated detrás del mismo timeline de "INTEGRACIÓN P2" (ninguno de
+los dos scripts existe todavía). Ver ADR-037 para el registro completo de
+alternativas consideradas y consecuencias.
+
 ### L-3 Triage de drift/incidentes
 
 1. Joiner reúne: señales Prometheus (MCP), slices del prediction-log,
@@ -806,7 +868,7 @@ exige ADR nuevo.
 | P2.1 | **Evidencia L4**: rollout real GKE+EKS | `deploy-gke` y `deploy-aws` skills sobre el servicio ejemplo → capturar `kubectl get pods/svc`, Grafana, coste → entradas fechadas en `ops/VALIDATION_LOG.md` → screenshots a `docs/evidence/` |
 | P2.2 | 4 runbooks pendientes | `docs/runbooks/`: `gke-rollout.md`, `eks-rollout.md`, `rollback-validado.md`, `coste-ventana-l4.md` — formato de los 5 existentes |
 | P2.3 | Ventana shadow 14 días (ADR-019 Fase 2) | activar prediction logger en el ejemplo, cron diario de captura, al día 14: reporte de drift con `drift-check` |
-| P2.4 | ADR-018 Fase 2: ingest + retrieval | **REUSAR este stack**: `scripts/memory_ingest.py` (file-based, BM25 igual que F1.5) sobre `ops/audit.jsonl` + ADRs; lane `memory-retrieval` llama a E4B local (puerto 8091) con gramática |
+| P2.4 | ADR-018 Fase 2: ingest + retrieval **+ L-2b pedagógico (ADR-037)** | **REUSAR este stack**: `scripts/memory_ingest.py` + `scripts/memory_query.py` (file-based, BM25 igual que F1.5) sobre `ops/audit.jsonl` + ADRs, namespace `operational`; **en paralelo**, `scripts/pedagogy_query.py` (namespace `pedagogical`, corpus disjunto: REDACTED-PRIVATE-REPO + ADRs-como-prosa) — dos scripts, dos índices, un solo E4B compartido (agent-local ADR-008). Ambos con citas file:line validadas contra su propio namespace (§L-2b) |
 | P2.5 | Skill + módulo `data-cleaning` | `agentic/skills/data-cleaning/SKILL.md` (modo AUTO) + `templates/common_utils/data_cleaning.py` (imputación, outliers, tipos — con tests) + sync adapters + validator strict |
 
 ## INTEGRACIÓN P3 (estratégico)

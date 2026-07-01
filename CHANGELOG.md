@@ -12,6 +12,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ### Added
 
+- **ADR-037 — Dual-namespace retrieval separation (operational memory vs.
+  pedagogical RAG)**
+  (`docs/decisions/ADR-037-dual-namespace-retrieval-separation.md`):
+  canonicalizes a new `L-2b` maintenance-plane lane in
+  `docs/audit/ACTION_PLAN_LLM_AGENT.md` — a pedagogical/onboarding RAG over
+  REDACTED-PRIVATE-REPO + ADR prose, built as a namespace-disjoint sibling of the
+  existing `L-2` operational memory plane (ADR-018), never the same index or
+  script. Two disjoint scripts (`scripts/memory_query.py` vs. the new
+  `scripts/pedagogy_query.py`), two hard-coded disjoint corpus-root
+  allow-lists, two independent `BM25Index` objects, one shared *stateless*
+  agent-local tier endpoint (justified by agent-local's new ADR-008), and a
+  citation-path validator that discards (and logs) any answer whose citation
+  resolves outside its own namespace. Both scripts are specified, not yet
+  shipped — gated behind the same "INTEGRACIÓN P2" timeline as the rest of
+  the memory-plane lane.
 - **ADR-036 — Batch-only deployment topology**
   (`docs/decisions/ADR-036-batch-only-deployment-topology.md`): a new
   `templates/service/k8s/overlays/batch-only/` Kustomize overlay for

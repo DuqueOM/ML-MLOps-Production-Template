@@ -9,7 +9,8 @@
   execution plan is `docs/audit/ACTION_PLAN_LLM_AGENT.md`.
 - **Deciders**: Template maintainer (`@DuqueOM`)
 - **Related**: ADR-001 (scope boundaries), ADR-010 (dynamic behavior),
-  ADR-018 (memory plane), ADR-019 (CI self-healing),
+  ADR-018 (memory plane), ADR-019 (CI self-healing), ADR-037 (dual-namespace
+  retrieval separation — governs Lane 2's new pedagogical-RAG sibling, L-2b),
   `templates/config/model_routing_policy.yaml`, README §Model routing policy.
 
 ## 1. Context
@@ -50,6 +51,11 @@ exist (`ops/audit.jsonl`, `docs/incidents/`, `VALIDATION_LOG.md`,
 release notes, drift reports). Start file-based + embeddings-free
 (BM25/grep-class retrieval) to prove the recall surface before paying
 for a vector store. LLM summarization sits on top, read-only.
+
+A namespace-disjoint sibling, **Lane 2b (pedagogical RAG)**, reuses
+this same tier-serving mechanism for onboarding/adoption Q&A over
+REDACTED-PRIVATE-REPO + ADR prose — never the same script, index, or corpus as
+this lane. See ADR-037.
 
 ### Lane 3 — Drift / incident triage summarizer
 
