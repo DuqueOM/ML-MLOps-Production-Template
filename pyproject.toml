@@ -1,6 +1,13 @@
 [tool.pytest.ini_options]
-# Load tests use Locust (not pytest) — skip during collection
-addopts = "--ignore=templates/service/tests/load_test.py"
+# Load tests use Locust (not pytest) — skip during collection.
+# --import-mode=importlib: three sibling test packages are all named `tests`
+# (templates/service/tests, templates/service/eda/tests,
+# templates/service/monitoring/tests); the default `prepend` mode collides in
+# sys.modules and aborts collection from the repo root (AUDIT R8-05).
+addopts = "--ignore=templates/service/tests/load_test.py --import-mode=importlib"
+# Root env must execute async tests, not silently pass them (AUDIT R8-08);
+# requires pytest-asyncio (CI installs it explicitly, dev-setup mirrors that).
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 omit = [

@@ -10,6 +10,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed
+
+- **AUDIT R8-05 — root `pytest -q` collects again** (`pyproject.toml`):
+  the three sibling test packages all named `tests`
+  (`templates/service/{tests,eda/tests,monitoring/tests}`) collided in
+  `sys.modules` under pytest's default `prepend` import mode and aborted
+  collection from the repo root. Fixed with `--import-mode=importlib` in the
+  root `addopts` (verified: zero cross-test `from tests…` imports exist, so
+  importlib is safe). A new **"Root suite collects" guard step** in
+  `template-context-tests.yml` runs `pytest --collect-only -q` from the root
+  so this supported dev flow can never break without CI signal again.
+- **Alertmanager routing contract revived** —
+  (`templates/service/monitoring/tests/test_alertmanager_routing.py`): the
+  module anchored its config paths at `parents[3]` from before the Copier
+  Stage-2a relocation, resolving to a nonexistent `templates/templates/…` —
+  it had been **uncollectable (dead) since the move**, masked by the R8-05
+  collision. Paths are now file-relative (`parents[1]`, correct in template
+  context AND in a scaffolded service), the local amtool unpack is
+  discovered by ancestor walk with an `X_OK` guard (a non-executable unpack
+  means *skip*, never *fail*), and the module is now executed in CI: the
+  template-context lane runs `monitoring/tests` + `eda/tests` explicitly.
+  All 14 tests pass locally including the 6 amtool-authoritative ones.
+- **AUDIT R8-08 — async tests execute from the root env**
+  (`pyproject.toml`): `asyncio_mode = "auto"` + `pytest-asyncio` in the
+  template-context lane install; previously a root run without the plugin
+  collected `@pytest.mark.asyncio` tests as unknown-marked no-ops.
+  Full root suite after all fixes: **963 passed, 0 failed**
+  (`pytest -q -p no:locust -m "not scaffold_context"`).
+
 ### Added
 
 - **AUDIT R8 — Staff/Lead dual-repo audit (template + agent-local)**

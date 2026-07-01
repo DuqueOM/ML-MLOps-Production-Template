@@ -48,7 +48,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r templates/service/requirements.txt
-          pip install "copier>=9.0.0" jsonschema
+          pip install "copier>=9.0.0" jsonschema pytest-asyncio
+
+      - name: Root suite collects (AUDIT R8-05 guard)
+        # Running pytest from the repo ROOT is a supported dev flow (root
+        # pyproject carries [tool.pytest.ini_options]) but no lane executed
+        # it, so a sys.modules collision between the three sibling `tests`
+        # packages broke root collection without any CI signal. This step
+        # pins the fix (--import-mode=importlib) by asserting the whole
+        # repo COLLECTS from the root; scoped lanes below keep owning
+        # execution.
+        run: python -m pytest --collect-only -q -p no:locust > /dev/null
 
       - name: Run template-context suite
         # `-p no:locust`: locust self-registers as a pytest plugin and
@@ -56,8 +66,16 @@ jobs:
         # anyio/TestClient lifespans (hang in epoll, not a failure —
         # the worst CI failure mode). Collection of load_test.py is
         # separately blocked by `collect_ignore` in tests/conftest.py.
+        # monitoring/tests + eda/tests are included explicitly: no lane ran
+        # them before, so the alertmanager-routing module sat uncollectable
+        # (stale parents[3] path) for weeks with zero CI signal (AUDIT R8).
+        # amtool-authoritative tests self-skip when the binary is absent;
+        # the pure-Python simulator half always runs.
         run: |
-          python -m pytest templates/service/tests \
+          python -m pytest \
+            templates/service/tests \
+            templates/service/monitoring/tests \
+            templates/service/eda/tests \
             -p no:locust \
             -m "not scaffold_context and not locust_parity" \
             -q --tb=short

@@ -588,3 +588,34 @@ es ≈ 8.8 sin cambiar una línea de su diseño.
 ejecutados localmente, estado vivo de GitHub Actions, lectura de código
 fuente, y verificación estructural por grafo de conocimiento (tree-sitter +
 LSP) sobre el 100 % de los call sites para los invariantes graph-checkables.*
+
+---
+
+## Addendum — Estado de remediación (2026-07-01, mismo día)
+
+Los 12 hallazgos fueron remediados el mismo día de la auditoría. Registro
+canónico: `CHANGELOG.md` [Unreleased] de este repo y `CHANGELOG.md` v0.6.0
+de agent-local (+ su `releases/v0.6.0.md`).
+
+| ID | Estado | Cómo |
+|---|---|---|
+| R8-01 | ✅ Fixed | `dev_message` → `def` (threadpool) + contract test AST (`tests/test_app_serving_contract.py`) |
+| R8-02 | ✅ Fixed | 500 genérico con `error_id` de correlación + regression test |
+| R8-03 | ✅ Fixed | Canal `reflection_notes` → `generate()` (**ADR-009**) + 2 tests (incl. no-evidencia-para-verifier) |
+| R8-04 | ✅ Fixed | SSoT `core.__version__` (0.6.0), pyproject `dynamic`, superficie importa; **el gate nuevo atrapó una 5.ª copia** en `app/__init__.py` en su primera ejecución |
+| R8-05 | ✅ Fixed | `--import-mode=importlib` en addopts raíz + guard `--collect-only` en CI. **Bonus**: la colisión enmascaraba un módulo muerto — `test_alertmanager_routing.py` con paths pre-Stage-2a (`templates/templates/…`); revivido (paths file-relative + X_OK guard para amtool), 14/14 verde, y ahora ejecutado por el lane template-context |
+| R8-06 | ✅ Fixed | Lint CI a superficie completa (`conftest.py`, `evals/`, `scripts/`); drift de black aplicado |
+| R8-07 | ✅ Fixed | Gate por ratio (≥0.90) + exit code, tz-aware, p95 con clamp, inglés |
+| R8-08 | ✅ Fixed | `asyncio_mode="auto"` raíz + plugin en lane. Suite raíz: **963 passed, 0 failed** |
+| R8-09 | ✅ Fixed | Webhook stub → `JSONResponse(501)` + test |
+| R8-10 | ✅ Documented | `escalate_to_tier` marcado reservado en `policy.py` (decisión Phase-2) |
+| R8-11 | ✅ Fixed | `app/` + `evals/` reescritos en inglés |
+| R8-12 | ✅ Fixed | Job gitleaks (full-history) en CI + `.pre-commit-config.yaml` espejo |
+
+Resultado post-remediación: agent-local **119 tests** (112→119), coherence
+gate 4/4, lint/mypy limpios, release **v0.6.0** taggeada; template suite
+raíz **963 passed**, 6 validadores verdes. La matriz de paridad de §5 queda
+sin ❌ accionables (cobertura-gate y releases/ de agent-local: la primera
+sigue deliberadamente fuera por calibración; la segunda quedó adoptada con
+`releases/v0.6.0.md`). Puntuación proyectada de agent-local tras esta
+remediación: **≈ 8.8** (pendiente de confirmar en R9).

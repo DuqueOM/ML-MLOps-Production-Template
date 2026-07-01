@@ -3,8 +3,8 @@
 Authority: ACTION_PLAN_R4 §S2-4 + ADR-020 §M5.
 
 R4-M5 flagged that the template shipped alert RULES
-(`templates/monitoring/alertmanager-rules.yaml`) but no one had ever
-exercised the ROUTING end-to-end. A mis-routed P1 would fire, find
+(`monitoring/alertmanager-rules.yaml`, sibling of this test tree) but no
+one had ever exercised the ROUTING end-to-end. A mis-routed P1 would fire, find
 no receiver match, and silently fall into the catch-all — we would
 only discover the mis-route during a real incident.
 
@@ -41,6 +41,7 @@ A final structural check locks:
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -48,9 +49,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CONFIG = REPO_ROOT / "templates" / "monitoring" / "alertmanager.yml"
-RULES = REPO_ROOT / "templates" / "monitoring" / "alertmanager-rules.yaml"
+# Paths are FILE-relative, not repo-root-relative (AUDIT R8): this file ships
+# inside the rendered service too (monitoring/tests/), where a repo-root
+# anchor would point nowhere. parents[1] == the monitoring/ dir that holds
+# both YAMLs in template context AND in a scaffolded service. The previous
+# parents[3] anchor predated the Copier Stage-2a relocation into
+# templates/service/ and resolved to templates/templates/... — the whole
+# module was uncollectable from the repo root, masked by the R8-05 collision.
+MONITORING_DIR = Path(__file__).resolve().parents[1]
+CONFIG = MONITORING_DIR / "alertmanager.yml"
+RULES = MONITORING_DIR / "alertmanager-rules.yaml"
 
 # Canonical routing table — the single source of truth for both
 # test assertions and the runbook. If this list changes, the runbook
@@ -144,9 +152,14 @@ def amtool_bin() -> str | None:
     on_path = shutil.which("amtool")
     if on_path:
         return on_path
-    local = REPO_ROOT / "alertmanager-0.25.0.linux-amd64" / "amtool"
-    if local.exists():
-        return str(local)
+    # Walk ancestors so a repo-root unpack is found from template context
+    # without assuming a fixed depth (a scaffolded service has none). The
+    # X_OK guard matters: an unpack made from Windows can drop the execute
+    # bit, and a non-runnable amtool must mean "skip", never "fail".
+    for ancestor in Path(__file__).resolve().parents:
+        local = ancestor / "alertmanager-0.25.0.linux-amd64" / "amtool"
+        if local.exists() and os.access(local, os.X_OK):
+            return str(local)
     return None
 
 
