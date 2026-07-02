@@ -37,3 +37,9 @@ paths = [
     '''.*secret-history-scan\.md$''',
     '''.*\.pyc$''',
 ]
+
+[[allowlists]]
+description = "Allow closed, historical staff/lead audit reports — prose discussing security posture (IRSA/WIF, Cosign, SBOM, Kyverno, IAM) trips generic-api-key on entropy alone; confirmed no real leak via 'gitleaks detect --no-git' against the plain file. These are frozen records of already-remediated findings, same class as the already-allowlisted secret-history-scan runbook."
+paths = [
+    '''docs/audit/AUDIT_R[0-9]+_STAFF_LEAD\.md$''',
+]
