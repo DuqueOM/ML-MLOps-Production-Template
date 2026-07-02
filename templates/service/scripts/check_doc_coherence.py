@@ -41,11 +41,11 @@ C7  Documentation language + private-reference guard — every file under
     ``docs/`` and every root-level ``*.md`` must be English-only and must
     never name a known private/personal repo. AUDIT R10 (2026-07-02) found
     four ``docs/audit/*.md`` files fully in Spanish and a private repo
-    ("REDACTED-PRIVATE-REPO") named in six public-repo files, once as a live clickable
-    URL that 404s for any public reader. Both are the same failure mode —
-    something true only in an interactive/private authoring context leaking
-    into the public tree — so this check is the deterministic backstop that
-    keeps it from recurring silently.
+    named in six public-repo files, once as a live clickable URL that 404s
+    for any public reader. Both are the same failure mode — something true
+    only in an interactive/private authoring context leaking into the
+    public tree — so this check is the deterministic backstop that keeps
+    it from recurring silently.
 
 Exit codes
 ----------
@@ -102,10 +102,12 @@ _SPANISH_MARKERS = re.compile(
 )
 
 # Private/personal repos that must never be named in this public repo's
-# documentation (AUDIT R10, 2026-07-02, found "REDACTED-PRIVATE-REPO" leaking into 6
-# files across this repo and agent-local, including a dead clickable URL).
-# Extend this tuple if another private companion repo is ever referenced.
-_FORBIDDEN_REPO_REFS = ("REDACTED-PRIVATE-REPO",)
+# documentation (AUDIT R10, 2026-07-02 — see ADR-040 for the incident this
+# closes). Extend this tuple if another private companion repo is ever
+# referenced. Safe to keep as a literal here: this file is Python, not
+# Markdown, so it is never itself in C7's own scan scope (see
+# _doc_scan_files below).
+_FORBIDDEN_REPO_REFS = ("guia_mlops",)
 
 
 def _norm_version(raw: str) -> str:
