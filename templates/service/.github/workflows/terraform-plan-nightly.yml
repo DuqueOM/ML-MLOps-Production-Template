@@ -87,16 +87,16 @@ jobs:
         working-directory: infra/terraform/gcp
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Authenticate to GCP via Workload Identity Federation
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload plan artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: tfplan-gcp-${{ github.run_id }}
           path: |
@@ -154,7 +154,7 @@ jobs:
       - name: Infracost setup
         id: infracost-setup-gcp
         if: env.INFRACOST_API_KEY != ''
-        uses: infracost/actions/setup@v3
+        uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3
         with:
           api-key: ${{ env.INFRACOST_API_KEY }}
         env:
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload infracost artifact (GCP)
         if: always() && steps.infracost-gcp.outcome != 'skipped'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: infracost-gcp-${{ github.run_id }}
           path: infra/terraform/gcp/infracost-gcp.json
@@ -200,7 +200,7 @@ jobs:
 
       - name: Open issue on drift
         if: steps.plan.outputs.plan_exit_code == '2'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const fs = require('fs');
@@ -252,16 +252,16 @@ jobs:
         working-directory: infra/terraform/aws
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload plan artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: tfplan-aws-${{ github.run_id }}
           path: |
@@ -309,7 +309,7 @@ jobs:
       - name: Infracost setup
         id: infracost-setup-aws
         if: env.INFRACOST_API_KEY != ''
-        uses: infracost/actions/setup@v3
+        uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3
         with:
           api-key: ${{ env.INFRACOST_API_KEY }}
         env:
@@ -343,7 +343,7 @@ jobs:
 
       - name: Upload infracost artifact (AWS)
         if: always() && steps.infracost-aws.outcome != 'skipped'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: infracost-aws-${{ github.run_id }}
           path: infra/terraform/aws/infracost-aws.json
@@ -352,7 +352,7 @@ jobs:
 
       - name: Open issue on drift
         if: steps.plan.outputs.plan_exit_code == '2'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const fs = require('fs');
@@ -402,7 +402,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Compose audit entry
         run: |

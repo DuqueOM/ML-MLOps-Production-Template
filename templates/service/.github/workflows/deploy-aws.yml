@@ -38,10 +38,10 @@ jobs:
       version: ${{ steps.version.outputs.v }}
       image_digests: ${{ steps.digests.outputs.json }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Authenticate to AWS (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ secrets.AWS_BUILD_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -89,7 +89,7 @@ jobs:
       # Cosign installer pin (audit High-3). Without this, `cosign sign`
       # fails on a clean ubuntu-latest runner.
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v2.4.0
 
@@ -109,7 +109,7 @@ jobs:
       # (same approach applies to AWS once Dockerfile is reproducible).
       # Generate one SBOM per service (multi-service safe — ADR-014 §5.7).
       - name: Install Syft (SBOM generator)
-        uses: anchore/sbom-action/download-syft@v0
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
 
       - name: Generate SBOM per service (Syft / CycloneDX)
         run: |

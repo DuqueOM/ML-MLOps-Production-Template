@@ -52,7 +52,7 @@ jobs:
       version: ${{ steps.version.outputs.v }}
       image_digests: ${{ steps.digests.outputs.json }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Workload Identity Federation — NO static credentials (D-18, ADR-014 §3.1).
       # GitHub mints a short-lived OIDC token; GCP exchanges it for a SA via WIF.
@@ -61,7 +61,7 @@ jobs:
       #   GCP_WIF_PROVIDER  e.g. projects/123/locations/global/workloadIdentityPools/gh/providers/gh
       #   GCP_SERVICE_ACCOUNT  e.g. ci-deployer@<project>.iam.gserviceaccount.com
       - name: Authenticate to GCP via Workload Identity Federation
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
@@ -114,7 +114,7 @@ jobs:
       # Cosign installer pin (audit High-3). Without this, `cosign sign`
       # fails on a clean ubuntu-latest runner.
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v2.4.0
 
@@ -140,7 +140,7 @@ jobs:
       # anchore/sbom-action does not loop, so we install Syft and call it
       # ourselves. Output filename is parametrized by SERVICE.
       - name: Install Syft (SBOM generator)
-        uses: anchore/sbom-action/download-syft@v0
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
 
       - name: Generate SBOM per service (Syft / CycloneDX)
         run: |

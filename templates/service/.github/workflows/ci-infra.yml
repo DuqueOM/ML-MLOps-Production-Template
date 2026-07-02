@@ -20,10 +20,10 @@ jobs:
       matrix:
         cloud: [gcp, aws]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: "1.7"
 
@@ -40,7 +40,7 @@ jobs:
         working-directory: infra/terraform/${{ matrix.cloud }}
 
       - name: tfsec
-        uses: aquasecurity/tfsec-action@v1.0.3
+        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
         with:
           working_directory: infra/terraform/${{ matrix.cloud }}
           format: json
@@ -48,7 +48,7 @@ jobs:
       - name: Checkov
         # Pinned to immutable tag (D-19, ADR-014 §1.1). Dependabot updates
         # via .github/dependabot.yml. Phase 5 will harden to commit-SHA.
-        uses: bridgecrewio/checkov-action@v12.3112.0
+        uses: bridgecrewio/checkov-action@a7683e7b72a04503521247973281ec8142e1ac1f # v12.3112.0
         with:
           directory: infra/terraform/${{ matrix.cloud }}
           quiet: true
@@ -58,7 +58,7 @@ jobs:
     name: K8s Manifests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Install kubeconform (PR-R2-5)
         # Replaces the deprecated kubeval install that used

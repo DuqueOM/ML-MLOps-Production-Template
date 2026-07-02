@@ -30,10 +30,10 @@ jobs:
       contents: read
       issues: write     # for gate-failure / C/C decision issues
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -43,14 +43,14 @@ jobs:
       # Cloud auth (parametrized by MODEL_BUCKET_KIND var — audit High-7).
       - name: Authenticate to GCP (WIF)
         if: vars.MODEL_BUCKET_KIND == 'gcs'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Authenticate to AWS (OIDC)
         if: vars.MODEL_BUCKET_KIND == 's3'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -195,7 +195,7 @@ jobs:
       # without detection.
       - name: Install Cosign
         if: steps.gates.outcome == 'success' && (steps.champion.outputs.found == 'false' || steps.cvsc.outputs.exit_code == '0')
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v2.4.0
 
@@ -274,7 +274,7 @@ jobs:
 
       - name: Block promotion (C/C blocked or keep)
         if: steps.cvsc.outputs.exit_code == '2' || steps.cvsc.outputs.exit_code == '1'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const decision = '${{ steps.cvsc.outputs.exit_code }}' === '2' ? 'BLOCKED' : 'KEPT (no promotion)';
@@ -288,7 +288,7 @@ jobs:
 
       - name: Create failure issue (if gates fail)
         if: steps.gates.outcome == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             await github.rest.issues.create({
@@ -301,7 +301,7 @@ jobs:
 
       - name: Upload training artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: training-${{ env.SERVICE }}-${{ github.run_number }}
           path: |
@@ -367,7 +367,7 @@ jobs:
 
       - name: Upload audit log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: audit-${{ env.SERVICE }}-${{ github.run_number }}
           path: ops/audit.jsonl

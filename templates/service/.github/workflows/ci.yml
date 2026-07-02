@@ -11,10 +11,10 @@ jobs:
     name: Lint & Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -60,10 +60,10 @@ jobs:
           # Multi-service adopters may convert this to service-root objects.
           - "{@ service_name @}"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           files: coverage.xml
           flags: ${{ matrix.service }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-results-${{ matrix.service }}-py${{ matrix.python-version }}
           path: results/
@@ -114,7 +114,7 @@ jobs:
         service:
           - "{@ service_name @}"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           # Need the PR base + HEAD to diff against.
           fetch-depth: 0
@@ -160,12 +160,12 @@ jobs:
     # 'refs/heads/main'` allowed insecure changes to merge unchecked.
     # Build/sign/promote stages remain main-only via their own guards.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0  # full history for gitleaks
 
       - name: Gitleaks — scan for secrets (D-17)
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -213,7 +213,7 @@ jobs:
         service:
           - "{@ service_name @}"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Build Docker image
         id: build
@@ -225,7 +225,7 @@ jobs:
       - name: "Trivy vulnerability scan (blocker: HIGH/CRITICAL)"
         # Pinned to immutable tag (D-19, ADR-014 section 1.1). Dependabot updates
         # via .github/dependabot.yml. Phase 5 will harden to commit-SHA.
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.build.outputs.image }}
           format: "table"
@@ -233,7 +233,7 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Install Syft (SBOM generator)
-        uses: anchore/sbom-action/download-syft@v0
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
 
       - name: Generate SBOM (CycloneDX JSON) — SLSA L2 component (D-19)
         run: |
@@ -241,7 +241,7 @@ jobs:
           syft "${{ steps.build.outputs.image }}" -o spdx-json > sbom.spdx.json
 
       - name: Upload SBOM as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sbom-${{ matrix.service }}-${{ github.sha }}
           path: sbom.*.json
@@ -256,7 +256,7 @@ jobs:
       # accepts signatures from ci.yml, deploy-gcp.yml, or deploy-aws.yml so
       # the trust chain stays honest about where signing actually happens.
       - name: Install Cosign (used by deploy workflows; verify-only here)
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           # Pin Cosign binary to v2.x explicitly. cosign-installer v4 defaults
           # to Cosign v3 which is a breaking change (CLI flag renames, mandatory
