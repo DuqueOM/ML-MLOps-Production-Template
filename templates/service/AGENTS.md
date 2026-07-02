@@ -271,6 +271,7 @@ GitHub Actions flow with required_reviewers.
 | D-34 | Unquoted Jinja tokens (`{@ @}`) in YAML list items | An unquoted `- {@ service_name @}` is invalid YAML (`@` cannot start a token). All `{@ @}` tokens in YAML lists MUST be quoted: `- "{@ service_name @}"`. Enforced by `rg -n '^\s*- \{@' templates/service/ --glob "*.yml"` returning zero hits |
 {% endraw %}
 | D-35 | A `local` stack profile that accepts cloud credentials or targets a cluster | The `local` profile (`configs/profiles/local.yaml`) MUST set `requires.cloud_credentials: false`, `requires.kubernetes: false`, `requires.docker: false`, and `deploy.enabled: false`. A local profile that imports cloud creds or targets a cluster violates the local-first contract (ADR-033). Enforced by `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps` |
+| D-36 | Promoting, tagging, or deploying without a verified-green CI check, or overriding a red/missing check without STOP-class human approval + an audit record | `/release` and `deploy-gke`/`deploy-aws` (staging/prod) MUST invoke `ci-green-verify` (AUTO, read-only) as a hard precondition before proceeding. Overriding a red/missing verdict is always STOP, regardless of environment or urgency, and MUST produce a `scripts/audit_record.py` entry before the gated action proceeds (ADR-039). Enforced by the wiring in `agentic/workflows/release.md` step 1 and the deploy skills' Step 0; `validate_agentic_manifest.py --strict` forbids any `escalation_override` de-escalating this mode |
 
 ## Session Initialization Protocol
 
@@ -289,7 +290,7 @@ When starting a new session in a project derived from this template:
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
 - `security-audit` — pre-build/pre-deploy scans: gitleaks, trivy, cosign verify, IAM review
 - `secret-breach-response` — incident playbook when a secret is leaked (detect → rotate → audit → postmortem)
-- `debug-ml-inference` — diagnose serving issues (starts with D-01..D-35 checklist)
+- `debug-ml-inference` — diagnose serving issues (starts with D-01..D-36 checklist)
 - `drift-detection` — analyze PSI drift + concept drift (sliced performance)
 - `concept-drift-analysis` — root-cause sliced performance regressions with ground truth
 - `model-retrain` — execute retraining with quality gates + Champion/Challenger
@@ -299,11 +300,12 @@ When starting a new session in a project derived from this template:
 - `cost-audit` — monthly cloud cost review
 - `batch-inference` — scaffold + run batch scoring jobs (CronJob + Parquet output) reusing the service's model and feature-engineering code
 - `performance-degradation-rca` — end-to-end RCA for a performance-degradation incident: correlates sliced metrics, drift, deploy history, upstream data changes, and prediction logs into one evidence-backed root cause
-- `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-35; produces a PASS/FAIL report with file:line evidence
+- `rule-audit` — automated scan of a service/repo for compliance with AGENTS.md invariants D-01 through D-36; produces a PASS/FAIL report with file:line evidence
 - `scaffold-update` — update an existing scaffolded service with the latest template changes via `copier update`
 - `stack-switch` — switch a scaffolded service between stack profiles (local, staging, prod)
 - `template-onboard` — interview the adopter and emit a `*_context.local.yaml` (no secrets)
 - `doc-coherence` — keep cross-document facts coherent (version, CHANGELOG, ADRs, anti-pattern + surface counts); drives `scripts/check_doc_coherence.py` (rule 16, ADR-031)
+- `ci-green-verify` — verify GitHub Actions CI status before a promote/release/deploy action; AUTO to check, STOP to override red/missing (D-36, ADR-039)
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -322,11 +324,12 @@ When starting a new session in a project derived from this template:
 - `/stack-switch` — switch stack profile (local, staging, prod)
 - `/onboard` — generate adopter context file (interview + validate, no secrets)
 - `/doc-coherence` — restore + verify cross-document coherence (version, CHANGELOG, ADRs, anti-pattern + surface counts)
+- `/ci-green` — verify CI status for a ref before a promote/release/deploy action (D-36, ADR-039)
 
 ## Agentic Configuration
 
 ```
-agentic/                                # Canonical agentic source (ADR-027) — 17 rules, 20 skills, 16 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 17 rules, 21 skills, 17 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
