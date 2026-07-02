@@ -52,7 +52,7 @@ When starting a new session:
 - **ALWAYS** compatible release pinning (`~=`) — `numpy 2.x` corrupts joblib models
 - **ALWAYS** ADR for non-trivial decisions
 
-## Anti-Patterns (D-01 to D-36)
+## Anti-Patterns (D-01 to D-37)
 
 Compact summary; full table with corrective actions in `AGENTS.md`.
 
@@ -69,10 +69,12 @@ Compact summary; full table with corrective actions in `AGENTS.md`.
 | D-31..D-32 | Per-purpose IAM identities (ADR-017) + snake_case Python package paths in K8s manifests |
 | D-33..D-34 | Copier scaffolding (scaffolder delegates to `copier copy`; quote Jinja tokens in YAML list items) |
 | D-35 | `local` stack profile must not accept cloud credentials or target a cluster (ADR-033) |
+| D-36 | Promoting/deploying without verified-green CI, or overriding red without STOP-class approval (ADR-039) |
+| D-37 | Non-English documentation or a private/personal repo reference committed to this public repo (ADR-040) |
 
 The full anti-pattern table with corrective actions and file references
 lives in `AGENTS.md`. The `rule-audit` skill scans a service against
-all 35 invariants and reports file:line evidence for any failure.
+all 37 invariants and reports file:line evidence for any failure.
 
 ## Key Commands
 
@@ -94,7 +96,7 @@ kustomize build templates/k8s/base/ > /dev/null
 ## File Structure
 
 ```
-AGENTS.md              → Full architecture, invariants D-01..D-36, anti-patterns (canonical source)
+AGENTS.md              → Full architecture, invariants D-01..D-37, anti-patterns (canonical source)
 CLAUDE.md              → This file (Claude Code context, condensed)
 QUICK_START.md         → 10-minute setup guide (standalone)
 RUNBOOK.md             → Template operations reference

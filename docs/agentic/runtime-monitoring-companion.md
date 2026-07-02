@@ -112,8 +112,8 @@ MCP — these are plain files on the local checkout.
 When wiring a new environment:
 
 1. Configure `prometheus` MCP in the surface's MCP config (Codex:
-   `.codex/mcp.json`; Cursor/Claude: per-IDE conventions; Windsurf:
-   already native).
+   `.codex/mcp.json`; Cursor/Claude: per-IDE conventions; Devin:
+   per-IDE conventions).
 2. Configure `github` MCP with an `issues:read + pulls:read` scoped
    PAT. The companion never needs write scope.
 3. Configure `kubectl` MCP with `--read-only`. Writes are out of
@@ -135,8 +135,9 @@ When wiring a new environment:
    companion is wired.
 
 6. Verify MCP connectivity via the surface's native command
-   (Codex: `/mcp list`, Windsurf: native IDE). This is a
-   one-time smoke test, not an ongoing requirement.
+   (Codex: `/mcp list`, Cursor/Claude/Devin: the IDE's native MCP
+   status view). This is a one-time smoke test, not an ongoing
+   requirement.
 
 ## Anti-list
 

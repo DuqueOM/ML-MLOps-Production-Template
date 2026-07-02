@@ -105,12 +105,15 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="github_pat_..."
 
 ## Validation
 
-Before each Windsurf / Claude / Cursor session, run:
+Before each Devin / Claude Code / Cursor / Codex session, run:
 
 ```bash
 # Should return 0 hits — no literal credentials in your MCP config
-grep -E 'github_pat_|pcsk_|sbp_|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}' \
-  ~/.codeium/windsurf/mcp_config.json && echo "❌ LITERAL FOUND" || echo "✅ clean"
+PATTERN='github_pat_|pcsk_|sbp_|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}'
+for f in ~/.codeium/mcp_config.json ~/.cursor/mcp.json ~/.claude.json .mcp.json .codex/mcp.json; do
+  [ -f "$f" ] && grep -qE "$PATTERN" "$f" && echo "❌ LITERAL FOUND in $f"
+done
+echo "✅ clean (no output above means no literal credentials found)"
 ```
 
 ## If you find a literal

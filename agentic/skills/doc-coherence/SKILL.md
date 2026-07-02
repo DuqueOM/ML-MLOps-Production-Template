@@ -97,7 +97,7 @@ python3 scripts/check_doc_coherence.py   # expect: [doc-coherence] OK
 
 ## Success criteria
 
-- `check_doc_coherence.py` exits 0 (all 5 checks pass).
+- `check_doc_coherence.py` exits 0 (all 7 checks pass).
 - `sync_agentic_adapters.py --check` is green (adapters in parity).
 - Every changed fact traces decision → ADR → CHANGELOG → release → VERSION.
 - No ADR renumbered/deleted; no released heading rewritten.

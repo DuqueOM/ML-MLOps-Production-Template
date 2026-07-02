@@ -1,66 +1,65 @@
-# ACTION PLAN — Framework Agéntico LLM Local (WhatsApp + Asistente de Tienda + Plano de Mantenimiento)
+# ACTION PLAN — Local Agentic LLM Framework (WhatsApp + Store Assistant + Maintenance Plane)
 
-> **Autoridad**: ADR-028 (LLM-assist, 4 tiers), ADR-037 (separación dual de
-> namespaces de retrieval — memoria operativa vs. RAG pedagógico),
-> AGENTS.md (AUTO/CONSULT/STOP), guía oficial Gemma 4.
-> **Este documento es el ÚNICO plan vigente del plano LLM** — absorbe y
-> reemplaza a `ACTION_PLAN_ADR028.md` (hoy un stub que apunta aquí). Los
-> lanes de mantenimiento del template viven en la sección "PLANO DE
-> MANTENIMIENTO".
-> **Audiencia**: un LLM ejecutor (puede ser menos capaz que el autor) o un humano.
-> Cada paso incluye objetivo, archivos exactos, código, verificación y criterio
-> de aceptación. **No improvises fuera de los pasos: si un gate falla, detente
-> y reporta.**
+> **Authority**: ADR-028 (LLM-assist, 4 tiers), ADR-037 (dual-namespace
+> retrieval separation — operational memory vs. pedagogical RAG),
+> AGENTS.md (AUTO/CONSULT/STOP), official Gemma 4 guide.
+> **This document is the ONLY active plan for the LLM plane** — it absorbs
+> and replaces `ACTION_PLAN_ADR028.md` (now a stub that points here). The
+> template's maintenance lanes live in the "MAINTENANCE PLANE" section.
+> **Audience**: an executing LLM (may be less capable than the author) or a
+> human. Each step includes an objective, exact files, code, verification, and
+> acceptance criteria. **Do not improvise outside the steps: if a gate fails,
+> stop and report.**
 >
-> **Última actualización**: 2026-07-01 (**v3.2** — canonicalizado **L-2b: RAG
-> pedagógico**, hermano namespace-disjoint de L-2, con separación enterprise
-> obligatoria de la memoria operativa; ver ADR-037 y agent-local ADR-008).
-> v3.1: `agent-local` ejecutado: refactor a **plataforma reutilizable** `core/`
-> + `usecases/<dominio>/`, repo público, gate de routing F1 **PASADO 20/20** y
-> **F2.0** (ExecutiveController + circuit breaker) hecho; ver
-> "Estado de ejecución" abajo. v3 base: supervivientes de la revisión
-> adversarial R1–R10, `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
+> **Last updated**: 2026-07-01 (**v3.2** — canonicalized **L-2b: pedagogical
+> RAG**, the namespace-disjoint sibling of L-2, with mandatory enterprise
+> separation from operational memory; see ADR-037 and agent-local ADR-008).
+> v3.1: `agent-local` executed: refactored into a **reusable platform** `core/`
+> + `usecases/<domain>/`, public repo, F1 routing gate **PASSED 20/20**, and
+> **F2.0** (ExecutiveController + circuit breaker) done; see "Execution
+> status" below. v3 base: survivors of the adversarial review R1–R10,
+> `ARCH_REVIEW_LLM_AGENT.md` → ADDENDUM v3).
 
-### Estado de ejecución (2026-06-15)
+### Execution status (2026-06-15)
 
-| Fase | Estado | Evidencia |
+| Phase | Status | Evidence |
 |---|---|---|
-| F0 — Runtime + bench | ✅ Router E4B PASA gate velocidad | `agent-local/bench/RESULTS.md` |
-| F1 — Esqueleto (read-only) | ✅ **COMPLETADO** | repo `agent-local`, suite verde |
-| F1 — Gate de routing | ✅ **PASADO 20/20** (intent) | `agent-local/usecases/tienda/evals` |
-| F2.0 — ExecutiveController + circuit breaker | ✅ **COMPLETADO** | `core/controller.py`, `core/circuit.py`, 29 tests |
-| F2.1 — Tier 1 (12B) fallback | ⏸️ **DIFERIDO por diseño** | entrada condicionada por telemetría (plan §F2.1) |
-| F2.2 — Políticas como datos versionados + `decision_id` | ✅ **COMPLETADO** | `policies/policy.yaml`, `core/policy.py`, `tests/test_policy.py` (12), ADR-003 |
-| F2.3 — Verificación cruzada + self-consistency acotado | ✅ **COMPLETADO** | `core/controller.py` (`verify`), `tests/test_verifier.py` (7), ADR-004 |
-| F2.4 — Tier 3 (31B) | ⏸️ **DIFERIDO por diseño** | descarga condicionada (plan §F2.4) |
-| F2.5 — Los 10 eval sets | ✅ **CREADOS** (gate offline) | `usecases/tienda/evals/sets/01..10`, `tests/test_eval_sets.py` — scoring conductual pendiente de modelos |
-| F3 — Telemetría de decisiones + shadow mode | ✅ **COMPLETADO** | `core/telemetry.py`, `TelemetryEntry`, `tests/test_telemetry.py` (9), ADR-005 |
-| F4 — QLoRA | ⏸️ **GATE no alcanzado (por diseño)** | requiere ≥4 semanas de logs + evals estables (plan §F4) |
+| F0 — Runtime + bench | ✅ E4B router PASSES speed gate | `agent-local/bench/RESULTS.md` |
+| F1 — Skeleton (read-only) | ✅ **COMPLETE** | `agent-local` repo, suite green |
+| F1 — Routing gate | ✅ **PASSED 20/20** (intent) | `agent-local/usecases/tienda/evals` |
+| F2.0 — ExecutiveController + circuit breaker | ✅ **COMPLETE** | `core/controller.py`, `core/circuit.py`, 29 tests |
+| F2.1 — Tier 1 (12B) fallback | ⏸️ **DEFERRED BY DESIGN** | entry conditioned on telemetry (plan §F2.1) |
+| F2.2 — Policies as versioned data + `decision_id` | ✅ **COMPLETE** | `policies/policy.yaml`, `core/policy.py`, `tests/test_policy.py` (12), ADR-003 |
+| F2.3 — Cross-verification + bounded self-consistency | ✅ **COMPLETE** | `core/controller.py` (`verify`), `tests/test_verifier.py` (7), ADR-004 |
+| F2.4 — Tier 3 (31B) | ⏸️ **DEFERRED BY DESIGN** | conditional download (plan §F2.4) |
+| F2.5 — The 10 eval sets | ✅ **CREATED** (offline gate) | `usecases/tienda/evals/sets/01..10`, `tests/test_eval_sets.py` — behavioral scoring pending on models |
+| F3 — Decision telemetry + shadow mode | ✅ **COMPLETE** | `core/telemetry.py`, `TelemetryEntry`, `tests/test_telemetry.py` (9), ADR-005 |
+| F4 — QLoRA | ⏸️ **GATE not reached (by design)** | requires ≥4 weeks of logs + stable evals (plan §F4) |
 
-> **Frontera alcanzada**: todas las fases *accionables sin hardware/datos* están
-> hechas (77 tests verdes). Lo pendiente está bloqueado **por diseño**, no por el
-> agente: F2.1/F2.4 (entrada condicionada por telemetría / descarga del 31B),
-> scoring conductual de los 10 sets (necesita los tiers corriendo) y F4 (≥4
-> semanas de logs). Se desbloquean tras el upgrade de RAM.
+> **Frontier reached**: every phase that is *actionable without hardware/data*
+> is done (77 tests green). What remains is blocked **by design**, not by the
+> agent: F2.1/F2.4 (entry conditioned on telemetry / 31B download), behavioral
+> scoring of the 10 sets (needs the tiers running), and F4 (≥4 weeks of logs).
+> These unblock after the RAM upgrade.
 
-### Cómo retomar (checklist de reanudación)
+### How to resume (resumption checklist)
 
-> Esta subsección existe para que **cualquiera** (humano o LLM) pueda retomar
-> sin releer todo el plan. Estado a 2026-06-15.
+> This subsection exists so that **anyone** (human or LLM) can resume without
+> rereading the entire plan. Status as of 2026-06-15.
 
-**Lo construido y verde (no tocar salvo refactor con ADR):**
+**What's built and green (do not touch except via ADR-backed refactor):**
 
-- `core/` (motor agnóstico): `config · schemas · router · tiers · tools ·
+- `core/` (business-agnostic engine): `config · schemas · router · tiers · tools ·
   retrieval · policy · agent · controller · telemetry · circuit`.
-- `usecases/tienda/` (ejemplo): `config.yaml · tools.py · prompts/ · grammars/ ·
+- `usecases/tienda/` (example): `config.yaml · tools.py · prompts/ · grammars/ ·
   policies/policy.yaml · budgets.yaml · data/ · evals/sets/01..10`.
-- 8 ADRs en `agent-local/docs/decisions/` (001 plataforma · 002 infra · 003
-  policy-as-data · 004 verificación cruzada · 005 telemetría · 006 contrato de
-  capacidades de tools · 007 tool-calling estructurado · 008 aislamiento por
-  llamador — ver ADR-037 de este repo).
-- **77 tests** verdes; `flake8` + `mypy` limpios; CI sin modelos.
+- 8 ADRs in `agent-local/docs/decisions/` (001 platform · 002 infra · 003
+  policy-as-data · 004 cross-verification · 005 telemetry · 006 tool
+  capability contract · 007 structured tool-calling · 008 caller isolation —
+  see this repo's ADR-037).
+- **77 tests** green; `flake8` + `mypy` clean; CI without models.
 
-**Comando para verificar el estado en cualquier momento:**
+**Command to verify status at any time:**
 
 ```bash
 cd ~/projects/agent-local && .venv/bin/pytest -q && \
@@ -68,220 +67,227 @@ cd ~/projects/agent-local && .venv/bin/pytest -q && \
   .venv/bin/mypy core app
 ```
 
-**Próximas acciones EN ORDEN cuando llegue el upgrade de RAM (≥32GB útiles):**
+**Next actions IN ORDER once the RAM upgrade arrives (≥32GB usable):**
 
-1. **Levantar los tiers** (F0.2): E4B:8091, 26B:8093 (12B:8092 solo si entra por
-   §F2.1). Verificar con `bench/bench.sh`.
-2. **Scoring conductual de los 10 sets** (F2.5): correr `evals/run.py` contra los
-   tiers vivos; publicar matriz de confusión del router y reportes en
-   `evals/reports/`. Gate por tier (tabla §F2.5).
-3. **Acumular telemetría** (F3 ya implementado): con tráfico real, `ops/telemetry.jsonl`
-   empieza a llenar la evidencia que condiciona F2.1/F2.4/F4.
-4. **Decisión F2.1** (entrada del 12B): solo si la telemetría muestra que el 26B
-   gasta >25% en tareas "medias" (carga de la prueba invertida).
-5. **Decisión F2.4** (descarga del 31B): solo si el set 10 falla con 26B-verificado.
-6. **F4 (QLoRA)**: NO antes de ≥4 semanas de logs + evals estables + ADR nuevo.
+1. **Bring up the tiers** (F0.2): E4B:8091, 26B:8093 (12B:8092 only if it
+   enters via §F2.1). Verify with `bench/bench.sh`.
+2. **Behavioral scoring of the 10 sets** (F2.5): run `evals/run.py` against
+   the live tiers; publish the router's confusion matrix and reports in
+   `evals/reports/`. Gate per tier (table §F2.5).
+3. **Accumulate telemetry** (F3 already implemented): with real traffic,
+   `ops/telemetry.jsonl` starts filling with the evidence that conditions
+   F2.1/F2.4/F4.
+4. **F2.1 decision** (12B entry): only if telemetry shows the 26B spends
+   >25% of its time on "medium" tasks (inverted burden of proof).
+5. **F2.4 decision** (31B download): only if set 10 fails with 26B-verified.
+6. **F4 (QLoRA)**: NOT before ≥4 weeks of logs + stable evals + a new ADR.
 
-**Dónde mirar primero si algo falla**: `bench/RESULTS.md` (velocidad/calidad de
-modelos), `evals/reports/` (regresión conductual), `ops/telemetry.jsonl`
-(decisiones por request). La guía pedagógica 0→100 vive en
-`REDACTED-PRIVATE-REPO/docs/48_AGENT_LOCAL_DE_0_A_100.md`.
+**Where to look first if something fails**: `bench/RESULTS.md` (model
+speed/quality), `evals/reports/` (behavioral regression), `ops/telemetry.jsonl`
+(per-request decisions). The 0→100 pedagogical guide lives in the adopter's
+own private pedagogical/documentation corpus (out of scope for this public
+repo).
 
-**Cambio arquitectónico clave (ADR-001 del agente)**: `agent-local` dejó de ser
-una app única y es ahora una **plataforma reutilizable**: la lógica
-crítica (loop, policy gate, escalación objetiva, routing con gramática) vive en
-`core/` (agnóstico al negocio) y cada dominio es un `usecases/<nombre>/` (config
-+ tools + prompts + evals), **nunca un fork de `core/`**. Consumo por
-`from core import load_agent` o por HTTP. El asistente de tienda es el use-case
-de ejemplo (`usecases/tienda/`).
+**Key architectural change (agent's ADR-001)**: `agent-local` stopped being
+a single app and is now a **reusable platform**: the critical logic (loop,
+policy gate, objective escalation, grammar-constrained routing) lives in
+`core/` (business-agnostic) and each domain is a `usecases/<name>/` (config
++ tools + prompts + evals), **never a fork of `core/`**. Consumed via
+`from core import load_agent` or over HTTP. The store assistant is the
+example use case (`usecases/tienda/`).
 
-**Infra (ADR-002 del agente)**: Docker + docker-compose ahora (sin modelos en la
-imagen); K8s/Terraform diferidos hasta decidir topología de modelos y volumen;
-reuso de módulos del template cuando aplique.
+**Infra (agent's ADR-002)**: Docker + docker-compose for now (no models in the
+image); K8s/Terraform deferred until model topology and volume are decided;
+reuse of template modules where applicable.
 
-**Repo público**: https://github.com/DuqueOM/agent-local (Apache-2.0, CI de
-tests+lint sin modelos; docs en inglés).
+**Public repo**: https://github.com/DuqueOM/agent-local (Apache-2.0, tests+lint
+CI without models; docs in English).
 
-### Decisiones v3 (revisión adversarial — resumen ejecutable)
+### v3 decisions (adversarial review — executable summary)
 
-| Decisión | Estado | Dónde aterriza |
+| Decision | Status | Where it lands |
 |---|---|---|
-| Dos capas + **durable-state-as-data** (tabla `sagas` en SQLite; sin Temporal) | adoptado | F1.6 |
-| **ExecutiveController**: fachada `admit/execute/release`, interior de middlewares puros, ≤250 LOC, circuit breaker en memoria | adoptado | F2.0 |
-| Cadena determinista pre-router (normalizer → alias → taxonomía → BM25) | adoptado | F1.5 |
-| Embedder + **cache semántico**: DIFERIDO — trigger: ≥30% near-dups en logs (medible offline); si entra, cachea la RUTA, jamás la respuesta | trigger | F3 |
-| **Arranque sin 12B** (router salta 0→2); entra solo con telemetría que lo exija | adoptado | F0/F2.1 |
-| Juez cloud permitido SOLO en lanes de mantenimiento sin PII; high-stakes de clientes = juez local | adoptado | Plano mant. |
-| **Reflect condicional** (solo tool-fail o `risk≥medium`); K=3 solo en high-stakes ASÍNCRONO y evals nocturnos | adoptado | F1.6/F2.3 |
-| `budgets.yaml` estático por intent + **cap diario de cloud** + `max_reflections: 1`; adaptativo rechazado (revisar con 4 semanas de P95) | adoptado | F1.6 |
-| `policies/*.yaml` + `decision_id` + **policy-change-requires-test** (set 06) | adoptado | F2.2 |
-| **Telemetría obligatoria** (lane sin eventos no pasa el validator) con naming OTel-compatible (`trace_id`…) | adoptado | F1–F3 |
-| Gobernanza del flywheel: PII-redacción al escribir, cuarentena + revisión humana, procedencia por registro, retención 30d crudo | schema ahora | F3/F4 |
-| n8n: track diferido (trigger: ≥2 integraciones SaaS reales); core code-first | trigger | P3 |
+| Two layers + **durable-state-as-data** (`sagas` table in SQLite; no Temporal) | adopted | F1.6 |
+| **ExecutiveController**: `admit/execute/release` facade, pure-middleware interior, ≤250 LOC, in-memory circuit breaker | adopted | F2.0 |
+| Deterministic pre-router chain (normalizer → alias → taxonomy → BM25) | adopted | F1.5 |
+| Embedder + **semantic cache**: DEFERRED — trigger: ≥30% near-dups in logs (measurable offline); if it lands, it caches the ROUTE, never the response | trigger | F3 |
+| **Startup without 12B** (router skips 0→2); enters only when telemetry demands it | adopted | F0/F2.1 |
+| Cloud judge allowed ONLY in maintenance lanes with no PII; customer-facing high-stakes = local judge | adopted | Maint. plane |
+| **Conditional reflect** (only on tool-fail or `risk≥medium`); K=3 only in ASYNCHRONOUS high-stakes flows and nightly evals | adopted | F1.6/F2.3 |
+| Static `budgets.yaml` per intent + **daily cloud cap** + `max_reflections: 1`; adaptive rejected (revisit with 4 weeks of P95) | adopted | F1.6 |
+| `policies/*.yaml` + `decision_id` + **policy-change-requires-test** (set 06) | adopted | F2.2 |
+| **Mandatory telemetry** (a lane without events fails the validator) with OTel-compatible naming (`trace_id`…) | adopted | F1–F3 |
+| Flywheel governance: PII redaction at write time, quarantine + human review, per-record provenance, 30-day raw retention | schema now | F3/F4 |
+| n8n: deferred track (trigger: ≥2 real SaaS integrations); core stays code-first | trigger | P3 |
 
 ---
 
-## 0. Contexto fijo (no cambiar sin ADR)
+## 0. Fixed context (do not change without an ADR)
 
-| Recurso | Valor |
+| Resource | Value |
 |---|---|
-| Equipo | ASUS TUF Gaming F16 (FX608JPR) · i7-14650HX (16C/24T) · WSL2 Ubuntu-24.04 |
-| GPU / VRAM | RTX 5070 **Laptop**, **8GB VRAM — soldada, fija para siempre** (techo duro) |
-| RAM hoy | **2× 8GB DDR5-5600 SODIMM, ambos slots llenos, dual-channel (~90 GB/s)** — sin slot libre; todo upgrade es *reemplazo* |
-| RAM techo | **64GB (2×32) = máximo declarado/confiable.** 96GB (2×48) = sobre lo declarado, apuesta sin garantía en HX. 128GB (2×64) = no soportado, no apostar |
-| Runtime | llama.cpp (`llama-server`, API OpenAI-compatible) |
-| Modelos en disco (`~/ml-models/`) | `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` (4.0G) · `gemma-4-12b-it-qat-q4_0.gguf` (6.5G) · `gemma-4-26B_q4_0-it.gguf` (14G) |
-| Repos | `~/projects/template_MLOps` (plano de mantenimiento) · `~/projects/agent-local` (**plataforma LLM reutilizable**, repo público; el asistente de tienda es `usecases/tienda/`) |
+| Machine | ASUS TUF Gaming F16 (FX608JPR) · i7-14650HX (16C/24T) · WSL2 Ubuntu-24.04 |
+| GPU / VRAM | RTX 5070 **Laptop**, **8GB VRAM — soldered, fixed forever** (hard ceiling) |
+| RAM today | **2× 8GB DDR5-5600 SODIMM, both slots full, dual-channel (~90 GB/s)** — no free slot; any upgrade is a *replacement* |
+| RAM ceiling | **64GB (2×32) = maximum declared/reliable configuration.** 96GB (2×48) = beyond declared spec, an unguaranteed bet on this HX chip. 128GB (2×64) = unsupported, do not bet on it |
+| Runtime | llama.cpp (`llama-server`, OpenAI-compatible API) |
+| Models on disk (`~/ml-models/`) | `gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf` (4.0G) · `gemma-4-12b-it-qat-q4_0.gguf` (6.5G) · `gemma-4-26B_q4_0-it.gguf` (14G) |
+| Repos | `~/projects/template_MLOps` (maintenance plane) · `~/projects/agent-local` (**reusable LLM platform**, public repo; the store assistant is `usecases/tienda/`) |
 
-> ⚠️ **Corrección 2026-06-15**: el "48GB" de versiones previas era un error de
-> premisa (se creyó "16GB + slot libre → +32"). La realidad: 2 slots llenos con
-> 8GB c/u; el upgrade reemplaza ambos. Objetivo recomendado **64GB (2×32) dual-
-> channel** — desbloquea todas las fases pendientes con holgura para el 26B
-> Q4_K_M a 16–32k de contexto. Ver §0.5 (upgrade-path RAM↔modelos).
+> ⚠️ **2026-06-15 correction**: the "48GB" figure from earlier versions was a
+> premise error (it was assumed "16GB + one free slot → +32"). Reality: 2 full
+> slots at 8GB each; the upgrade replaces both. Recommended target **64GB
+> (2×32) dual-channel** — unblocks all pending phases with headroom for the
+> 26B Q4_K_M at 16–32k context. See §0.5 (RAM↔model upgrade path).
 
-### 0.5 Upgrade-path RAM ↔ modelos (lo que cada nivel de RAM desbloquea)
+### 0.5 RAM ↔ model upgrade path (what each RAM tier unlocks)
 
-La VRAM (8GB) es el techo duro e inamovible; la RAM rápida es la palanca. La
-velocidad de un MoE la manda **parámetros activos**, no totales
-(`tok/s ≈ ~60 GB/s efectivos / (activos × bytes_por_param)`).
+VRAM (8GB) is the hard, immovable ceiling; fast RAM is the lever. The speed of
+a MoE model is governed by **active parameters**, not total parameters
+(`tok/s ≈ ~60 GB/s effective / (active × bytes_per_param)`).
 
-| RAM | Modelo "principal" viable | Modelo "juez" (tolera latencia) | Notas |
+| RAM | Viable "primary" model | "Judge" model (tolerates latency) | Notes |
 |---|---|---|---|
-| 16GB (hoy) | E4B / 12B Q4 | — | el 26B-A4B no entra cómodo |
-| **64GB (2×32, objetivo)** | **Qwen3-30B-A3B** (3B act, Q4 ~17GB) o 26B-A4B (4B act, ~15GB) | Gemma-4 31B Q4 (~17GB) **o** gpt-oss-120B **Q3** (~48GB, 5B act, batch-only, monopoliza RAM) | punto dulce; un solo modelo grande residente a la vez |
-| 96GB (2×48, apuesta) | igual + contexto enorme | **gpt-oss-120B Q4** (~60GB, 5B act, ~10-18 tok/s) | la única RAM que mete gpt-oss-120B Q4 cómodo |
+| 16GB (today) | E4B / 12B Q4 | — | the 26B-A4B doesn't fit comfortably |
+| **64GB (2×32, target)** | **Qwen3-30B-A3B** (3B active, Q4 ~17GB) or 26B-A4B (4B active, ~15GB) | Gemma-4 31B Q4 (~17GB) **or** gpt-oss-120B **Q3** (~48GB, 5B active, batch-only, monopolizes RAM) | sweet spot; a single large resident model at a time |
+| 96GB (2×48, bet) | same + huge context | **gpt-oss-120B Q4** (~60GB, 5B active, ~10-18 tok/s) | the only RAM tier that fits gpt-oss-120B Q4 comfortably |
 
-**Regla de selección por rol** (la decide el eval, no la intuición):
-router = pequeño y estructurado (cabe en VRAM); principal = **MoE de activos
-bajos** que quepa en RAM; juez = el más grande que entre, tolera lentitud.
-Candidatos a evaluar tras el upgrade: **Qwen3-30B-A3B** como principal (upgrade
-real al 26B-A4B); gpt-oss-120B (Q3 en 64GB / Q4 en 96GB) como juez. Mixtral
-8×7B / 8×22B **descartados**: activos altos (13B/39B) → lentos en hardware
-limitado por ancho de banda, y superados por los MoE de grano fino.
+**Role-selection rule** (decided by eval, not intuition): router = small and
+structured (fits in VRAM); primary = **low-active-parameter MoE** that fits in
+RAM; judge = the largest that fits, tolerates slowness. Candidates to evaluate
+after the upgrade: **Qwen3-30B-A3B** as primary (a real upgrade over 26B-A4B);
+gpt-oss-120B (Q3 at 64GB / Q4 at 96GB) as judge. Mixtral 8×7B / 8×22B
+**ruled out**: high active parameters (13B/39B) → slow on bandwidth-limited
+hardware, and outperformed by fine-grained MoEs.
 
-### 0.6 Modelos como configuración (swappability — regla de diseño)
+### 0.6 Models as configuration (swappability — design rule)
 
-**El modelo detrás de cada tier es CONFIGURACIÓN, nunca código.** Cambiar un
-modelo (particular o la familia entera) debe ser editar YAML + re-validar, cero
-cambios de código. Esto ya es posible porque el cliente es OpenAI-compatible y
-el routing usa GBNF (agnósticos al modelo); esta regla lo formaliza:
+**The model behind each tier is CONFIGURATION, never code.** Swapping a model
+(a specific one or the whole family) must be a YAML edit + re-validation, zero
+code changes. This is already possible because the client is OpenAI-compatible
+and routing uses GBNF (model-agnostic); this rule formalizes it:
 
-1. **Registro `models.yaml`**: cada entrada = `{tier, model_id, gguf_path,
-   port, quant, context, role, min_ram_gb, expected_tok_s}`. El tier referencia
-   un `model_id`, no una ruta hardcodeada.
-2. **Validación de capacidad**: el controller comprueba `min_ram_gb` y VRAM
-   disponibles ANTES de cargar — si el modelo no cabe, falla limpio, no swappea.
-3. **Gates de eval por ROL, no por modelo** (ya es el diseño, §F2.5): cualquier
-   modelo que entra a un tier DEBE re-pasar los eval sets de ese tier. Es lo que
-   hace el swap **seguro** en vez de una apuesta.
-4. **Runbook de swap**: descargar GGUF → registrar en `models.yaml` →
-   `llama-bench` (gate de velocidad) → eval set del tier (gate de calidad) → si
-   ambos verdes, promover; si no, revertir el `model_id`. Una entrada en
-   `bench/RESULTS.md` por swap.
+1. **`models.yaml` registry**: each entry = `{tier, model_id, gguf_path,
+   port, quant, context, role, min_ram_gb, expected_tok_s}`. The tier
+   references a `model_id`, never a hardcoded path.
+2. **Capability validation**: the controller checks `min_ram_gb` and available
+   VRAM BEFORE loading — if the model doesn't fit, it fails clean, it does not
+   swap silently.
+3. **Eval gates per ROLE, not per model** (this is already the design, §F2.5):
+   any model entering a tier MUST re-pass that tier's eval sets. This is what
+   makes the swap **safe** instead of a bet.
+4. **Swap runbook**: download GGUF → register in `models.yaml` →
+   `llama-bench` (speed gate) → tier eval set (quality gate) → if both are
+   green, promote; if not, revert the `model_id`. One entry in
+   `bench/RESULTS.md` per swap.
 
-✅ **Coste de hacerlo ahora vs después**: hacerlo durante la construcción es
-trivial (un YAML + un loader); retrofitearlo tras hardcodear rutas es doloroso.
-Es además la señal "engineered for change" para entrevista: el sistema no está
-casado con Gemma — está casado con *contratos* (JSON con gramática, eval por
-tier), y los modelos son intercambiables debajo de ellos.
+✅ **Cost of doing this now vs. later**: doing it during construction is
+trivial (one YAML + one loader); retrofitting it after hardcoding paths is
+painful. It is also the "engineered for change" interview signal: the system
+is not married to Gemma — it is married to *contracts* (grammar-constrained
+JSON, per-tier eval), and the models underneath them are interchangeable.
 
-**Principios no negociables** (copiados del marco — verifícalos en cada PR):
+**Non-negotiable principles** (copied from the framework — verify them on
+every PR):
 
-1. Sin fine-tuning en esta etapa: routing + prompts estructurados + retrieval.
-2. El modelo nunca muta estado crítico sin validación de políticas.
-3. Cada lane necesita eval harness ANTES de subir autonomía.
-4. El loop más simple que funcione.
-5. Inventario/precios/stock NUNCA en memoria del modelo — siempre API en vivo.
-6. Local primero; cloud solo como desborde explícito.
+1. No fine-tuning at this stage: structured routing + prompts + retrieval.
+2. The model never mutates critical state without policy validation.
+3. Every lane needs an eval harness BEFORE raising autonomy.
+4. The simplest loop that works.
+5. Inventory/pricing/stock NEVER in the model's memory — always a live API.
+6. Local first; cloud only as an explicit overflow.
 
-### 0.1 Tier table (reconciliada con los artefactos en disco)
+### 0.1 Tier table (reconciled with the artifacts on disk)
 
-| Tier | Rol | Modelo objetivo | Artefacto HOY | Acción |
+| Tier | Role | Target model | Artifact TODAY | Action |
 |---|---|---|---|---|
-| 0 | Router/guardrail | E4B Q4_K_M | E4B QAT Q4_K_XL ✅ | benchear el local primero |
-| 1 | Razonamiento medio | 12B Q4_K_M | 12B QAT Q4_0 ✅ | benchear el local primero |
-| 2 | Asistente principal | 26B-A4B Q4_K_M | 26B QAT Q4_0 ✅ | benchear el local primero |
-| 3 | Verificador/escalación | 31B Q4_K_M | ❌ no descargado | **diferido** — solo si Gate-3 lo exige |
+| 0 | Router/guardrail | E4B Q4_K_M | E4B QAT Q4_K_XL ✅ | bench the local one first |
+| 1 | Medium reasoning | 12B Q4_K_M | 12B QAT Q4_0 ✅ | bench the local one first |
+| 2 | Primary assistant | 26B-A4B Q4_K_M | 26B QAT Q4_0 ✅ | bench the local one first |
+| 3 | Verifier/escalation | 31B Q4_K_M | ❌ not downloaded | **deferred** — only if Gate-3 requires it |
 
-> ⚠️ **Sobre el 31B**: en este hardware rinde ~2–4 tok/s (denso, ancho de banda
-> limitado). Es INVIABLE como asistente interactivo pero VIABLE como verificador
-> tolerante a latencia (verificación final, evals nocturnos, casos escalados sin
-> SLA de chat). No lo descargues hasta el paso F2.4. Cuando toque: repo oficial
-> `ggml-org` GGUF Q4_K_M (~17GB).
+> ⚠️ **On the 31B**: on this hardware it delivers ~2–4 tok/s (dense,
+> bandwidth-limited). It is INFEASIBLE as an interactive assistant but VIABLE
+> as a latency-tolerant verifier (final verification, nightly evals, escalated
+> cases without a chat SLA). Do not download it before step F2.4. When it's
+> time: official `ggml-org` GGUF Q4_K_M repo (~17GB).
 
-> 📝 **Política de cuantización**: el marco pide Q4_K_M. Tenemos QAT-Q4_0/Q4_K_XL
-> ya descargados. Regla: bench primero lo local (paso F0.3); descarga el Q4_K_M
-> de `ggml-org` SOLO si el local falla su gate por calidad (no por velocidad).
-> Documenta cualquier cambio en `bench/RESULTS.md`.
+> 📝 **Quantization policy**: the framework calls for Q4_K_M. We already have
+> QAT-Q4_0/Q4_K_XL downloaded. Rule: bench the local one first (step F0.3);
+> download the `ggml-org` Q4_K_M ONLY if the local one fails its gate on
+> quality (not on speed). Document any change in `bench/RESULTS.md`.
 
-### 0.2 Contrato de roles — REGLA DE ARQUITECTURA (no una tabla informativa)
+### 0.2 Role contract — ARCHITECTURE RULE (not an informational table)
 
-Cada modelo tiene UN rol fijo con contrato. Violar el contrato es un bug de
-arquitectura, no una preferencia:
+Each model has ONE fixed role with a contract. Violating the contract is an
+architecture bug, not a preference:
 
-| Modelo | Rol contractual | PUEDE | NO PUEDE |
+| Model | Contractual role | CAN | CANNOT |
 |---|---|---|---|
-| **E4B** | Router / guardrail | clasificar, normalizar alias, emitir JSON de routing con confidence | redactar respuestas al cliente; aprobar nada |
-| **12B** | Amortiguador de razonamiento medio | clarificaciones, borradores que otro verificará, fallback E4B→26B | ser destino final de casos comerciales o high-stakes |
-| **26B-A4B** | Asistente principal | conversación cliente, matching semántico, planear tools, multi-turn | aprobar sus propias violaciones de política; tocar estado sin policy gate |
-| **31B** | **JUEZ** (no worker diario) | verificación final, casos high-stakes escalados, auditorías, evals nocturnos | atender tráfico interactivo; ser fallback por pereza de routing |
+| **E4B** | Router / guardrail | classify, normalize aliases, emit routing JSON with confidence | draft customer-facing replies; approve anything |
+| **12B** | Medium-reasoning buffer | clarifications, drafts another tier will verify, E4B→26B fallback | be the final destination for commercial or high-stakes cases |
+| **26B-A4B** | Primary assistant | customer conversation, semantic matching, tool planning, multi-turn | approve its own policy violations; touch state without a policy gate |
+| **31B** | **JUDGE** (not a daily worker) | final verification, escalated high-stakes cases, audits, nightly evals | serve interactive traffic; be a fallback out of routing laziness |
 
-Cláusulas:
+Clauses:
 
-- **Cláusula del 12B**: permanece en la arquitectura SOLO mientras los evals
-  por tier demuestren que reduce escalaciones innecesarias al 26B y mejora
-  las clarificaciones. Si dos ciclos de eval seguidos no lo justifican, se
-  retira y el router salta 0→2. Está por utilidad medida, no "porque está ahí".
-- **Cláusula del juez**: el 31B nunca recibe una tarea que un tier inferior
-  no haya intentado, salvo `risk=high` o verificación final. Su tiempo de
-  cómputo es caro: cada invocación queda loggeada con su justificación.
-- El que redacta NUNCA es el que aprueba: la verificación de una respuesta
-  de tier N la hace el policy layer determinista + (si `risk≥medium`) un
-  pase de crítica en tier N o N+1 con prompt de verificador, jamás el mismo
-  prompt que generó.
+- **12B clause**: stays in the architecture ONLY as long as per-tier evals
+  demonstrate it reduces unnecessary escalations to the 26B and improves
+  clarifications. If two consecutive eval cycles fail to justify it, it is
+  retired and the router skips 0→2. It earns its place through measured
+  utility, not "because it's there."
+- **Judge clause**: the 31B never receives a task that a lower tier has not
+  already attempted, except for `risk=high` or final verification. Its
+  compute time is expensive: every invocation is logged with its
+  justification.
+- Whoever drafts is NEVER the one who approves: verification of a tier-N
+  response is done by the deterministic policy layer + (if `risk≥medium`) a
+  critique pass at tier N or N+1 with a verifier prompt — never the same
+  prompt that generated the response.
 
 ---
 
-## FASE 0 — Runtime y bake-off (prerrequisito de todo)
+## PHASE 0 — Runtime and bake-off (prerequisite for everything)
 
-### F0.1 Instalar llama.cpp con soporte CUDA
+### F0.1 Install llama.cpp with CUDA support
 
 ```bash
 cd ~/tools && git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp
 cmake -B build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release -j "$(nproc)" --target llama-server llama-bench llama-cli
-# Verificación:
+# Verification:
 ./build/bin/llama-server --version && ./build/bin/llama-bench --help >/dev/null && echo OK
 ```
 
-**Aceptación**: imprime versión y `OK`. Si CUDA falla, compila sin
-`-DGGML_CUDA=ON` y anota "CPU-only" en `bench/RESULTS.md` (los gates de
-velocidad bajan 30%).
+**Acceptance**: prints a version and `OK`. If CUDA fails, compile without
+`-DGGML_CUDA=ON` and note "CPU-only" in `bench/RESULTS.md` (speed gates drop
+30%).
 
-### F0.2 Lanzar cada modelo como servidor (puertos fijos)
+### F0.2 Launch each model as a server (fixed ports)
 
 ```bash
-# Tier 0 (E4B) — puerto 8091
+# Tier 0 (E4B) — port 8091
 ~/tools/llama.cpp/build/bin/llama-server -m ~/ml-models/gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf \
   --port 8091 -ngl 99 -c 8192 --host 127.0.0.1 &
-# Tier 1 (12B) — puerto 8092  (-ngl parcial: ~20 capas caben en 8GB VRAM)
+# Tier 1 (12B) — port 8092  (-ngl partial: ~20 layers fit in 8GB VRAM)
 ~/tools/llama.cpp/build/bin/llama-server -m ~/ml-models/gemma-4-12b-it-qat-q4_0.gguf \
   --port 8092 -ngl 20 -c 16384 --host 127.0.0.1 &
-# Tier 2 (26B-A4B) — puerto 8093 (MoE: experts a CPU, atención a GPU)
+# Tier 2 (26B-A4B) — port 8093 (MoE: experts on CPU, attention on GPU)
 ~/tools/llama.cpp/build/bin/llama-server -m ~/ml-models/gemma-4-26B_q4_0-it.gguf \
   --port 8093 -ngl 99 --override-tensor "ffn_.*_exps.=CPU" -c 16384 --host 127.0.0.1 &
 ```
 
-> 💡 Solo UN servidor grande a la vez en producción local (RAM). Para el bench
-> está bien secuencial: levanta → mide → mata (`pkill -f llama-server`).
+> 💡 Only ONE large server at a time in local "production" (RAM). For the
+> bench, sequential is fine: bring up → measure → kill (`pkill -f
+> llama-server`).
 
-### F0.3 Script de benchmark y gates
+### F0.3 Benchmark script and gates
 
-Crea `~/projects/agent-local/bench/bench.sh`:
+Create `~/projects/agent-local/bench/bench.sh`:
 
 ```bash
 #!/usr/bin/env bash
-# Uso: ./bench.sh <puerto> <nombre>
+# Usage: ./bench.sh <port> <name>
 set -euo pipefail
 PORT=$1; NAME=$2
 PROMPT='Clasifica la intención y responde SOLO JSON: {"intent":"...","tier":0}. Mensaje: "tienen coca de 600 fria?"'
@@ -293,65 +299,65 @@ TOKENS=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["
 echo "$NAME: $(echo "$TOKENS/($END-$START)" | bc -l | cut -c1-5) tok/s" | tee -a RESULTS.md
 ```
 
-**Gates (anótalos en `bench/RESULTS.md`; si uno falla, STOP y reporta):**
+**Gates (log them in `bench/RESULTS.md`; if one fails, STOP and report):**
 
-| Tier | Gate velocidad | Gate calidad |
+| Tier | Speed gate | Quality gate |
 |---|---|---|
-| E4B | ≥ 25 tok/s | 18/20 en el set de routing (F1.6) |
-| 12B | ≥ 10 tok/s | supera a E4B en el set de clarificación |
-| 26B | ≥ 8 tok/s @16k | supera a 12B en el set de matching semántico |
+| E4B | ≥ 25 tok/s | 18/20 on the routing set (F1.6) |
+| 12B | ≥ 10 tok/s | beats E4B on the clarification set |
+| 26B | ≥ 8 tok/s @16k | beats 12B on the semantic-matching set |
 
 ---
 
-## FASE 1 — Esqueleto del agente (read-only, E4B + 26B)
+## PHASE 1 — Agent skeleton (read-only, E4B + 26B)
 
-### F1.1 Crear el repo
+### F1.1 Create the repo
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # ver pyproject.toml
 ```
 
-> **NOTA v3.1 (implementado, ADR-001 del agente)**: la estructura objetivo
-> original (todo bajo `app/`) evolucionó a una **plataforma reutilizable**. La
-> lógica crítica vive en `core/` (agnóstica al negocio) y cada dominio es un
-> `usecases/<nombre>/`. Los bloques de código de F1.2–F1.x abajo siguen siendo
-> la **referencia conceptual** de cada contrato/estación; su ubicación real es
-> `core/` (motor) y `usecases/tienda/` (config + tools del ejemplo).
+> **NOTE v3.1 (implemented, agent's ADR-001)**: the original target structure
+> (everything under `app/`) evolved into a **reusable platform**. The critical
+> logic lives in `core/` (business-agnostic) and each domain is a
+> `usecases/<name>/`. The code blocks in F1.2–F1.x below remain the
+> **conceptual reference** for each contract/station; their actual location is
+> `core/` (engine) and `usecases/tienda/` (config + tools for the example).
 
-Estructura real (repo `agent-local`):
+Actual structure (`agent-local` repo):
 
 ```
 agent-local/
-├── core/                  # MOTOR agnóstico al negocio (fuente única de verdad)
-│   ├── config.py          #   UsecaseConfig: carga prompts/grammar/budgets/policy
-│   ├── schemas.py         #   contratos Pydantic (intent = str; la gramática fija el set)
-│   ├── router.py          #   Tier 0 → JSON estricto (GBNF) + validación allowed_intents
-│   ├── tiers.py           #   clientes por tier (endpoints inyectados desde config)
-│   ├── tools.py           #   ToolRegistry (la APP ejecuta; namespaces por use-case)
-│   ├── retrieval.py       #   BM25 + factory de semantic_retrieval
-│   ├── policy.py          #   gate determinista (reglas = datos: PolicyRules)
-│   ├── agent.py           #   loop de 7 estaciones (prompts inyectados desde config)
+├── core/                  # business-agnostic ENGINE (single source of truth)
+│   ├── config.py          #   UsecaseConfig: loads prompts/grammar/budgets/policy
+│   ├── schemas.py         #   Pydantic contracts (intent = str; grammar fixes the set)
+│   ├── router.py          #   Tier 0 → strict JSON (GBNF) + allowed_intents validation
+│   ├── tiers.py           #   per-tier clients (endpoints injected from config)
+│   ├── tools.py           #   ToolRegistry (the APP executes; namespaced per use-case)
+│   ├── retrieval.py       #   BM25 + semantic_retrieval factory
+│   ├── policy.py          #   deterministic gate (rules = data: PolicyRules)
+│   ├── agent.py           #   7-station loop (prompts injected from config)
 │   └── __init__.py        #   load_agent(name)
-├── usecases/tienda/       # USE-CASE de ejemplo (asistente de tienda)
-│   ├── config.yaml        #   endpoints, allowed_intents, reglas de policy, prompts
+├── usecases/tienda/       # example USE CASE (store assistant)
+│   ├── config.yaml        #   endpoints, allowed_intents, policy rules, prompts
 │   ├── tools.py           #   build_registry(config) -> ToolRegistry
 │   ├── prompts/ grammars/ data/ policies/ budgets.yaml evals/sets/
-│   └── __init__.py        #   expone build_registry
-├── core/telemetry.py      #   F3: TelemetrySink (JSONL por request, PII redactada)
+│   └── __init__.py        #   exposes build_registry
+├── core/telemetry.py      #   F3: TelemetrySink (JSONL per request, PII redacted)
 ├── core/controller.py     #   F2.0: ExecutiveController + circuit breaker + verifier
-├── app/main.py            # webhook/transport FastAPI; carga use-case vía AGENT_USECASE
-├── tests/ bench/ evals/run.py   # 77 tests verdes (flake8 + mypy limpios)
+├── app/main.py            # webhook/transport FastAPI; loads use case via AGENT_USECASE
+├── tests/ bench/ evals/run.py   # 77 tests green (flake8 + mypy clean)
 ├── Dockerfile docker-compose.yml pyproject.toml
-└── docs/decisions/        # ADR-001 plataforma · 002 infra calibrada · 003 policy-as-data
-                           #   · 004 verificación cruzada · 005 telemetría de decisiones
-                           #   · 006 capability contract · 007 tool-calling estructurado
-                           #   · 008 aislamiento por llamador (retrieval, ver ADR-037)
+└── docs/decisions/        # ADR-001 platform · 002 calibrated infra · 003 policy-as-data
+                           #   · 004 cross-verification · 005 decision telemetry
+                           #   · 006 capability contract · 007 structured tool-calling
+                           #   · 008 caller isolation (retrieval, see ADR-037)
 ```
 
-**Crear un dominio nuevo** = nueva carpeta `usecases/<nombre>/` (config + tools +
-prompts + evals), **nunca** un fork de `core/`.
+**Creating a new domain** = a new `usecases/<name>/` folder (config + tools +
+prompts + evals), **never** a fork of `core/`.
 
-### F1.2 Contratos (`app/schemas.py`) — escribir PRIMERO
+### F1.2 Contracts (`app/schemas.py`) — write FIRST
 
 ```python
 from pydantic import BaseModel, Field
@@ -362,7 +368,7 @@ class Route(BaseModel):
                     "smalltalk", "complaint", "policy_question",
                     "maintenance_task", "unknown"]
     tier: Literal[0, 1, 2, 3]
-    confidence: float = Field(ge=0.0, le=1.0)  # escalación OBJETIVA, no heurística
+    confidence: float = Field(ge=0.0, le=1.0)  # OBJECTIVE escalation, not heuristic
     risk: Literal["low", "medium", "high"]
     ambiguity: Literal["low", "medium", "high"]
     tool_needed: bool
@@ -370,16 +376,16 @@ class Route(BaseModel):
     expected_followup: bool
 
 class RequestBudget(BaseModel):
-    """Presupuesto por request — evita loops bonitos pero caros.
-    v3: los valores por intent viven en budgets.yaml (versionado);
-    este modelo solo los tipa. Adaptativo: rechazado hasta tener
-    >=4 semanas de P95 reales."""
+    """Per-request budget — prevents pretty-but-expensive loops.
+    v3: per-intent values live in budgets.yaml (versioned); this
+    model only types them. Adaptive budgets: rejected until we have
+    >=4 weeks of real P95 data."""
     max_iterations: int = 4
     max_tool_calls: int = 6
-    max_reflections: int = 1            # v3: reflect es condicional y acotado
-    latency_budget_ms: int = 8000       # SLA del canal (WhatsApp ≈ 8s)
-    can_escalate_t3: bool = False       # el 31B requiere permiso explícito
-    # cap diario de cloud: contador global en el controller, no por request
+    max_reflections: int = 1            # v3: reflect is conditional and bounded
+    latency_budget_ms: int = 8000       # channel SLA (WhatsApp ~= 8s)
+    can_escalate_t3: bool = False       # the 31B requires explicit permission
+    # daily cloud cap: global counter in the controller, not per request
 
 class ToolCall(BaseModel):
     tool: str
@@ -397,9 +403,9 @@ class Verdict(BaseModel):
     escalate_to_tier: int | None = None
 ```
 
-### F1.3 Router Tier 0 con gramática (salida JSON imposible de romper)
+### F1.3 Tier 0 router with grammar (JSON output that cannot be broken)
 
-`grammars/route.gbnf` (llama.cpp GBNF — fuerza el shape del JSON):
+`grammars/route.gbnf` (llama.cpp GBNF — forces the JSON shape):
 
 ```
 root   ::= "{" ws "\"intent\"" ws ":" ws intent "," ws "\"tier\"" ws ":" ws tier "," ws "\"confidence\"" ws ":" ws conf "," ws "\"risk\"" ws ":" ws lvl "," ws "\"ambiguity\"" ws ":" ws lvl "," ws "\"tool_needed\"" ws ":" ws bool "," ws "\"finality\"" ws ":" ws fin "," ws "\"expected_followup\"" ws ":" ws bool ws "}"
@@ -430,11 +436,11 @@ RULES = """Reglas de tier (aplícalas tras clasificar):
 5. NUNCA saltes directo a 3 salvo risk=high o ambiguity=high.
 confidence: tu certeza en ESTA clasificación (0.00-1.0)."""
 
-# Escalación OBJETIVA (en loop.py, no en el prompt):
-#   confidence < 0.70           -> sube un tier antes de planear
-#   verificación rechaza        -> sube un tier (una sola vez)
-#   tier==3 requerido pero budget.can_escalate_t3==False
-#                               -> respuesta parcial segura + flag a humano
+# OBJECTIVE escalation (in loop.py, not in the prompt):
+#   confidence < 0.70           -> bump a tier before planning
+#   verification rejects        -> bump a tier (once only)
+#   tier==3 required but budget.can_escalate_t3==False
+#                               -> safe partial answer + flag to a human
 
 def route(message: str) -> Route:
     r = httpx.post(ROUTER_URL, json={
@@ -445,7 +451,7 @@ def route(message: str) -> Route:
     return Route.model_validate_json(r.json()["choices"][0]["message"]["content"])
 ```
 
-`prompts/router.md` (versionado en git — NO inline en código):
+`prompts/router.md` (versioned in git — NOT inline in code):
 
 ```markdown
 Eres el router de un asistente de tienda por WhatsApp. Clasifica el mensaje
@@ -455,14 +461,14 @@ risk=high si el mensaje implica dinero, pedido o promesa. ambiguity=high si
 falta talla/cantidad/variante para actuar.
 ```
 
-### F1.4 Herramientas (la app ejecuta, el modelo solo las nombra)
+### F1.4 Tools (the app executes, the model only names them)
 
 `app/tools.py`:
 
 ```python
 from .schemas import Observation
 
-# Fase 1: stubs read-only contra fixtures. Fase 2: APIs reales.
+# Phase 1: read-only stubs against fixtures. Phase 2: real APIs.
 REGISTRY = {}
 
 def tool(name):
@@ -487,22 +493,22 @@ def alias_lookup(text: str) -> Observation:
             if any(a in text.lower() for a in names)]
     return Observation(tool="alias_lookup", ok=bool(hits), data={"candidates": hits})
 
-# Mismo patrón: pricing_lookup, order_create (Fase 1: SIEMPRE dry_run=True),
+# Same pattern: pricing_lookup, order_create (Phase 1: ALWAYS dry_run=True),
 # order_status, crm_lookup, policy_check, semantic_retrieval (BM25, F1.5).
 
-def run(call):  # punto único de ejecución + logging
+def run(call):  # single execution + logging chokepoint
     fn = REGISTRY.get(call.tool)
     if fn is None:
         return Observation(tool=call.tool, ok=False, data={}, error="unknown_tool")
     return fn(**call.args)
 ```
 
-> ⚠️ **`order_create` en Fase 1 es SIEMPRE `dry_run=True`.** El flag real lo
-> habilita el policy layer en Fase 2, nunca el modelo.
+> ⚠️ **`order_create` in Phase 1 is ALWAYS `dry_run=True`.** The real flag is
+> enabled by the policy layer in Phase 2, never by the model.
 
-### F1.5 Retrieval file-based (antes que cualquier vector store)
+### F1.5 File-based retrieval (before any vector store)
 
-`retrieval/data/aliases.json` (semilla — crece con los logs):
+`retrieval/data/aliases.json` (seed — grows with the logs):
 
 ```json
 {
@@ -511,100 +517,102 @@ def run(call):  # punto único de ejecución + logging
 }
 ```
 
-BM25 sobre archivos (`app/retrieval.py`): indexa `retrieval/data/*.md`
-(políticas de tienda, promociones, plantillas de objeciones) con `rank-bm25`;
-expón `semantic_retrieval(query, k=3)` como tool. **Nada de stock/precio aquí.**
+BM25 over files (`app/retrieval.py`): indexes `retrieval/data/*.md` (store
+policies, promotions, objection-handling templates) with `rank-bm25`; expose
+`semantic_retrieval(query, k=3)` as a tool. **No stock/pricing here.**
 
-### F1.6 Loop formal (`app/loop.py`) y webhook (`app/main.py`)
+### F1.6 Formal loop (`app/loop.py`) and webhook (`app/main.py`)
 
-El loop completo tiene 7 estaciones — en Fase 1 `reflect` y `critic` pueden
-ser el mismo modelo con prompts distintos; en Fase 2 `critic` sube de tier:
+The full loop has 7 stations — in Phase 1, `reflect` and `critic` can be the
+same model with different prompts; in Phase 2, `critic` moves up a tier:
 
 ```
 route → plan → tools → observe → reflect → critic → policy → finalize
-  E4B    tierN   app     app      tierN    tierN/N+1  determinista  tierN
+  E4B    tierN   app     app      tierN    tierN/N+1  deterministic  tierN
 ```
 
-- **plan**: máx `budget.max_tool_calls` herramientas, nombradas explícitamente.
-- **observe**: resultados de tools inyectados en schema compacto.
-- **reflect**: el modelo contrasta su plan con las observaciones — ¿falta un
-  dato? ¿la herramienta contradijo la suposición? (1 pase, sin chain-of-thought
-  expuesto).
-- **critic**: prompt de verificador (NO el de generación): consistencia con
-  datos vivos, claridad, cero inventario alucinado, cero promesas ilegales.
-- **policy**: gate determinista (F2.2) — **invariante: NINGUNA respuesta final
-  sale sin pasar `product_exists`, `stock_confirmed`, `price_confirmed`,
-  `no_overpromise` y `tone_brand`**. Sin excepciones, ni siquiera smalltalk
-  que mencione productos.
-- **finalize**: formato cliente, corto y comercial.
+- **plan**: at most `budget.max_tool_calls` tools, named explicitly.
+- **observe**: tool results injected in a compact schema.
+- **reflect**: the model checks its plan against the observations — is a
+  datum missing? did a tool contradict an assumption? (1 pass, no exposed
+  chain-of-thought).
+- **critic**: a verifier prompt (NOT the generation one): consistency with
+  live data, clarity, zero hallucinated inventory, zero illegal promises.
+- **policy**: deterministic gate (F2.2) — **invariant: NO final response goes
+  out without passing `product_exists`, `stock_confirmed`, `price_confirmed`,
+  `no_overpromise`, and `tone_brand`**. No exceptions, not even smalltalk that
+  mentions products.
+- **finalize**: customer-facing format, short and commercial.
 
-Stop-conditions duras (del `RequestBudget`): `max_iterations`; si
-`finality=clarify` dos veces seguidas → UNA pregunta directa al usuario;
-si oscila → plantilla segura; si `latency_budget_ms` se agota → respuesta
-parcial segura + flag.
+Hard stop-conditions (from `RequestBudget`): `max_iterations`; if
+`finality=clarify` twice in a row → ONE direct question to the user; if it
+oscillates → a safe template; if `latency_budget_ms` is exhausted → a safe
+partial response + flag.
 
-**Profundidad adaptativa (v3)**: `reflect` corre SOLO si (a) una tool falló o
-contradijo el plan, o (b) `risk≥medium`. Smalltalk y lookups limpios van
-`plan→tools→policy→final` — el pase extra de modelo no se paga donde no aporta.
+**Adaptive depth (v3)**: `reflect` runs ONLY if (a) a tool failed or
+contradicted the plan, or (b) `risk≥medium`. Smalltalk and clean lookups go
+`plan→tools→policy→final` — the extra model pass isn't paid for where it adds
+no value.
 
-Webhook FastAPI: `POST /webhook/whatsapp` valida firma (token en env
-`WA_VERIFY_TOKEN`), encola el mensaje, responde 200 inmediato, procesa async y
-contesta vía API de WhatsApp Business (env `WA_TOKEN`, `WA_PHONE_ID`). En Fase
-1 puedes probar TODO con `POST /dev/message {"text": "..."}` sin WhatsApp.
+FastAPI webhook: `POST /webhook/whatsapp` validates the signature (token in
+env `WA_VERIFY_TOKEN`), enqueues the message, responds 200 immediately,
+processes asynchronously, and replies via the WhatsApp Business API (env
+`WA_TOKEN`, `WA_PHONE_ID`). In Phase 1 you can test EVERYTHING with
+`POST /dev/message {"text": "..."}` without WhatsApp.
 
-**Cola y estado durable (v3)** — una sola SQLite (`app/state.db`, WAL):
+**Queue and durable state (v3)** — a single SQLite (`app/state.db`, WAL):
 
-- tabla `queue(conv_id, msg, status, ts)` — un worker por conversación
-  (orden garantizado); un crash NO pierde mensajes.
-- tabla `sagas(saga_id, tipo, paso, estado, deadline, retries)` — el patrón
-  *durable-state-as-data* para flujos multi-día (pedido → confirmación →
-  seguimiento) con un sweep periódico del worker. **Sin Temporal**: ese es un
-  ADR-trigger (≥3 tipos de saga o exactly-once distribuido).
-- `budgets.yaml`: presupuesto por intent (los defaults del schema son
-  fallback); cap diario de cloud como contador del controller.
+- `queue(conv_id, msg, status, ts)` table — one worker per conversation
+  (guaranteed order); a crash does NOT lose messages.
+- `sagas(saga_id, tipo, paso, estado, deadline, retries)` table — the
+  *durable-state-as-data* pattern for multi-day flows (order → confirmation →
+  follow-up) with a periodic sweep by the worker. **No Temporal**: that is an
+  ADR-trigger (≥3 saga types or distributed exactly-once).
+- `budgets.yaml`: per-intent budget (the schema defaults are the fallback);
+  daily cloud cap as a counter in the controller.
 
-### F1.7 Set de routing + tests (gate de la fase)
+### F1.7 Routing set + tests (phase gate)
 
-`evals/sets/01_intent.jsonl` — 20 casos mínimos (5 product_lookup con alias y
-faltas de ortografía, 3 order_create, 3 complaint, 3 smalltalk, 3 policy, 3
-ambiguos que DEBEN salir `finality=clarify`). Runner `evals/run.py`: lee JSONL,
-llama `route()`, compara `intent/tier/finality`, imprime accuracy y guarda
-`evals/reports/<fecha>_intent.json`.
+`evals/sets/01_intent.jsonl` — 20 minimum cases (5 product_lookup with alias
+and spelling mistakes, 3 order_create, 3 complaint, 3 smalltalk, 3 policy, 3
+ambiguous cases that MUST come out as `finality=clarify`). Runner
+`evals/run.py`: reads JSONL, calls `route()`, compares `intent/tier/finality`,
+prints accuracy, and saves `evals/reports/<date>_intent.json`.
 
-**Aceptación Fase 1**: router ≥ 18/20; loop end-to-end responde un
-`product_lookup` con alias + fixture de stock sin alucinar inventario;
-`pytest tests/` verde; todo read-only.
+**Phase 1 acceptance**: router ≥ 18/20; the end-to-end loop answers a
+`product_lookup` with alias + stock fixture without hallucinating inventory;
+`pytest tests/` green; everything read-only.
 
 ---
 
-## FASE 2 — Controller, tiers intermedios, verificador, políticas y evals
+## PHASE 2 — Controller, intermediate tiers, verifier, policies, and evals
 
 ### F2.0 ExecutiveController (`app/controller.py`) — v3
 
-Fachada única por la que pasa TODO request; interior de **middlewares puros**
-(`(ctx) -> ctx`, testeables aislados). Tope duro: ≤250 LOC o se parte.
+Single facade through which EVERY request passes; interior of **pure
+middlewares** (`(ctx) -> ctx`, testable in isolation). Hard cap: ≤250 LOC or
+it gets split.
 
 ```python
 class ExecutiveController:
     def admit(self, msg) -> Ctx:      # normalize → alias/BM25 → route(E4B) → budget
-    def execute(self, ctx) -> Ctx:    # loop adaptativo; retries SOLO de tools
-                                      # idempotentes; circuit breaker por tier
-                                      # (3 fallos → degradar un tier + plantillas,
-                                      # half-open 60s; estado EN MEMORIA)
-    def release(self, ctx) -> Final:  # policy gate → telemetría → finalize
+    def execute(self, ctx) -> Ctx:    # adaptive loop; retries ONLY for idempotent
+                                      # tools; per-tier circuit breaker
+                                      # (3 failures → degrade a tier + templates,
+                                      # half-open at 60s; state kept IN MEMORY)
+    def release(self, ctx) -> Final:  # policy gate → telemetry → finalize
 ```
 
-Qué NO va aquí: prompts, lógica de negocio, conocimiento del dominio.
+What does NOT go here: prompts, business logic, domain knowledge.
 
-### F2.1 Tier 1 (12B) como fallback intermedio — ENTRADA CONDICIONADA (v3)
-**Arranque SIN 12B**: el router salta 0→2. El artefacto queda en disco; el
-12B entra solo cuando la telemetría muestre que el 26B gasta >25% de su
-tiempo en tareas que el set 07 clasifica como "medias" (carga de la prueba
-invertida). Si entra: `app/tiers.py` cliente por puerto; escalación si el
-verificador del tier N rechaza o `confidence<umbral`, re-ejecuta en N+1 (una
-sola vez).
+### F2.1 Tier 1 (12B) as an intermediate fallback — CONDITIONAL ENTRY (v3)
+**Startup WITHOUT 12B**: the router skips 0→2. The artifact stays on disk; the
+12B enters only once telemetry shows the 26B spends >25% of its time on tasks
+that set 07 classifies as "medium" (inverted burden of proof). If it enters:
+`app/tiers.py` client per port; escalates if the tier-N verifier rejects or
+`confidence<threshold`, re-runs at N+1 (once only).
 
-### F2.2 Policy layer (`app/policy.py`) — gate determinista, NO LLM
+### F2.2 Policy layer (`app/policy.py`) — deterministic gate, NOT an LLM
 
 ```python
 CHECKS = [
@@ -621,73 +629,74 @@ def check(ctx) -> Verdict:
                    escalate_to_tier=3 if fails else None)
 ```
 
-Si falla: escalar a Tier 3 → o pedir aclaración → o respuesta parcial segura
-(en ese orden). El modelo JAMÁS aprueba su propia violación.
+On failure: escalate to Tier 3 → or ask for clarification → or a safe partial
+response (in that order). The model NEVER approves its own violation.
 
-**Políticas como datos (v3)**: umbrales, tools permitidas por intent, montos
-máximos, compromisos prohibidos y tono por canal viven en `policies/*.yaml`
-(versionado — el diff del PR ES el audit trail de compliance). Cada veredicto
-emite `{policy_version, rules_fired, decision_id}` a telemetría. **Regla
-policy-change-requires-test**: ningún cambio de YAML se mergea sin su caso en
-el set 06 que falle sin el cambio. OPA/Rego: rechazado a esta escala
-(re-evaluar solo con multi-tenant).
+**Policies as data (v3)**: thresholds, tools allowed per intent, maximum
+amounts, prohibited commitments, and tone per channel live in
+`policies/*.yaml` (versioned — the PR diff IS the compliance audit trail).
+Every verdict emits `{policy_version, rules_fired, decision_id}` to telemetry.
+**policy-change-requires-test rule**: no YAML change merges without its case
+in set 06 that fails without the change. OPA/Rego: rejected at this scale
+(revisit only with multi-tenant).
 
-### F2.3 Pase de crítica (verificación cruzada)
-Para `risk=medium|high`: la respuesta del 26B pasa por un prompt de verificador
-("¿consistente con los datos de tools? ¿promete algo no confirmado? ¿claro para
-el cliente?") en el MISMO 26B (Fase 2a) y en 31B cuando exista (Fase 2b).
+### F2.3 Critique pass (cross-verification)
+For `risk=medium|high`: the 26B's response passes through a verifier prompt
+("is it consistent with the tool data? does it promise something unconfirmed?
+is it clear to the customer?") on the SAME 26B (Phase 2a) and on the 31B once
+it exists (Phase 2b).
 
-**Self-consistency (v3, acotado)**: K=3 con voto SOLO en flujos high-stakes
-ASÍNCRONOS (confirmación de pedido, 15–20s aceptables) y en evals nocturnos.
-En interactivo, 3 pases del 26B revientan el budget de 8s: pase único + juez.
+**Self-consistency (v3, bounded)**: K=3 with voting ONLY in ASYNCHRONOUS
+high-stakes flows (order confirmation, 15–20s acceptable) and in nightly
+evals. In interactive mode, 3 passes of the 26B blow the 8s budget: a single
+pass + judge.
 
-### F2.4 Tier 3 (31B) — descarga condicionada
-Descarga `ggml-org` Q4_K_M (~17GB) SOLO si: (a) el eval de high-stakes (set 10)
-falla con 26B-verificado, o (b) los evals nocturnos lo justifican. Úsalo
-exclusivamente en: verificación final, evals nocturnos, escalaciones sin SLA.
+### F2.4 Tier 3 (31B) — conditional download
+Download `ggml-org` Q4_K_M (~17GB) ONLY if: (a) the high-stakes eval (set 10)
+fails with 26B-verified, or (b) nightly evals justify it. Use it exclusively
+for: final verification, nightly evals, escalations with no SLA.
 
-### F2.5 Los 10 sets de evaluación
-En `evals/sets/`: `01_intent`, `02_alias_match`, `03_oos_substitution`,
+### F2.5 The 10 evaluation sets
+In `evals/sets/`: `01_intent`, `02_alias_match`, `03_oos_substitution`,
 `04_upsell`, `05_objections`, `06_policy_violation`, `07_ambiguity`,
-`08_multiturn`, `09_tool_failure`, `10_high_stakes` (20–40 casos c/u, JSONL:
+`08_multiturn`, `09_tool_failure`, `10_high_stakes` (20–40 cases each, JSONL:
 `{"input":..., "expected":..., "must_escalate":bool, "must_call_tools":[...]}`).
-El runner mide: accuracy, corrección de escalación, corrección de tools, tasa
-de alucinación (mención de stock/precio no presente en observations), latencia,
-adherencia a políticas. Reportes versionados en `evals/reports/`.
+The runner measures: accuracy, escalation correctness, tool correctness,
+hallucination rate (mention of stock/price not present in observations),
+latency, policy adherence. Reports versioned in `evals/reports/`.
 
-**v3 — dos instrumentos adicionales**:
+**v3 — two additional instruments**:
 
-- **Golden set congelado** (`evals/golden/`, 50 casos, NUNCA se edita ni
-  crece): mide deriva del sistema a largo plazo; los sets vivos miden
-  cobertura. Editar el golden = invalidar la serie histórica.
-- **Replay contra tráfico real**: `evals/replay.py --from logs/<dia>.jsonl
-  --against <prompt|policy>` — todo cambio de prompt/política se prueba
-  contra el tráfico de ayer ANTES de ver el de hoy.
-- La matriz de confusión del router se publica por ciclo (no solo accuracy):
-  escalar de más cuesta latencia; de menos, calidad.
+- **Frozen golden set** (`evals/golden/`, 50 cases, NEVER edited or grown):
+  measures long-term system drift; the live sets measure coverage. Editing
+  the golden set invalidates the historical series.
+- **Replay against real traffic**: `evals/replay.py --from logs/<day>.jsonl
+  --against <prompt|policy>` — every prompt/policy change is tested against
+  yesterday's traffic BEFORE it sees today's.
+- The router's confusion matrix is published every cycle (not just accuracy):
+  over-escalating costs latency; under-escalating costs quality.
 
-**Gates de graduación POR TIER** (obligatorios antes de promover cualquier
-cambio de prompt, modelo o regla — no basta el eval global):
+**Graduation gates PER TIER** (mandatory before promoting any prompt, model,
+or rule change — the global eval alone is not enough):
 
-| Tier | Gana en SU rol si... | Set que lo mide |
+| Tier | Wins in ITS role if... | Set that measures it |
 |---|---|---|
-| E4B | precisión de routing ≥ umbral y confidence calibrada (alta conf ⇒ alta precisión) | 01_intent |
-| 12B | reduce escalaciones innecesarias al 26B y mejora clarificaciones vs E4B | 07_ambiguity + 01 |
-| 26B | supera al 12B en matching semántico/comercial real | 02, 03, 04, 05, 08 |
-| 31B | atrapa violaciones que el 26B-verificado dejó pasar, en high-stakes | 06, 10 |
+| E4B | routing precision ≥ threshold and calibrated confidence (high confidence ⇒ high precision) | 01_intent |
+| 12B | reduces unnecessary escalations to the 26B and improves clarifications vs. E4B | 07_ambiguity + 01 |
+| 26B | beats the 12B on real semantic/commercial matching | 02, 03, 04, 05, 08 |
+| 31B | catches violations the 26B-verified let through, in high-stakes cases | 06, 10 |
 
-Reglas: ningún lane sube de autonomía sin regresión verde
-(`pytest -m regression`) · un tier que pierde en su propio rol dos ciclos
-seguidos se reconfigura o se retira (cláusula del 12B, §0.2) · el 31B
-justifica coste/latencia solo en los casos seleccionados — si el eval
-muestra que el 26B-verificado le empata, el 31B queda solo para evals
-nocturnos.
+Rules: no lane gains autonomy without a green regression
+(`pytest -m regression`) · a tier that loses in its own role two cycles in a
+row gets reconfigured or retired (12B clause, §0.2) · the 31B justifies its
+cost/latency only in selected cases — if the eval shows the 26B-verified ties
+it, the 31B is kept solely for nightly evals.
 
 ---
 
-## FASE 3 — Observabilidad y mejora continua
-1. **Telemetría de decisiones** (JSONL por request, PII redactada) — campos
-   obligatorios, porque sin esto el refinamiento es adivinanza:
+## PHASE 3 — Observability and continuous improvement
+1. **Decision telemetry** (JSONL per request, PII redacted) — mandatory
+   fields, because without this, refinement is guesswork:
 
    ```json
    {"ts": "...", "trace_id": "...", "route": {...}, "tier_final": 2,
@@ -701,290 +710,293 @@ nocturnos.
     "provenance": {"source": "prod", "reviewer": null, "quarantine": true}}
    ```
 
-   **v3 — tres reglas duras**: (1) la telemetría es CONTRATO, no buena
-   práctica — un lane que no emite el schema no pasa el validator (el
-   prediction-logger D-20 del mundo agéntico); (2) naming alineado a
-   semconv de OTel (`trace_id` propagado a tools y tiers) para que adoptar
-   OTel después sea un swap de transporte (trigger: equipo >1 o >1 host);
-   (3) PII redactada EN EL MOMENTO de escritura, nunca después.
+   **v3 — three hard rules**: (1) telemetry is a CONTRACT, not a best
+   practice — a lane that does not emit the schema fails the validator (the
+   agentic world's prediction-logger, D-20); (2) naming aligned to OTel
+   semconv (`trace_id` propagated to tools and tiers) so that adopting OTel
+   later is a transport swap (trigger: team >1 or >1 host); (3) PII redacted
+   AT WRITE TIME, never afterward.
 
-   Con esto se mejoran prompts, prompts de verificación y reglas de
-   escalación con datos, no con intuición — y los campos `provenance` son
-   la semilla gobernada del flywheel de F4: nada sale de cuarentena hacia
-   un dataset sin revisión humana por lotes; crudo se retiene 30 días,
-   curado indefinido; los rechazos del juez generan los pares de DPO.
-2. Análisis offline semanal de fallos → nuevos casos a los sets (el eval set
-   CRECE con producción).
-3. **Ciclo de crecimiento del retrieval** (antes que cualquier LoRA): cada
-   semana, los términos de cliente que el alias-lookup NO resolvió pasan a
-   revisión → entradas nuevas en `aliases.json` / equivalencias de categoría /
-   variantes regionales, vía PR. El retrieval madura con tráfico real; el
-   modelo no memoriza nada.
-4. Refinamiento de prompts SOLO con evidencia de evals (diff versionado en
-   `prompts/`).
-5. Generación sintética de variantes (alias regionales, faltas de ortografía)
-   usando el 26B local — revisión humana antes de entrar al set.
-6. Shadow mode: toda decisión de routing se loggea junto a "qué habría hecho
-   el tier superior" en una muestra del 10%.
+   This is how prompts, verification prompts, and escalation rules improve
+   with data instead of intuition — and the `provenance` fields are the
+   governed seed of the F4 flywheel: nothing leaves quarantine into a dataset
+   without batched human review; raw data is retained 30 days, curated data
+   indefinitely; judge rejections generate the DPO pairs.
+2. Weekly offline failure analysis → new cases added to the sets (the eval
+   set GROWS with production).
+3. **Retrieval growth cycle** (before any LoRA): every week, customer terms
+   that alias-lookup did NOT resolve go to review → new entries in
+   `aliases.json` / category equivalences / regional variants, via PR.
+   Retrieval matures with real traffic; the model memorizes nothing.
+4. Prompt refinement ONLY with eval evidence (versioned diff in `prompts/`).
+5. Synthetic generation of variants (regional aliases, spelling mistakes)
+   using the local 26B — human review before entering the set.
+6. Shadow mode: every routing decision is logged alongside "what the tier
+   above would have done" on a 10% sample.
 
-## FASE 4 — QLoRA (gate estratégico, NO antes)
-Solo con: ≥4 semanas de logs, evals estables, y un patrón de estilo/tono/
-política que el prompting no resuelva. Entrenar SOLO comportamiento estable
-(tono, formato, protocolo de marca). PROHIBIDO entrenar sobre inventario,
-stock o precios. Requiere ADR nuevo en el template.
+## PHASE 4 — QLoRA (strategic gate, NOT before)
+Only with: ≥4 weeks of logs, stable evals, and a style/tone/policy pattern
+that prompting cannot resolve. Train ONLY stable behavior (tone, format,
+brand protocol). PROHIBITED to train on inventory, stock, or prices.
+Requires a new ADR in the template.
 
 ---
 
-## PLANO DE MANTENIMIENTO — lanes ADR-028 sobre el MISMO stack
+## MAINTENANCE PLANE — ADR-028 lanes on the SAME stack
 
-> Absorbido de `ACTION_PLAN_ADR028.md` (ahora stub). Los lanes reutilizan los
-> tiers, el cliente con gramática y el eval harness de las fases anteriores —
-> es un segundo consumidor del mismo runtime, no otro sistema.
+> Absorbed from `ACTION_PLAN_ADR028.md` (now a stub). The lanes reuse the
+> tiers, the grammar-constrained client, and the eval harness from the
+> earlier phases — this is a second consumer of the same runtime, not a
+> different system.
 
-### L-4 Docs-drift updater (primer lane productivo — barato y verificable)
+### L-4 Docs-drift updater (first productive lane — cheap and verifiable)
 
-El LLM es el *redactor*, no el *detector*:
+The LLM is the *writer*, not the *detector*:
 
-1. Extractor Python determinista recoge hechos visibles en código (conteos de
-   rules/skills/workflows, nombres de overlays, tablas de inventario).
-2. Comparador marca claims de docs que no coinciden — sin LLM.
-3. `E4B` redacta el cuerpo del PR + diffs de docs SOLO para los mismatches,
+1. A deterministic Python extractor gathers code-visible facts (counts of
+   rules/skills/workflows, overlay names, inventory tables).
+2. A comparator flags doc claims that don't match — no LLM involved.
+3. `E4B` drafts the PR body + doc diffs ONLY for the mismatches,
    JSON-constrained.
-4. Abre **PR CONSULT** vía `gh`. Humano mergea.
+4. Opens a **CONSULT PR** via `gh`. A human merges.
 
-Runtime: **el laptop es el runner** (timer systemd semanal en WSL) — cero
-dependencia de CI, cero coste cloud. Eval de admisión: 10 casos sintéticos de
-drift sembrados (mutar un conteo, renombrar un overlay) → ≥9/10 detectados con
-0 parches falsos.
+Runtime: **the laptop is the runner** (weekly systemd timer in WSL) — zero CI
+dependency, zero cloud cost. Admission eval: 10 synthetic drift cases seeded
+(mutate a count, rename an overlay) → ≥9/10 detected with 0 false patches.
 
-### L-2 Memory plane Fase 2 (= P2.4) — embeddings-free primero
+### L-2 Memory plane Phase 2 (= P2.4) — embeddings-free first
 
-1. BM25 sobre artefactos existentes: `ops/audit.jsonl`, `docs/incidents/`,
-   `VALIDATION_LOG.md`, `releases/*.md`, reportes de drift.
-2. `scripts/memory_query.py "<pregunta>"` → top-k chunks → `E4B` resume **con
-   citas file:line obligatorias** — una respuesta sin cita se descarta.
-3. Eval: 20 preguntas históricas con respuesta conocida; recall@5 ≥ 80% o se
-   reevalúa vector store (no antes).
+1. BM25 over existing artifacts: `ops/audit.jsonl`, `docs/incidents/`,
+   `VALIDATION_LOG.md`, `releases/*.md`, drift reports.
+2. `scripts/memory_query.py "<question>"` → top-k chunks → `E4B` summarizes
+   **with mandatory file:line citations** — a response without a citation is
+   discarded.
+3. Eval: 20 historical questions with known answers; recall@5 ≥ 80% or the
+   vector store is re-evaluated (not before).
 
-### L-2b RAG pedagógico — hermano namespace-disjoint de L-2 (ADR-037)
+### L-2b Pedagogical RAG — namespace-disjoint sibling of L-2 (ADR-037)
 
-> **Canónico desde v3.2.** Nace de una pregunta natural ("¿podemos reusar el
-> stack de `agent-local` para que newcomers pregunten sobre el template?") que
-> es peligrosa sin una separación explícita: mezclar el corpus pedagógico con
-> runbooks/evidencia operativa en el MISMO índice arriesga filtraciones
-> operativas hacia una superficie más expuesta (posible widget en el sitio de
-> docs). **ADR-037** formaliza la separación; esto la ejecuta.
+> **Canonical since v3.2.** Born from a natural question ("can we reuse the
+> `agent-local` stack so newcomers can ask questions about the template?")
+> that is dangerous without an explicit separation: mixing the pedagogical
+> corpus with operational runbooks/evidence in the SAME index risks
+> operational leakage toward a more exposed surface (a possible widget on the
+> docs site). **ADR-037** formalizes the separation; this section executes it.
 
-1. **Nunca el mismo script que L-2.** `scripts/pedagogy_query.py` (nuevo) es un
-   entrypoint separado de `scripts/memory_query.py` — jamás un flag
-   `--namespace` sobre el mismo script. Un flag puede quedar mal por defecto u
-   olvidarse en un call site; dos scripts obligan a nombrar el equivocado a
-   propósito.
-2. **Corpus disjunto, hardcodeado, nunca parametrizable por request**:
-   `REDACTED-PRIVATE-REPO/docs/*.md`, `docs/decisions/ADR-*.md` (solo prosa —
-   contexto/decisión/consecuencias leídos como material pedagógico, nunca como
-   bitácora operativa), `docs/TUTORIAL.md`, `docs/CCDS_MAPPING.md`, glosario.
-   **Prohibido**: `ops/`, `docs/incidents/`, `VALIDATION_LOG.md`,
-   `releases/*.md` — eso es exclusivamente L-2/ADR-018.
-3. **Índice propio, nunca compartido**: `pedagogy_query.py` construye su propio
-   `BM25Index` en proceso — ningún objeto, archivo o tabla se comparte con el
-   índice de L-2. Lo único que ambos scripts comparten es el endpoint E4B de
-   `agent-local` (`http://127.0.0.1:8091/...`), seguro de compartir
-   precisamente porque el tier no tiene estado entre requests (agent-local
-   ADR-008) — compartir el tier es una decisión de costo de hardware, no una
-   concesión de separación.
-4. **Citas con validación de namespace (el backstop en runtime)**: además de
-   "sin cita se descarta" (regla ya vigente en L-2), una cita que NO resuelva
-   dentro del allow-list del namespace que respondió se descarta y genera un
-   evento de integridad — nunca se sirve. Es lo que convierte "lo diseñamos
-   separado" en "verificamos en cada query que siguió separado".
-5. **Telemetría con `namespace` obligatorio** (`"operational"|"pedagogical"`,
-   enum cerrado de 2 valores) en cada línea — auditable con
+1. **Never the same script as L-2.** `scripts/pedagogy_query.py` (new) is an
+   entry point separate from `scripts/memory_query.py` — never a
+   `--namespace` flag on the same script. A flag can default wrong or be
+   forgotten at a call site; two scripts force the caller to name the wrong
+   one on purpose.
+2. **Disjoint corpus, hardcoded, never parameterizable by request**: the
+   adopter's own private pedagogical/documentation corpus (out of scope for
+   this public repo), `docs/decisions/ADR-*.md` (prose only — context/
+   decision/consequences read as pedagogical material, never as an
+   operational log), `docs/TUTORIAL.md`, `docs/CCDS_MAPPING.md`, glossary.
+   **Prohibited**: `ops/`, `docs/incidents/`, `VALIDATION_LOG.md`,
+   `releases/*.md` — that is exclusively L-2/ADR-018.
+3. **Its own index, never shared**: `pedagogy_query.py` builds its own
+   in-process `BM25Index` — no object, file, or table is shared with the L-2
+   index. The only thing the two scripts share is `agent-local`'s E4B
+   endpoint (`http://127.0.0.1:8091/...`), safe to share precisely because
+   the tier holds no state between requests (agent-local ADR-008) — sharing
+   the tier is a hardware-cost decision, not a concession on separation.
+4. **Citations with namespace validation (the runtime backstop)**: in
+   addition to "no citation, no response" (already in force in L-2), a
+   citation that does NOT resolve within the allow-list of the namespace that
+   answered is discarded and generates an integrity event — it is never
+   served. This is what turns "we designed it separate" into "we verify on
+   every query that it stayed separate."
+5. **Telemetry with mandatory `namespace`** (`"operational"|"pedagogical"`, a
+   closed 2-value enum) on every line — auditable with
    `grep namespace ops/*.jsonl`.
-6. **Gate CI dedicado**: `tests/test_retrieval_namespace_isolation.py` (nuevo)
-   verifica que los dos allow-lists no se intersecten y que ninguno resuelve
-   (vía glob) a un archivo del root exclusivo del otro.
-7. **No es una fase de ADR-018.** El Operational Memory Plane tiene su propio
-   threat model (tokens de CI filtrados, redacción de secretos, tenancy) que
-   el contenido pedagógico no tiene y no debe fingir tener. Este lane es un
-   mecanismo propio, más ligero, BM25-first — nunca un `memory_type` nuevo
-   dentro del `MemoryUnit` de ADR-018.
+6. **Dedicated CI gate**: `tests/test_retrieval_namespace_isolation.py` (new)
+   verifies the two allow-lists never intersect and that neither resolves
+   (via glob) to a file in the other's exclusive root.
+7. **This is not a Phase of ADR-018.** The Operational Memory Plane has its
+   own threat model (leaked CI tokens, secret redaction, tenancy) that
+   pedagogical content does not have and must not pretend to have. This lane
+   is its own, lighter, BM25-first mechanism — never a new `memory_type`
+   inside ADR-018's `MemoryUnit`.
 
-**Aceptación de L-2b**: `test_retrieval_namespace_isolation.py` verde · un
-test unitario de "cita fuera de namespace se rechaza y se loggea" · ambos
-scripts emiten `namespace` validado contra el enum cerrado · REDACTED-PRIVATE-REPO
-[§46.11](https://github.com/DuqueOM/REDACTED-PRIVATE-REPO/blob/main/docs/46_RETRIEVAL_MEMORIA_POLITICAS.md)
-describe la separación para un lector humano, no solo en código.
+**L-2b acceptance**: `test_retrieval_namespace_isolation.py` green · a unit
+test for "a citation outside its namespace is rejected and logged" · both
+scripts emit `namespace` validated against the closed enum · the adopter's
+private pedagogical corpus documentation describes the separation for a human
+reader, not only in code.
 
-**Estado**: especificado (este ADR + esta sección), NO implementado — igual
-que L-2 mismo, gated detrás del mismo timeline de "INTEGRACIÓN P2" (ninguno de
-los dos scripts existe todavía). Ver ADR-037 para el registro completo de
-alternativas consideradas y consecuencias.
+**Status**: specified (this ADR + this section), NOT implemented — same as
+L-2 itself, gated behind the same "P2 INTEGRATION" timeline (neither script
+exists yet). See ADR-037 for the full record of alternatives considered and
+consequences.
 
-### L-3 Triage de drift/incidentes
+### L-3 Drift/incident triage
 
-1. Joiner reúne: señales Prometheus (MCP), slices del prediction-log,
-   historial de deploys (`git log` + digests).
-2. `26B-A4B` redacta el borrador de RCA en `report_schema.json` — job batch,
-   minutos de runtime aceptables.
-3. El borrador se adjunta al issue. **El humano es dueño de la conclusión.**
-4. Eval: replay de 3 incidentes históricos; causalidad alucinada (afirmar
-   causa ausente de la evidencia) = fallo automático → esa subtarea va a cloud.
+1. A joiner gathers: Prometheus signals (MCP), prediction-log slices, deploy
+   history (`git log` + digests).
+2. `26B-A4B` drafts the RCA in `report_schema.json` — a batch job, minutes of
+   runtime acceptable.
+3. The draft is attached to the issue. **The human owns the conclusion.**
+4. Eval: replay of 3 historical incidents; hallucinated causality (asserting
+   a cause absent from the evidence) = automatic failure → that subtask goes
+   to cloud.
 
-### L-1 CI self-healing Fase 2 — los modelos locales quedan FUERA del path de CI
+### L-1 CI self-healing Phase 2 — local models stay OUT of the CI path
 
-Dos razones de seguridad (no de capacidad):
+Two reasons, both about security (not capability):
 
-1. Los runners de GitHub no alcanzan el laptop.
-2. Un runner self-hosted en laptop personal sobre repo público es un vector de
-   ataque conocido (PRs de forks ejecutan en tu máquina) — **rechazado**.
+1. GitHub's runners cannot reach the laptop.
+2. A self-hosted runner on a personal laptop against a public repo is a known
+   attack vector (fork PRs execute on your machine) — **rejected**.
 
-En CI: clasificación heurística primero, cloud cheap-tier donde haga falta;
-generación de parches en cloud, CONSULT, según `model_routing_policy.yaml`
-(los tiers locales se registran ahí DEBAJO del tier cloud más barato; la
-disciplina de solo-escalación de ADR-010 no cambia — un modelo local puede
-señalar, nunca aprobar). Los tiers locales ayudan *offline*: job nocturno que
-reproduce los fallos de CI del día contra el prompt clasificador para crecer
-el corpus etiquetado (alimenta los triggers de revisión de fine-tuning, >10k
-eventos etiquetados).
+In CI: heuristic classification first, cheap-tier cloud where needed; patch
+generation in cloud, CONSULT, per `model_routing_policy.yaml` (local tiers are
+registered there BELOW the cheapest cloud tier; ADR-010's escalation-only
+discipline does not change — a local model may flag, never approve). The
+local tiers help *offline*: a nightly job replays the day's CI failures
+against the classifier prompt to grow the labeled corpus (feeds the
+fine-tuning review triggers, >10k labeled events).
 
-### Riesgos del plano (heredados y vigentes)
+### Plane risks (inherited and still current)
 
-| Riesgo | Mitigación |
+| Risk | Mitigation |
 |---|---|
-| Arquitectura Gemma-4 no soportada por converters | cadena de fallback: GGUF oficial → registry Ollama → cloud-only (los lanes son agnósticos vía cliente OpenAI-compatible) |
-| Quant degrada al 26B bajo utilidad | gate de bench Fase 0 + side-by-side por tarea vs E4B; si pierde, se elimina el tier |
-| Disponibilidad del laptop-runner | lanes semanales/on-demand, no sensibles a latencia; una semana perdida es benigna |
-| Alucinación de modelo pequeño | JSON con gramática en todo; citas obligatorias; detectores deterministas aguas arriba de cada llamada LLM |
+| Gemma-4 architecture unsupported by converters | fallback chain: official GGUF → Ollama registry → cloud-only (the lanes are agnostic via the OpenAI-compatible client) |
+| Quantization degrades the 26B below usefulness | Phase 0 bench gate + side-by-side per task vs. E4B; if it loses, the tier is removed |
+| Laptop-runner availability | weekly/on-demand lanes, not latency-sensitive; a lost week is benign |
+| Small-model hallucination | grammar-constrained JSON everywhere; mandatory citations; deterministic detectors upstream of every LLM call |
 
-📝 **Fine-tuning sigue RECHAZADO** (ADR-028 §4): el trigger es volumen
-etiquetado (>10k), no hardware. La Fase 4 de este plan es el único camino y
-exige ADR nuevo.
+📝 **Fine-tuning remains REJECTED** (ADR-028 §4): the trigger is labeled
+volume (>10k), not hardware. Phase 4 of this plan is the only path and
+requires a new ADR.
 
-## INTEGRACIÓN P2 (template_MLOps, 1–2 meses — desbloquea v1.0.0)
+## P2 INTEGRATION (template_MLOps, 1–2 months — unblocks v1.0.0)
 
-| # | Entregable | Pasos concretos |
+| # | Deliverable | Concrete steps |
 |---|---|---|
-| P2.1 | **Evidencia L4**: rollout real GKE+EKS | `deploy-gke` y `deploy-aws` skills sobre el servicio ejemplo → capturar `kubectl get pods/svc`, Grafana, coste → entradas fechadas en `ops/VALIDATION_LOG.md` → screenshots a `docs/evidence/` |
-| P2.2 | 4 runbooks pendientes | `docs/runbooks/`: `gke-rollout.md`, `eks-rollout.md`, `rollback-validado.md`, `coste-ventana-l4.md` — formato de los 5 existentes |
-| P2.3 | Ventana shadow 14 días (ADR-019 Fase 2) | activar prediction logger en el ejemplo, cron diario de captura, al día 14: reporte de drift con `drift-check` |
-| P2.4 | ADR-018 Fase 2: ingest + retrieval **+ L-2b pedagógico (ADR-037)** | **REUSAR este stack**: `scripts/memory_ingest.py` + `scripts/memory_query.py` (file-based, BM25 igual que F1.5) sobre `ops/audit.jsonl` + ADRs, namespace `operational`; **en paralelo**, `scripts/pedagogy_query.py` (namespace `pedagogical`, corpus disjunto: REDACTED-PRIVATE-REPO + ADRs-como-prosa) — dos scripts, dos índices, un solo E4B compartido (agent-local ADR-008). Ambos con citas file:line validadas contra su propio namespace (§L-2b) |
-| P2.5 | Skill + módulo `data-cleaning` | `agentic/skills/data-cleaning/SKILL.md` (modo AUTO) + `templates/common_utils/data_cleaning.py` (imputación, outliers, tipos — con tests) + sync adapters + validator strict |
+| P2.1 | **L4 evidence**: real GKE+EKS rollout | `deploy-gke` and `deploy-aws` skills on the example service → capture `kubectl get pods/svc`, Grafana, cost → dated entries in `ops/VALIDATION_LOG.md` → screenshots to `docs/evidence/` |
+| P2.2 | 4 pending runbooks | `docs/runbooks/`: `gke-rollout.md`, `eks-rollout.md`, `rollback-validado.md`, `coste-ventana-l4.md` — format of the 5 existing ones |
+| P2.3 | 14-day shadow window (ADR-019 Phase 2) | activate the prediction logger on the example, daily capture cron, on day 14: drift report with `drift-check` |
+| P2.4 | ADR-018 Phase 2: ingest + retrieval **+ pedagogical L-2b (ADR-037)** | **REUSE this stack**: `scripts/memory_ingest.py` + `scripts/memory_query.py` (file-based, BM25 same as F1.5) over `ops/audit.jsonl` + ADRs, `operational` namespace; **in parallel**, `scripts/pedagogy_query.py` (`pedagogical` namespace, disjoint corpus: the adopter's own private pedagogical corpus + ADRs-as-prose) — two scripts, two indexes, one shared E4B (agent-local ADR-008). Both with file:line citations validated against their own namespace (§L-2b) |
+| P2.5 | `data-cleaning` skill + module | `agentic/skills/data-cleaning/SKILL.md` (AUTO mode) + `templates/common_utils/data_cleaning.py` (imputation, outliers, types — with tests) + sync adapters + strict validator |
 
-## INTEGRACIÓN P3 (estratégico)
+## P3 INTEGRATION (strategic)
 
-1. **Nicho en README** (primer párrafo): "ML tabular supervisado en K8s, 1–10
-   modelos, GCP/AWS, con salidas documentadas a Vertex/SageMaker".
-2. **Harness de evaluación agéntica en CI**: escenarios donde el agente DEBE
-   escalar/negarse según AUTO/CONSULT/STOP, construidos sobre el red-team-log
-   existente. Mismo runner de `evals/run.py` — los sets viven en
-   `agentic/evals/`. Gate en `validate-templates.yml`.
-3. **Variante LLM-serving del template**: evaluar como track separado SOLO
-   tras v1.0.0 (ADR requerido; el asistente de tienda es el caso de estudio).
+1. **README niche** (first paragraph): "Supervised tabular ML on K8s, 1–10
+   models, GCP/AWS, with documented outputs to Vertex/SageMaker".
+2. **Agentic evaluation harness in CI**: scenarios where the agent MUST
+   escalate/refuse per AUTO/CONSULT/STOP, built on the existing red-team
+   log. Same `evals/run.py` runner — the sets live in `agentic/evals/`.
+   Gate in `validate-templates.yml`.
+3. **LLM-serving variant of the template**: evaluate as a separate track ONLY
+   after v1.0.0 (ADR required; the store assistant is the case study).
 
-## EVIDENCIA COMPARATIVA portfolio vs template (DOS experimentos)
+## COMPARATIVE EVIDENCE portfolio vs. template (TWO experiments)
 
-> Son dos preguntas distintas y cada una necesita su experimento. Mezclarlas
-> destruye la credibilidad de ambas.
+> These are two distinct questions and each needs its own experiment. Mixing
+> them destroys the credibility of both.
 
-### E-A: Migración con paridad (valida el TEMPLATE como contenedor)
+### E-A: Parity migration (validates the TEMPLATE as a container)
 
-Portar el pipeline del portfolio TAL CUAL (mismas features, mismo algoritmo,
-mismos hiperparámetros, misma semilla) sobre el scaffold del template.
+Port the portfolio pipeline AS-IS (same features, same algorithm, same
+hyperparameters, same seed) onto the template's scaffold.
 
-| Dimensión | Portfolio (manual) | Template (medir) |
+| Dimension | Portfolio (manual) | Template (measure) |
 |---|---|---|
-| Tiempo a servicio desplegable | semanas (real) | horas (`new-service.sh` + datos) |
-| Líneas escritas a mano | todas | solo `train.py` + features |
-| Incidentes de serving | 3 sufridos | 0 (D-01..D-32 los previenen) |
-| Gates automáticos | a posteriori | día cero |
-| Métricas | AUC 0.87 | **≈ igual — paridad = migración fiel** |
+| Time to deployable service | weeks (actual) | hours (`new-service.sh` + data) |
+| Lines written by hand | all | only `train.py` + features |
+| Serving incidents | 3 suffered | 0 (D-01..D-32 prevent them) |
+| Automatic gates | after the fact | day zero |
+| Metrics | AUC 0.87 | **≈ equal — parity = faithful migration** |
 
-### E-B: Re-desarrollo asistido (valida el PROCESO agéntico end-to-end)
+### E-B: Assisted re-development (validates the agentic PROCESS end-to-end)
 
-Partir SOLO del dataframe crudo y ejecutar el ciclo completo asistido:
-skill `eda-analysis` → skill `data-cleaning` (P2.5) → feature engineering →
-selección de modelo + HPO (Optuna) → gates (leakage, fairness) → serving.
-Aquí el proceso NO es idéntico al manual, así que las métricas PUEDEN y
-suelen mejorar — por mecanismos identificables: limpieza más sistemática,
-leakage detectado por gate, búsqueda de hiperparámetros más disciplinada,
-selección de modelo más amplia.
+Start ONLY from the raw dataframe and run the full assisted cycle: skill
+`eda-analysis` → skill `data-cleaning` (P2.5) → feature engineering → model
+selection + HPO (Optuna) → gates (leakage, fairness) → serving. Here the
+process is NOT identical to the manual one, so the metrics CAN and often do
+improve — through identifiable mechanisms: more systematic cleaning, leakage
+caught by the gate, more disciplined hyperparameter search, broader model
+selection.
 
-**Objetivo declarado**: como mínimo paridad en una fracción del tiempo;
-como meta, mejora atribuible. **Guardarraíles de honestidad** (sin esto el
-experimento no vale):
+**Stated objective**: at minimum, parity in a fraction of the time; as a
+stretch goal, attributable improvement. **Honesty guardrails** (without these
+the experiment is worthless):
 
-1. **Mismo test set congelado** que el portfolio, intocable — nada de
-   "probar hasta ganar" (eso es test-set shopping, no mejora).
-2. Cada delta de métrica **atribuido a su mecanismo** en MLflow: run del
-   baseline vs run asistido, con el cambio concreto etiquetado (p. ej.
-   "imputación por grupo", "feature X eliminada por leakage-gate",
-   "HPO 200 trials vs 30 manuales").
-3. Validación con CV temporal idéntica a la original.
-4. Si la mejora no llega, se publica igual: "paridad en 1/10 del tiempo"
-   ya es la victoria de ingeniería.
+1. **Same frozen test set** as the portfolio, untouched — no "test until you
+   win" (that's test-set shopping, not improvement).
+2. Every metric delta **attributed to its mechanism** in MLflow: baseline run
+   vs. assisted run, with the concrete change labeled (e.g. "per-group
+   imputation", "feature X removed by leakage-gate", "HPO 200 trials vs. 30
+   manual").
+3. Validation with temporal CV identical to the original.
+4. If the improvement doesn't materialize, it gets published anyway: "parity
+   in 1/10th the time" is already an engineering win.
 
-La frase para entrevista: *"el template no mejora el modelo por arte de
-magia; mejora el PROCESO que produce el modelo — y un proceso mejor
-encuentra mejoras que el manual dejó sobre la mesa, con cada una trazada
-en MLflow"*.
+The interview line: *"the template doesn't improve the model by magic; it
+improves the PROCESS that produces the model — and a better process finds
+improvements the manual approach left on the table, each one traced in
+MLflow"*.
 
-Salida de ambos: `docs/evidence/COMPARATIVE_BANKCHURN.md` con las dos
-tablas + links a los runs de MLflow.
+Output of both: `docs/evidence/COMPARATIVE_BANKCHURN.md` with both tables +
+links to the MLflow runs.
 
 ---
 
-## FAULT-INJECTION DRILL — known-answer monitoring (aprovecha los datasets del portfolio)
+## FAULT-INJECTION DRILL — known-answer monitoring (leverages the portfolio datasets)
 
-> Idea del maintainer, adoptada: ya que probamos los datasets del portfolio,
-> **inyectamos a propósito los fallos que documentamos en los ADRs** y
-> verificamos que la superficie de monitoreo CORRECTA los detecta. Convierte
-> "el sistema detecta fallos" (afirmación) en "inyecté ESTE fallo conocido y
-> la alarma esperada disparó en T segundos" (evidencia con ground-truth).
+> Maintainer's idea, adopted: since we're already testing the portfolio
+> datasets, **we deliberately inject the failures documented in the ADRs** and
+> verify that the CORRECT monitoring surface detects them. This turns "the
+> system detects failures" (a claim) into "I injected THIS known failure and
+> the expected alarm fired in T seconds" (ground-truth evidence).
 
-⚠️ **Distinción crítica (no la pierdas)**: los incidentes de los ADRs son
-**clases de fallo distintas**, cada una con su superficie de detección. Meterlas
-todas a "drift" es el error que haría parecer que el monitoreo no sirve.
+⚠️ **Critical distinction (don't lose it)**: the incidents from the ADRs are
+**distinct failure classes**, each with its own detection surface. Lumping
+them all under "drift" is the mistake that would make monitoring look
+useless.
 
-| Fallo (origen) | Clase | Cómo se inyecta | Superficie que DEBE detectar | Resultado esperado |
+| Failure (source) | Class | How it's injected | Surface that MUST detect it | Expected result |
 |---|---|---|---|---|
-| 81% errores (D-01) | concurrencia/serving | overlay con `uvicorn --workers 4` | load test: error-rate + p95 | error-rate ↑, no drift |
-| SHAP ceros (D-04) | bug compatibilidad | TreeExplainer sobre el Stacking | **contract test** | test rojo en CI, no runtime |
-| HPA no baja (D-03) | config infra | HPA por memoria en overlay | métrica de réplicas en el tiempo | réplicas planas tras caída de tráfico |
-| Fuga datos (ChicagoTaxi) | integridad training | re-introducir feature filtrada | **leakage gate** en `train.py` | promoción bloqueada |
-| **Data drift** | distribución | perturbar 1-2 features | PSI en `run_drift_drill.py` | PSI > umbral, alerta |
-| **Concept drift** | relación X→y | invertir relación en un slice | performance sliced | métrica del slice cae |
+| 81% errors (D-01) | concurrency/serving | overlay with `uvicorn --workers 4` | load test: error-rate + p95 | error-rate ↑, not drift |
+| Zero SHAP values (D-04) | compatibility bug | TreeExplainer on the Stacking model | **contract test** | red test in CI, not runtime |
+| HPA doesn't scale down (D-03) | infra config | memory-based HPA in overlay | replica count over time | flat replicas after traffic drop |
+| Data leakage (ChicagoTaxi) | training integrity | reintroduce the leaked feature | **leakage gate** in `train.py` | promotion blocked |
+| **Data drift** | distribution | perturb 1-2 features | PSI in `run_drift_drill.py` | PSI > threshold, alert |
+| **Concept drift** | X→y relationship | invert the relationship in a slice | sliced performance | slice metric drops |
 
-**Deliverable**: `templates/scripts/drills/fault_injection_matrix.py` — un caso
-por fila, cada uno con: función de inyección, superficie esperada, y un assert
-de "esta alarma y no otra debió dispararse". Cada ejecución emite una entrada a
-`VALIDATION_LOG.md` (fallo, superficie esperada, alarma observada, tiempo de
-detección).
+**Deliverable**: `templates/scripts/drills/fault_injection_matrix.py` — one
+case per row, each with: an injection function, the expected surface, and an
+assert that "this alarm and no other should have fired." Every run emits an
+entry to `VALIDATION_LOG.md` (failure, expected surface, observed alarm,
+detection time).
 
-**Por qué importa para el portfolio/CV**: no solo prueba el monitoreo —
-demuestra que sabes **qué superficie atrapa cada clase de fallo**, el criterio
-que distingue a un junior de alguien con experiencia de producción. Y es
-grabable (pieza audiovisual E18) ANTES de cualquier L4 cloud: solo necesita el
-servicio local + monitoreo local. Mejor relación evidencia/coste de la guía.
+**Why it matters for the portfolio/CV**: it doesn't just test monitoring — it
+demonstrates you know **which surface catches each failure class**, the
+judgment that separates a junior from someone with production experience.
+And it's recordable (audiovisual piece E18) BEFORE any cloud L4: it only
+needs the local service + local monitoring. The best evidence-to-cost ratio
+in the guide.
 
-**Gate honesto**: cada fila debe detectarse en SU superficie (no en otra). Si
-inyectas data-drift y salta el contract test pero NO el PSI, el bug está en tu
-detector de drift, no en el drill — y eso también es un hallazgo que se publica.
+**Honest gate**: each row must be detected on ITS OWN surface (not another
+one). If you inject data-drift and the contract test fires but NOT the PSI,
+the bug is in your drift detector, not in the drill — and that too is a
+finding that gets published.
 
 ---
 
-## Cronograma y criterios de aceptación globales
+## Global schedule and acceptance criteria
 
-| Semana | Hito |
+| Week | Milestone |
 |---|---|
-| 1 | F0 completa (bench + RESULTS.md) · P2.5 skill data-cleaning |
-| 2–3 | F1 completa (router+loop+retrieval+webhook dev, read-only) · P2.4 ingest |
-| 4–5 | F2 (policy, verifier, 10 sets) · P2.1–P2.2 rollout L4 + runbooks |
-| 6–7 | F3 (logging, shadow) · P2.3 cierre ventana 14d · experimento comparativo · **fault-injection drill (E18)** |
-| 8 | P3.1–P3.2 · release candidate v1.0.0 del template |
+| 1 | F0 complete (bench + RESULTS.md) · P2.5 data-cleaning skill |
+| 2–3 | F1 complete (router+loop+retrieval+dev webhook, read-only) · P2.4 ingest |
+| 4–5 | F2 (policy, verifier, 10 sets) · P2.1–P2.2 L4 rollout + runbooks |
+| 6–7 | F3 (logging, shadow) · P2.3 close 14d window · comparative experiment · **fault-injection drill (E18)** |
+| 8 | P3.1–P3.2 · template release candidate v1.0.0 |
 
-**Aceptación global** (checklist final): router elige bien el tier en la
-mayoría de casos · resuelve ambigüedad de producto con UNA pregunta máximo ·
-cero alucinación de stock (eval 09/10 verdes) · estable en el laptop (un
-modelo grande activo a la vez) · 31B selectivo · todo testeable y observable ·
-ninguna respuesta expone chain-of-thought.
+**Global acceptance** (final checklist): router picks the right tier in the
+vast majority of cases · resolves product ambiguity with ONE question at most
+· zero stock hallucination (evals 09/10 green) · stable on the laptop (one
+large model active at a time) · 31B used selectively · everything testable
+and observable · no response exposes chain-of-thought.

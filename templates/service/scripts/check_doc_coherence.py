@@ -37,6 +37,15 @@ C6  Release note existence — the current ``VERSION`` must have a matching
     to a generic, unpolished release body (the exact failure this check
     exists to catch before it ships — see that workflow's file header for
     the 2026-07-01 incident this closes).
+C7  Documentation language + private-reference guard — every file under
+    ``docs/`` and every root-level ``*.md`` must be English-only and must
+    never name a known private/personal repo. AUDIT R10 (2026-07-02) found
+    four ``docs/audit/*.md`` files fully in Spanish and a private repo
+    ("REDACTED-PRIVATE-REPO") named in six public-repo files, once as a live clickable
+    URL that 404s for any public reader. Both are the same failure mode —
+    something true only in an interactive/private authoring context leaking
+    into the public tree — so this check is the deterministic backstop that
+    keeps it from recurring silently.
 
 Exit codes
 ----------
@@ -47,6 +56,7 @@ Exit codes
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -63,6 +73,39 @@ SKILLS_DIR = REPO_ROOT / "agentic" / "skills"
 WORKFLOWS_DIR = REPO_ROOT / "agentic" / "workflows"
 ADR_DIR = REPO_ROOT / "docs" / "decisions"
 RELEASES_DIR = REPO_ROOT / "releases"
+DOCS_DIR = REPO_ROOT / "docs"
+
+# Case-insensitive, whole-word Spanish markers that essentially never appear
+# in legitimate English technical prose. Deliberately a word list rather than
+# a raw accented-character scan: this repo's own agentic/ canon legitimately
+# cites accented proper nouns (e.g. "Diátaxis" the doc-taxonomy framework,
+# "Cramér's V" the statistics measure) that a character scan would misflag.
+#
+# The accent is REQUIRED, never an optional fallback: "decisión"/"revisión"/
+# "conclusión" minus their accent spell exactly the English words
+# "decision"/"revision"/"conclusion" (unlike "-ción" words, which keep a
+# trailing "n" where English has "-tion"). An early draft of this pattern
+# made the accent optional per letter and matched nearly every English ADR
+# in the repo on the word "decision" alone — caught in local testing before
+# this shipped, not left as a lesson for CI to teach the hard way.
+_SPANISH_MARKERS = re.compile(
+    r"\b(aunque|también|además|cuáles?|cuándo|dónde|"
+    r"sin embargo|por lo tanto|así como|deberían?|realiza|actualiza|"
+    r"hallazgo|auditoría|alcance|fecha|integración|ingeniería|"
+    r"según|entrevista|corrección(?:es)?|revisión|preguntas?|"
+    r"respuesta|veredicto|decisión(?:es)?|información|"
+    r"configuración|documentación|implementación|validación|"
+    r"verificación|generación|resumen|conclusión|introducción|"
+    r"adopción|credibilidad|infraestructura|estratégicos?|"
+    r"desbalance|sobre-ingeniería)\b",
+    re.IGNORECASE,
+)
+
+# Private/personal repos that must never be named in this public repo's
+# documentation (AUDIT R10, 2026-07-02, found "REDACTED-PRIVATE-REPO" leaking into 6
+# files across this repo and agent-local, including a dead clickable URL).
+# Extend this tuple if another private companion repo is ever referenced.
+_FORBIDDEN_REPO_REFS = ("REDACTED-PRIVATE-REPO",)
 
 
 def _norm_version(raw: str) -> str:
@@ -240,6 +283,82 @@ def check_release_note_exists() -> list[str]:
     return []
 
 
+def _doc_scan_files() -> list[Path]:
+    """``docs/**/*.md`` plus root-level ``*.md`` — the repo's actual prose.
+
+    Deliberately excludes ``agentic/`` and the generated adapter surfaces
+    (``.devin/``, ``.claude/``, ``.cursor/``, ``.codex/``, the
+    ``templates/service/`` vendored mirror): those are operational specs for
+    agents, not reader-facing documentation, and this repo's own canon
+    legitimately cites accented proper nouns there (see the word-list
+    comment above). Scanning only the source of truth also avoids
+    triple-reporting the same finding once per mirror.
+
+    Uses ``git ls-files`` rather than a filesystem walk so a gitignored,
+    intentionally-private local file (e.g. a personal working doc kept out
+    of the repo on purpose) can never be scanned — deleted branches don't
+    resurrect it, working-tree scratch files don't false-positive it. Falls
+    back to a plain glob if ``git`` is unavailable (e.g. a source tarball).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "ls-files", "*.md"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        tracked = {REPO_ROOT / line for line in out.splitlines() if line}
+    except (OSError, subprocess.CalledProcessError):
+        tracked = (
+            set(DOCS_DIR.rglob("*.md")) | set(REPO_ROOT.glob("*.md"))
+            if DOCS_DIR.is_dir()
+            else set(REPO_ROOT.glob("*.md"))
+        )
+
+    def _in_scope(p: Path) -> bool:
+        try:
+            rel = p.relative_to(REPO_ROOT)
+        except ValueError:
+            return False
+        return rel.parts[0] == "docs" or len(rel.parts) == 1
+
+    return sorted(p for p in tracked if p.is_file() and _in_scope(p))
+
+
+def check_doc_language_and_privacy() -> list[str]:
+    """C7 — docs/ and root docs must be English-only, and name no private repo.
+
+    Two independent guards share one check because both are the same class
+    of drift: a fact true only in an interactive/private authoring context
+    (a doc drafted in Spanish; a private companion repo) leaking into the
+    public tree. AUDIT R10 found both at once, in the same four documents.
+    """
+    problems: list[str] = []
+    for path in _doc_scan_files():
+        text = _read(path)
+        if text is None:
+            continue
+        rel = path.relative_to(REPO_ROOT).as_posix()
+
+        spanish_hits = sorted({m.group(1).lower() for m in _SPANISH_MARKERS.finditer(text)})
+        if spanish_hits:
+            shown = ", ".join(spanish_hits[:5])
+            more = f" (+{len(spanish_hits) - 5} more)" if len(spanish_hits) > 5 else ""
+            problems.append(
+                f"{rel} contains Spanish word(s): {shown}{more}. "
+                f"This repo's documentation is English-only (AUDIT R10)."
+            )
+
+        lowered = text.lower()
+        for forbidden in _FORBIDDEN_REPO_REFS:
+            if forbidden in lowered:
+                problems.append(
+                    f"{rel} references '{forbidden}', a private/personal repo that must "
+                    f"never be named in this public repo's documentation (AUDIT R10)."
+                )
+    return problems
+
+
 CHECKS = [
     ("C1 version-sot", check_version_sot),
     ("C2 llms-version", check_llms_version),
@@ -247,6 +366,7 @@ CHECKS = [
     ("C4 surface-counts", check_surface_counts),
     ("C5 adr-traceability", check_adr_traceability),
     ("C6 release-note-exists", check_release_note_exists),
+    ("C7 doc-language-privacy", check_doc_language_and_privacy),
 ]
 
 
@@ -257,7 +377,7 @@ def main() -> int:
             all_problems.append((label, problem))
 
     if not all_problems:
-        print("[doc-coherence] OK — all 6 cross-document checks pass.")
+        print("[doc-coherence] OK — all 7 cross-document checks pass.")
         return 0
 
     print(f"[doc-coherence] {len(all_problems)} coherence violation(s):")

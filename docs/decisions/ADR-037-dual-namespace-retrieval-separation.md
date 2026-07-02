@@ -22,17 +22,19 @@ indexer ("indexing every doc is out of scope").
 A second, distinct need has emerged: newcomers and template adopters need a
 way to ask conceptual questions about the template itself — "why does D-01
 forbid multiple uvicorn workers," "what does ADR-021's DIR floor mean," "how
-do I read REDACTED-PRIVATE-REPO's module on SHAP" — answered from the template's own
-**teaching** corpus (REDACTED-PRIVATE-REPO chapters, ADRs read as pedagogy,
-`docs/TUTORIAL.md`, `docs/CCDS_MAPPING.md`, glossary), not its operational
-history. This is "RAG for pedagogy," and the natural place to run it is on
-agent-local's already-planned tier stack — the same mechanism
+does the SHAP `KernelExplainer` wrapper work" — answered from the template's
+own **teaching** corpus (long-form onboarding chapters, ADRs read as
+pedagogy, `docs/TUTORIAL.md`, `docs/CCDS_MAPPING.md`, glossary), not its
+operational history. This is "RAG for pedagogy," and the natural place to run
+it is on agent-local's already-planned tier stack — the same mechanism
 `ACTION_PLAN_LLM_AGENT.md`'s L-2 already established for operational
-retrieval.
+retrieval. An adopter may point this at their own internal onboarding/wiki
+corpus instead of (or in addition to) the template's own docs — the pattern
+is deliberately corpus-agnostic.
 
 The risk: without an explicit boundary, "reuse the memory-plane mechanism for
 pedagogy too" is one PR away from becoming "one BM25 index over `ops/` +
-`docs/` + `REDACTED-PRIVATE-REPO/`," which would:
+`docs/` + the adopter's onboarding corpus," which would:
 
 - Let a pedagogical Q&A surface (plausibly more broadly exposed later — e.g. a
   docs-site widget) surface operational specifics never meant for that
@@ -67,13 +69,14 @@ corpora, two disjoint index objects, one shared stateless tier endpoint
   self-healing, L-2 itself, L-3 triage, L-4 docs-drift) — never by anything
   customer-facing or publicly exposed.
 - `scripts/pedagogy_query.py` (new) — **pedagogical namespace only**.
-  Hard-coded corpus-root allow-list: `REDACTED-PRIVATE-REPO/docs/*.md`,
-  `docs/decisions/ADR-*.md` (prose only — context/decision/consequences read
-  as teaching material, never as an operational log), `docs/TUTORIAL.md`,
-  `docs/CCDS_MAPPING.md`, glossary files. Consumed by a documentation/
-  onboarding assistant surface (CLI first; a docs-site widget is a possible
-  later consumer) — explicitly never wired into L-1..L-4 or into agent-local's
-  customer-facing `tienda` use-case.
+  Hard-coded corpus-root allow-list: `docs/decisions/ADR-*.md` (prose only —
+  context/decision/consequences read as teaching material, never as an
+  operational log), `docs/TUTORIAL.md`, `docs/CCDS_MAPPING.md`, glossary
+  files, plus — optionally, per adopter — their own long-form onboarding/wiki
+  corpus root, added to the allow-list explicitly rather than discovered.
+  Consumed by a documentation/onboarding assistant surface (CLI first; a
+  docs-site widget is a possible later consumer) — explicitly never wired
+  into L-1..L-4 or into agent-local's customer-facing `tienda` use-case.
 
 Two scripts, not a `--namespace` flag on one, because a flag can default
 wrong or be forgotten at a call site; two separate entry points cannot be
@@ -91,8 +94,8 @@ family as the `check_*_drift.py` deterministic gates) asserts, at minimum:
   intersection.
 - Neither allow-list resolves (via glob) to any file under the other's
   exclusive roots (`ops/`, `docs/incidents/`, `VALIDATION_LOG.md`,
-  `releases/` excluded from pedagogy; `REDACTED-PRIVATE-REPO/` excluded from
-  operational).
+  `releases/` excluded from pedagogy; any adopter-provided pedagogical
+  corpus root excluded from operational).
 - Both allow-lists are hard-coded module constants in their respective
   scripts — never a request parameter, config value, or environment variable
   that a caller could override to point either script at the other's corpus.
@@ -139,9 +142,10 @@ auditable after the fact, not just correct by construction at write time:
 ### 7. Content-governance rule (the data-level firewall, not just the code one)
 
 - The pedagogical corpus curation process (whoever/whatever selects which
-  REDACTED-PRIVATE-REPO chapters and ADR sections get indexed) MUST NEVER pull from
+  onboarding chapters and ADR sections get indexed) MUST NEVER pull from
   `ops/`, `VALIDATION_LOG.md`, `releases/`, or `docs/incidents/`.
-- The operational corpus MUST NEVER pull from `REDACTED-PRIVATE-REPO/` teaching prose.
+- The operational corpus MUST NEVER pull from the pedagogical corpus's
+  teaching prose.
 - The ban is symmetric; the risk is not. Operational-into-pedagogical is the
   higher-severity direction (pedagogical content may eventually reach a
   broader, more public audience — e.g. a docs-site widget — where an
@@ -185,7 +189,7 @@ explicitly — not a default this ADR creates by proximity.
 - Two scripts and two corpus-curation processes to maintain instead of one.
 - A new CI check (`test_retrieval_namespace_isolation.py`) to keep green.
 - `scripts/pedagogy_query.py` and its corpus curation are net-new work, gated
-  behind the same "INTEGRACIÓN P2" timeline as `scripts/memory_query.py` —
+  behind the same "P2 INTEGRATION" timeline as `scripts/memory_query.py` —
   neither script exists yet as of this ADR; both are specified, not shipped.
 
 ## Acceptance gate (before either script ships)
@@ -196,7 +200,7 @@ explicitly — not a default this ADR creates by proximity.
   namespace allow-list is rejected and logged, never served.
 - Both scripts' telemetry lines carry `namespace` and validate against a
   closed two-value enum.
-- REDACTED-PRIVATE-REPO chapter 46 and the agent-local platform docs describe the
+- The pedagogical corpus and the agent-local platform docs describe the
   separation for a human reader, not only in code — see Related.
 
 ## Revisit triggers
@@ -224,5 +228,3 @@ explicitly — not a default this ADR creates by proximity.
   justification this ADR relies on)
 - `docs/audit/ACTION_PLAN_LLM_AGENT.md` §L-2 / §L-2b — the executable plan
   this ADR canonicalizes
-- REDACTED-PRIVATE-REPO `docs/46_RETRIEVAL_MEMORIA_POLITICAS.md` §46.11 — pedagogical
-  treatment

@@ -53,9 +53,9 @@ release notes, drift reports). Start file-based + embeddings-free
 for a vector store. LLM summarization sits on top, read-only.
 
 A namespace-disjoint sibling, **Lane 2b (pedagogical RAG)**, reuses
-this same tier-serving mechanism for onboarding/adoption Q&A over
-REDACTED-PRIVATE-REPO + ADR prose — never the same script, index, or corpus as
-this lane. See ADR-037.
+this same tier-serving mechanism for onboarding/adoption Q&A over the
+adopter's own long-form documentation + ADR prose — never the same
+script, index, or corpus as this lane. See ADR-037.
 
 ### Lane 3 — Drift / incident triage summarizer
 

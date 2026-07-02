@@ -132,7 +132,7 @@ release.
 |---|---|
 | Do nothing; let adopters do their own mapping | Repeats work every serious adopter would otherwise redo independently; the R9 benchmark found this is a real, common gap |
 | Claim ISO 42001 / AI Act "compliance" or "readiness" outright | False and legally risky — no template can BE compliant, only a deployed system can; would damage credibility the moment a careful reader checked |
-| Build a GRC-platform integration or automated evidence exporter | Sobre-ingeniería at this scale — no adopter has asked for it (Engineering Calibration Principle); a well-written static mapping serves the same first-pass need |
+| Build a GRC-platform integration or automated evidence exporter | Over-engineering at this scale — no adopter has asked for it (Engineering Calibration Principle); a well-written static mapping serves the same first-pass need |
 | Fold the mapping into `README.md` directly | `README.md` is already dense; a dedicated file with its own revisit cadence is more honest about the fact that this content ages on a different clock than a release |
 
 ## 7. Related

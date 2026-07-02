@@ -3,7 +3,7 @@
 # =============================================================================
 # Capability-centric registry of the MCP (Model Context Protocol) servers
 # consumed by this template's skills and workflows. ONE source of truth
-# across every agent surface (Windsurf, Cursor, Claude, Codex, and any
+# across every agent surface (Devin, Cursor, Claude, Codex, and any
 # future surface).
 #
 # Invariant I-3 (ADR-023 §3) — MCP install is NEVER automatic.

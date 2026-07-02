@@ -32,7 +32,7 @@ python3 scripts/mcp_doctor.py --mode check
 ```
 
 `sync_agentic_adapters.py` writes pointer files only. It must not copy
-canonical Windsurf bodies into another surface.
+canonical `agentic/` bodies into another surface.
 
 ## Extension Pattern
 

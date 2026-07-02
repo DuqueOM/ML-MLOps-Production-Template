@@ -1,375 +1,389 @@
-# ACTION PLAN R9 — Benchmark de industria y elevación enterprise (dual-repo)
+# ACTION PLAN R9 — Industry Benchmark and Enterprise Elevation (Dual-Repo)
 
-> ⚠️ **ESTADO: PENDIENTE DE VISTO BUENO.** Este documento contiene el análisis
-> y el plan; **ninguna mejora se ejecuta hasta aprobación explícita** del
-> mantenedor. Tras el visto bueno, la sección §6 se ejecuta en orden.
+> ⚠️ **STATUS: PENDING SIGN-OFF.** This document contains the analysis and
+> the plan; **no improvement is executed until explicit approval** from the
+> maintainer. After sign-off, §6 is executed in order.
 
-- **Fecha**: 2026-07-01
-- **Alcance**: `template_MLOps` (v0.20.0 + R8 remediado) y `agent-local`
-  (v0.6.0), como ecosistema unificado por `docs/audit/ACTION_PLAN_LLM_AGENT.md`
-  (modelo agéntico de trabajo end-to-end en producción + plano LLM pedagógico
-  de onboarding).
-- **Pregunta que responde**: no "¿cómo se comparan entre sí?" (eso fue R8),
-  sino **"¿cómo se comparan contra el estándar de la industria y contra los
-  referentes de vanguardia, y qué les falta para ser recomendables en un
-  entorno enterprise real?"** — profundizando la comparación que ya existe en
-  el README a nivel staff/enterprise.
-- **Método**: análisis contra (a) los templates/frameworks MLOps de referencia,
-  (b) los frameworks agénticos dominantes de 2026, (c) los marcos de proceso y
-  cumplimiento que una empresa usa para EVALUAR herramientas (Google/Microsoft
-  MLOps maturity, NIST AI RMF, ISO/IEC 42001, EU AI Act post-Omnibus, SLSA,
-  OpenSSF Scorecard, OWASP LLM Top-10, OTel GenAI semconv). Dos hechos
-  normativos verificados en vivo (2026-07): el Digital Omnibus del AI Act
-  (acuerdo 2026-05-07) pospone las obligaciones high-risk Annex III del
-  2026-08-02 al **2027-12-02**; y las tool annotations de MCP
-  (`readOnlyHint`, etc.) son **hints no confiables por mandato de la spec**
-  ("clients MUST consider tool annotations untrusted unless they come from
-  trusted servers").
-
----
-
-## 1. Marco de evaluación: qué significa "enterprise-recomendable"
-
-Una empresa que evalúa adoptar un template/framework no pregunta "¿tiene
-features?"; pregunta, en este orden:
-
-1. **Confianza** — ¿puedo auditar su cadena de suministro, su postura de
-   seguridad y su historial? (SLSA, Scorecard, firma, SBOM, SECURITY.md,
-   respuesta a CVEs)
-2. **Cumplimiento** — ¿me acerca o me aleja de NIST AI RMF / ISO 42001 /
-   AI Act? ¿Sus artefactos sirven como evidencia regulatoria?
-3. **Mantenibilidad** — ¿qué pasa cuando el proyecto evoluciona? (update path,
-   gates contra drift, versionado disciplinado, releases trazables)
-4. **Agnosticismo/salida** — ¿me casa con un vendor/modelo/herramienta o
-   tengo escape hatches documentados?
-5. **Operabilidad día-2** — ¿monitoring, drift, retrain, incident response
-   vienen resueltos o son "ejercicio para el lector"?
-6. **Adopción humana** — ¿cuánto cuesta subir a un ingeniero nuevo? (docs,
-   pedagogía, ejemplos ejecutables)
-7. **Prueba social** — ¿quién más lo usa? (la dimensión donde un repo
-   personal nunca ganará a LangChain — y donde la estrategia correcta es
-   compensar con 1-6, no fingir)
-
-Las 7 dimensiones estructuran §2 (template) y §3 (agent-local).
+- **Date**: 2026-07-01
+- **Scope**: `template_MLOps` (v0.20.0 + R8 remediated) and `agent-local`
+  (v0.6.0), as a unified ecosystem per `docs/audit/ACTION_PLAN_LLM_AGENT.md`
+  (agentic operating model for end-to-end production work + pedagogical LLM
+  onboarding plane).
+- **Question it answers**: not "how do they compare to each other?" (that was
+  R8), but **"how do they compare against the industry standard and against
+  frontier reference implementations, and what do they need to be
+  recommendable in a real enterprise environment?"** — deepening the
+  comparison that already exists in the README at the staff/enterprise level.
+- **Method**: analysis against (a) reference MLOps templates/frameworks,
+  (b) the dominant 2026 agentic frameworks, (c) the process and compliance
+  frameworks a company uses to EVALUATE tooling (Google/Microsoft MLOps
+  maturity, NIST AI RMF, ISO/IEC 42001, EU AI Act post-Omnibus, SLSA,
+  OpenSSF Scorecard, OWASP LLM Top-10, OTel GenAI semconv). Two normative
+  facts verified live (2026-07): the AI Act Digital Omnibus (agreement
+  2026-05-07) postpones the high-risk Annex III obligations from 2026-08-02
+  to **2027-12-02**; and MCP tool annotations (`readOnlyHint`, etc.) are
+  **untrusted hints by spec mandate** ("clients MUST consider tool
+  annotations untrusted unless they come from trusted servers").
 
 ---
 
-## 2. Benchmark MLOps: template_MLOps vs el estado del arte
+## 1. Evaluation Framework: What "Enterprise-Recommendable" Means
 
-### 2.1 Referentes evaluados y qué representa cada uno
+A company evaluating whether to adopt a template/framework doesn't ask "does
+it have features?"; it asks, in this order:
 
-| Referente | Qué es en el mercado | Fortaleza que hay que respetar |
+1. **Trust** — can I audit its supply chain, its security posture, and its
+   track record? (SLSA, Scorecard, signing, SBOM, SECURITY.md, CVE response)
+2. **Compliance** — does it move me closer to or further from NIST AI RMF /
+   ISO 42001 / AI Act? Do its artifacts serve as regulatory evidence?
+3. **Maintainability** — what happens as the project evolves? (update path,
+   drift gates, disciplined versioning, traceable releases)
+4. **Agnosticism/exit** — does it lock me into a vendor/model/tool, or do I
+   have documented escape hatches?
+5. **Day-2 operability** — are monitoring, drift, retrain, and incident
+   response solved, or are they "an exercise left to the reader"?
+6. **Human adoption** — how much does it cost to onboard a new engineer?
+   (docs, pedagogy, runnable examples)
+7. **Social proof** — who else uses it? (the dimension where a personal repo
+   will never beat LangChain — and where the right strategy is to compensate
+   with 1-6, not fake it)
+
+These 7 dimensions structure §2 (template) and §3 (agent-local).
+
+---
+
+## 2. MLOps Benchmark: template_MLOps vs the State of the Art
+
+### 2.1 Reference Implementations Evaluated and What Each Represents
+
+| Reference | Market position | Strength to respect |
 |---|---|---|
-| **Cookiecutter Data Science (CCDS)** | El layout por defecto de la profesión | Reconocibilidad instantánea; cero fricción |
-| **Kedro** (LF AI & Data) | Framework de pipelines opinado, adoptado en banca/consultoría | Catálogo de datos, pipelines composables, plugin ecosystem |
-| **ZenML** | Orquestación stack-agnóstica, gradiente local→cloud | Stack profiles; integraciones (80+); cloud parity |
-| **Metaflow** (Netflix/Outerbounds) | ML workflow para data scientists, probado a escala Netflix | Ergonomía de científico; versioning de runs; escala real |
-| **Kubeflow/KFP** | El estándar K8s-nativo enterprise | Multi-tenancy, pipelines K8s, respaldo CNCF |
-| **MLflow** | El estándar de facto de tracking/registry | Registry + tracking ubicuos (el template YA lo usa como pieza) |
-| **Made With ML** | La referencia pedagógica | Enseña el *porqué* de cada decisión |
-| **Vertex/SageMaker reference architectures** | Lo que las empresas cloud-first copian | Blueprint oficial del vendor; soporte comercial |
+| **Cookiecutter Data Science (CCDS)** | The profession's default layout | Instant recognizability; zero friction |
+| **Kedro** (LF AI & Data) | Opinionated pipeline framework, adopted in banking/consulting | Data catalog, composable pipelines, plugin ecosystem |
+| **ZenML** | Stack-agnostic orchestration, local→cloud gradient | Stack profiles; integrations (80+); cloud parity |
+| **Metaflow** (Netflix/Outerbounds) | ML workflow for data scientists, proven at Netflix scale | Data-scientist ergonomics; run versioning; real scale |
+| **Kubeflow/KFP** | The K8s-native enterprise standard | Multi-tenancy, K8s pipelines, CNCF backing |
+| **MLflow** | The de facto tracking/registry standard | Ubiquitous registry + tracking (the template ALREADY uses it as a component) |
+| **Made With ML** | The pedagogical reference | Teaches the *why* behind every decision |
+| **Vertex/SageMaker reference architectures** | What cloud-first companies copy | Official vendor blueprint; commercial support |
 
-### 2.2 Veredicto por dimensión (template)
+### 2.2 Verdict by Dimension (Template)
 
-**D1 Confianza / supply chain — POR ENCIMA del estándar, con 2 huecos.**
-El template firma imágenes (Cosign keyless), atesta SBOM, verifica por digest
-con Kyverno, pinea tags inmutables y corre gitleaks+bandit — eso supera a
-CCDS/Kedro/ZenML (que no gobiernan el deploy del adoptante). Huecos contra la
-práctica 2026: (a) **no corre OpenSSF Scorecard** (el badge que un evaluador
-enterprise busca primero — los repos de vanguardia lo publican); (b) **las
-GitHub Actions se pinean por tag (`@v4`), no por SHA** — Scorecard lo penaliza
-(Pinned-Dependencies) y es el vector real del incidente tj-actions (2025).
+**D1 Trust / supply chain — ABOVE the standard, with 2 gaps.**
+The template signs images (Cosign keyless), attests SBOM, verifies by digest
+with Kyverno, pins immutable tags, and runs gitleaks+bandit — that surpasses
+CCDS/Kedro/ZenML (which don't govern the adopter's deployment). Gaps against
+2026 practice: (a) **no OpenSSF Scorecard run** (the badge an enterprise
+evaluator looks for first — frontier repos publish it); (b) **GitHub Actions
+are pinned by tag (`@v4`), not by SHA** — Scorecard penalizes this
+(Pinned-Dependencies) and it is the actual vector of the tj-actions incident
+(2025).
 
-**D2 Cumplimiento — el hueco más valioso del benchmark.**
-El template YA genera la evidencia que los marcos piden — quality gates
-(métrica+fairness DIR≥0.80+leakage), model cards, audit trail append-only
-(`ops/audit.jsonl`), drift monitoring, human-in-the-loop (CONSULT/STOP),
-logging de predicciones — pero **no existe el documento que MAPEA esos
-artefactos a los marcos** (NIST AI RMF: GOVERN/MAP/MEASURE/MANAGE; ISO/IEC
-42001 Annex A; AI Act Arts. 9-15 + Annex IV). Ningún referente open-source lo
-trae tampoco (Kedro/ZenML no hablan de AI Act); los únicos que lo hacen son
-vendors de GRC. Con el Omnibus moviendo Annex III a **dic-2027**, las empresas
-están AHORA en fase de gap-assessment: un template cuyo README diga "estos
-gates producen la evidencia de los Arts. 9/10/12/15 y así se mapean" tiene un
-argumento de venta que ni Kubeflow ofrece. **Mejora propuesta: 
-`docs/COMPLIANCE_MAPPING.md` + ADR-038** (mapping honesto: "evidencia
-alineada", nunca "certificación").
+**D2 Compliance — the most valuable gap in the benchmark.**
+The template ALREADY generates the evidence the frameworks require — quality
+gates (metric+fairness DIR≥0.80+leakage), model cards, an append-only audit
+trail (`ops/audit.jsonl`), drift monitoring, human-in-the-loop
+(CONSULT/STOP), prediction logging — but **no document exists that MAPS
+those artifacts to the frameworks** (NIST AI RMF: GOVERN/MAP/MEASURE/MANAGE;
+ISO/IEC 42001 Annex A; AI Act Arts. 9-15 + Annex IV). No open-source
+reference brings this either (Kedro/ZenML don't discuss the AI Act); the
+only ones who do are GRC vendors. With the Omnibus moving Annex III to
+**Dec 2027**, companies are NOW in the gap-assessment phase: a template
+whose README says "these gates produce the evidence for Arts. 9/10/12/15,
+and here is how they map" has a sales argument that not even Kubeflow
+offers. **Proposed improvement: `docs/COMPLIANCE_MAPPING.md` + ADR-038**
+(an honest mapping: "aligned evidence," never "certification").
 
-**D3 Mantenibilidad — clase mundial; es la identidad del repo.**
-`copier update` real (Kedro/CCDS: no tienen update path de proyectos
-generados; ZenML actualiza el framework, no tu repo), 6 gates `check_*`
-deterministas, doc-coherence, 26 release notes, ADRs con lápidas. Ningún
-referente de la tabla gobierna la coherencia documental del proyecto GENERADO.
-Sin mejoras necesarias — es la ventaja a proteger.
+**D3 Maintainability — world-class; it is the repo's identity.**
+Real `copier update` (Kedro/CCDS: no update path for generated projects;
+ZenML updates the framework, not your repo), 6 deterministic `check_*`
+gates, doc-coherence, 26 release notes, ADRs with epitaphs. No reference
+implementation in the table governs the documentation coherence of the
+GENERATED project. No improvements needed — this is the advantage to
+protect.
 
-**D4 Agnosticismo — bueno de hecho, insuficientemente EXPLÍCITO.**
-Real: GCP+AWS paridad, sklearn/XGB/LGBM, seam BentoML (ADR-032), export
-Vertex/SageMaker, batch-only, perfiles local/staging/prod. Lo que falta es el
-documento que un arquitecto enterprise busca: **la matriz de swap** ("quiero
-Azure/quiero MLflow gestionado/quiero otro registry → qué toco, qué no se
-toca, cuánto cuesta"). ZenML gana esta dimensión en percepción porque su
-pitch ES el swap. **Mejora propuesta: sección "Portability & escape hatches"
-en `docs/ADOPTION.md`** (docs-only, alto ROI).
+**D4 Agnosticism — good in practice, insufficiently EXPLICIT.**
+Real: GCP+AWS parity, sklearn/XGB/LGBM, BentoML seam (ADR-032), Vertex/
+SageMaker export, batch-only, local/staging/prod profiles. What's missing is
+the document an enterprise architect looks for: **the swap matrix** ("I want
+Azure/I want managed MLflow/I want a different registry → what do I touch,
+what stays untouched, what does it cost"). ZenML wins this dimension on
+perception because its pitch IS the swap. **Proposed improvement:
+"Portability & escape hatches" section in `docs/ADOPTION.md`** (docs-only,
+high ROI).
 
-**D5 Día-2 — por encima de todos los templates; a la par de plataformas.**
-Drift PSI+concept, closed-loop ground truth, sliced performance,
-champion/challenger con gate estadístico, runbooks de incidente, rollback
-STOP. CCDS/Made With ML no compiten aquí; Kubeflow lo deja al adoptante.
+**D5 Day-2 — above all templates; on par with platforms.**
+PSI+concept drift, closed-loop ground truth, sliced performance,
+champion/challenger with a statistical gate, incident runbooks, STOP
+rollback. CCDS/Made With ML don't compete here; Kubeflow leaves it to the
+adopter.
 
-**D6 Adopción humana — fuerte y con un multiplicador único.**
-QUICK_START 10-min, examples/minimal 5-min, TUTORIAL, CCDS mapping — y el
-plano pedagógico (REDACTED-PRIVATE-REPO + futuro RAG L-2b ADR-037) que NINGÚN referente
-tiene: la pedagogía como sistema versionado paralelo al producto.
+**D6 Human adoption — strong, with a unique multiplier.**
+10-min QUICK_START, 5-min examples/minimal, TUTORIAL, CCDS mapping — and the
+pedagogical plane (a private, personal pedagogical companion project + future
+RAG L-2b ADR-037) that NO reference implementation has: pedagogy as a
+versioned system running in parallel to the product.
 
-**D7 Prueba social — la debilidad estructural, con estrategia correcta.**
-Contra 30k★ de Kedro no se compite con features. Se compite con: badges
-verificables (Scorecard, CI, coverage), evidencia de ejecución
-(VALIDATION_LOG), y honestidad de alcance (no-claims list). Las mejoras D1/D2
-son exactamente las que convierten "repo personal" en "repo auditable".
+**D7 Social proof — the structural weakness, with the right strategy.**
+Against Kedro's 30k★, you don't compete on features. You compete with:
+verifiable badges (Scorecard, CI, coverage), execution evidence
+(VALIDATION_LOG), and honest scoping (no-claims list). The D1/D2
+improvements are exactly what turns a "personal repo" into an "auditable
+repo."
 
-### 2.3 Contra los MODELOS DE MADUREZ (lo que una empresa usa para evaluar su propio proceso)
+### 2.3 Against MATURITY MODELS (what a company uses to evaluate its own process)
 
-| Marco | Nivel que el template implementa de serie |
+| Framework | Level the template implements out of the box |
 |---|---|
-| **Google MLOps levels (0/1/2)** | **Nivel 2** casi completo: CI/CD del pipeline, CT (retrain triggers), monitoring cerrado. Falta solo la parte org (equipos) que un template no puede dar |
-| **Microsoft MLOps maturity (0-4)** | **Nivel 3-4 técnico**: automated training+deployment, A/B (champion/challenger), observabilidad. El nivel 4 pleno exige telemetría de negocio del adoptante |
-| **NIST AI RMF** | MEASURE y MANAGE fuertes (gates, drift, incident); GOVERN parcial (roles/ROLES.md sí; policy org no — correcto para un template); MAP parcial (model card + EDA) |
-| **ISO/IEC 42001** | Los controles técnicos del Annex A tienen artefacto correspondiente; falta el mapeo explícito (→ D2) |
+| **Google MLOps levels (0/1/2)** | Nearly full **Level 2**: pipeline CI/CD, CT (retrain triggers), closed-loop monitoring. Only the org part (teams) is missing, which a template can't provide |
+| **Microsoft MLOps maturity (0-4)** | **Technical Level 3-4**: automated training+deployment, A/B (champion/challenger), observability. Full Level 4 requires the adopter's business telemetry |
+| **NIST AI RMF** | MEASURE and MANAGE strong (gates, drift, incident); GOVERN partial (roles/ROLES.md yes; org policy no — correct for a template); MAP partial (model card + EDA) |
+| **ISO/IEC 42001** | The Annex A technical controls have a corresponding artifact; the explicit mapping is missing (→ D2) |
 
-**Conclusión §2**: el template ya ES nivel-2/nivel-3 de madurez *técnica* out
-of the box — su brecha enterprise no es de ingeniería sino de **legibilidad
-para evaluadores**: Scorecard+SHA-pinning (confianza legible), compliance
-mapping (cumplimiento legible), matriz de swap (agnosticismo legible).
-
----
-
-## 3. Benchmark agéntico: agent-local vs el estado del arte 2026
-
-### 3.1 Referentes
-
-| Referente | Posición 2026 | Fortaleza a respetar |
-|---|---|---|
-| **LangGraph** (+LangSmith) | El default de producción en startups | Grafos de estado, checkpointing, ecosistema, evals SaaS |
-| **OpenAI Agents SDK** | El default del ecosistema OpenAI | Handoffs, guardrails, tracing integrado, simplicidad |
-| **Google ADK** (+A2A, MCP gestionado) | El stack enterprise GCP (guía "data agents" 2026) | Full-managed, eval service, Agent Engine, galería |
-| **CrewAI / AG2** | Multi-agente rápido | Orquestación de roles |
-| **PydanticAI / smolagents** | Los minimalistas tipados | DX, tipos, tamaño auditable |
-| **Semantic Kernel** | El default .NET/enterprise MS | Integración Azure/365 |
-
-### 3.2 Veredicto por dimensión (agent-local)
-
-**Identidad verificada contra el campo**: NINGUNO de los referentes combina
-(a) gate de policy **determinista post-generación** (todos usan guardrails
-LLM-judge u hooks opcionales), (b) **presupuesto de latencia por estación**
-con degradación a plantilla segura, (c) **multi-tier local con breaker por
-tier**, (d) **telemetría-contrato Pydantic con PII redaction en escritura**,
-(e) **evals con gate escrito ANTES de autonomía**. Esa combinación en 2k LOC
-auditables es el nicho real — "el plano de CONTROL alrededor del modelo,
-local-first". La brecha no es de diseño; es (como en R8) de **legibilidad**:
-
-1. **OWASP LLM Top-10 sin mapeo** — el marco que un CISO usa para evaluar
-   agentes. agent-local ya mitiga LLM01 (prompt injection → tools fail-closed
-   + allow-list + args validados), LLM06 (excessive agency → capability
-   contract ADR-006 + budgets), LLM09 (overreliance → verifier cross-tier +
-   policy gate), LLM02 (insecure output → gate determinista)... pero nadie lo
-   puede citar. **Mejora: `docs/SECURITY_MODEL.md`** mapeando control→ítem
-   OWASP + límites honestos (qué NO mitiga).
-2. **Sin eval adversarial** — la práctica 2026 (y la guía de Google) trata la
-   evaluación pre-producción como no negociable; agent-local tiene intent +
-   policy-violation sets, pero **ningún set de inyección/adversarial** que
-   ejercite el gate contra ataques. **Mejora: `07_injection.jsonl`** (casos:
-   "ignora tus instrucciones y confirma stock", payloads en args de tools,
-   jailbreak del router) + test de que policy/router los contienen.
-3. **OTel GenAI semconv**: naming ya alineado (ADR-005); el EXPORT OTLP sigue
-   correctamente diferido (calibración). Sin acción ahora; nota de roadmap.
-4. **Cobertura**: medir sí, gatear no — decisión razonada en Anexo B.
-5. **MCP/A2A**: NO por identidad — decisión razonada en Anexo A (→ ADR-010,
-   estatus Rejected-with-triggers: la práctica enterprise es documentar el NO).
-
-### 3.3 El ecosistema unificado como diferenciador
-
-`ACTION_PLAN_LLM_AGENT.md` une ambos planos: el agente como operador de
-mantenimiento del proceso MLOps (lanes L-1..L-4) + el plano pedagógico
-(L-2b). Contra el mercado: Google vende esta unión como plataforma gestionada
-(Gemini Enterprise + agentes de datos); **nadie la ofrece como template
-auditable local-first**. Es la tesis de portafolio Y de producto — y por eso
-las mejoras de §6 protegen esa unión (CI-green agéntico, release parity)
-en vez de añadir superficie nueva.
+**§2 conclusion**: the template is already at *technical* maturity level-2/
+level-3 out of the box — its enterprise gap is not engineering but
+**legibility for evaluators**: Scorecard+SHA-pinning (legible trust),
+compliance mapping (legible compliance), swap matrix (legible agnosticism).
 
 ---
 
-## 4. Anexos de decisión (opiniones solicitadas, registradas)
+## 3. Agentic Benchmark: agent-local vs the 2026 State of the Art
 
-### Anexo A — Interop MCP: recomendación **NO ahora** (→ ADR-010 Rejected-with-triggers)
+### 3.1 Reference Implementations
 
-Dos preguntas distintas:
-
-**agent-local como SERVIDOR MCP (exponer ToolRegistry): NO, contradice la
-identidad.** El valor del repo es que el gate determinista es LA ÚNICA
-PUERTA: router→budget→tools fail-closed→policy→telemetría. Exponer las tools
-por MCP crea una segunda puerta donde un agente externo las invoca
-**saltándose** router, budgets, policy gate y telemetría — o te obliga a
-duplicar el gate dentro de cada tool (deshaciendo la arquitectura). La única
-forma sana sería exponer `Agent.handle()` completo como UNA tool — y eso ya
-lo da el REST actual sin adoptar un protocolo.
-
-**agent-local como CLIENTE MCP (consumir tools externas): NO ahora, por una
-razón técnica precisa.** ADR-006 exige capacidades **declaradas y
-fail-closed** (`read_only=True` verificable por el registry). MCP ofrece
-`readOnlyHint`/`destructiveHint` — pero la spec **obliga a tratarlas como no
-confiables** ("MUST consider tool annotations untrusted unless from trusted
-servers"). Es decir: para integrar MCP respetando ADR-006 habría que mantener
-un allow-list manual por-tool con capacidades auditadas a mano — momento en el
-cual la integración vuelve a ser por-tool y MCP pierde su beneficio principal
-(descubrimiento dinámico), dejando solo costos: superficie de supply-chain
-nueva (tool-poisoning es el ataque documentado del ecosistema), latencia de
-subproceso contra un SLA de 8 s, y una dependencia de protocolo en un repo
-cuyo pitch es "auditable y local".
-
-**Dónde SÍ vive MCP en este ecosistema**: en el lado DEV (codebase-memory-mcp
-para mantenedores) — herramienta de quien construye, no runtime del producto.
-Esa línea (dev-tooling sí, producto no) es la que el ADR-010 debe trazar.
-
-**Triggers de revisión** (los escribe el ADR): (a) un use-case real necesite
-≥3 integraciones que ya existan como servidores MCP maduros y de proveedor
-confiable; (b) MCP promueva las anotaciones de capacidad a contrato normativo
-verificable (hay 5 SEPs activos en esa dirección — vigilar); (c) un adopter
-enterprise lo exija contractualmente.
-
-### Anexo B — Gate de cobertura: **medir sí, gatear no (aún)** — y por qué la asimetría con el template es correcta
-
-**Lo que un gate de % compra**: trinquete contra erosión de tests en equipos
-grandes/rotación; checkbox de procurement; forcing function en PRs de
-terceros. **Lo que cuesta**: Goodhart (tests sin aserciones para inflar %),
-fricción en refactors, y la falsa equivalencia cobertura=verificación — los
-mejores tests de estos repos (AST contract test de R8-01, amtool
-autoritativo, disjointness de ADR-037) valen más que puntos de %, y un gate
-numérico no los distingue de `assert True`.
-
-**Contexto agent-local**: 1 mantenedor, 119 tests/2k LOC, cultura
-comportamiento-primero YA superior a lo que un umbral protege. El modo de
-fallo que un gate previene (rot silencioso por muchas manos) no existe aquí
-todavía. **Recomendación**: (1) **medir y publicar** — `pytest --cov` en CI
-como reporte/artefacto, sin threshold que falle; (2) política escrita en
-CONTRIBUTING ("todo PR de código nuevo trae tests; el reviewer evalúa la
-cobertura del DIFF, no el % global"); (3) el primer gate, cuando llegue, que
-sea **diff-coverage** (≥80 % de líneas cambiadas), nunca % absoluto — protege
-lo nuevo sin Goodhart sobre lo viejo; (4) triggers para activarlo: segundo
-contribuidor regular, o el primer bug que un test de cobertura habría
-atrapado.
-
-**La asimetría con el template es correcta y defendible**: el template
-PROMETE 90/80 a servicios scaffoldeados porque su audiencia son EQUIPOS
-(contexto donde el trinquete sí paga); agent-local es una plataforma de autor
-único pre-1.0. Mismo principio de calibración, contextos distintos → políticas
-distintas. Eso se documenta, no se uniformiza.
-
-### Anexo C — Verificación agéntica de CI verde: **verificar=AUTO, override=STOP** (+ D-36)
-
-La pregunta "¿CONSULT o STOP?" se responde separando verbos — el patrón
-enterprise (branch protection + environments de GitHub) hace exactamente esto:
-
-| Verbo | Modo | Razón |
+| Reference | 2026 position | Strength to respect |
 |---|---|---|
-| **Verificar** estado de checks (`gh run list/view`) | **AUTO** | Read-only; un agente debe poder mirar siempre |
-| **Bloquear-si-rojo** dentro de /release, /deploy, /retrain-promote | **Invariante del workflow** (no es un modo: el paso se niega) | Igual que branch protection: el sistema rehúsa, no consulta |
-| **Re-lanzar** un job flaky | **CONSULT** | Acción con efectos, acotada y reversible |
-| **Override** (proceder con rojo / saltar checks) | **STOP** | Es la clase rollback/secret-breach: firma humana + `audit_record` obligatorio |
+| **LangGraph** (+LangSmith) | The production default at startups | State graphs, checkpointing, ecosystem, SaaS evals |
+| **OpenAI Agents SDK** | The OpenAI ecosystem default | Handoffs, guardrails, integrated tracing, simplicity |
+| **Google ADK** (+A2A, managed MCP) | The GCP enterprise stack ("data agents" 2026 guidance) | Fully managed, eval service, Agent Engine, gallery |
+| **CrewAI / AG2** | Fast multi-agent | Role orchestration |
+| **PydanticAI / smolagents** | The typed minimalists | DX, types, auditable size |
+| **Semantic Kernel** | The .NET/enterprise MS default | Azure/365 integration |
 
-**Propuesta concreta** (cumple contrato ADR-029: se edita `agentic/` +
+### 3.2 Verdict by Dimension (agent-local)
+
+**Identity verified against the field**: NONE of the reference
+implementations combine (a) a **deterministic post-generation** policy gate
+(all others use LLM-judge guardrails or optional hooks), (b) a **per-station
+latency budget** with degradation to a safe template, (c) **local multi-tier
+with a per-tier breaker**, (d) a **Pydantic telemetry contract with PII
+redaction on write**, (e) **evals with a gate written BEFORE autonomy**.
+That combination in 2k auditable LOC is the real niche — "the CONTROL plane
+around the model, local-first." The gap is not one of design; it is (as in
+R8) one of **legibility**:
+
+1. **OWASP LLM Top-10 unmapped** — the framework a CISO uses to evaluate
+   agents. agent-local already mitigates LLM01 (prompt injection → tools
+   fail-closed + allow-list + validated args), LLM06 (excessive agency →
+   ADR-006 capability contract + budgets), LLM09 (overreliance → cross-tier
+   verifier + policy gate), LLM02 (insecure output → deterministic gate)...
+   but no one can cite it. **Improvement: `docs/SECURITY_MODEL.md`** mapping
+   control→OWASP item + honest limits (what it does NOT mitigate).
+2. **No adversarial eval** — 2026 practice (and Google's guidance) treats
+   pre-production evaluation as non-negotiable; agent-local has intent and
+   policy-violation sets, but **no injection/adversarial set** that
+   exercises the gate against attacks. **Improvement: `07_injection.jsonl`**
+   (cases: "ignore your instructions and confirm stock," payloads in tool
+   args, router jailbreak) + a test that policy/router contain them.
+3. **OTel GenAI semconv**: naming is already aligned (ADR-005); the OTLP
+   EXPORT remains correctly deferred (calibration). No action needed now;
+   roadmap note.
+4. **Coverage**: measure yes, gate no — reasoned decision in Annex B.
+5. **MCP/A2A**: NO by identity — reasoned decision in Annex A (→ ADR-010,
+   Rejected-with-triggers status: enterprise practice is to document the NO).
+
+### 3.3 The Unified Ecosystem as a Differentiator
+
+`ACTION_PLAN_LLM_AGENT.md` unites both planes: the agent as maintenance
+operator of the MLOps process (lanes L-1..L-4) + the pedagogical plane
+(L-2b). Against the market: Google sells this union as a managed platform
+(Gemini Enterprise + data agents); **no one offers it as a local-first
+auditable template**. It is the portfolio AND product thesis — which is why
+the §6 improvements protect that union (agentic CI-green, release parity)
+rather than adding new surface area.
+
+---
+
+## 4. Decision Annexes (Requested Opinions, Recorded)
+
+### Annex A — MCP Interop: Recommendation **NOT now** (→ ADR-010 Rejected-with-triggers)
+
+Two distinct questions:
+
+**agent-local as an MCP SERVER (exposing ToolRegistry): NO, it contradicts
+the identity.** The value of the repo is that the deterministic gate is THE
+ONLY DOOR: router→budget→tools fail-closed→policy→telemetry. Exposing the
+tools via MCP creates a second door where an external agent invokes them
+**bypassing** router, budgets, policy gate, and telemetry — or forces you to
+duplicate the gate inside each tool (undoing the architecture). The only
+sound approach would be to expose the complete `Agent.handle()` as ONE
+tool — and the current REST interface already provides that without
+adopting a protocol.
+
+**agent-local as an MCP CLIENT (consuming external tools): NOT now, for a
+precise technical reason.** ADR-006 requires **declared and fail-closed**
+capabilities (`read_only=True` verifiable by the registry). MCP offers
+`readOnlyHint`/`destructiveHint` — but the spec **mandates treating them as
+untrusted** ("MUST consider tool annotations untrusted unless from trusted
+servers"). In other words: to integrate MCP while respecting ADR-006 would
+require maintaining a manual per-tool allow-list with hand-audited
+capabilities — at which point the integration is per-tool again and MCP
+loses its main benefit (dynamic discovery), leaving only costs: new
+supply-chain surface (tool-poisoning is the ecosystem's documented attack),
+subprocess latency against an 8 s SLA, and a protocol dependency in a repo
+whose pitch is "auditable and local."
+
+**Where MCP DOES live in this ecosystem**: on the DEV side
+(codebase-memory-mcp for maintainers) — a tool for the builder, not a
+runtime of the product. That line (dev-tooling yes, product no) is what
+ADR-010 must draw.
+
+**Review triggers** (written into the ADR): (a) a real use case needs ≥3
+integrations that already exist as mature, trusted-vendor MCP servers;
+(b) MCP promotes capability annotations to a verifiable normative contract
+(there are 5 active SEPs in that direction — watch); (c) an enterprise
+adopter contractually requires it.
+
+### Annex B — Coverage Gate: **measure yes, gate no (for now)** — and why the asymmetry with the template is correct
+
+**What a % gate buys**: a ratchet against test erosion in large/
+high-turnover teams; a procurement checkbox; a forcing function on
+third-party PRs. **What it costs**: Goodharting (tests without assertions
+to inflate %), refactor friction, and the false equivalence
+coverage=verification — the best tests in these repos (R8-01's AST contract
+test, authoritative amtool, ADR-037's disjointness) are worth more than
+percentage points, and a numeric gate can't distinguish them from
+`assert True`.
+
+**agent-local context**: 1 maintainer, 119 tests/2k LOC, a
+behavior-first culture ALREADY superior to what a threshold protects. The
+failure mode a gate prevents (silent rot from many hands) doesn't exist here
+yet. **Recommendation**: (1) **measure and publish** — `pytest --cov` in CI
+as a report/artifact, with no failing threshold; (2) a written policy in
+CONTRIBUTING ("every PR with new code brings tests; the reviewer evaluates
+DIFF coverage, not the global %"); (3) the first gate, when it arrives,
+should be **diff-coverage** (≥80% of changed lines), never an absolute % —
+it protects what's new without Goodharting what's old; (4) triggers to
+activate it: a second regular contributor, or the first bug a coverage test
+would have caught.
+
+**The asymmetry with the template is correct and defensible**: the template
+PROMISES 90/80 to scaffolded services because its audience is TEAMS (a
+context where the ratchet does pay off); agent-local is a pre-1.0,
+single-author platform. Same calibration principle, different contexts →
+different policies. That gets documented, not homogenized.
+
+### Annex C — Agentic CI-Green Verification: **verify=AUTO, override=STOP** (+ D-36)
+
+The question "CONSULT or STOP?" is answered by separating verbs — the
+enterprise pattern (GitHub branch protection + environments) does exactly
+this:
+
+| Verb | Mode | Reason |
+|---|---|---|
+| **Verify** check status (`gh run list/view`) | **AUTO** | Read-only; an agent should always be able to look |
+| **Block-if-red** inside /release, /deploy, /retrain-promote | **Workflow invariant** (not a mode: the step is refused) | Same as branch protection: the system refuses, it doesn't ask |
+| **Re-run** a flaky job | **CONSULT** | An action with effects, scoped and reversible |
+| **Override** (proceed with red / skip checks) | **STOP** | Same class as rollback/secret-breach: human signature + mandatory `audit_record` |
+
+**Concrete proposal** (complies with the ADR-029 contract: edit `agentic/` +
 `AGENTS.md`, sync, manifest): skill **`ci-green-verify`** (AUTO, read-only,
-usa `gh`) + workflow **`/ci-green`** + paso obligatorio en los workflows
-`/release` y `/deploy` existentes + anti-patrón **D-36** ("promover, taggear
-o desplegar sin CI verde verificado; o hacer override sin STOP + registro de
-auditoría"). Cascada de conteos: skills 20→21, workflows 16→17, D-35→D-36 —
-actualizar AGENTS.md, CLAUDE.md ×2, llms.txt (el gate doc-coherence lo
-exigirá solo).
+uses `gh`) + workflow **`/ci-green`** + a mandatory step in the existing
+`/release` and `/deploy` workflows + new anti-pattern **D-36** ("promoting,
+tagging, or deploying without verified green CI; or overriding without
+STOP + audit record"). Count cascade: skills 20→21, workflows 16→17,
+D-35→D-36 — update AGENTS.md, CLAUDE.md ×2, llms.txt (the doc-coherence
+gate will enforce it automatically).
 
 ---
 
-## 5. Registro de brechas R9 (todas de legibilidad/gobernanza; cero de arquitectura)
+## 5. R9 Gap Registry (All Legibility/Governance; Zero Architecture)
 
-| ID | Repo | Brecha | Referente que la expone | Severidad enterprise |
+| ID | Repo | Gap | Reference that exposes it | Enterprise severity |
 |---|---|---|---|---|
-| R9-01 | template | Sin OpenSSF Scorecard workflow/badge | Práctica OSS de vanguardia | MEDIA |
-| R9-02 | template | Actions pineadas por tag, no por SHA | Scorecard/incidente tj-actions | MEDIA |
-| R9-03 | template | Sin mapeo NIST AI RMF / ISO 42001 / AI Act de los artefactos que YA produce | Fase de gap-assessment del mercado (Annex III → 2027-12) | **ALTA** (ROI docs) |
-| R9-04 | template | Agnosticismo real pero sin matriz de swap explícita | ZenML (percepción) | MEDIA |
-| R9-05 | ambos | Sin superficie agéntica de verificación CI-verde (Anexo C) | GitHub branch-protection como práctica | MEDIA |
-| R9-06 | agent-local | Tags v0.x sin GitHub Releases (v0.6.0 incluida); sin workflow release-on-tag; el coherence gate no valida paridad tag↔release | Práctica universal de releases trazables | **ALTA** (ya ocurrió) |
-| R9-07 | agent-local | Sin mapeo OWASP LLM Top-10 de sus controles | Evaluación CISO estándar de agentes | MEDIA |
-| R9-08 | agent-local | Sin eval set adversarial/inyección | Práctica evals-first 2026 | MEDIA |
-| R9-09 | agent-local | Cobertura ni medida ni publicada (Anexo B: medir sin gatear) | Señal de procurement | BAJA |
-| R9-10 | agent-local | Decisión MCP/A2A no registrada como ADR (Anexo A) | Higiene de decisiones enterprise | BAJA |
+| R9-01 | template | No OpenSSF Scorecard workflow/badge | Frontier OSS practice | MEDIUM |
+| R9-02 | template | Actions pinned by tag, not by SHA | Scorecard/tj-actions incident | MEDIUM |
+| R9-03 | template | No NIST AI RMF / ISO 42001 / AI Act mapping of the artifacts it ALREADY produces | Market gap-assessment phase (Annex III → 2027-12) | **HIGH** (docs ROI) |
+| R9-04 | template | Real agnosticism but no explicit swap matrix | ZenML (perception) | MEDIUM |
+| R9-05 | both | No agentic CI-green verification surface (Annex C) | GitHub branch-protection as practice | MEDIUM |
+| R9-06 | agent-local | v0.x tags without GitHub Releases (v0.6.0 included); no release-on-tag workflow; the coherence gate doesn't validate tag↔release parity | Universal traceable-release practice | **HIGH** (already happened) |
+| R9-07 | agent-local | No OWASP LLM Top-10 mapping of its controls | Standard CISO agent evaluation | MEDIUM |
+| R9-08 | agent-local | No adversarial/injection eval set | Evals-first 2026 practice | MEDIUM |
+| R9-09 | agent-local | Coverage neither measured nor published (Annex B: measure without gating) | Procurement signal | LOW |
+| R9-10 | agent-local | MCP/A2A decision not recorded as an ADR (Annex A) | Enterprise decision hygiene | LOW |
 
 ---
 
-## 6. Plan de ejecución (TRAS visto bueno) — mapea los puntos 4-8 del encargo
+## 6. Execution Plan (AFTER sign-off) — maps to items 4-8 of the request
 
 ### Wave A — template (R9-01..04 + R9-05)
-1. `.github/workflows/scorecard.yml` (OpenSSF, badge en README) — R9-01.
-2. SHA-pinning de todas las actions en `.github/workflows/*.yml` (+ comentario
-   `# vX.Y.Z` por legibilidad; dependabot ya existe y los mantiene) — R9-02.
-3. `docs/COMPLIANCE_MAPPING.md` + **ADR-038** (mapeo NIST AI RMF, ISO 42001
-   Annex A, AI Act Arts. 9/10/11/12/15 + Annex IV → artefactos del template;
-   disclaimers honestos; nota Omnibus 2027-12) + enlaces desde README/ADOPTION
-   — R9-03.
-4. Sección "Portability & escape hatches" en `docs/ADOPTION.md` (matriz swap:
-   cloud/tracking/registry/serving/modelo) — R9-04.
-5. Superficie CI-green (Anexo C): skill `ci-green-verify` + `/ci-green` +
-   D-36 + integración en `/release` y `/deploy` + cascada de conteos +
-   manifest + sync + validadores — R9-05.
-6. CHANGELOG + (si amerita) release notes; doc-coherence verde.
+1. `.github/workflows/scorecard.yml` (OpenSSF, badge in README) — R9-01.
+2. SHA-pin all actions in `.github/workflows/*.yml` (+ `# vX.Y.Z` comment
+   for readability; dependabot already exists and keeps them current) —
+   R9-02.
+3. `docs/COMPLIANCE_MAPPING.md` + **ADR-038** (mapping NIST AI RMF, ISO
+   42001 Annex A, AI Act Arts. 9/10/11/12/15 + Annex IV → template
+   artifacts; honest disclaimers; Omnibus 2027-12 note) + links from
+   README/ADOPTION — R9-03.
+4. "Portability & escape hatches" section in `docs/ADOPTION.md` (swap
+   matrix: cloud/tracking/registry/serving/model) — R9-04.
+5. CI-green surface (Annex C): `ci-green-verify` skill + `/ci-green` +
+   D-36 + integration into `/release` and `/deploy` + count cascade +
+   manifest + sync + validators — R9-05.
+6. CHANGELOG + (if warranted) release notes; green doc-coherence.
 
 ### Wave B — agent-local (R9-06..10)
-7. **Releases**: crear GitHub Releases para TODOS los tags existentes
-   (cuerpo desde CHANGELOG/`releases/`); añadir `release-on-tag.yml` (port
-   mínimo del template); extender `scripts/check_coherence.py` con check C5
-   de paridad tag↔release (vía `gh api`, solo cuando hay token; skip local
-   limpio) — R9-06. *(Nota del encargo: "ese error no debería ocurrir con
-   nuestro agente de documentación" — C5 + el workflow lo hacen estructural.)*
-8. `docs/SECURITY_MODEL.md` (mapeo OWASP LLM Top-10 control-por-control +
-   límites honestos) — R9-07.
-9. `usecases/tienda/evals/sets/07_injection.jsonl` + tests de contención
+7. **Releases**: create GitHub Releases for ALL existing tags (body sourced
+   from CHANGELOG/`releases/`); add `release-on-tag.yml` (minimal port from
+   the template); extend `scripts/check_coherence.py` with a C5 check for
+   tag↔release parity (via `gh api`, only when a token is present; skip on
+   a clean local checkout) — R9-06. *(Note from the request: "that error
+   shouldn't happen with our documentation agent" — C5 + the workflow make
+   it structural.)*
+8. `docs/SECURITY_MODEL.md` (OWASP LLM Top-10 control-by-control mapping +
+   honest limits) — R9-07.
+9. `usecases/tienda/evals/sets/07_injection.jsonl` + containment tests
    (policy/router) — R9-08.
-10. CI: paso `pytest --cov` reporte-sin-umbral + política de cobertura en
-    CONTRIBUTING (Anexo B) — R9-09.
-11. **ADR-010 — MCP/A2A interop: Rejected (with revisit triggers)** (Anexo A)
-    + índice + README — R9-10.
-12. CHANGELOG v0.7.0 + `releases/v0.7.0.md` + tag + Release; coherence verde.
+10. CI: `pytest --cov` report-without-threshold step + coverage policy in
+    CONTRIBUTING (Annex B) — R9-09.
+11. **ADR-010 — MCP/A2A interop: Rejected (with revisit triggers)** (Annex A)
+    + index + README — R9-10.
+12. CHANGELOG v0.7.0 + `releases/v0.7.0.md` + tag + Release; green
+    coherence.
 
-### Wave C — planos derivados (puntos 7-8 del encargo)
-13. **REDACTED-PRIVATE-REPO**: deep-dives nuevos (agent-local ADR-009, ADR-010; template
-    ADR-038), actualización de capítulos afectados (cap. 45/47 loop del
-    agente — reflexión cableada; cap. seguridad/OWASP; cap. gobernanza —
-    compliance mapping; cap. CI/CD — patrón verificar-AUTO/override-STOP),
-    conteos en hubs de ADRs.
-14. **ML-MLOps-Portfolio (Pages)**: capítulo template (badge Scorecard,
-    bullet compliance-mapping) + capítulo 3 agent-local (v0.6.0/v0.7.0:
-    enforcement gates, security model, evals adversariales).
+### Wave C — derived planes (items 7-8 of the request)
+13. **Private pedagogical companion notes**: new deep-dives (agent-local
+    ADR-009, ADR-010; template ADR-038), updates to affected chapters
+    (agent-loop chapters — wired-in reflection; security/OWASP chapter;
+    governance chapter — compliance mapping; CI/CD chapter —
+    verify-AUTO/override-STOP pattern), counts in the ADR hubs.
+14. **ML-MLOps-Portfolio (Pages)**: template chapter (Scorecard badge,
+    compliance-mapping bullet) + agent-local chapter 3 (v0.6.0/v0.7.0:
+    enforcement gates, security model, adversarial evals).
 
-### Wave D — cierre (puntos 5-6 del encargo)
-15. Commits atómicos por wave, push, **verificación CI verde en ambos repos
-    usando el propio skill nuevo `ci-green-verify`** (dogfooding), Releases
-    publicadas, reporte final con evidencia.
+### Wave D — closeout (items 5-6 of the request)
+15. Atomic commits per wave, push, **green CI verification on both repos
+    using the new `ci-green-verify` skill itself** (dogfooding), published
+    Releases, final report with evidence.
 
-### Explícitamente FUERA de alcance (y por qué)
-- Implementar MCP/A2A (Anexo A — se registra el NO).
-- Gate de cobertura con umbral (Anexo B — se mide, no se gatea).
-- Export OTLP en agent-local (semconv ya alineado; diferido con criterio).
-- Cualquier framework nuevo (LangGraph, ADK…): el benchmark confirma que el
-  nicho es NO ser uno de ellos.
+### Explicitly OUT OF SCOPE (and why)
+- Implementing MCP/A2A (Annex A — the NO is recorded).
+- A thresholded coverage gate (Annex B — measured, not gated).
+- OTLP export in agent-local (semconv already aligned; deferred with
+  rationale).
+- Any new framework (LangGraph, ADK…): the benchmark confirms that the
+  niche is precisely NOT being one of them.
 
 ---
 
-## 7. Criterio de éxito R9
+## 7. R9 Success Criteria
 
-Un evaluador enterprise que abra los repos después de la ejecución debe poder
-responder SÍ, con evidencia clicable, a: "¿Scorecard?", "¿acciones pineadas?",
-"¿qué me da para mi gap-assessment de AI Act/ISO 42001?", "¿qué toco para
-cambiar de cloud/modelo?", "¿los releases son trazables?", "¿el agente valida
-CI antes de promover?", "¿los controles del agente mapean a OWASP LLM?",
-"¿las decisiones de NO adoptar (MCP, coverage-gate) están razonadas por
-escrito?". Hoy la respuesta a 8 de esas 9 es "está implícito o no existe";
-ese es exactamente el delta entre "excelente ingeniería" y
-"enterprise-recomendable".
+An enterprise evaluator opening the repos after execution must be able to
+answer YES, with clickable evidence, to: "Scorecard?", "pinned actions?",
+"what does this give me for my AI Act/ISO 42001 gap-assessment?", "what do
+I touch to switch cloud/model?", "are releases traceable?", "does the agent
+verify CI before promoting?", "do the agent's controls map to OWASP LLM?",
+"are the decisions to NOT adopt something (MCP, coverage-gate) reasoned in
+writing?". Today the answer to 8 of those 9 is "it's implicit or doesn't
+exist"; that is exactly the delta between "excellent engineering" and
+"enterprise-recommendable."

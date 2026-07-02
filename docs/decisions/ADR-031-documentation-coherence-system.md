@@ -50,8 +50,10 @@ Concretely:
    policy, the change-traceability chain (decision → ADR → CHANGELOG → release →
    VERSION), and a "if you touch X, update Y" cascade map.
 2. **`scripts/check_doc_coherence.py`** — the deterministic gate (sibling of the
-   `check_*_drift.py` family): five checks — version SSoT, llms.txt version,
-   anti-pattern count, agentic surface counts, ADR traceability/no-silent-gaps.
+   `check_*_drift.py` family): seven checks — version SSoT, llms.txt version,
+   anti-pattern count, agentic surface counts, ADR traceability/no-silent-gaps,
+   release note existence, and a documentation language + private-reference
+   guard (added AUDIT R10, 2026-07-02).
 3. **`doc-coherence` skill + `/doc-coherence` workflow** — the productivity
    multiplier that reads gate output and applies the cascade map, with
    CONSULT/STOP boundaries (never renumber an ADR, never rewrite a released
@@ -98,19 +100,18 @@ without adding architecture.
 **Negative / costs**
 
 - One more repo-root gate script and CI job to maintain.
-- The five checks are intentionally conservative (counts, versions, ADR gaps);
-  prose-level consistency (Vale-style) is out of scope for v1 of the gate.
+- The checks are intentionally conservative (counts, versions, ADR gaps,
+  language/privacy); full prose-level style consistency (Vale-style) is out
+  of scope for v1 of the gate.
 
 **Neutral**
 
-- The scaffolded service (`templates/service/`) does not yet vendor rule 16 +
-  the gate; extending coherence enforcement into scaffolded repos is a tracked
-  follow-up (see Revisit When).
+- The scaffolded service (`templates/service/`) vendors rule 16 + the gate
+  (mirrors the ADR-025 pattern) — `scripts/check_vendored_runtime_drift.py`
+  keeps the vendored copy byte-identical to the canonical source.
 
 ## Revisit When
 
-- A scaffolded service needs its own coherence gate → vendor rule 16 +
-  `check_doc_coherence.py` into `templates/service/` (mirror the ADR-025 pattern).
-- Prose/style drift becomes a problem → add a Vale lane as check C6.
+- Prose/style drift becomes a problem → add a Vale lane as check C8.
 - The repo adopts Conventional Commits → wire release-please and let the gate
   verify its output instead of hand-maintained CHANGELOG headings.

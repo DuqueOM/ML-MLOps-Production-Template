@@ -6,7 +6,7 @@
 ## What this is
 A complete, opinionated MLOps template for shipping classical ML models to
 production across two clouds (GKE + EKS), with an agentic operating model,
-governed CI/CD, and 36 encoded anti-patterns (D-01 to D-36). Every non-trivial
+governed CI/CD, and 37 encoded anti-patterns (D-01 to D-37). Every non-trivial
 decision is captured in an ADR with measured trade-offs.
 Scope: classical ML (scikit-learn, XGBoost, LightGBM). LLM/GenAI *serving* is
 out of scope (lives in the sibling `agent-local` repo); LLM-*assisted* ops are

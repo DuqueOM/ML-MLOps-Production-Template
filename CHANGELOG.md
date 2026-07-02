@@ -10,6 +10,54 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — AUDIT R10 (documentation language + private-reference leak)
+
+- **Four `docs/audit/*.md` files translated from Spanish to English**
+  (`ACTION_PLAN_LLM_AGENT.md`, `ARCH_REVIEW_LLM_AGENT.md`,
+  `AUDIT_R8_STAFF_LEAD.md`, `ACTION_PLAN_R9_ENTERPRISE_BENCHMARK.md`, plus
+  the small `ACTION_PLAN_ADR028.md` stub and 38 bilingual section titles in
+  `feedback-may-2026-triage.md`): this repo's documentation is English-only
+  everywhere else; these were leftover interactive-session artifacts.
+- **A private, personal companion repo de-referenced by name from 6
+  files** in this repo (`docs/audit/{ACTION_PLAN_LLM_AGENT,
+  ACTION_PLAN_R9_ENTERPRISE_BENCHMARK,AUDIT_R8_STAFF_LEAD}.md`,
+  `docs/decisions/{ADR-028,ADR-037}.md`, `CHANGELOG.md`) and one in the
+  sibling `agent-local` repo (`docs/decisions/ADR-008-*.md`) — one instance
+  was a live clickable URL pointing at it, which 404s for any public
+  reader since that repo is private. `ADR-037` and `ADR-028`
+  were re-generalized (not just redacted): the "L-2b pedagogical RAG"
+  design now describes "the adopter's own long-form onboarding corpus"
+  rather than a hard-coded reference to the author's private repo — a
+  strictly more reusable design for a public template.
+- **A pre-existing D-36 rollout gap**: `CLAUDE.md`'s compact anti-pattern
+  table (root and vendored `templates/service/CLAUDE.md`) had never
+  actually gained a D-36 row when D-36 shipped (R9 Wave A) — it still
+  ended at D-35 and claimed "35 invariants." Backfilled alongside this
+  round's D-37.
+- **Stale `Windsurf` references** in currently-live docs (`QUICK_START.md`,
+  `README.md` badge + 2 prose mentions, `docs/ide-parity-audit.md`,
+  `docs/agentic/runtime-monitoring-companion.md`,
+  `docs/runbooks/mcp-config-hygiene.md`,
+  `templates/config/mcp_registry.yaml`): the template's agentic surface
+  moved to Devin/Cursor/Claude Code/Codex a while ago; these had not been
+  updated to match and one (`ide-parity-audit.md`) still described the
+  pre-ADR-027 architecture where the canonical source was literally named
+  "Windsurf" instead of the current vendor-neutral `agentic/`.
+
+### Added — AUDIT R10 (documentation coherence hardening)
+
+- **`check_doc_coherence.py` C7 + anti-pattern D-37 + ADR-040**: a new
+  deterministic check — `check_doc_language_and_privacy` — scans every
+  git-tracked `docs/**/*.md` and root `*.md` file for non-English prose
+  (a curated Spanish word list, accent required — an early draft made the
+  accent optional and flagged the English word "decision" repo-wide,
+  caught in local testing) and for a private-repo denylist (seeded with the
+  repo named above, see ADR-040). This is the gate that should have caught
+  the R10 finding above and now will, going forward. Vendored into
+  `templates/service/scripts/check_doc_coherence.py`; adapters
+  (`.devin/.claude/.cursor/.codex`) resynced via
+  `sync_agentic_adapters.py`.
+
 ### Added — AUDIT R9 Wave A (enterprise benchmark remediation)
 
 - **OpenSSF Scorecard** (`.github/workflows/scorecard.yml`, R9-01): weekly +
@@ -99,15 +147,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   (`docs/decisions/ADR-037-dual-namespace-retrieval-separation.md`):
   canonicalizes a new `L-2b` maintenance-plane lane in
   `docs/audit/ACTION_PLAN_LLM_AGENT.md` — a pedagogical/onboarding RAG over
-  REDACTED-PRIVATE-REPO + ADR prose, built as a namespace-disjoint sibling of the
-  existing `L-2` operational memory plane (ADR-018), never the same index or
-  script. Two disjoint scripts (`scripts/memory_query.py` vs. the new
+  the adopter's own long-form documentation + ADR prose, built as a
+  namespace-disjoint sibling of the existing `L-2` operational memory plane
+  (ADR-018), never the same index or script. Two disjoint scripts (`scripts/memory_query.py` vs. the new
   `scripts/pedagogy_query.py`), two hard-coded disjoint corpus-root
   allow-lists, two independent `BM25Index` objects, one shared *stateless*
   agent-local tier endpoint (justified by agent-local's new ADR-008), and a
   citation-path validator that discards (and logs) any answer whose citation
   resolves outside its own namespace. Both scripts are specified, not yet
-  shipped — gated behind the same "INTEGRACIÓN P2" timeline as the rest of
+  shipped — gated behind the same "P2 INTEGRATION" timeline as the rest of
   the memory-plane lane.
 - **ADR-036 — Batch-only deployment topology**
   (`docs/decisions/ADR-036-batch-only-deployment-topology.md`): a new

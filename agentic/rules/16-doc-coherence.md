@@ -95,10 +95,13 @@ python3 scripts/check_doc_coherence.py
 #   → skill: doc-coherence   workflow: /doc-coherence
 ```
 
-The gate runs six checks: version SSoT (C1), `llms.txt` version (C2),
+The gate runs seven checks: version SSoT (C1), `llms.txt` version (C2),
 anti-pattern count (C3), agentic surface counts (C4), ADR traceability /
-no-silent-gaps (C5), release note existence (C6). A failing gate blocks
-the PR — coherence is a release invariant, not a suggestion.
+no-silent-gaps (C5), release note existence (C6), documentation language +
+private-reference guard (C7 — `docs/` and root docs must be English-only
+and must never name a known private/personal repo; AUDIT R10, 2026-07-02).
+A failing gate blocks the PR — coherence is a release invariant, not a
+suggestion.
 
 ## Release publication is automatic — never a manual step
 

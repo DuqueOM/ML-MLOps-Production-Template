@@ -165,7 +165,7 @@ make serve
 
 ## Agentic Workflows
 
-If using Windsurf Cascade, Claude Code, or Cursor, the template includes pre-configured rules, skills, and workflows:
+If using Devin, Claude Code, Cursor, or Codex, the template includes pre-configured rules, skills, and workflows:
 
 ```
 # In your AI assistant:
