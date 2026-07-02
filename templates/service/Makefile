@@ -329,6 +329,18 @@ onboard: ## Generate an adopter context file from the example template (non-agen
 	fi
 	@echo "$(YELLOW)Validate:$(NC) python3 -c \"import json,yaml,jsonschema; jsonschema.validate(yaml.safe_load(open('$(SERVICE_SLUG)_context.local.yaml')), json.load(open('config/adopter_context.schema.json')))\""
 
+REF ?= main
+
+ci-green: ## Verify GitHub Actions CI is green before promote/release/deploy (REF=branch-or-sha, D-36, ADR-039)
+	@echo "$(GREEN)Checking CI status for $(REF)...$(NC)"
+	@if command -v gh >/dev/null 2>&1; then \
+		gh run list --branch $(REF) --limit 20 \
+			--json name,status,conclusion,headSha,workflowName \
+			--template '{{range .}}{{.workflowName}}{{"\t"}}{{.status}}{{"\t"}}{{.conclusion}}{{"\n"}}{{end}}'; \
+	else \
+		echo "$(YELLOW)gh CLI not found — see agentic/skills/ci-green-verify/SKILL.md$(NC)"; \
+	fi
+
 security-audit: ## Run combined security audit (gitleaks + bandit + trivy)
 	@echo "$(GREEN)Running security audit...$(NC)"
 	@$(MAKE) secret-breach-check

@@ -10,6 +10,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Added — AUDIT R9 Wave A (enterprise benchmark remediation)
+
+- **OpenSSF Scorecard** (`.github/workflows/scorecard.yml`, R9-01): weekly +
+  on-push supply-chain scoring, published and SARIF-uploaded to the Security
+  tab — makes the template's existing signing/SBOM/branch-protection posture
+  independently verifiable instead of just claimed.
+- **All GitHub Actions pinned by commit SHA** (R9-02): every third-party
+  action across all 13 workflow files now resolves to an immutable SHA
+  (`uses: owner/action@<sha> # vX.Y.Z`), resolved live against the GitHub
+  API. Closes the tag-mutability supply-chain gap Scorecard's
+  Pinned-Dependencies check flags (the class of exposure behind the 2025
+  tj-actions incident). `dependabot.yml` already tracks the
+  `github-actions` ecosystem, so SHA bumps keep flowing as PRs.
+- **`docs/COMPLIANCE_MAPPING.md` + ADR-038** (R9-03): maps existing template
+  artifacts (quality gates, fairness DIR gate, drift monitoring, audit
+  trail, human-in-the-loop promotion, signed supply chain) to NIST AI RMF,
+  ISO/IEC 42001, and EU AI Act Arts. 9–15 control questions — explicitly
+  NOT a certification claim (see the document's own non-claims section).
+  Includes a verified Digital Omnibus timeline note (Annex III high-risk
+  obligations move 2026-08-02 → 2027-12-02).
+- **Portability & escape-hatches matrix** in `docs/ADOPTION.md` §4 (R9-04):
+  a per-dimension swap table (cloud, tracking/registry, serving backend,
+  model framework, data validation, drift tooling, scaffolding engine, IaC,
+  agentic host) stating exactly what changes and what stays fixed.
+- **CI-green verification agentic gate** (R9-05, ADR-039): new skill
+  `ci-green-verify` (AUTO to check, STOP to override red/missing — verbs
+  separated on purpose, mirroring GitHub branch-protection's own
+  view-vs-bypass split) + `/ci-green` workflow + anti-pattern **D-36**.
+  Wired as a hard precondition into `agentic/workflows/release.md` step 1
+  (was a non-blocking `gh run list`) and into `deploy-gke`/`deploy-aws`
+  before `staging`/`prod` (Step 0, `dev` exempt). Surface counts: skills
+  20→21, workflows 16→17, anti-patterns D-01..D-35→D-01..D-36 — cascaded
+  through `AGENTS.md`, both `CLAUDE.md` files, `llms.txt`, `README.md`, and
+  `templates/config/agentic_manifest.yaml`; `sync_agentic_adapters.py` +
+  `validate_agentic_manifest.py --strict` + `validate_agentic.py` all green.
+
 ### Fixed
 
 - **AUDIT R8-05 — root `pytest -q` collects again** (`pyproject.toml`):

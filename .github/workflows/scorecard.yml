@@ -1,0 +1,44 @@
+# OpenSSF Scorecard — supply-chain posture, scored and published (AUDIT R9-01).
+#
+# Why this exists: the template already does what Scorecard measures (Cosign
+# signing, SBOM attestation, branch protection, gitleaks) — but an enterprise
+# evaluator's first move is checking for the badge, not reading the repo.
+# Publishing the score turns "trust us" into "verify us."
+name: OpenSSF Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "30 4 * * 1" # weekly, Monday 04:30 UTC — Scorecard's own cadence guidance
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload SARIF to the Security tab
+      id-token: write # publish results to the public Scorecard API
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46 # v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true # required for the README badge to resolve
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+        with:
+          sarif_file: results.sarif

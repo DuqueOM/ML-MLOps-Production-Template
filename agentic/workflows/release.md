@@ -4,12 +4,22 @@ description: Full multi-cloud release process — build, deploy GCP + AWS, verif
 
 # /release Workflow
 
-## 1. Pre-Release Checks
+## 1. Pre-Release Checks (D-36, ADR-039)
 
-Verify all CI checks are green:
+Invoke `/ci-green` (or `agentic/skills/ci-green-verify/SKILL.md` directly)
+against the commit being released — check EVERY workflow, not just
+`ci.yml`:
+
 ```bash
-gh run list --workflow=ci.yml --limit=1
+gh run list --branch main --limit 20 \
+  --json name,status,conclusion,headSha,workflowName
 ```
+
+This is a **hard precondition**, not an informational listing: if any
+workflow is RED or MISSING for the target commit, STOP here. Do not
+continue to step 2 without an explicit human override AND a
+`scripts/audit_record.py` entry documenting why (D-36 — same rule whether
+the release "feels safe" or not; there is no urgency exception).
 // turbo
 
 ## 2. Run Full Test Suite

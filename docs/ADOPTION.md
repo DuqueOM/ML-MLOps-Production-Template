@@ -138,6 +138,7 @@ inheriting the agentic surface.
 | `/doc-coherence` | `make doc-coherence` (runs `scripts/check_doc_coherence.py`) | `agentic/skills/doc-coherence/SKILL.md` (rule 16, ADR-031) |
 | `/stack-switch` | `make switch-profile PROFILE=local\|staging\|prod` | `agentic/skills/stack-switch/SKILL.md` (ADR-033) |
 | `/onboard` | `make onboard` (copies `config/adopter_context.example.yaml`, prints the schema-validation command) | `agentic/skills/template-onboard/SKILL.md` (ADR-029 Wave 3) |
+| `/ci-green` | `make ci-green REF=<branch-or-sha>` (lists workflow run status via `gh`) | `agentic/skills/ci-green-verify/SKILL.md` (D-36, ADR-039) |
 
 ### Skill → CLI / runbook map
 
@@ -216,6 +217,43 @@ To prevent over-promising:
 If your use case lives in any of these gaps, the template is still useful
 as a starting point, but expect to do additive work rather than just
 configuration.
+
+---
+
+## 4. Portability & escape hatches (AUDIT R9-04)
+
+The template is agnostic by design (GCP+AWS parity, sklearn/XGBoost/
+LightGBM, a documented BentoML seam), but "agnostic" only helps an
+architect if the swap cost is legible in advance. This matrix answers
+"I want X instead — what do I touch, what stays the same?"
+
+| Dimension | Default | Swap to | What you touch | What stays the same |
+|---|---|---|---|---|
+| Cloud | GCP (primary) + AWS parity | AWS-only, or GCP-only | Keep only one `infra/terraform/{gcp,aws}/` tree and the matching `k8s/overlays/{gcp,aws}/*`; drop the unused cloud's CI deploy job | Serving code, quality gates, monitoring stack, agentic surface — none of them import a cloud SDK directly |
+| Tracking / registry | Self-hosted MLflow on K8s | Managed registry (Databricks, SageMaker, Vertex Model Registry) | `common_utils/model_persistence.py` load/save calls; `MLFLOW_TRACKING_URI`; the `mlflow.log_model` call sites in training | Quality-gate shape (metric + fairness DIR + leakage), promotion governance workflow |
+| Serving backend | FastAPI + `ThreadPoolExecutor` (hand-rolled) | BentoML | Nothing shipped yet — ADR-032 is Phase 0 (invariant contract only); a `serving_backend` Copier choice is the documented Phase 1 seam | D-01/D-23/D-25 — the contract any backend must satisfy is written down in advance, not discovered by trial and error |
+| Model framework | scikit-learn / XGBoost / LightGBM (tabular) | PyTorch / TensorFlow (tabular) | `src/<service>/models.py`, `training/train.py`; `KernelExplainer` stays valid for any `predict_proba`-shaped model | `/predict` + `/predict_batch` contract, quality gates, K8s manifests |
+| Data validation | Pandera | Great Expectations or another schema tool | `common_utils/input_validation.py`, `app/_pandera_schema.py` | The second-wall-validation INVARIANT (D-14) — the library is swappable, the requirement that serving re-validates independently of training is not |
+| Drift detection | PSI (quantile bins) | Evidently, whylogs, a vendor | `scripts/drills/run_drift_drill.py` internals | CronJob wiring, alert routing, the closed-loop monitoring contract |
+| Scaffolding engine | Copier | Cookiecutter (+ cruft) | `copier.yml` → `cookiecutter.json` rewrite | Nothing else survives cleanly — this is the one swap with a real, documented regression: native `copier update` 3-way merge is lost (ADR-030 §7 Alternatives) |
+| IaC | Terraform | Pulumi / CDK | Full rewrite of `infra/terraform/{gcp,aws}/` | The module BOUNDARIES (network / compute / IAM split) as a design reference, not the HCL itself |
+| Agentic host | Claude Code | Cursor / Devin / Codex CLI | Nothing — `agentic/` is the vendor-neutral canon (ADR-027); each host reads its own generated adapter | Everything — this row IS what ADR-027 exists to guarantee |
+
+The pattern across every row: **the invariant is the contract; the
+implementation behind it is the swappable part.** Rows without a shipped
+swap path (BentoML Phase 1) are flagged as such rather than glossed over —
+see the linked ADR for exactly what's proposed vs. built.
+
+---
+
+## 5. AI-specific governance frameworks
+
+Section 6 below covers general enterprise security/privacy regimes (GDPR,
+SOC 2, ISO 27001, HIPAA). For frameworks specific to AI/ML systems — **NIST
+AI RMF**, **ISO/IEC 42001**, and the **EU AI Act** — see
+[`docs/COMPLIANCE_MAPPING.md`](COMPLIANCE_MAPPING.md) (ADR-038). Same
+non-claim discipline applies: these are artifact-to-evidence mappings, not
+certifications.
 
 ---
 

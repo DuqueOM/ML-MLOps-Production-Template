@@ -198,6 +198,11 @@ skills:
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "ci-green-verify"
+    source: "agentic/skills/ci-green-verify/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "STOP"
+    authority: "docs/decisions/ADR-039-ci-green-verification-gate.md"
   - id: "concept-drift-analysis"
     source: "agentic/skills/concept-drift-analysis/SKILL.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
@@ -299,6 +304,11 @@ skills:
 # Cursor + Claude surfaces carry adapter files under `commands/`.
 # -----------------------------------------------------------------------------
 workflows:
+  - id: "ci-green"
+    source: "agentic/workflows/ci-green.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "STOP"
+    authority: "docs/decisions/ADR-039-ci-green-verification-gate.md"
   - id: "cost-review"
     source: "agentic/workflows/cost-review.md"
     surfaces: ["devin", "cursor", "claude", "codex"]

@@ -52,7 +52,7 @@ When starting a new session:
 - **ALWAYS** compatible release pinning (`~=`) — `numpy 2.x` corrupts joblib models
 - **ALWAYS** ADR for non-trivial decisions
 
-## Anti-Patterns (D-01 to D-35)
+## Anti-Patterns (D-01 to D-36)
 
 Compact summary; full table with corrective actions in `AGENTS.md`.
 
@@ -94,7 +94,7 @@ kustomize build templates/k8s/base/ > /dev/null
 ## File Structure
 
 ```
-AGENTS.md              → Full architecture, invariants D-01..D-35, anti-patterns (canonical source)
+AGENTS.md              → Full architecture, invariants D-01..D-36, anti-patterns (canonical source)
 CLAUDE.md              → This file (Claude Code context, condensed)
 QUICK_START.md         → 10-minute setup guide (standalone)
 RUNBOOK.md             → Template operations reference
@@ -125,8 +125,8 @@ scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
 releases/              → Release notes: active v0.x line + legacy v1.x audit snapshots (see releases/README.md)
 .claude/rules/         → 17 path-scoped rule pointers (this IDE)
-.claude/skills/        → 20 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
-agentic/             → Canonical: 17 rules + 20 skills + 16 workflows
+.claude/skills/        → 21 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
+agentic/             → Canonical: 17 rules + 21 skills + 17 workflows
 .cursor/rules/         → 17 glob-scoped .mdc rule pointers
 ```
 

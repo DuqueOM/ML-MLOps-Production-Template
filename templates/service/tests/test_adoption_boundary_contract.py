@@ -59,6 +59,7 @@ WORKFLOW_TO_MAKE: dict[str, str] = {
     "doc-coherence": "doc-coherence",
     "stack-switch": "switch-profile",
     "onboard": "onboard",
+    "ci-green": "ci-green",
 }
 
 

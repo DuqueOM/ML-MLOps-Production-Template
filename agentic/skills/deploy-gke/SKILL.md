@@ -53,7 +53,24 @@ Then halt.
 - [ ] Kustomize overlay patched with correct image tag
 - [ ] Terraform applied for any new infrastructure
 - [ ] Model artifact uploaded to GCS
-- [ ] All tests passing in CI
+- [ ] All tests passing in CI — verified by Step 0, not assumed
+
+## Step 0: Verify CI Green (staging/prod only; D-36, ADR-039)
+
+`dev` is exempt (AUTO/sandbox — CI status is informative, not blocking).
+For `staging`/`prod`, invoke `agentic/skills/ci-green-verify/SKILL.md`
+against the commit being deployed BEFORE Step 1:
+
+```bash
+gh run list --branch {commit-or-ref} --limit 20 \
+  --json name,status,conclusion,headSha,workflowName
+```
+
+- **ALL GREEN** → continue to Step 1.
+- **ANY RED or MISSING** → STOP. Do not proceed to Step 1 without an
+  explicit human override AND a `scripts/audit_record.py` entry (D-36).
+  This applies even in `staging` (CONSULT) — CI-green verification is
+  itself STOP-class regardless of the deploy environment's own mode.
 
 ## Step 1: Verify Cluster Context
 
