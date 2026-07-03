@@ -286,6 +286,20 @@ When starting a new session in a project derived from this template:
 
 ## How to Invoke Skills and Workflows
 
+**Two invocation taxonomies, kept orthogonal to AUTO/CONSULT/STOP** (ADR-041):
+- **Model-invoked** — a **Skill**: the agent decides to invoke it because
+  the current task matches its `when_to_use` trigger. No slash command
+  required.
+- **User-invoked** — a **Workflow**: a human types the slash command.
+  Not every skill has a matching workflow (e.g. `debug-ml-inference`,
+  `security-audit`, `rule-audit`, `pr-review`, `diagnose-bug` are
+  skill-only) — a workflow only exists where a human routinely wants to
+  trigger the procedure directly rather than wait for the agent to infer
+  the trigger. Each skill also declares an optional `domain:` in
+  `agentic_manifest.yaml` (`ml-data` / `platform-infra` /
+  `security-compliance` / `sre-operations`) purely for role-based
+  filtering/discoverability — it does not change AUTO/CONSULT/STOP.
+
 **Skills** (multi-step procedures — invoked by the agent when task matches):
 - `new-service` — scaffold a new ML service using `templates/scripts/new-service.sh`
 - `eda-analysis` — 6-phase exploratory analysis with leakage gate + baseline distributions
@@ -307,6 +321,10 @@ When starting a new session in a project derived from this template:
 - `template-onboard` — interview the adopter and emit a `*_context.local.yaml` (no secrets)
 - `doc-coherence` — keep cross-document facts coherent (version, CHANGELOG, ADRs, anti-pattern + surface counts); drives `scripts/check_doc_coherence.py` (rule 16, ADR-031)
 - `ci-green-verify` — verify GitHub Actions CI status before a promote/release/deploy action; AUTO to check, STOP to override red/missing (D-36, ADR-039)
+- `pr-review` — dual-axis change review (Standards + Spec, evaluated in isolation, then reconciled) (ADR-041)
+- `diagnose-bug` — systematic non-ML-serving bug diagnosis: reproduce → minimize → hypothesize → instrument → fix → regression-test (ADR-041)
+- `new-service-spec` — capture the ML problem spec (label, fairness attribute, cost asymmetry) BEFORE scaffolding, so `quality_gates.yaml` thresholds trace to a real answer (ADR-041)
+- `incident-postmortem` — blameless post-incident review after `/incident`/`/rollback`/`/secret-breach`: timeline from primary sources, 5-whys, owned action items (ADR-041)
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -330,7 +348,7 @@ When starting a new session in a project derived from this template:
 ## Agentic Configuration
 
 ```
-agentic/                                # Canonical agentic source (ADR-027) — 17 rules, 21 skills, 17 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 17 rules, 25 skills, 17 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
@@ -349,19 +367,24 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── 14-api-contracts.md             # glob: **/app/schemas.py, **/tests/contract/** — D-28, OpenAPI snapshot + semver
 │   ├── 15-template-lifecycle.md        # glob: copier.yml, templates/service/** — D-33/34, Copier scaffolding invariants
 │   └── 16-doc-coherence.md             # glob: VERSION, CHANGELOG.md, llms.txt, docs/decisions/** — cross-doc coherence (ADR-031)
-├── skills/                             # 18 multi-step operational procedures
+├── skills/                             # 25 multi-step operational procedures
 │   ├── batch-inference/SKILL.md
+│   ├── ci-green-verify/SKILL.md
 │   ├── concept-drift-analysis/SKILL.md
 │   ├── cost-audit/SKILL.md
 │   ├── debug-ml-inference/SKILL.md
 │   ├── deploy-aws/SKILL.md
 │   ├── deploy-gke/SKILL.md
+│   ├── diagnose-bug/SKILL.md
 │   ├── doc-coherence/SKILL.md
 │   ├── drift-detection/SKILL.md
 │   ├── eda-analysis/SKILL.md
+│   ├── incident-postmortem/SKILL.md
 │   ├── model-retrain/SKILL.md
 │   ├── new-service/SKILL.md
+│   ├── new-service-spec/SKILL.md
 │   ├── performance-degradation-rca/SKILL.md
+│   ├── pr-review/SKILL.md
 │   ├── release-checklist/SKILL.md
 │   ├── rollback/SKILL.md
 │   ├── rule-audit/SKILL.md
@@ -370,7 +393,8 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── security-audit/SKILL.md
 │   ├── stack-switch/SKILL.md
 │   └── template-onboard/SKILL.md
-└── workflows/                          # 16 slash-command workflows
+└── workflows/                          # 17 slash-command workflows
+    ├── ci-green.md                     # /ci-green
     ├── cost-review.md                  # /cost-review
     ├── doc-coherence.md                # /doc-coherence
     ├── drift-check.md                  # /drift-check
@@ -389,6 +413,12 @@ agentic/                                # Canonical agentic source (ADR-027) —
     └── onboard.md                      # /onboard
 ```
 
+Note: `pr-review`, `diagnose-bug`, and `new-service-spec` are skill-only
+(no matching workflow) — same pattern as `debug-ml-inference`,
+`security-audit`, and `rule-audit`: invoked by trigger match, not a slash
+command. `incident-postmortem` chains from the existing `/incident`
+workflow rather than getting its own.
+
 ### Skills → Workflow Cross-References
 
 | Trigger | Skill Invoked | Workflow Chained |
@@ -405,6 +435,10 @@ agentic/                                # Canonical agentic source (ADR-027) —
 | New ADR / version bump / surface change | `doc-coherence` | `/doc-coherence` (propagate + gate) |
 | New ML service request | `new-service` | `/new-service` |
 | Monthly cost review | `cost-audit` | `/cost-review` |
+| New ML service request (before scaffolding) | `new-service-spec` | → `new-service` / `/new-service` |
+| Non-trivial PR/diff ready for merge | `pr-review` | — (skill-only) |
+| Non-ML-serving bug report | `diagnose-bug` | — (skill-only) |
+| Incident resolved | `incident-postmortem` | chains from `/incident` (after closure) |
 
 ## Multi-IDE Support
 

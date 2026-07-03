@@ -1,0 +1,58 @@
+# =============================================================================
+# Service Spec — ADR-041, captured by the `new-service-spec` skill.
+# =============================================================================
+# Adopter workflow:
+#   1. Run the `new-service-spec` skill BEFORE `new-service.sh` / `copier copy`.
+#   2. Copy this file to `<service_slug>_service_spec.local.yaml` (gitignored,
+#      same convention as `*_context.local.yaml`).
+#   3. Replace every `{placeholder}` with real values from the interview.
+#   4. The skill validates this against `service_spec.schema.json` and
+#      refuses to proceed if a required field is missing.
+#
+# Why this file exists: `new-service.sh` captures technical parameters
+# (name, slug, cloud) but nothing about the ML PROBLEM — so
+# `quality_gates.yaml` ships with default thresholds nobody examined
+# against a real label, a real fairness attribute, or a real cost of
+# getting it wrong. This file gives those defaults a documented origin.
+#
+# Distinct from company_context.example.yaml / project_context.example.yaml
+# (organizational risk posture) and adopter_context.schema.json (infra
+# wiring) — this is the ML problem definition only. No secrets, no PII.
+# =============================================================================
+version: 1
+
+service_slug: "{service_slug}"
+
+problem:
+  # One sentence: what does the model predict?
+  label_definition: "{customer churns within 90 days of last activity}"
+
+  # What the positive class concretely means — not just "1".
+  positive_class_meaning: "{account closed or inactive 90+ days with no reactivation}"
+
+  # List of attributes that must not produce disparate impact, or null
+  # if truly none apply. A null here REQUIRES
+  # fairness_attribute_confirmed_none: true — an unconfirmed null is
+  # rejected by the schema, and the skill escalates to CONSULT either way.
+  fairness_sensitive_attributes:
+    - "{age_band}"
+    - "{region}"
+  fairness_attribute_confirmed_none: false
+
+  # Which error is worse for this problem, and roughly by how much.
+  # approximate_ratio accepts "unknown" as an honest answer — never omit it.
+  cost_asymmetry:
+    worse_error: "false_negative"   # false_negative | false_positive | roughly_equal
+    approximate_ratio: "{5:1 — a missed churner costs ~5x a false alarm}"
+
+  # Where training data comes from.
+  data_source: "{warehouse table, e.g. analytics.customer_events}"
+
+  # One of: real_time | daily | weekly | monthly | on_demand | one_time
+  data_refresh_cadence: "daily"
+
+  # The floor for promoting a model at all — this seeds quality_gates.yaml,
+  # replacing its bare default with a number traced to this interview.
+  minimum_acceptable_metric:
+    metric_name: "{recall_at_precision_0.7}"
+    minimum_value: 0.75

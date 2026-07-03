@@ -127,8 +127,8 @@ scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
 releases/              → Release notes: active v0.x line + legacy v1.x audit snapshots (see releases/README.md)
 .claude/rules/         → 17 path-scoped rule pointers (this IDE)
-.claude/skills/        → 21 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
-agentic/             → Canonical: 17 rules + 21 skills + 17 workflows
+.claude/skills/        → 25 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
+agentic/             → Canonical: 17 rules + 25 skills + 17 workflows
 .cursor/rules/         → 17 glob-scoped .mdc rule pointers
 ```
 

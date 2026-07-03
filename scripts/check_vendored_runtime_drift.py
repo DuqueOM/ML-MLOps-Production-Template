@@ -136,6 +136,17 @@ VENDORED_PAIRS: list[tuple[str, str]] = [
         "templates/service/config/project_context.example.yaml",
     ),
     (
+        # ML-problem spec (ADR-041, new-service-spec skill) — a third,
+        # distinct shape: neither company/project risk context (ADR-023)
+        # nor infra wiring (ADR-029) but the ML problem definition itself.
+        "templates/config/service_spec.schema.json",
+        "templates/service/config/service_spec.schema.json",
+    ),
+    (
+        "templates/config/service_spec.example.yaml",
+        "templates/service/config/service_spec.example.yaml",
+    ),
+    (
         "templates/config/report_schema.json",
         "templates/service/config/report_schema.json",
     ),

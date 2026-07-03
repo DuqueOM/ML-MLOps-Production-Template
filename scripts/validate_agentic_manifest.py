@@ -22,6 +22,8 @@ Index coherence (manifest claims match reality)
   * Every surface declared as `status: authoritative | adapter` has
     its declared `roots:` present.
   * Skill mode values are valid (AUTO / CONSULT / STOP).
+  * Skill domain values, when present, are valid (ml-data /
+    platform-infra / security-compliance / sre-operations — ADR-041).
 
 Context layer (F1)
   * `*.example.yaml` files parse against `context.schema.json`.
@@ -114,6 +116,10 @@ CONTEXT_POINTERS = [
 CONTEXT_POINTER_MAX_LINES = 150
 CONTEXT_POINTER_MAX_TABLE_ROWS = 10
 MODE_STRICTNESS = {"AUTO": 0, "CONSULT": 1, "STOP": 2}
+# Skill domain taxonomy (ADR-041) — role-based filtering/discoverability
+# only; does not affect mode/authority semantics. Optional: skills
+# authored before ADR-041 may omit it, but if present it must be valid.
+DOMAIN_VALUES = {"ml-data", "platform-infra", "security-compliance", "sre-operations"}
 # Regex for a literal placeholder that must have been replaced in a
 # .local.yaml — e.g. {CompanyName}. Intentionally narrow so legitimate
 # curly-braced content (jinja, env interpolation) survives.
@@ -255,6 +261,18 @@ def _validate_mode_enum(manifest: dict) -> list[str]:
                 errors.append(
                     f"{bucket}:{entry.get('id')}: invalid mode {mode!r}; " f"must be one of {list(MODE_STRICTNESS)}"
                 )
+    return errors
+
+
+def _validate_domain_enum(manifest: dict) -> list[str]:
+    """Skill `domain:` values must be from DOMAIN_VALUES when present (ADR-041)."""
+    errors: list[str] = []
+    for entry in manifest.get("skills") or []:
+        domain = entry.get("domain")
+        if domain is not None and domain not in DOMAIN_VALUES:
+            errors.append(
+                f"skills:{entry.get('id')}: invalid domain {domain!r}; must be one of {sorted(DOMAIN_VALUES)}"
+            )
     return errors
 
 
@@ -594,6 +612,7 @@ def run(strict: bool) -> dict:
     results["surface_roots"] = _validate_surface_roots(manifest)
     results["adapter_pointers"] = _validate_adapter_pointers(manifest)
     results["mode_enum"] = _validate_mode_enum(manifest)
+    results["domain_enum"] = _validate_domain_enum(manifest)
     results["context_examples"] = validate_context_examples(strict=strict)
     results["context_pointers"] = validate_context_pointers()
     results["reports_block"] = _validate_reports_block(manifest)

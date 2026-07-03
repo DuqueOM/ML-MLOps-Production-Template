@@ -304,7 +304,7 @@ The governance pattern is now single-source:
 - `templates/config/agentic_manifest.yaml` declares which surfaces consume each asset.
 - `.cursor/`, `.claude/`, and `.codex/` contain generated pointer adapters only.
 
-Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 17 rule files, 21 skills, and 17 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "17 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
+Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 17 rule files, 25 skills, and 17 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "17 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
 
 ### Static decision protocol
 

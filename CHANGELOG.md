@@ -44,6 +44,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   pre-ADR-027 architecture where the canonical source was literally named
   "Windsurf" instead of the current vendor-neutral `agentic/`.
 
+### Added — ADR-041 (agentic skill and domain expansion)
+
+- **Four new skills**: `pr-review` (dual-axis Standards + Spec review,
+  evaluated in isolation), `diagnose-bug` (systematic non-ML-serving
+  bug diagnosis: reproduce → minimize → hypothesize → instrument → fix →
+  regression-test), `new-service-spec` (captures the ML problem spec —
+  label, fairness attribute, cost asymmetry — before scaffolding, via a
+  new `templates/config/service_spec.schema.json` +
+  `service_spec.example.yaml` pair), and `incident-postmortem`
+  (blameless post-incident review: timeline from primary sources,
+  5-whys, owned action items). Skill count 21 → 25.
+- **`domain:` taxonomy** on every skill's `agentic_manifest.yaml` entry
+  (`ml-data` / `platform-infra` / `security-compliance` /
+  `sre-operations`) for role-based filtering/discoverability, validated
+  by a new `_validate_domain_enum` check in
+  `validate_agentic_manifest.py --strict`. Orthogonal to AUTO/CONSULT/STOP.
+- **Explicit model-invoked (skill) vs. user-invoked (workflow) framing**
+  documented in `AGENTS.md`'s "How to Invoke Skills and Workflows" —
+  the distinction already existed structurally; it is now named.
+- **Fixed a pre-existing drift**: the agentic-surface ASCII tree in
+  `AGENTS.md` had been missing `ci-green-verify`/`ci-green` since
+  ADR-039 shipped (a hand-maintained block, not covered by the C4
+  live-count gate). Corrected alongside the new entries.
+- Full rationale, and the external repos evaluated and explicitly
+  rejected (sandcastle, BMAD's full persona system, spec-kit's full
+  pipeline, `find-skills` as a running tool) with reasons and revisit
+  triggers: **ADR-041**.
+
 ### Added — AUDIT R10 (documentation coherence hardening)
 
 - **`check_doc_coherence.py` C7 + anti-pattern D-37 + ADR-040**: a new

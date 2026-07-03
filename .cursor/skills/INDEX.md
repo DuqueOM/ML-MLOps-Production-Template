@@ -30,6 +30,10 @@ no skill body lives here.
 | `template-onboard` | `AUTO` | `agentic/skills/template-onboard/SKILL.md` |
 | `secret-breach-response` | `STOP` | `agentic/skills/secret-breach-response/SKILL.md` |
 | `security-audit` | `AUTO` | `agentic/skills/security-audit/SKILL.md` |
+| `pr-review` | `AUTO` | `agentic/skills/pr-review/SKILL.md` |
+| `diagnose-bug` | `AUTO` | `agentic/skills/diagnose-bug/SKILL.md` |
+| `new-service-spec` | `AUTO` | `agentic/skills/new-service-spec/SKILL.md` |
+| `incident-postmortem` | `AUTO` | `agentic/skills/incident-postmortem/SKILL.md` |
 
 To change behavior, edit the canonical `agentic/skills/<id>/SKILL.md`
 and run:

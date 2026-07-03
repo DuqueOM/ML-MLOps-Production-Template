@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/service_spec.schema.json",
+  "title": "New-service ML problem specification",
+  "description": "Captured by the new-service-spec skill BEFORE scaffolding. Distinct from context.schema.json (company/project risk-context, ADR-023) and adopter_context.schema.json (infra wiring): this schema covers the ML PROBLEM definition — label, fairness attribute, cost asymmetry, data source.",
+  "type": "object",
+  "required": ["version", "service_slug", "problem"],
+  "properties": {
+    "version": { "const": 1 },
+    "service_slug": { "type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[a-z][a-z0-9_]*$" },
+    "problem": { "$ref": "#/$defs/problem" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "problem": {
+      "type": "object",
+      "required": [
+        "label_definition",
+        "positive_class_meaning",
+        "fairness_sensitive_attributes",
+        "cost_asymmetry",
+        "data_source",
+        "data_refresh_cadence",
+        "minimum_acceptable_metric"
+      ],
+      "properties": {
+        "label_definition": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "What the model predicts, in one sentence."
+        },
+        "positive_class_meaning": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "What the positive class concretely means, not just '1'."
+        },
+        "fairness_sensitive_attributes": {
+          "type": ["array", "null"],
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Attribute(s) that must not produce disparate impact. null means explicitly confirmed none (escalates to CONSULT, never a silent default)."
+        },
+        "fairness_attribute_confirmed_none": {
+          "type": "boolean",
+          "default": false,
+          "description": "Must be true if fairness_sensitive_attributes is null — records that 'none' was a deliberate, confirmed answer."
+        },
+        "cost_asymmetry": {
+          "type": "object",
+          "required": ["worse_error", "approximate_ratio"],
+          "properties": {
+            "worse_error": { "type": "string", "enum": ["false_negative", "false_positive", "roughly_equal"] },
+            "approximate_ratio": {
+              "type": ["string", "null"],
+              "description": "Rough ratio, e.g. '5:1' — an estimate is fine, null is not (use 'unknown' as a string instead of omitting)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "data_source": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "data_refresh_cadence": {
+          "type": "string",
+          "enum": ["real_time", "daily", "weekly", "monthly", "on_demand", "one_time"]
+        },
+        "minimum_acceptable_metric": {
+          "type": "object",
+          "required": ["metric_name", "minimum_value"],
+          "properties": {
+            "metric_name": { "type": "string", "minLength": 1 },
+            "minimum_value": { "type": "number" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
