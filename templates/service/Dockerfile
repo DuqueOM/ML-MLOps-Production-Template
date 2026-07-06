@@ -45,20 +45,36 @@ COPY requirements.txt ./
 
 # Install into a venv for clean multi-stage copy
 # xgboost/lightgbm --no-deps avoids pulling nvidia-nccl-cu12 (~290MB)
-RUN python -m venv /opt/venv && \
+#
+# `set -e` here is load-bearing, not boilerplate: without it, a failing
+# pip install partway through this chain does NOT fail the RUN as long as
+# some later command in the script still exits 0 — Docker reports the
+# layer as built even though the venv is missing dependencies, and the
+# break only surfaces later, at container runtime, as a confusing
+# "executable not found" / ModuleNotFoundError (see ADR / anti-patterns:
+# a masked `; true` sentinel at the end of this exact RUN was the original
+# form of this bug). The cleanup find/rm commands below are safe under
+# set -e because they only ever operate with -f/glob semantics that don't
+# fail on a missing path. `pip check` runs right after install (BEFORE
+# cleanup removes pip's own site-packages, which would break `pip check`
+# itself) as a cheap, dependency-agnostic sanity net that catches an
+# inconsistent/partial venv without needing to hardcode which packages
+# this service actually installs.
+RUN set -e && \
+    python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir --no-compile -r requirements.txt && \
     # Uncomment if using xgboost/lightgbm:
     # pip install --no-cache-dir --no-deps "xgboost>=1.5.0,<3.0" && \
     # pip install --no-cache-dir --no-deps "lightgbm>=4.0.0,<5.0" && \
+    pip check && \
     # Clean up to reduce image size
     find /opt/venv -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null; \
     find /opt/venv -type d -name 'tests' -not -path '*/numpy/*' -exec rm -rf {} + 2>/dev/null; \
     find /opt/venv -type f -name '*.pyc' -delete 2>/dev/null; \
     rm -rf /opt/venv/lib/python*/site-packages/pip 2>/dev/null; \
-    rm -rf /opt/venv/lib/python*/site-packages/setuptools 2>/dev/null; \
-    true
+    rm -rf /opt/venv/lib/python*/site-packages/setuptools 2>/dev/null
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — minimal final image
