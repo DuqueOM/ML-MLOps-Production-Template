@@ -10,6 +10,95 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-07-06
+
+MINOR release under [`docs/RELEASING.md`](docs/RELEASING.md) §1.2
+(backward-compatible additions: new ADRs, new agentic surface, new
+scaffolded-service files and Terraform modules, no renamed/removed
+contract). This release closes five initiatives that completed
+sequentially since `v0.20.0` without a version being cut for any of
+them: the R8 Staff/Lead dual-repo audit, R9 Wave A enterprise-benchmark
+remediation, R10 documentation-coherence hardening, ADR-041's agentic
+skill/domain expansion, and this release's own six-station monitoring
+audit + native-cloud-first edge-protection introduction.
+
+### Added — Native-cloud-first edge protection (ADR-042, D-38)
+
+- **`docs/decisions/ADR-042-native-cloud-edge-protection.md`**: Cloud
+  Armor (GCP) and AWS WAFv2 + Shield Standard are the DEFAULT,
+  per-cloud edge-protection implementation; Cloudflare is a fully
+  optional third module for genuinely concurrent multi-cloud
+  deployments or a zero-cloud-account learning path — never the
+  default, since it would add a third-party account + DNS delegation
+  for the common single-cloud deployment this template targets.
+  Includes a verb-separated mode assignment mirroring ADR-039:
+  `terraform apply` of edge resources is CONSULT in every environment
+  including dev (public exposure + cost do not shrink because the
+  label says "dev"); disabling or loosening an existing WAF/rate-limit
+  rule is STOP in every environment, no exceptions.
+- **Anti-pattern D-38** + rule `17-edge-protection` + skill `edge-audit`
+  (AUTO, read-only coverage scanner, mirrors `rule-audit` for one
+  invariant domain) + workflow `/edge-setup` (CONSULT). Surface counts:
+  rules 17→18, skills 25→26, workflows 17→18, anti-patterns
+  D-01..D-37→D-01..D-38 — cascaded through `AGENTS.md`, both
+  `CLAUDE.md` files, `README.md`, `llms.txt`, and
+  `templates/config/agentic_manifest.yaml`.
+- **`k8s/components/edge-{gcp,aws}/`**: opt-in Kustomize Components
+  (not wired into any overlay by default, matching D-35's local-first
+  philosophy) — a GCE/ALB Ingress carrying an
+  `edge-protection.mlops-template.io/implementation` annotation, the
+  one signal `edge-audit` and the new D-38 policy test trust.
+- **Terraform**: `infra/terraform/gcp/security.tf` (Cloud Armor +
+  `MODERN`-profile SSL policy), `infra/terraform/aws/security.tf`
+  (WAFv2 Web ACL; Shield Standard is automatic/free, no resource
+  needed), `infra/terraform/cloudflare/` (optional DNS + managed
+  ruleset + rate-limit module) — all three validated with
+  `terraform validate` against their real, currently-published
+  provider schemas. `ci-infra.yml`'s matrix gains a `cloudflare` leg.
+- **`dashboard-edge.json`** + two new alerts
+  (`EdgeProtectionMissing`, `EdgeAuditHeartbeatMissing`) — deliberately
+  does NOT duplicate Cloud Armor's / WAFv2's / Cloudflare's own
+  per-rule hit-rate analytics; tracks only coverage + audit freshness,
+  the one signal none of those consoles can answer.
+- **`docs/runbooks/edge-protection-setup.md`**: setup steps per cloud
+  + a cloud equivalence matrix. The three implementations' rate-limit
+  windows/semantics genuinely differ (Cloud Armor: configurable,
+  default 60s; AWS WAFv2: fixed 5-minute window, block-only, no native
+  throttle; Cloudflare: fixed 10s) — documented so nobody copies a
+  threshold number across clouds assuming equivalent behavior.
+
+### Added — Monitoring-stations audit closure (Inference, Business KPIs, Logs & Traces)
+
+- **`docs/observability/monitoring-stations.md`**: a full coverage map
+  against six operational stations (Edge, Infrastructure, Inference,
+  Models, Logs & Traces, Business KPIs) with file:line evidence,
+  delegation notes, and explicit N/A-with-revisit-trigger notes (e.g.
+  GPU metrics — N/A while the stack is CPU sklearn/XGBoost/LightGBM).
+- **Inference — saturation**: new `inference_in_flight` /
+  `inference_executor_capacity` Prometheus gauges (wrapped around both
+  `run_in_executor` call sites), a new dashboard panel, and the
+  `{@ service_slug @}ExecutorSaturated` alert — the saturation ratio
+  reaching 1.0 is itself the queueing signal, deliberately not read
+  from `ThreadPoolExecutor._work_queue.qsize()` (a private attribute).
+- **Business KPIs**: `dashboard-business.json` (request volume, SLA
+  compliance reusing the existing SLO recording rule, cost vs. budget,
+  risk-level mix, error-rate impact) +
+  `docs/observability/business-kpis.md`. The `cost-audit` skill now
+  pushes `<service>_monthly_cloud_cost_usd` to Pushgateway (Step 2b).
+- **Logs & Traces — a real gap closed**: `RequestIDMiddleware` now
+  emits a structured access-log line (`request_id`, `trace_id`,
+  `method`, `path`, `status_code`, `duration_ms`) on every non-probe
+  request. Previously `request_id` only reached the log stream on the
+  unhandled-exception path — a successful request produced no
+  correlatable log line at all. `docs/observability/log-trace-correlation.md`
+  documents the fix and how to wire a real tracing-backend derived
+  field once an adopter enables OTel.
+- **Loki + Promtail** added to the docker-compose demo stack (`monitoring`
+  profile) — demo-only by design; production log aggregation is the
+  platform's job (Fluentd/Fluent Bit DaemonSet), not this template's.
+  Grafana datasource auto-provisioning also fixes a pre-existing gap:
+  Prometheus itself was never auto-provisioned before this.
+
 ### Fixed — AUDIT R10 (documentation language + private-reference leak)
 
 - **Four `docs/audit/*.md` files translated from Spanish to English**
