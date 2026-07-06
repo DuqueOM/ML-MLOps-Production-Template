@@ -1,0 +1,32 @@
+# Grafana datasource provisioning for the docker-compose demo stack.
+# Before this file existed, a reviewer opening Grafana had to add
+# Prometheus by hand before any dashboard rendered data — a rough first
+# five minutes for anyone evaluating the template. Mounted read-only
+# into the grafana container at /etc/grafana/provisioning/datasources/.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      # Lets a Loki log line's `trace_id` label jump straight to a trace
+      # in your OTel backend — fill in the derived-field URL once you
+      # have one wired (Jaeger/Tempo/Cloud Trace/X-Ray all support a
+      # "search by trace ID" URL pattern). Left blank by default since
+      # OTEL_ENABLED is opt-in (common_utils/tracing.py) and the demo
+      # stack ships no tracing backend.
+      derivedFields:
+        - datasourceUid: ""
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: ""

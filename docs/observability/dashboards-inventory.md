@@ -24,15 +24,17 @@ a file that no longer exists.
 
 | File | Title | Primary use | Tags |
 |------|-------|-------------|------|
-| [`dashboard-template.json`](../../templates/monitoring/grafana/dashboard-template.json) | `{ServiceName} — ML Service Dashboard` | Day-to-day operations view: request rate, error rate, latency, drift, capacity. This is the first dashboard to open when a P1/P2 alert fires. | `ml-service`, `{service}` |
-| [`dashboard-closed-loop.json`](../../templates/monitoring/grafana/dashboard-closed-loop.json) | `{ServiceName} — Closed-Loop & SLO Dashboard` | Long-horizon health: SLO burn, champion/challenger, sliced AUC, prediction-logger error rate, PSI heatmap. Reviewed in the monthly performance review (see `/performance-review`). | `ml-service`, `{service}`, `closed-loop`, `slo` |
-| [`dashboard-dora.json`](../../templates/monitoring/grafana/dashboard-dora.json) | `{ServiceName} — DORA Metrics` | Delivery-performance view: deployment frequency, lead time for changes, change failure rate, MTTR, deploys vs rollbacks. Reviewed in retros and the monthly cost/performance reviews. | `dora`, `delivery`, `{service}` |
+| [`dashboard-template.json`](../../templates/service/monitoring/grafana/dashboard-template.json) | `{ServiceName} — ML Service Dashboard` | Day-to-day operations view: request rate, error rate, latency, drift, capacity. This is the first dashboard to open when a P1/P2 alert fires. | `ml-service`, `{service}` |
+| [`dashboard-closed-loop.json`](../../templates/service/monitoring/grafana/dashboard-closed-loop.json) | `{ServiceName} — Closed-Loop & SLO Dashboard` | Long-horizon health: SLO burn, champion/challenger, sliced AUC, prediction-logger error rate, PSI heatmap. Reviewed in the monthly performance review (see `/performance-review`). | `ml-service`, `{service}`, `closed-loop`, `slo` |
+| [`dashboard-dora.json`](../../templates/service/monitoring/grafana/dashboard-dora.json) | `{ServiceName} — DORA Metrics` | Delivery-performance view: deployment frequency, lead time for changes, change failure rate, MTTR, deploys vs rollbacks. Reviewed in retros and the monthly cost/performance reviews. | `dora`, `delivery`, `{service}` |
+| [`dashboard-business.json`](../../templates/service/monitoring/grafana/dashboard-business.json) | `{ServiceName} — Business KPIs Dashboard` | Business-facing view: request volume, SLA compliance, prediction mix by segment, monthly cloud cost vs. budget. Maps `project_context.kpis.business[]` to concrete panels — see `docs/observability/business-kpis.md`. | `business`, `kpi`, `{service}` |
+| [`dashboard-edge.json`](../../templates/service/monitoring/grafana/dashboard-edge.json) | `{ServiceName} — Edge Protection Dashboard` | Edge-protection coverage view: is a WAF/rate-limit wired in (D-38), how stale is the last audit, traffic reaching the origin. Deliberately does NOT duplicate per-rule WAF hit analytics — see the dashboard's own "use the native console" panel. | `edge`, `waf`, `security`, `{service}` |
 
 ---
 
 ## `dashboard-template.json` — panels
 
-Ten panels, ordered top-to-bottom as they render:
+Eleven panels, ordered top-to-bottom as they render:
 
 | # | Type | Title | Purpose |
 |---|------|-------|---------|
@@ -46,10 +48,11 @@ Ten panels, ordered top-to-bottom as they render:
 | 8 | `timeseries` | Pod CPU Usage | `container_cpu_usage_seconds_total` per replica. |
 | 9 | `timeseries` | Pod Memory Usage | `container_memory_working_set_bytes`. ML pods have fixed memory; watch for leaks. |
 | 10 | `timeseries` | HPA Replicas | `kube_horizontalpodautoscaler_status_current_replicas` — validates CPU-based scaling is actually triggering. |
+| 11 | `timeseries` | Saturation (in-flight / executor capacity) | `{service}_inference_in_flight` ÷ `{service}_inference_executor_capacity` — hits 1.0 exactly when a new request must queue. Ties to the `ExecutorSaturated` alert (monitoring-stations audit, Inference station). |
 
 **Prometheus dependencies**:
 
-- Service metrics: `{service}_requests_total`, `{service}_request_duration_seconds_bucket`, `{service}_prediction_score`, `{service}_psi_score`.
+- Service metrics: `{service}_requests_total`, `{service}_request_duration_seconds_bucket`, `{service}_prediction_score`, `{service}_psi_score`, `{service}_inference_in_flight`, `{service}_inference_executor_capacity`.
 - Kubernetes metrics: `container_cpu_usage_seconds_total`, `container_memory_working_set_bytes`, `kube_horizontalpodautoscaler_status_current_replicas`.
 
 ---
@@ -94,6 +97,65 @@ Five panels measuring delivery performance (DORA four keys + trend):
 
 ---
 
+## `dashboard-business.json` — panels
+
+Five panels — see `docs/observability/business-kpis.md` for the full
+mapping from `project_context.kpis.business[]` to these panels,
+including which ones are proxies computed from data the template
+already collects versus what an adopter must customize:
+
+| # | Type | Title | Purpose |
+|---|------|-------|---------|
+| 1 | `timeseries` | Request Volume (daily) | `{service}_requests_total` increase per day — the closest generic proxy for "usage" without knowing the adopter's actual business unit. |
+| 2 | `gauge` | SLA Compliance (30d) | Reuses the `{service}:sli:availability` recording rule already computed for the SLO burn-rate alerts — no new metric, just a longer window and a business-legible unit (%). |
+| 3 | `stat` | Monthly Cloud Cost vs. Budget | `{service}_monthly_cloud_cost_usd`, pushed by the `cost-audit` skill's Pushgateway step. The yellow/red thresholds are a manual, adopter-set value (not auto-synced to `company_context.monthly_budget_usd` — see the caveat in `business-kpis.md`). |
+| 4 | `timeseries` | Predictions by Risk Level (business segment mix) | Same `{service}_predictions_total` series as `dashboard-template.json` panel 6, re-plotted as a trend instead of a point-in-time pie — the business-review question is "is the mix shifting," not "what is it right now." |
+| 5 | `timeseries` | Error Rate impact on users (proxy) | Failed-request *count* per day, not a percentage — deliberately, since a business audience reads "140 failed requests today" faster than "0.3%". |
+
+**Prometheus dependencies**:
+
+- Service metrics: `{service}_requests_total`, `{service}_predictions_total`, `{service}_monthly_cloud_cost_usd` (new — see below).
+- Recording rules: `{service}:sli:availability` (from `slo-prometheusrule.yaml`).
+
+**What this dashboard deliberately does NOT do**: render the adopter's
+own custom `kpis.business[].name` metric generically. That metric's
+source (a Prometheus counter? a data-warehouse query? a weekly CSV
+export?) is unknown at template-authoring time, and faking a panel for
+an unspecified metric would be a worse claim-vs-reality gap than
+leaving it as an explicit adopter TODO. See `business-kpis.md`.
+
+---
+
+## `dashboard-edge.json` — panels
+
+Four panels — Edge station of the monitoring-stations audit
+(`docs/observability/monitoring-stations.md`). Populated by the
+`edge-audit` skill's Step 4b Pushgateway push (ADR-042, D-38):
+
+| # | Type | Title | Purpose |
+|---|------|-------|---------|
+| 1 | `stat` | Edge Protection Coverage | `edge_protection_enabled{overlay}` — 1 if the last audit found a valid, correctly-wired edge component; 0 if not. Ties to the `EdgeProtectionMissing` alert. |
+| 2 | `stat` | Last Audit Age | `time() - edge_protection_last_audit_timestamp{overlay}` — staleness of the coverage verdict above. Ties to the `EdgeAuditHeartbeatMissing` alert. |
+| 3 | `timeseries` | Requests Reaching Origin | `{service}_requests_total` rate — same series `dashboard-template.json` panel 1 shows, re-surfaced here as "traffic that made it past the edge layer." |
+| 4 | `text` | Deep WAF / DDoS Analytics — use the native console | Explicit pointer to Cloud Armor / WAFv2 / Cloudflare's own analytics UI, with the reasoning for NOT duplicating per-rule hit counts here. |
+
+**Prometheus dependencies**:
+
+- New metrics (Pushgateway, `edge-audit` skill Step 4b): `edge_protection_enabled`, `edge_protection_last_audit_timestamp`.
+- Service metrics: `{service}_requests_total` (panel 3, already collected).
+
+**What this dashboard deliberately does NOT do**: recreate Cloud
+Armor's / WAFv2's / Cloudflare's own per-rule hit-rate, bot-score, or
+DDoS-timeline analytics. Each provider already ships a purpose-built
+view for that, using that provider's own rule taxonomy — reimplementing
+it in Grafana would drift out of sync with whichever provider an
+adopter chose and duplicate a UI that already exists (Engineering
+Calibration Principle, `CLAUDE.md`). What this dashboard adds is the one
+signal none of those consoles can answer: whether this template's D-38
+contract (an edge component correctly wired in) currently holds.
+
+---
+
 ## How dashboards are used operationally
 
 | Incident class | Open first | Then |
@@ -101,6 +163,7 @@ Five panels measuring delivery performance (DORA four keys + trend):
 | P1 service-down, error-rate, pod-restart | `dashboard-template.json` → panels 1, 2, 8–10 | Cross-check `dashboard-closed-loop.json` panel 7 (prediction logger) for async-side errors |
 | P2 latency | `dashboard-template.json` → panel 3 | Prometheus query builder for per-endpoint breakdown |
 | P2 drift-heartbeat-missing | `dashboard-closed-loop.json` → panels 9, 10 | `kubectl describe cronjob` |
+| P2 edge-protection-missing | `dashboard-edge.json` → panel 1 | Run `/edge-setup --overlay <overlay>` |
 | P3 PSI drift alert | `dashboard-template.json` → panel 5; `dashboard-closed-loop.json` → panel 10 | Run `/drift-check <service>` |
 | Monthly performance review | `dashboard-closed-loop.json` → panels 1, 3, 4, 8 | [`performance-review` workflow](../../agentic/workflows/performance-review.md) |
 

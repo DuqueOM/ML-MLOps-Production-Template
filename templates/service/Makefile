@@ -16,7 +16,7 @@
         new-service eda drift-check retrain release-checklist rollback \
         incident-runbook performance-review cost-review new-adr \
         secret-breach-check security-audit audit-rules batch-inference doc-coherence \
-        local-loop switch-profile onboard
+        local-loop switch-profile onboard ci-green scaffold-update edge-setup
 
 # Colors
 RED    := \033[0;31m
@@ -339,6 +339,24 @@ ci-green: ## Verify GitHub Actions CI is green before promote/release/deploy (RE
 			--template '{{range .}}{{.workflowName}}{{"\t"}}{{.status}}{{"\t"}}{{.conclusion}}{{"\n"}}{{end}}'; \
 	else \
 		echo "$(YELLOW)gh CLI not found — see agentic/skills/ci-green-verify/SKILL.md$(NC)"; \
+	fi
+
+edge-setup: ## Audit edge-protection coverage for OVERLAY=gcp-prod|aws-prod (D-38, ADR-042; terraform apply itself is CONSULT — see docs/runbooks/edge-protection-setup.md)
+	@echo "$(GREEN)Checking edge-protection coverage for $(OVERLAY)...$(NC)"
+	@if [ -z "$(OVERLAY)" ]; then \
+		echo "$(RED)Usage:$(NC) make edge-setup OVERLAY=gcp-prod"; \
+		exit 1; \
+	fi
+	@if [ ! -d k8s/overlays/$(OVERLAY) ]; then \
+		echo "$(RED)Unknown overlay:$(NC) k8s/overlays/$(OVERLAY) does not exist"; \
+		exit 1; \
+	fi
+	@if command -v kubectl >/dev/null 2>&1; then \
+		kubectl kustomize k8s/overlays/$(OVERLAY)/ | \
+			grep -A2 "edge-protection.mlops-template.io/implementation" || \
+			echo "$(RED)No edge-protection component wired into $(OVERLAY).$(NC) See docs/runbooks/edge-protection-setup.md (D-38, ADR-042) — wiring the component and applying Terraform requires human approval (CONSULT), never AUTO."; \
+	else \
+		echo "$(YELLOW)kubectl not found — see agentic/skills/edge-audit/SKILL.md$(NC)"; \
 	fi
 
 security-audit: ## Run combined security audit (gitleaks + bandit + trivy)

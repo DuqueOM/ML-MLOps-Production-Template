@@ -1,0 +1,26 @@
+# =============================================================================
+# Kustomize Component — Edge Protection (AWS / WAF v2 + Shield Standard)
+# =============================================================================
+# Optional, opt-in — same contract as ../edge-gcp. Wire it in with:
+#
+#   components:
+#     - ../../components/edge-aws
+#
+# What this bundles:
+#   - An ALB-class Ingress (aws-load-balancer-controller must already be
+#     installed on the cluster — it is not part of this template's EKS
+#     bootstrap; see docs/runbooks/edge-protection-setup.md)
+#   - The WAFv2 Web ACL association via annotation, referencing the ARN
+#     Terraform outputs from templates/service/infra/terraform/aws/security.tf
+#   - Shield Standard requires no wiring — AWS enables it automatically
+#     for any resource behind an ALB/CloudFront/Route 53 at no cost;
+#     Shield Advanced (paid, ~$3k/mo) is explicitly out of scope (ADR-042)
+#
+# See docs/decisions/ADR-042-native-cloud-edge-protection.md and
+# docs/runbooks/edge-protection-setup.md for the full setup + rationale.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - ingress.yaml

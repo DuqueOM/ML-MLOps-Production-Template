@@ -1,0 +1,45 @@
+# Promtail config for the docker-compose demo stack ONLY. In a real K8s
+# deployment, log aggregation is the platform's job (Fluentd/Fluent Bit
+# DaemonSet feeding your org's Loki/CloudWatch/Cloud Logging — see
+# docs/observability/log-trace-correlation.md). This file exists purely
+# so `docker compose --profile monitoring up` gives a reviewer a working
+# logs-in-Grafana experience without provisioning a cluster.
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker service discovery — queries the Docker API directly (via the
+  # mounted docker.sock) instead of requiring a shared log volume. Picks
+  # up every container in the compose project automatically, including
+  # ones added later.
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: container
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: stream
+    pipeline_stages:
+      # The ML service and this template's other Python services emit
+      # one JSON object per line (common_utils/logging.py JSONFormatter).
+      # Parsing it here — instead of leaving logs as opaque text — is
+      # what lets a Grafana Loki query filter by request_id/trace_id/
+      # level directly, the same fields that appear in the structured
+      # access-log line (common_utils/errors.py RequestIDMiddleware).
+      - json:
+          expressions:
+            request_id: request_id
+            trace_id: trace_id
+            level: level
+      - labels:
+          level:

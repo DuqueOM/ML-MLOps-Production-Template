@@ -154,6 +154,7 @@ _PROMQL_NON_METRICS = frozenset(
         "model_version",
         "risk_level",
         "version",
+        "overlay",
         "true",
         "false",
         # Numeric literals tokenised as words (rarely appear)
@@ -162,8 +163,11 @@ _PROMQL_NON_METRICS = frozenset(
     }
 )
 
-# External (kubernetes / cAdvisor / kube-state) metrics referenced by
-# alerts but emitted by other components, not the service itself.
+# External metrics referenced by alerts but not declared via a Python
+# Gauge/Counter/Histogram in the scanned modules above — either
+# platform-emitted (kubernetes / cAdvisor / kube-state) or pushed to
+# Pushgateway by an agentic skill's own curl step (no Python declaration
+# exists to scan; see edge-audit SKILL.md Step 4b).
 EXTERNAL_METRICS = frozenset(
     {
         "up",
@@ -171,6 +175,8 @@ EXTERNAL_METRICS = frozenset(
         "container_spec_cpu_quota",
         "container_spec_cpu_period",
         "kube_pod_container_status_restarts_total",
+        "edge_protection_enabled",
+        "edge_protection_last_audit_timestamp",
     }
 )
 

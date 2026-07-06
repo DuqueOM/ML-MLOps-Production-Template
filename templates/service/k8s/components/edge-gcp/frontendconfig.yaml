@@ -1,0 +1,11 @@
+# Enforces the ADR-042 TLS floor at the load balancer: minimum TLS 1.2,
+# HTTP requests redirected to HTTPS rather than served in plaintext.
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: "{@ service_kebab @}-frontend-config"
+spec:
+  sslPolicy: "{@ service_kebab @}-ssl-policy"
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT

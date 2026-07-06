@@ -131,6 +131,8 @@ This protocol is NOT optional — every skill and workflow must map its operatio
 | Rotate a leaked secret | **STOP** | Execute `/secret-breach` workflow; never silent rotation |
 | Delete any cloud resource | **STOP** | Always |
 | Override a failing quality gate | **STOP** | Requires ADR documenting why |
+| `terraform apply` of edge-protection resources (Cloud Armor / WAFv2 / Cloudflare), ANY environment | **CONSULT** | Never downgrades to AUTO in dev — public exposure + cost do not shrink because the environment label says "dev" (D-38, ADR-042) |
+| Disable, remove, or loosen an existing WAF/rate-limit rule, ANY environment | **STOP** | Always, regardless of environment or urgency — mirrors `rollback`'s environment-independent STOP (D-38, ADR-042) |
 
 ### Escalation triggers (automatic STOP)
 
@@ -273,6 +275,7 @@ GitHub Actions flow with required_reviewers.
 | D-35 | A `local` stack profile that accepts cloud credentials or targets a cluster | The `local` profile (`configs/profiles/local.yaml`) MUST set `requires.cloud_credentials: false`, `requires.kubernetes: false`, `requires.docker: false`, and `deploy.enabled: false`. A local profile that imports cloud creds or targets a cluster violates the local-first contract (ADR-033). Enforced by `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps` |
 | D-36 | Promoting, tagging, or deploying without a verified-green CI check, or overriding a red/missing check without STOP-class human approval + an audit record | `/release` and `deploy-gke`/`deploy-aws` (staging/prod) MUST invoke `ci-green-verify` (AUTO, read-only) as a hard precondition before proceeding. Overriding a red/missing verdict is always STOP, regardless of environment or urgency, and MUST produce a `scripts/audit_record.py` entry before the gated action proceeds (ADR-039). Enforced by the wiring in `agentic/workflows/release.md` step 1 and the deploy skills' Step 0; `validate_agentic_manifest.py --strict` forbids any `escalation_override` de-escalating this mode |
 | D-37 | Non-English prose or a private/personal repo name committed to `docs/` or a root-level doc in this public repo | This repo's documentation is English-only; a private companion repo (e.g. a personal study guide) MUST never be named, linked, or otherwise referenced here — not even as a "why this design" aside. AUDIT R10 (2026-07-02) found four `docs/audit/*.md` files fully in Spanish and one private repo named across 6 files, including a dead clickable URL. Enforced by `scripts/check_doc_coherence.py` C7 (`check_doc_language_and_privacy`), which scans every tracked `docs/**/*.md` and root `*.md` for a curated Spanish-word list and a private-repo denylist (ADR-040) |
+| D-38 | A production Ingress with no edge-protection component wired in, or disabling/loosening an existing WAF/rate-limit rule without STOP-class approval | Every `gcp-prod`/`aws-prod` overlay MUST reference the matching `k8s/components/edge-{gcp,aws}/` Kustomize Component (Cloud Armor / AWS WAFv2 + Shield Standard by default; Cloudflare optional for genuine multi-cloud, ADR-042). The resulting Ingress MUST carry a non-empty `edge-protection.mlops-template.io/implementation` annotation. `terraform apply` of these resources is CONSULT in every environment including dev (public exposure + cost do not shrink because the label says "dev"); disabling or loosening an existing rule is STOP in every environment, no exceptions. Enforced by `tests/policy/test_anti_patterns.py::test_d38_edge_component_carries_implementation_annotation` and the `edge-audit` skill |
 
 ## Session Initialization Protocol
 
@@ -325,6 +328,7 @@ When starting a new session in a project derived from this template:
 - `diagnose-bug` — systematic non-ML-serving bug diagnosis: reproduce → minimize → hypothesize → instrument → fix → regression-test (ADR-041)
 - `new-service-spec` — capture the ML problem spec (label, fairness attribute, cost asymmetry) BEFORE scaffolding, so `quality_gates.yaml` thresholds trace to a real answer (ADR-041)
 - `incident-postmortem` — blameless post-incident review after `/incident`/`/rollback`/`/secret-breach`: timeline from primary sources, 5-whys, owned action items (ADR-041)
+- `edge-audit` — scan a service for edge-protection coverage (WAF, DDoS mitigation, rate limiting) against D-38; AUTO/read-only, mirrors `rule-audit` for one invariant domain (ADR-042)
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -344,11 +348,12 @@ When starting a new session in a project derived from this template:
 - `/onboard` — generate adopter context file (interview + validate, no secrets)
 - `/doc-coherence` — restore + verify cross-document coherence (version, CHANGELOG, ADRs, anti-pattern + surface counts)
 - `/ci-green` — verify CI status for a ref before a promote/release/deploy action (D-36, ADR-039)
+- `/edge-setup` — wire native-cloud edge protection (Cloud Armor / AWS WAF+Shield) or optional Cloudflare into an overlay; CONSULT for apply in any environment, STOP for disabling an existing rule (D-38, ADR-042)
 
 ## Agentic Configuration
 
 ```
-agentic/                                # Canonical agentic source (ADR-027) — 17 rules, 25 skills, 17 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 18 rules, 26 skills, 18 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
@@ -366,8 +371,9 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── 13-closed-loop-monitoring.md    # glob: prediction_logger/ground_truth/performance_monitor — D-20/21/22
 │   ├── 14-api-contracts.md             # glob: **/app/schemas.py, **/tests/contract/** — D-28, OpenAPI snapshot + semver
 │   ├── 15-template-lifecycle.md        # glob: copier.yml, templates/service/** — D-33/34, Copier scaffolding invariants
-│   └── 16-doc-coherence.md             # glob: VERSION, CHANGELOG.md, llms.txt, docs/decisions/** — cross-doc coherence (ADR-031)
-├── skills/                             # 25 multi-step operational procedures
+│   ├── 16-doc-coherence.md             # glob: VERSION, CHANGELOG.md, llms.txt, docs/decisions/** — cross-doc coherence (ADR-031)
+│   └── 17-edge-protection.md           # glob: **/ingress*.yaml, k8s/components/edge-*/**, infra/terraform WAF/security-policy/cloudflare — D-38 (ADR-042)
+├── skills/                             # 26 multi-step operational procedures
 │   ├── batch-inference/SKILL.md
 │   ├── ci-green-verify/SKILL.md
 │   ├── concept-drift-analysis/SKILL.md
@@ -379,6 +385,7 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── doc-coherence/SKILL.md
 │   ├── drift-detection/SKILL.md
 │   ├── eda-analysis/SKILL.md
+│   ├── edge-audit/SKILL.md
 │   ├── incident-postmortem/SKILL.md
 │   ├── model-retrain/SKILL.md
 │   ├── new-service/SKILL.md
@@ -393,11 +400,12 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── security-audit/SKILL.md
 │   ├── stack-switch/SKILL.md
 │   └── template-onboard/SKILL.md
-└── workflows/                          # 17 slash-command workflows
+└── workflows/                          # 18 slash-command workflows
     ├── ci-green.md                     # /ci-green
     ├── cost-review.md                  # /cost-review
     ├── doc-coherence.md                # /doc-coherence
     ├── drift-check.md                  # /drift-check
+    ├── edge-setup.md                   # /edge-setup (CONSULT-class)
     ├── eda.md                          # /eda
     ├── incident.md                     # /incident
     ├── load-test.md                    # /load-test
@@ -439,6 +447,7 @@ workflow rather than getting its own.
 | Non-trivial PR/diff ready for merge | `pr-review` | — (skill-only) |
 | Non-ML-serving bug report | `diagnose-bug` | — (skill-only) |
 | Incident resolved | `incident-postmortem` | chains from `/incident` (after closure) |
+| Pre-deploy check / scheduled edge-coverage review | `edge-audit` | `/edge-setup` (if a FAIL needs wiring) |
 
 ## Multi-IDE Support
 
@@ -453,29 +462,29 @@ python3 scripts/validate_agentic_manifest.py --strict
 ```
 
 ```
-agentic/rules/         # CANONICAL rules: 15 files (humans edit here)
-agentic/skills/        # CANONICAL skills: 16 SKILL.md files
-agentic/workflows/     # CANONICAL workflows: 12 files
+agentic/rules/         # CANONICAL rules: 18 files (humans edit here)
+agentic/skills/        # CANONICAL skills: 26 SKILL.md files
+agentic/workflows/     # CANONICAL workflows: 18 files
 
-.devin/rules/          # generated MIRROR (full bodies): 15 files
-.devin/skills/         # generated MIRROR: 16 SKILL.md files
-.devin/workflows/      # generated MIRROR: 12 files
+.devin/rules/          # generated MIRROR (full bodies): 18 files
+.devin/skills/         # generated MIRROR: 26 SKILL.md files
+.devin/workflows/      # generated MIRROR: 18 files
 
-.cursor/rules/         # generated rule pointers: 15 .mdc files
-.cursor/skills/        # generated skill pointers + INDEX.md: 16 skills
-.cursor/commands/      # generated workflow pointers: 12 commands
+.cursor/rules/         # generated rule pointers: 18 .mdc files
+.cursor/skills/        # generated skill pointers + INDEX.md: 26 skills
+.cursor/commands/      # generated workflow pointers: 18 commands
 
-.claude/rules/         # generated rule pointers: 15 .md files
-.claude/skills/        # generated skill pointers + INDEX.md: 16 skills as <id>/SKILL.md (Claude Code discoverable layout)
-.claude/commands/      # generated workflow pointers: 12 commands
+.claude/rules/         # generated rule pointers: 18 .md files
+.claude/skills/        # generated skill pointers + INDEX.md: 26 skills as <id>/SKILL.md (Claude Code discoverable layout)
+.claude/commands/      # generated workflow pointers: 18 commands
 
-.codex/rules/          # generated rule pointers: 15 .md files
-.codex/skills/         # generated skill pointers: 16 skills
-.codex/workflows/      # generated workflow pointers: 12 workflows
+.codex/rules/          # generated rule pointers: 18 .md files
+.codex/skills/         # generated skill pointers: 26 skills
+.codex/workflows/      # generated workflow pointers: 18 workflows
 .codex/automations/    # Codex-specific schedules/events, never STOP writes
 ```
 
-Note: the project often says "14 rules" because rule 04 is split into `04a-python-serving` and `04b-python-training`. The on-disk canonical set is therefore 15 files.
+Note: the project often says "17 rules" because rule 04 is split into `04a-python-serving` and `04b-python-training`. The on-disk canonical set is therefore 18 files.
 
 ### IDE Parity Matrix (manifest-enforced)
 

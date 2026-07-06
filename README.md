@@ -11,7 +11,7 @@ Opinionated, production-grade template for building and operating ML systems on 
 [![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
 [![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
-[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-37%20encoded-red.svg)](#anti-patterns-encoded)
+[![Anti-Patterns](https://img.shields.io/badge/anti--patterns-38%20encoded-red.svg)](#anti-patterns-encoded)
 [![Agentic](https://img.shields.io/badge/agentic-Devin_%7C_Cursor_%7C_Claude_%7C_Codex-blueviolet.svg)](#agentic-system)
 
 ```bash
@@ -47,12 +47,12 @@ Four open-source projects are widely treated as references in the MLOps space. T
 | **Primary optimization** | Production discipline + governance | Teaching the *why* | Recognizable project structure | Infra-agnostic pipelines | Full ML platform (pipelines, KServe, Katib) |
 | **Production hardening** | leader | medium | low | medium | high |
 | **Multi-cloud (GKE + EKS)** | leader | no | no | via stacks | via distro |
-| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 37 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium | low (platform, not policy) |
+| **Governance / supply chain** | unique (AUTO/CONSULT/STOP, 38 anti-patterns, cosign/SBOM/Kyverno) | low | no | medium | low (platform, not policy) |
 | **Entry friction** | medium (local-first profile, `copier copy`) | medium | very low | low | very high (needs a platform team) |
 | **Standardized scaffolding** | Copier | n/a | de-facto | CLI | n/a |
 | **Pedagogy / learning arc** | narrated tutorial + anti-pattern walk-through | leader | medium | good | low |
 
-**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 37 contract-tested anti-patterns.
+**What makes this template special** — and what no reference above ships — is the agentic spine: a vendor-neutral canonical rule store ([ADR-027](docs/decisions/ADR-027-vendor-neutral-canonical-surface.md)) read natively by Cursor, Devin, Claude Code, and Codex, governed by a three-mode behavior protocol (AUTO/CONSULT/STOP) with dynamic risk escalation, and 38 contract-tested anti-patterns.
 
 **Where we are improving adoption** — standardized scaffolding (Copier), a local-first on-ramp (stack profiles), a recognizable layout, and a guided tutorial — is tracked transparently in [`docs/audit/ACTION_PLAN_ADAPTABILITY.md`](docs/audit/ACTION_PLAN_ADAPTABILITY.md). Every one of those improvements is required to flow through the canonical agentic layer, so adoption ergonomics never dilute the governance that differentiates the template.
 
@@ -304,7 +304,7 @@ The governance pattern is now single-source:
 - `templates/config/agentic_manifest.yaml` declares which surfaces consume each asset.
 - `.cursor/`, `.claude/`, and `.codex/` contain generated pointer adapters only.
 
-Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 17 rule files, 25 skills, and 17 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "17 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
+Run `make agentic-sync` after changing the manifest or canonical `agentic/` files, then `make validate-agentic` to prove parity. Today the manifest exposes the same 18 rule files, 26 skills, and 18 workflows to Devin, Cursor, Claude, and Codex. The project shorthand "18 rules" refers to the numbered policy set; on disk, rule 04 is split into serving and training files.
 
 ### Static decision protocol
 
@@ -507,7 +507,7 @@ How the two repositories integrate (they are **deliberately separate**, never me
 
 ## Anti-patterns encoded
 
-The template encodes and audits 37 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
+The template encodes and audits 38 production anti-patterns across serving, training, Kubernetes, Terraform, security, observability, and delivery.
 
 | ID | Anti-pattern | Corrective action |
 |----|--------------|-------------------|
@@ -548,6 +548,7 @@ The template encodes and audits 37 production anti-patterns across serving, trai
 | D-35 | `local` stack profile accepts cloud credentials or targets a cluster | A `local` profile MUST have `requires.kubernetes`, `requires.docker`, `requires.terraform` all `false` and `deploy.enabled` is `false`. Enforced by `tests/policy/test_anti_patterns.py::test_d35_local_profile_no_cloud_deps`. |
 | D-36 | Promoting, tagging, or deploying without verified-green CI, or overriding red/missing without STOP-class approval | `/release` and `deploy-gke`/`deploy-aws` (staging/prod) invoke `ci-green-verify` (AUTO) as a hard precondition; an override MUST produce a `scripts/audit_record.py` entry. Enforced by the wiring in `agentic/workflows/release.md` + the deploy skills' Step 0 (ADR-039). |
 | D-37 | Non-English documentation or a private/personal repo reference committed to `docs/` or a root doc | This repo's documentation is English-only; a private companion repo must never be named or linked here. Enforced by `scripts/check_doc_coherence.py` C7 (ADR-040). |
+| D-38 | Public inference Ingress without an edge-protection component, or disabling/loosening an existing WAF/rate-limit rule | Native-cloud-first: Cloud Armor (GCP) / AWS WAFv2 + Shield Standard (AWS) by default via opt-in Kustomize Components; Cloudflare optional for genuine multi-cloud. `terraform apply` is CONSULT in every environment; disabling a rule is STOP in every environment. Enforced by `tests/policy/test_anti_patterns.py::test_d38_edge_component_carries_implementation_annotation` (ADR-042). |
 
 The full invariant text and operating rules live in [AGENTS.md](AGENTS.md).
 
@@ -769,7 +770,7 @@ For platform reviewers asking *"is this ready for our org?"* and teams that want
 - **Non-agentic on-ramp**: every `/slash` workflow has a `make` equivalent or runbook reference; teams that don't use AI assistants get the same safety guarantees through `make` targets and contract tests
 - **Explicit non-claims**: what the template does NOT cover (multi-region active-active, compliance certifications, LLM serving, mobile/edge inference). *LLM serving is intentionally out of scope here and lives in the sibling [`agent-local`](https://github.com/DuqueOM/agent-local) repo — see "Local model plane" above.*
 
-The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-37) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
+The agentic surface is a productivity multiplier; it is not a load-bearing component of the template's safety guarantees. All production invariants (D-01..D-38) live in tests, CI workflows, and Kyverno policies — not in agent behavior.
 
 ---
 

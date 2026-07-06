@@ -139,3 +139,59 @@ groups:
           summary: "{@ service_slug @} pod restarting"
           description: "Container has restarted {{ $value }} times in the last 15 minutes."
           runbook_url: "docs/runbooks/runbook-template.md#p4-pod-restart"
+
+      # --- P4: Executor Saturation (monitoring-stations audit — Inference station) ---
+      - alert: "{@ service_slug @}ExecutorSaturated"
+        expr: |
+          sum({@ service_slug @}_inference_in_flight)
+          / sum({@ service_slug @}_inference_executor_capacity) >= 1.0
+        for: 5m
+        labels:
+          severity: info
+          service: "{@ service_kebab @}"
+          action: notify
+        annotations:
+          summary: "Inference executor saturated for {@ service_slug @}"
+          description: "Every ThreadPoolExecutor slot has been busy for 5+ minutes — new requests are queueing before they can start."
+          runbook_url: "docs/runbooks/runbook-template.md#p4-executor-saturation-capacity-planning"
+
+  - name: "{@ service_kebab @}-edge-protection"
+    rules:
+      # --- P2: Edge Protection Coverage Missing (D-38, ADR-042) ---
+      # The last edge-audit run (edge-audit SKILL.md Step 4b) reported this
+      # overlay as unprotected. Distinct from the heartbeat alert below:
+      # this fires on a KNOWN-BAD verdict, not on staleness.
+      - alert: "{@ service_slug @}EdgeProtectionMissing"
+        expr: edge_protection_enabled{overlay=~".*-prod"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: "{@ service_kebab @}"
+          action: ticket
+        annotations:
+          summary: "Production overlay {{ $labels.overlay }} has no edge protection wired in"
+          description: |
+            The last `edge-audit` run for {@ service_slug @} reported overlay
+            {{ $labels.overlay }} as unprotected (D-38 violation). Run:
+              /edge-setup --overlay {{ $labels.overlay }}
+          runbook_url: "docs/runbooks/edge-protection-setup.md#coverage-missing"
+
+      # --- P3: Edge Audit Heartbeat Missing ---
+      # If the edge-audit skill/workflow stops running entirely, the coverage
+      # panel above goes stale and silently stops catching real drift (e.g. an
+      # adopter manually removes the component and nothing re-audits it).
+      # Mirrors the drift-detection heartbeat pattern (D-09) for this station.
+      - alert: "{@ service_slug @}EdgeAuditHeartbeatMissing"
+        expr: time() - edge_protection_last_audit_timestamp > 1209600
+        for: 10m
+        labels:
+          severity: info
+          service: "{@ service_kebab @}"
+          action: notify
+        annotations:
+          summary: "No edge-audit run in 14 days for {@ service_slug @}"
+          description: |
+            {{ $labels.overlay }} hasn't been re-audited for edge-protection
+            coverage in {{ $value | humanizeDuration }}. Run `edge-audit`
+            (or `make edge-setup OVERLAY={{ $labels.overlay }}`) to refresh.
+          runbook_url: "docs/runbooks/edge-protection-setup.md#audit-heartbeat"

@@ -139,6 +139,7 @@ inheriting the agentic surface.
 | `/stack-switch` | `make switch-profile PROFILE=local\|staging\|prod` | `agentic/skills/stack-switch/SKILL.md` (ADR-033) |
 | `/onboard` | `make onboard` (copies `config/adopter_context.example.yaml`, prints the schema-validation command) | `agentic/skills/template-onboard/SKILL.md` (ADR-029 Wave 3) |
 | `/ci-green` | `make ci-green REF=<branch-or-sha>` (lists workflow run status via `gh`) | `agentic/skills/ci-green-verify/SKILL.md` (D-36, ADR-039) |
+| `/edge-setup` | `make edge-setup OVERLAY=<gcp-prod\|aws-prod\|...>` (renders the overlay, checks the edge-protection annotation) | `agentic/skills/edge-audit/SKILL.md` (D-38, ADR-042) |
 
 ### Skill → CLI / runbook map
 
@@ -157,7 +158,8 @@ underlying CLI tool plus the corresponding human runbook:
 | `cost-audit` | `make cost-review` + `docs/runbooks/cost-review.md` |
 | `security-audit` | `make security-audit` (gitleaks + bandit + trivy) |
 | `secret-breach-response` | `make secret-breach-check` + `docs/runbooks/secret-breach.md` |
-| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-35 are documented) |
+| `rule-audit` | `make audit-rules` (validates AGENTS.md invariants D-01..D-38 are documented) |
+| `edge-audit` | `make edge-setup OVERLAY=<overlay>` (audits edge-protection coverage; D-38, ADR-042) |
 | `doc-coherence` | `make doc-coherence` (cross-document coherence gate; rule 16, ADR-031) |
 | `stack-switch` | `make switch-profile PROFILE=<local\|staging\|prod>` (ADR-033) |
 | `template-onboard` | `make onboard` (ADR-029 Wave 3) |

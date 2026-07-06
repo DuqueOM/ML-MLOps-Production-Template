@@ -85,6 +85,31 @@ cat drift_report.json | python -m json.tool
 - Document in weekly review
 - Schedule proactive retraining if trend continues
 
+## P4 — Executor Saturation (capacity planning)
+
+### Symptoms
+- `ExecutorSaturated` fired: `inference_in_flight / inference_executor_capacity`
+  has held at or near 1.0 for 5+ minutes — every inference thread is busy,
+  new requests are queueing behind `run_in_executor` before they can start.
+- Usually shows up alongside rising p95/p99 latency (not yet an SLO burn,
+  but the leading indicator of one).
+
+### Actions
+
+- Check the Saturation panel (`dashboard-template.json`) to confirm this
+  is sustained, not a brief spike from a batch job.
+- If HPA has headroom (`current < maxReplicas`), confirm the CPU-based
+  scale-up is actually happening — a saturated executor with idle CPU
+  margin usually means `INFERENCE_THREADPOOL_WORKERS` is capped too low
+  for the pod's CPU limit, not a scaling problem.
+- If HPA is already at `maxReplicas`, this is real capacity pressure —
+  raise `maxReplicas` (`hpa.yaml`) or increase per-pod CPU limit (which
+  raises the auto-detected thread count via `INFERENCE_CPU_LIMIT`).
+- Do NOT raise `INFERENCE_THREADPOOL_WORKERS` past the pod's CPU limit —
+  more threads than cores just adds context-switch overhead without
+  adding real throughput (D-01 class reasoning, see
+  `agentic/rules/04a-python-serving.md`).
+
 ## Health Checks
 
 ```bash

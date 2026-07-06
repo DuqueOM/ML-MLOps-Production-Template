@@ -433,6 +433,79 @@ def test_d35_local_profile_no_cloud_deps(scaffold_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# D-38: Edge-protection component Ingress must carry a valid implementation
+# annotation naming its edge-protection backend (ADR-042).
+# ---------------------------------------------------------------------------
+
+_D38_VALID_IMPLEMENTATIONS = {"cloud-armor", "aws-waf", "cloudflare"}
+_D38_EXPECTED_BY_COMPONENT = {
+    "edge-gcp": "cloud-armor",
+    "edge-aws": "aws-waf",
+}
+
+
+@pytest.mark.parametrize("component", sorted(_D38_EXPECTED_BY_COMPONENT))
+def test_d38_edge_component_carries_implementation_annotation(scaffold_dir: Path, component: str) -> None:
+    """Every edge-protection Kustomize Component's Ingress must carry a
+    non-empty `edge-protection.mlops-template.io/implementation` annotation
+    whose value is a recognized backend AND matches the component's own
+    cloud.
+
+    Invariant: this annotation is the ONLY signal the `edge-audit` skill and
+    downstream tooling trust to confirm coverage (rule 17-edge-protection.md:
+    "the annotation is not decorative") — a missing or mismatched value means
+    a service could silently ship with no real WAF/DDoS protection while
+    looking protected. The component is opt-in (not wired into any overlay by
+    default, matching D-35's local-first philosophy), so this test does not
+    assert every overlay uses it — only that the component itself is correct
+    when an adopter does wire it in (AGENTS.md D-38, ADR-042).
+    """
+    ingress_yaml = scaffold_dir / "k8s" / "components" / component / "ingress.yaml"
+    assert ingress_yaml.is_file(), f"D-38 violation: {ingress_yaml} not produced by scaffolder"
+
+    yaml = pytest.importorskip("yaml")
+    data = yaml.safe_load(ingress_yaml.read_text(encoding="utf-8"))
+
+    assert data.get("kind") == "Ingress", f"D-38 violation: {ingress_yaml} does not define an Ingress"
+    annotations = data.get("metadata", {}).get("annotations", {})
+    implementation = annotations.get("edge-protection.mlops-template.io/implementation")
+
+    assert implementation, f"D-38 violation: {ingress_yaml} is missing the edge-protection implementation annotation"
+    assert implementation in _D38_VALID_IMPLEMENTATIONS, (
+        f"D-38 violation: {ingress_yaml} annotation value {implementation!r} is not one of "
+        f"{sorted(_D38_VALID_IMPLEMENTATIONS)}"
+    )
+    expected = _D38_EXPECTED_BY_COMPONENT[component]
+    assert implementation == expected, (
+        f"D-38 violation: {ingress_yaml} is the {component} component but declares "
+        f"implementation={implementation!r} (expected {expected!r}) — looks like copy-paste drift "
+        f"from the wrong component"
+    )
+
+
+def test_d38_edge_component_ingress_has_no_bypassing_loadbalancer_service(scaffold_dir: Path) -> None:
+    """No plain `LoadBalancer`-type Service should exist for the same base
+    workload the edge components protect — such a Service would let traffic
+    reach the pod directly, bypassing the Ingress (and therefore the WAF)
+    entirely (rule 17-edge-protection.md: "never bypass the cloud LB").
+
+    This checks the scaffolder's own `k8s/base/` output, which is what every
+    overlay (with or without an edge component) builds on.
+    """
+    service_yaml = scaffold_dir / "k8s" / "base" / "service.yaml"
+    if not service_yaml.is_file():
+        pytest.skip("k8s/base/service.yaml not produced by scaffolder")
+
+    yaml = pytest.importorskip("yaml")
+    data = yaml.safe_load(service_yaml.read_text(encoding="utf-8"))
+
+    assert data.get("spec", {}).get("type") != "LoadBalancer", (
+        f"D-38 violation: {service_yaml} is type LoadBalancer — this exposes the pod directly, "
+        f"bypassing the Ingress (and any edge-protection component wired onto it)"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Process-only anti-patterns — documented but not statically inspectable.
 # These SKIP explicitly so the coverage table stays complete.
 # ---------------------------------------------------------------------------

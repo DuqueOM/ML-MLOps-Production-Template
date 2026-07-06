@@ -1,0 +1,11 @@
+# Google-managed TLS certificate — provisioned and renewed automatically;
+# no adopter-managed secret, no rotation runbook needed for this cert.
+# TODO: replace {DOMAIN} with the adopter's real hostname (must match
+# ingress.yaml's spec.rules[].host exactly).
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: "{@ service_kebab @}-cert"
+spec:
+  domains:
+    - "{DOMAIN}"

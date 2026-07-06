@@ -245,3 +245,47 @@ variable "budget_notification_emails" {
   type        = list(string)
   default     = []
 }
+
+# ----------------------------------------------------------------------
+# Edge protection — Cloud Armor (ADR-042, D-38)
+# ----------------------------------------------------------------------
+variable "enable_edge_protection" {
+  description = <<-EOT
+    Create the Cloud Armor security policy + SSL policy in security.tf.
+    Defaults to false — these are public-facing security resources that
+    should only be created after a deliberate adopter decision (`/edge-setup`,
+    CONSULT in every environment per ADR-042 §2.2), never as a side effect
+    of an unrelated `terraform apply`.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "waf_mode" {
+  description = <<-EOT
+    Action for the OWASP preconfigured WAF rules: "count" (observe matches,
+    take no action — the recommended starting point to measure false
+    positives against real traffic) or "deny(403)" (actually block). See
+    docs/runbooks/edge-protection-setup.md for the graduation process.
+  EOT
+  type        = string
+  default     = "count"
+
+  validation {
+    condition     = contains(["count", "deny(403)"], var.waf_mode)
+    error_message = "waf_mode must be 'count' or 'deny(403)'."
+  }
+}
+
+variable "rate_limit_requests_per_minute" {
+  description = <<-EOT
+    Per-IP request threshold over a 60-second window before Cloud Armor
+    responds 429 (throttle, not a hard ban). Starting point only — tune per
+    service based on observed p99 request rate. NOTE: not directly comparable
+    to the AWS module's rate_limit_requests_per_5min (WAFv2 rate-based rules
+    use a fixed 5-minute window, a different mechanism) — see the
+    cloud-equivalence matrix in docs/runbooks/edge-protection-setup.md.
+  EOT
+  type        = number
+  default     = 600
+}

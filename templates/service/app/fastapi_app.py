@@ -235,6 +235,21 @@ prediction_log_errors_total = Counter(
     "Prediction-log errors swallowed by D-22 contract",
 )
 
+# Saturation instrumentation (monitoring-stations audit, Inference station).
+# `inference_in_flight / inference_executor_capacity` is the saturation
+# ratio: it hits 1.0 exactly when a new request cannot start a thread and
+# must wait — the same fact `ThreadPoolExecutor._work_queue.qsize()` would
+# report, without depending on a private CPython attribute.
+inference_in_flight = Gauge(
+    f"{_METRIC_PREFIX}_inference_in_flight",
+    "Requests currently executing inside the inference ThreadPoolExecutor",
+)
+inference_executor_capacity = Gauge(
+    f"{_METRIC_PREFIX}_inference_executor_capacity",
+    "Configured ThreadPoolExecutor max_workers (the saturation denominator)",
+)
+inference_executor_capacity.set(_INFERENCE_WORKERS)
+
 
 # ---------------------------------------------------------------------------
 # Model loading — called once at startup, can be called again for hot-reload
@@ -655,10 +670,14 @@ async def predict(input_data: PredictionRequest, explain: bool = False) -> Predi
         # schema would reach the model. Phase 1.2 closes the gap.)
         validate_predict_payload(input_dict, get_pandera_schema())
 
-        result = await loop.run_in_executor(
-            _inference_executor,
-            partial(_sync_predict, input_dict, explain),
-        )
+        inference_in_flight.inc()
+        try:
+            result = await loop.run_in_executor(
+                _inference_executor,
+                partial(_sync_predict, input_dict, explain),
+            )
+        finally:
+            inference_in_flight.dec()
         requests_total.labels(status="200").inc()
 
         prediction_id = uuid4().hex
@@ -731,10 +750,14 @@ async def predict_batch(request: BatchPredictionRequest) -> BatchPredictionRespo
         # callers can rely on "200 ⇒ every prediction is schema-valid".
         validate_predict_batch(feature_inputs, get_pandera_schema())
 
-        results = await loop.run_in_executor(
-            _inference_executor,
-            partial(_sync_predict_batch, feature_inputs),
-        )
+        inference_in_flight.inc()
+        try:
+            results = await loop.run_in_executor(
+                _inference_executor,
+                partial(_sync_predict_batch, feature_inputs),
+            )
+        finally:
+            inference_in_flight.dec()
         requests_total.labels(status="200").inc()
 
         batch_latency_ms = (time.perf_counter() - request_start) * 1000

@@ -220,6 +220,33 @@ class TestMetricsEndpoint:
 
 
 # ---------------------------------------------------------------------------
+# Saturation gauges (monitoring-stations audit — Inference station)
+# ---------------------------------------------------------------------------
+class TestSaturationMetrics:
+    """`inference_in_flight` / `inference_executor_capacity` — the two
+    gauges the Saturation panel and ExecutorSaturated alert depend on.
+    """
+
+    def test_executor_capacity_is_reported(self, client: TestClient) -> None:
+        body = client.get("/metrics").text
+        assert "inference_executor_capacity" in body
+
+    def test_in_flight_returns_to_zero_after_request(self, client: TestClient, valid_payload: dict) -> None:
+        import re
+
+        # inc/dec is wrapped in try/finally around run_in_executor — by the
+        # time the synchronous TestClient call returns, the gauge must be
+        # back at 0 even though the request succeeded (this is the
+        # regression test for the finally: block, not just the inc()).
+        client.post("/predict", json=valid_payload)
+        body = client.get("/metrics").text
+        assert re.search(r"^\S*inference_in_flight\s+0\.0$", body, re.MULTILINE), (
+            "inference_in_flight did not return to 0 after the request completed — "
+            "the finally: block around run_in_executor may be missing."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Model metadata `/model/info`
 # ---------------------------------------------------------------------------
 class TestModelInfoEndpoint:

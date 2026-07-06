@@ -12,6 +12,8 @@ and the runbook that consumes it.
 | ML service overview | `dashboard-template.json` | On-call SRE / ML engineer | Prometheus `<service>_*` metrics emitted by FastAPI app | `docs/runbooks/incident.md` |
 | Closed-loop monitoring | `dashboard-closed-loop.json` | ML engineer / data scientist | Prediction logger + drift CronJob output | `docs/runbooks/closed-loop-sla.md`, `docs/decisions/ADR-008-champion-challenger.md` |
 | DORA delivery metrics | `dashboard-dora.json` | Engineering manager / Staff+ | `dora_*` Prometheus series (see Pipeline below) | `/performance-review` workflow |
+| Business KPIs | `dashboard-business.json` | Product owner / business stakeholder | `<service>_*` metrics + `<service>_monthly_cloud_cost_usd` (see Pipeline below) | `docs/observability/business-kpis.md` |
+| Edge protection | `dashboard-edge.json` | Platform / security engineer | `edge_protection_enabled` + `edge_protection_last_audit_timestamp` (see Pipeline below) | `docs/runbooks/edge-protection-setup.md` |
 
 ## Pipeline contract per dashboard
 
@@ -53,6 +55,40 @@ A reference CronJob is intentionally NOT shipped with the template
 (every adopter's Pushgateway endpoint, auth, and retention policy
 differ). The contract is fully documented here so the wiring is
 mechanical.
+
+### `dashboard-business.json`
+
+Mostly direct: request volume, SLA compliance, and prediction mix reuse
+metrics/recording rules the FastAPI app and `slo-prometheusrule.yaml`
+already emit — no additional plumbing.
+
+The one series that needs wiring is `<service>_monthly_cloud_cost_usd`.
+Same pattern as DORA above: the `cost-audit` skill computes the number
+(see its SKILL.md "Push to Pushgateway" step) and pushes it as a gauge
+tagged `service="<scaffolded slug>"`. Cadence is monthly, matching the
+skill's own review cycle — this is intentionally NOT a real-time cost
+exporter (see `docs/observability/business-kpis.md` for why that would
+be over-engineering at this template's scale).
+
+The dashboard's cost-vs-budget coloring threshold is a manually-set
+Grafana field value, not a second synced metric — update it to match
+your own `company_context.monthly_budget_usd` after scaffolding.
+
+### `dashboard-edge.json`
+
+Neither series is emitted by the FastAPI app — both are pushed by the
+`edge-audit` skill's Step 4b (`agentic/skills/edge-audit/SKILL.md`),
+one push per overlay audited:
+
+- `edge_protection_enabled{overlay}` — gauge, 1 or 0.
+- `edge_protection_last_audit_timestamp{overlay}` — gauge, unix time
+  of the push itself.
+
+Run `edge-audit` (or `make edge-setup OVERLAY=<overlay>`) at least
+once per overlay after scaffolding, and periodically thereafter — the
+`EdgeAuditHeartbeatMissing` alert fires if no push lands within 14
+days, since a stale coverage verdict is worse than an honestly-missing
+one (it looks protected when nobody has actually checked recently).
 
 ## Adding a new dashboard
 

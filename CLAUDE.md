@@ -52,7 +52,7 @@ When starting a new session:
 - **ALWAYS** compatible release pinning (`~=`) — `numpy 2.x` corrupts joblib models
 - **ALWAYS** ADR for non-trivial decisions
 
-## Anti-Patterns (D-01 to D-37)
+## Anti-Patterns (D-01 to D-38)
 
 Compact summary; full table with corrective actions in `AGENTS.md`.
 
@@ -71,10 +71,11 @@ Compact summary; full table with corrective actions in `AGENTS.md`.
 | D-35 | `local` stack profile must not accept cloud credentials or target a cluster (ADR-033) |
 | D-36 | Promoting/deploying without verified-green CI, or overriding red without STOP-class approval (ADR-039) |
 | D-37 | Non-English documentation or a private/personal repo reference committed to this public repo (ADR-040) |
+| D-38 | Public inference Ingress without an edge-protection component (Cloud Armor/AWS WAF), or disabling/loosening an existing WAF/rate-limit rule (ADR-042) |
 
 The full anti-pattern table with corrective actions and file references
 lives in `AGENTS.md`. The `rule-audit` skill scans a service against
-all 37 invariants and reports file:line evidence for any failure.
+all 38 invariants and reports file:line evidence for any failure.
 
 ## Key Commands
 
@@ -96,7 +97,7 @@ kustomize build templates/k8s/base/ > /dev/null
 ## File Structure
 
 ```
-AGENTS.md              → Full architecture, invariants D-01..D-37, anti-patterns (canonical source)
+AGENTS.md              → Full architecture, invariants D-01..D-38, anti-patterns (canonical source)
 CLAUDE.md              → This file (Claude Code context, condensed)
 QUICK_START.md         → 10-minute setup guide (standalone)
 RUNBOOK.md             → Template operations reference
@@ -106,7 +107,8 @@ docs/runbooks/         → Operational runbooks:
   ├─ aws-irsa-setup.md           — AWS IAM Identity Provider + IRSA
   ├─ terraform-state-bootstrap.md — per-env state buckets/tables
   ├─ mcp-config-hygiene.md       — MCP secret loading
-  └─ secret-rotation.md          — quarterly rotation
+  ├─ secret-rotation.md          — quarterly rotation
+  └─ edge-protection-setup.md    — Cloud Armor/WAFv2/Cloudflare setup + equivalence matrix (D-38)
 templates/
 ├── service/           → FastAPI + training + tests + Dockerfile + DVC pipeline
 ├── tests/integration/ → Integration tests (health, predict, latency SLA)
@@ -126,10 +128,10 @@ examples/minimal/      → Working fraud detection demo (5 min)
 scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
 releases/              → Release notes: active v0.x line + legacy v1.x audit snapshots (see releases/README.md)
-.claude/rules/         → 17 path-scoped rule pointers (this IDE)
-.claude/skills/        → 25 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
-agentic/             → Canonical: 17 rules + 25 skills + 17 workflows
-.cursor/rules/         → 17 glob-scoped .mdc rule pointers
+.claude/rules/         → 18 path-scoped rule pointers (this IDE)
+.claude/skills/        → 26 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
+agentic/             → Canonical: 18 rules + 26 skills + 18 workflows
+.cursor/rules/         → 18 glob-scoped .mdc rule pointers
 ```
 
 ## Recent template audit (closed)

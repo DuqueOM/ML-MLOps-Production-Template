@@ -6,7 +6,7 @@
 ## What this is
 A complete, opinionated MLOps template for shipping classical ML models to
 production across two clouds (GKE + EKS), with an agentic operating model,
-governed CI/CD, and 37 encoded anti-patterns (D-01 to D-37). Every non-trivial
+governed CI/CD, and 38 encoded anti-patterns (D-01 to D-38). Every non-trivial
 decision is captured in an ADR with measured trade-offs.
 Scope: classical ML (scikit-learn, XGBoost, LightGBM). LLM/GenAI *serving* is
 out of scope (lives in the sibling `agent-local` repo); LLM-*assisted* ops are
@@ -18,21 +18,21 @@ governed by ADR-028.
 > coherence across docs is enforced by `scripts/check_doc_coherence.py` (rule 16).
 
 ## Key files
-- AGENTS.md: canonical constitution — anti-patterns D-01→D-35, invariants, agent/skill/workflow index
+- AGENTS.md: canonical constitution — anti-patterns D-01→D-38, invariants, agent/skill/workflow index
 - CLAUDE.md: Claude Code project context (stack, invariants, file structure)
 - QUICK_START.md: 10-minute onboarding (example, scaffold, MLflow)
 - RUNBOOK.md / docs/RELEASING.md: operations + versioning policy
 - CHANGELOG.md: full version history (Keep a Changelog + SemVer)
-- docs/decisions/: 35 ADR files (ADR-001 → ADR-035; ADR-012 is an immutable tombstone)
+- docs/decisions/: 42 ADR files (ADR-001 → ADR-042; ADR-012 is an immutable tombstone)
 
 ## Agentic system (canonical store: `agentic/`, ADR-027)
-- agentic/rules/ — 17 path-scoped behavioral rules (incl. 16-doc-coherence)
-- agentic/skills/ — 20 operational procedures (deploy-gke/aws, drift, retrain,
-  release-checklist, rule-audit, security-audit, scaffold-update, doc-coherence,
+- agentic/rules/ — 18 path-scoped behavioral rules (incl. 16-doc-coherence, 17-edge-protection)
+- agentic/skills/ — 26 operational procedures (deploy-gke/aws, drift, retrain,
+  release-checklist, rule-audit, edge-audit, security-audit, scaffold-update, doc-coherence,
   stack-switch, template-onboard, …)
-- agentic/workflows/ — 16 slash-command workflows (/new-service, /retrain,
+- agentic/workflows/ — 18 slash-command workflows (/new-service, /retrain,
   /incident, /drift-check, /release, /new-adr, /doc-coherence, /stack-switch,
-  /onboard, …)
+  /edge-setup, /onboard, …)
 - Surfaces (generated, ADR-027): `.claude/` `.cursor/` `.codex/` thin pointers;
   `.devin/` full-body mirror. `scripts/sync_agentic_adapters.py` renders them;
   `--check` enforces byte-parity in CI.

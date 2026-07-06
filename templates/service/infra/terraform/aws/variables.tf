@@ -220,3 +220,54 @@ variable "workload_node_taint_value" {
   type        = string
   default     = "ml-services"
 }
+
+# ----------------------------------------------------------------------
+# Edge protection — AWS WAFv2 + Shield Standard (ADR-042, D-38)
+# ----------------------------------------------------------------------
+variable "enable_edge_protection" {
+  description = <<-EOT
+    Create the WAFv2 Web ACL in security.tf. Defaults to false — this is a
+    public-facing security resource that should only be created after a
+    deliberate adopter decision (`/edge-setup`, CONSULT in every environment
+    per ADR-042 §2.2), never as a side effect of an unrelated
+    `terraform apply`.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "waf_mode" {
+  description = <<-EOT
+    Override action for the AWS Managed Rule groups: "count" (observe
+    matches, take no action — the recommended starting point to measure
+    false positives against real traffic) or "block" (let the managed rule
+    group's own block action take effect). See
+    docs/runbooks/edge-protection-setup.md for the graduation process.
+  EOT
+  type        = string
+  default     = "count"
+
+  validation {
+    condition     = contains(["count", "block"], var.waf_mode)
+    error_message = "waf_mode must be 'count' or 'block'."
+  }
+}
+
+variable "rate_limit_requests_per_5min" {
+  description = <<-EOT
+    Per-IP request threshold over WAFv2's fixed 5-minute rolling window
+    before the rate-based rule blocks the source IP. AWS enforces a minimum
+    of 100. Starting point only — tune per service based on observed
+    traffic. NOTE: not directly comparable to the GCP module's
+    rate_limit_requests_per_minute (Cloud Armor uses a configurable,
+    shorter window) — see the cloud-equivalence matrix in
+    docs/runbooks/edge-protection-setup.md.
+  EOT
+  type        = number
+  default     = 3000
+
+  validation {
+    condition     = var.rate_limit_requests_per_5min >= 100
+    error_message = "rate_limit_requests_per_5min must be >= 100 (AWS WAFv2 minimum)."
+  }
+}

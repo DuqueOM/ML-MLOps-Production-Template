@@ -46,6 +46,7 @@ gradual migration of consumers; do not leave it disabled in prod.
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from enum import Enum
 from typing import Any, Optional
@@ -158,6 +159,9 @@ class ServiceError(Exception):
 # ---------------------------------------------------------------------------
 # Middleware: request_id
 # ---------------------------------------------------------------------------
+_ACCESS_LOG_EXCLUDED_PATHS = frozenset({"/health", "/ready", "/metrics"})
+
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Read or generate a per-request correlation id.
 
@@ -172,6 +176,14 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     - If a ``X-Trace-ID`` header is present, it is forwarded to
       ``request.state.trace_id`` (read-only — the middleware does NOT
       generate a trace id; that is the OTel SDK's job).
+    - Emits one structured access-log line per request with
+      ``request_id``/``trace_id`` in ``extra`` (monitoring-stations
+      audit, Logs & Traces station). Before this, ``request_id`` only
+      reached the log stream on unhandled exceptions — a successful
+      `/predict` call was invisible to log-based correlation. This is
+      what makes "grep Loki by request_id, then jump to the matching
+      trace" (docs/observability/log-trace-correlation.md) actually
+      true for the common case, not just the error path.
     """
 
     async def dispatch(self, request: Request, call_next: Any) -> Response:
@@ -181,10 +193,27 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         trace_in = request.headers.get(TRACE_ID_HEADER, "").strip()
         if trace_in and len(trace_in) <= 128:
             request.state.trace_id = trace_in
+        start = time.perf_counter()
         response = await call_next(request)
+        duration_ms = (time.perf_counter() - start) * 1000
         response.headers[REQUEST_ID_HEADER] = request_id
         if getattr(request.state, "trace_id", None):
             response.headers[TRACE_ID_HEADER] = request.state.trace_id
+        # Probe/scrape paths are excluded: K8s hits /health + /ready every
+        # ~10s and Prometheus scrapes /metrics every ~15-30s — logging
+        # every poll at INFO would drown the signal this line exists for.
+        if request.url.path not in _ACCESS_LOG_EXCLUDED_PATHS:
+            logger.info(
+                "request",
+                extra={
+                    "request_id": request_id,
+                    "trace_id": getattr(request.state, "trace_id", None),
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "duration_ms": round(duration_ms, 2),
+                },
+            )
         return response
 
 

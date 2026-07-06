@@ -1,0 +1,93 @@
+{
+  "title": "{@ service_name @} — Business KPIs Dashboard",
+  "tags": ["business", "kpi", "{@ service_slug @}"],
+  "templating": {
+    "list": [
+      {"name": "service", "type": "textbox", "current": {"value": "{@ service_slug @}"}},
+      {"name": "namespace", "type": "textbox", "current": {"value": "default"}}
+    ]
+  },
+  "panels": [
+    {
+      "title": "Request Volume (daily)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(increase(${@ service_slug @}_requests_total[1d]))",
+          "legendFormat": "requests/day"
+        }
+      ]
+    },
+    {
+      "title": "SLA Compliance (30d)",
+      "type": "gauge",
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "avg_over_time(${@ service_slug @}:sli:availability[30d]) * 100",
+          "legendFormat": "availability %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 99},
+              {"color": "green", "value": 99.9}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Monthly Cloud Cost vs. Budget",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+      "targets": [
+        {
+          "expr": "${@ service_slug @}_monthly_cloud_cost_usd",
+          "legendFormat": "cost (USD)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null}
+            ]
+          }
+        }
+      },
+      "description": "TODO: set the yellow/red threshold values below to your company_context.monthly_budget_usd (e.g. 80% and 100%). This is a manual sync, not an automatic one — see docs/observability/business-kpis.md."
+    },
+    {
+      "title": "Predictions by Risk Level (business segment mix)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(${@ service_slug @}_predictions_total[1h])) by (risk_level)",
+          "legendFormat": "{{risk_level}}"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate impact on users (proxy)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(increase(${@ service_slug @}_requests_total{status=\"500\"}[1d]))",
+          "legendFormat": "failed requests/day"
+        }
+      ],
+      "description": "A count, not a rate — for a business audience, \"140 failed requests today\" is more legible than a percentage."
+    }
+  ]
+}

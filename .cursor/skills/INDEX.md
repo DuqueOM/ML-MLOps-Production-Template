@@ -34,6 +34,7 @@ no skill body lives here.
 | `diagnose-bug` | `AUTO` | `agentic/skills/diagnose-bug/SKILL.md` |
 | `new-service-spec` | `AUTO` | `agentic/skills/new-service-spec/SKILL.md` |
 | `incident-postmortem` | `AUTO` | `agentic/skills/incident-postmortem/SKILL.md` |
+| `edge-audit` | `AUTO` | `agentic/skills/edge-audit/SKILL.md` |
 
 To change behavior, edit the canonical `agentic/skills/<id>/SKILL.md`
 and run:

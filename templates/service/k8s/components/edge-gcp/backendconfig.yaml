@@ -1,0 +1,15 @@
+# Wires the LB backend (created by the GCE Ingress controller) to the
+# Cloud Armor security policy Terraform creates
+# (templates/service/infra/terraform/gcp/security.tf, resource
+# google_compute_security_policy.edge, name must match securityPolicy.name
+# below — Terraform outputs the resolved name; see the setup runbook).
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: "{@ service_kebab @}-backend-config"
+spec:
+  securityPolicy:
+    name: "{@ service_kebab @}-edge-policy"
+  timeoutSec: 30
+  connectionDraining:
+    drainingTimeoutSec: 30

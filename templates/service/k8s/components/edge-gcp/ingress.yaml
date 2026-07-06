@@ -1,0 +1,30 @@
+# GCE-class Ingress — provisions a global external HTTP(S) Load Balancer.
+# TODO: replace {DOMAIN} with the adopter's real hostname.
+#
+# D-38 (docs/decisions/ADR-042-native-cloud-edge-protection.md): a public
+# inference endpoint MUST carry an edge-protection annotation naming its
+# implementation. Checked by the `edge-audit` skill and
+# tests/policy/test_anti_patterns.py::test_d38_edge_component_carries_implementation_annotation.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "{@ service_kebab @}-ingress"
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    networking.gke.io/managed-certificates: "{@ service_kebab @}-cert"
+    # ADR-042: never terminate TLS below 1.2, never allow the LB to
+    # negotiate plaintext HTTP for /predict or /explain.
+    networking.gke.io/v1beta1.FrontendConfig: "{@ service_kebab @}-frontend-config"
+    edge-protection.mlops-template.io/implementation: "cloud-armor"
+spec:
+  rules:
+    - host: "{DOMAIN}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: "{@ service_kebab @}-service"
+                port:
+                  number: 80

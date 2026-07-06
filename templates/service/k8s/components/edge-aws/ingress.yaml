@@ -1,0 +1,34 @@
+# ALB-class Ingress — requires aws-load-balancer-controller on the cluster.
+# TODO: replace {ACM_CERT_ARN} and {WAFV2_ACL_ARN} with the Terraform
+# outputs from templates/service/infra/terraform/aws/security.tf.
+#
+# D-38 (docs/decisions/ADR-042-native-cloud-edge-protection.md): a public
+# inference endpoint MUST carry an edge-protection annotation naming its
+# implementation. Checked by the `edge-audit` skill and
+# tests/policy/test_anti_patterns.py::test_d38_edge_component_carries_implementation_annotation.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "{@ service_kebab @}-ingress"
+  annotations:
+    kubernetes.io/ingress.class: "alb"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: "{ACM_CERT_ARN}"
+    # ADR-042 TLS floor: modern policy supports 1.2 minimum + 1.3.
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/wafv2-acl-arn: "{WAFV2_ACL_ARN}"
+    edge-protection.mlops-template.io/implementation: "aws-waf"
+spec:
+  rules:
+    - host: "{DOMAIN}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: "{@ service_kebab @}-service"
+                port:
+                  number: 80

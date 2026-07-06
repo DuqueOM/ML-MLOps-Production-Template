@@ -60,6 +60,7 @@ WORKFLOW_TO_MAKE: dict[str, str] = {
     "stack-switch": "switch-profile",
     "onboard": "onboard",
     "ci-green": "ci-green",
+    "edge-setup": "edge-setup",
 }
 
 

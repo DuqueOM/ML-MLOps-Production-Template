@@ -16,6 +16,7 @@ authorization_mode:
   collect_billing: AUTO       # read-only billing API queries
   analyze_spend: AUTO         # local computation
   propose_optimizations: AUTO # produces report only, no cluster changes
+  push_cost_metric: AUTO      # additive Pushgateway write, no cluster mutation
   apply_optimizations: STOP   # any rightsizing / scale-down requires human approval
   escalation_triggers:
     - cost_over_budget_120: STOP   # spend > 120% of budget → freeze auto-actions
@@ -52,6 +53,21 @@ Storage (GCS + S3):                    $___/mo
 Registry (Artifact Registry + ECR):    $___/mo
 Monitoring and Logging:                $___/mo
 TOTAL:                                 $___/mo
+```
+
+## Step 2b: Push to Pushgateway (Business KPIs dashboard)
+
+`dashboard-business.json`'s "Monthly Cloud Cost vs. Budget" panel reads
+`<service>_monthly_cloud_cost_usd` from Prometheus — this step is what
+populates it. Monthly cadence, matching this skill's own review cycle
+(intentionally NOT a real-time cost exporter — see
+`docs/observability/business-kpis.md` for why that would be
+over-engineering at this template's scale).
+
+```bash
+echo "{@ service_slug @}_monthly_cloud_cost_usd ${TOTAL_MONTHLY_COST_USD}" | \
+  curl --data-binary @- \
+  "${PUSHGATEWAY_URL:-http://pushgateway:9091}/metrics/job/cost-audit/service/{@ service_slug @}"
 ```
 
 ## Step 3: Check FinOps Rules
@@ -98,6 +114,8 @@ Verify alerts fire at 50% and 90% of monthly budget.
 The audit is complete when ALL of the following hold:
 
 - [ ] Current costs collected from BOTH clouds (GCP billing + AWS Cost Explorer)
+- [ ] Total monthly cost pushed to Pushgateway as `<service>_monthly_cloud_cost_usd`
+      (Step 2b) so `dashboard-business.json` reflects the current review
 - [ ] Cost breakdown table populated with concrete dollar amounts per category
       (compute, storage, network, monitoring, MLflow tracking)
 - [ ] Variance vs previous month documented; any single category with > 5%

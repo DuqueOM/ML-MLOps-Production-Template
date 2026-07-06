@@ -1,0 +1,39 @@
+# =============================================================================
+# Kustomize Component — Edge Protection (GCP / Cloud Armor)
+# =============================================================================
+# Optional, opt-in. NOT referenced by any overlay by default (D-35-style
+# local-first default: no public endpoint until an adopter deliberately
+# asks for one). Wire it in by adding to an overlay's kustomization.yaml:
+#
+#   components:
+#     - ../../components/edge-gcp
+#
+# What this bundles:
+#   - A GCE-class Ingress (creates a global external HTTP(S) LB)
+#   - A Google-managed TLS certificate (auto-renewed, zero secret rotation)
+#   - A BackendConfig CRD wiring the LB backend to a Cloud Armor security
+#     policy (the policy itself is created by Terraform — see
+#     templates/service/infra/terraform/gcp/security.tf — and its name is
+#     passed here as a placeholder the adopter resolves once, same pattern
+#     as the digest-pin bootstrap step already used elsewhere in this repo)
+#   - A patch adding the `cloud.google.com/backend-config` annotation to
+#     the base Service, which is how GKE's Ingress controller discovers
+#     which BackendConfig applies
+#
+# See docs/decisions/ADR-042-native-cloud-edge-protection.md and
+# docs/runbooks/edge-protection-setup.md for the full setup + rationale.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - ingress.yaml
+  - managedcertificate.yaml
+  - backendconfig.yaml
+  - frontendconfig.yaml
+
+patches:
+  - path: patch-service-backendconfig.yaml
+    target:
+      kind: Service
+      name: "{@ service_kebab @}-service"

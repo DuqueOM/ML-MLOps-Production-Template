@@ -1,0 +1,83 @@
+{
+  "title": "{@ service_name @} — Edge Protection Dashboard",
+  "tags": ["edge", "waf", "security", "{@ service_slug @}"],
+  "templating": {
+    "list": [
+      {"name": "service", "type": "textbox", "current": {"value": "{@ service_slug @}"}},
+      {"name": "overlay", "type": "textbox", "current": {"value": "gcp-prod"}}
+    ]
+  },
+  "panels": [
+    {
+      "title": "Edge Protection Coverage",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "edge_protection_enabled{overlay=\"$overlay\"}",
+          "legendFormat": "protected"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {"0": {"text": "UNPROTECTED", "color": "red"}}},
+            {"type": "value", "options": {"1": {"text": "PROTECTED", "color": "green"}}}
+          ],
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      },
+      "description": "Reads the last `edge-audit` skill verdict for $overlay (edge-audit SKILL.md Step 4b). This is a POINT-IN-TIME audit result, not a live WAF-hit stream — see the heartbeat panel below for staleness."
+    },
+    {
+      "title": "Last Audit Age",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+      "targets": [
+        {
+          "expr": "time() - edge_protection_last_audit_timestamp{overlay=\"$overlay\"}",
+          "legendFormat": "seconds since last audit"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 604800},
+              {"color": "red", "value": 1209600}
+            ]
+          }
+        }
+      },
+      "description": "Thresholds match the {@ service_slug @}EdgeAuditHeartbeatMissing alert (7d warn, 14d fires)."
+    },
+    {
+      "title": "Requests Reaching Origin",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(${@ service_slug @}_requests_total[5m]))",
+          "legendFormat": "requests/sec (post-edge)"
+        }
+      ],
+      "description": "Traffic that made it PAST the edge layer to the origin — the same metric the Inference dashboard's Request Rate panel shows. A sudden drop here with no corresponding drop in the native WAF console's traffic view can indicate an edge misconfiguration blocking legitimate traffic."
+    },
+    {
+      "title": "Deep WAF / DDoS Analytics — use the native console",
+      "type": "text",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "options": {
+        "mode": "markdown",
+        "content": "This template deliberately does **not** duplicate per-rule hit counts, bot scores, or DDoS-attack timelines in Grafana — Cloud Armor, AWS WAFv2, and Cloudflare each already ship a purpose-built analytics view for exactly this, and re-implementing it here would drift out of sync with each provider's own rule taxonomy (see `docs/observability/monitoring-stations.md`, Engineering Calibration Principle). Use:\n\n- **Cloud Armor**: GCP Console → Network Security → Cloud Armor policies → `<service>-edge-policy` → Monitoring tab\n- **AWS WAFv2**: AWS Console → WAF & Shield → Web ACLs → `<service>-edge-acl` → Sampled requests / CloudWatch metrics\n- **Cloudflare**: Dashboard → your zone → Security → Events\n\nWhat this dashboard DOES track — coverage (is a WAF wired in at all) and audit freshness — is the piece those consoles cannot answer, since none of them know this template's D-38 contract."
+      }
+    }
+  ]
+}

@@ -129,6 +129,43 @@ def test_trace_id_inbound_is_honoured(envelope_client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Access-log line (monitoring-stations audit — Logs & Traces station)
+# ---------------------------------------------------------------------------
+def test_access_log_emitted_with_request_id(envelope_client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    """A normal (non-probe) request produces a structured access-log line
+    carrying request_id — before this, request_id only reached the log
+    stream on unhandled exceptions, so log-based correlation was silently
+    broken for the common (successful) case.
+    """
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="common_utils.errors"):
+        resp = envelope_client.get("/")
+    rid = resp.headers.get("X-Request-ID")
+
+    matching = [r for r in caplog.records if getattr(r, "request_id", None) == rid]
+    assert matching, "expected one access-log record carrying this request's request_id"
+    record = matching[0]
+    assert record.method == "GET"
+    assert record.path == "/"
+    assert record.status_code == resp.status_code
+    assert isinstance(record.duration_ms, float)
+
+
+def test_access_log_excluded_for_health_probe(envelope_client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    """/health, /ready, /metrics are excluded from the access log — K8s
+    and Prometheus poll them every few seconds; logging every poll would
+    drown the signal the access log exists to provide.
+    """
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="common_utils.errors"):
+        envelope_client.get("/health")
+
+    assert not any(r.getMessage() == "request" for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
 # Opt-out path (kept narrow — should NOT be the default in any env)
 # ---------------------------------------------------------------------------
 def test_envelope_disabled_falls_back_to_fastapi_default(monkeypatch: pytest.MonkeyPatch) -> None:
