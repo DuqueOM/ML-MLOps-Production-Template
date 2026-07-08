@@ -38,7 +38,8 @@ LAYER 3: MAINTENANCE AGENTS (operate phase)
   ├── Agent-DriftMonitor      PSI scores → alerts → retraining triggers
   ├── Agent-RetrainingAgent   Executes retraining with quality gates
   ├── Agent-CostAuditor       Reviews costs against budget
-  └── Agent-DocUpdater        Keeps documentation in sync with code
+  ├── Agent-DocUpdater        Keeps documentation in sync with code (/document-changes)
+  └── Agent-QualityGuardian   Recurring enterprise audit + Q-01..Q-08 anti-pattern watch (ADR-043)
 ```
 
 ## Critical Patterns — DO NOT VIOLATE
@@ -227,6 +228,7 @@ environment. This matrix codifies capability boundaries.
 | Agent-RetrainingAgent | trigger retrain | trigger retrain (CONSULT) | trigger retrain **blocked**; propose via PR |
 | Agent-CostAuditor | read billing | read billing | read billing |
 | Agent-DocumentationAI | write `docs/**` | — | — |
+| Agent-QualityGuardian | scan, report, write `docs/audit/**` | scan, report | scan, report; gate changes **blocked** (via PR + ADR only) |
 
 "Blocked" means the agent must emit `[AGENT MODE: STOP]` and refuse the operation,
 even if the human insists in conversation. The only path through is the governed
@@ -329,6 +331,7 @@ When starting a new session in a project derived from this template:
 - `new-service-spec` — capture the ML problem spec (label, fairness attribute, cost asymmetry) BEFORE scaffolding, so `quality_gates.yaml` thresholds trace to a real answer (ADR-041)
 - `incident-postmortem` — blameless post-incident review after `/incident`/`/rollback`/`/secret-breach`: timeline from primary sources, 5-whys, owned action items (ADR-041)
 - `edge-audit` — scan a service for edge-protection coverage (WAF, DDoS mitigation, rate limiting) against D-38; AUTO/read-only, mirrors `rule-audit` for one invariant domain (ADR-042)
+- `enterprise-audit` — recurring 23-domain enterprise/ISO repository audit (governance → DX) with file:line evidence and risk ratings; AUTO to scan, CONSULT to fix, STOP to weaken any gate (ADR-043)
 
 **Workflows** (user-triggered via slash commands):
 - `/new-service` — end-to-end service creation
@@ -349,11 +352,13 @@ When starting a new session in a project derived from this template:
 - `/doc-coherence` — restore + verify cross-document coherence (version, CHANGELOG, ADRs, anti-pattern + surface counts)
 - `/ci-green` — verify CI status for a ref before a promote/release/deploy action (D-36, ADR-039)
 - `/edge-setup` — wire native-cloud edge protection (Cloud Armor / AWS WAF+Shield) or optional Cloudflare into an overlay; CONSULT for apply in any environment, STOP for disabling an existing rule (D-38, ADR-042)
+- `/audit-quality` — run the recurring enterprise audit + Q-01..Q-08 sweep; AUTO scan, CONSULT fixes, STOP on gate weakening (ADR-043)
+- `/document-changes` — document the current working set: CHANGELOG entry, rule-16 cascade, audit-trail record; Agent-DocUpdater entry point (ADR-043)
 
 ## Agentic Configuration
 
 ```
-agentic/                                # Canonical agentic source (ADR-027) — 18 rules, 26 skills, 18 workflows
+agentic/                                # Canonical agentic source (ADR-027) — 19 rules, 27 skills, 20 workflows
 ├── rules/                              # Behavioral constraints (context-aware)
 │   ├── 01-mlops-conventions.md         # always_on — stack + Behavior Protocol (static + dynamic ADR-010)
 │   ├── 02-kubernetes.md                # glob: k8s/**/*.yaml, helm/**/*.yaml — D-02/11/23/25/27/29
@@ -372,8 +377,9 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── 14-api-contracts.md             # glob: **/app/schemas.py, **/tests/contract/** — D-28, OpenAPI snapshot + semver
 │   ├── 15-template-lifecycle.md        # glob: copier.yml, templates/service/** — D-33/34, Copier scaffolding invariants
 │   ├── 16-doc-coherence.md             # glob: VERSION, CHANGELOG.md, llms.txt, docs/decisions/** — cross-doc coherence (ADR-031)
-│   └── 17-edge-protection.md           # glob: **/ingress*.yaml, k8s/components/edge-*/**, infra/terraform WAF/security-policy/cloudflare — D-38 (ADR-042)
-├── skills/                             # 26 multi-step operational procedures
+│   ├── 17-edge-protection.md           # glob: **/ingress*.yaml, k8s/components/edge-*/**, infra/terraform WAF/security-policy/cloudflare — D-38 (ADR-042)
+│   └── 18-audit-quality.md             # glob: CI workflows, LICENSE/llms.txt, gate configs, scripts — Q-01..Q-08 (ADR-043)
+├── skills/                             # 27 multi-step operational procedures
 │   ├── batch-inference/SKILL.md
 │   ├── ci-green-verify/SKILL.md
 │   ├── concept-drift-analysis/SKILL.md
@@ -386,6 +392,7 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── drift-detection/SKILL.md
 │   ├── eda-analysis/SKILL.md
 │   ├── edge-audit/SKILL.md
+│   ├── enterprise-audit/SKILL.md
 │   ├── incident-postmortem/SKILL.md
 │   ├── model-retrain/SKILL.md
 │   ├── new-service/SKILL.md
@@ -400,10 +407,12 @@ agentic/                                # Canonical agentic source (ADR-027) —
 │   ├── security-audit/SKILL.md
 │   ├── stack-switch/SKILL.md
 │   └── template-onboard/SKILL.md
-└── workflows/                          # 18 slash-command workflows
+└── workflows/                          # 20 slash-command workflows
+    ├── audit-quality.md                # /audit-quality
     ├── ci-green.md                     # /ci-green
     ├── cost-review.md                  # /cost-review
     ├── doc-coherence.md                # /doc-coherence
+    ├── document-changes.md             # /document-changes
     ├── drift-check.md                  # /drift-check
     ├── edge-setup.md                   # /edge-setup (CONSULT-class)
     ├── eda.md                          # /eda
@@ -448,6 +457,8 @@ workflow rather than getting its own.
 | Non-ML-serving bug report | `diagnose-bug` | — (skill-only) |
 | Incident resolved | `incident-postmortem` | chains from `/incident` (after closure) |
 | Pre-deploy check / scheduled edge-coverage review | `edge-audit` | `/edge-setup` (if a FAIL needs wiring) |
+| Quarterly / pre-minor-release audit sweep | `enterprise-audit` | `/audit-quality` → `/document-changes` |
+| Any non-trivial working set before review | `doc-coherence` | `/document-changes` (CHANGELOG + cascade + audit trail) |
 
 ## Multi-IDE Support
 

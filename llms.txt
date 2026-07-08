@@ -1,7 +1,7 @@
 # ML-MLOps-Production-Template
 
 > Agent-driven template for production ML systems.
-> Version: v0.21.0 | License: MIT | Author: DuqueOM
+> Version: v0.21.0 | License: Apache-2.0 | Author: DuqueOM
 
 ## What this is
 A complete, opinionated MLOps template for shipping classical ML models to
@@ -23,16 +23,16 @@ governed by ADR-028.
 - QUICK_START.md: 10-minute onboarding (example, scaffold, MLflow)
 - RUNBOOK.md / docs/RELEASING.md: operations + versioning policy
 - CHANGELOG.md: full version history (Keep a Changelog + SemVer)
-- docs/decisions/: 42 ADR files (ADR-001 → ADR-042; ADR-012 is an immutable tombstone)
+- docs/decisions/: 43 ADR files (ADR-001 → ADR-043; ADR-012 is an immutable tombstone)
 
 ## Agentic system (canonical store: `agentic/`, ADR-027)
-- agentic/rules/ — 18 path-scoped behavioral rules (incl. 16-doc-coherence, 17-edge-protection)
-- agentic/skills/ — 26 operational procedures (deploy-gke/aws, drift, retrain,
-  release-checklist, rule-audit, edge-audit, security-audit, scaffold-update, doc-coherence,
+- agentic/rules/ — 19 path-scoped behavioral rules (incl. 16-doc-coherence, 17-edge-protection, 18-audit-quality)
+- agentic/skills/ — 27 operational procedures (deploy-gke/aws, drift, retrain,
+  release-checklist, rule-audit, edge-audit, enterprise-audit, security-audit, scaffold-update, doc-coherence,
   stack-switch, template-onboard, …)
-- agentic/workflows/ — 18 slash-command workflows (/new-service, /retrain,
+- agentic/workflows/ — 20 slash-command workflows (/new-service, /retrain,
   /incident, /drift-check, /release, /new-adr, /doc-coherence, /stack-switch,
-  /edge-setup, /onboard, …)
+  /edge-setup, /onboard, /audit-quality, /document-changes, …)
 - Surfaces (generated, ADR-027): `.claude/` `.cursor/` `.codex/` thin pointers;
   `.devin/` full-body mirror. `scripts/sync_agentic_adapters.py` renders them;
   `--check` enforces byte-parity in CI.

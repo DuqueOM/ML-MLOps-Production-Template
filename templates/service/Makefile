@@ -12,7 +12,7 @@
 #
 # TODO: Replace {@ service_slug @} and {SERVICE_SLUG} with your actual service names.
 
-.PHONY: help install install-uv train serve test lint format build deploy health-check clean \
+.PHONY: help install install-uv lock train serve test lint format build deploy health-check clean \
         new-service eda drift-check retrain release-checklist rollback \
         incident-runbook performance-review cost-review new-adr \
         secret-breach-check security-audit audit-rules batch-inference doc-coherence \
@@ -62,6 +62,14 @@ install-uv: ## Install dependencies with uv (faster, reproducible)
 	uv sync
 	@echo "$(GREEN)✓ Dependencies installed via uv$(NC)"
 	@echo "$(GREEN)  (requirements.txt retained for pip compatibility)$(NC)"
+
+lock: ## Freeze requirements.txt into a hash-pinned lockfile (reproducible rebuilds)
+	@echo "$(GREEN)Generating hash-pinned lockfile from requirements.txt...$(NC)"
+	uv pip compile requirements.txt --generate-hashes -o requirements.lock.txt
+	@echo "$(GREEN)✓ requirements.lock.txt written — commit it with the release.$(NC)"
+	@echo "$(YELLOW)  requirements.txt (~=) states intent; the lockfile guarantees"
+	@echo "  byte-identical rebuilds a year from now. Install with:"
+	@echo "  pip install --require-hashes -r requirements.lock.txt$(NC)"
 
 # ═══════════════════════════════════════════════
 # ML Pipeline

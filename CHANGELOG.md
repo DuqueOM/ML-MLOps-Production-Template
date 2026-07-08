@@ -10,6 +10,68 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Added — Agent-QualityGuardian: audit-grade quality preservation (ADR-043)
+
+- **`docs/decisions/ADR-043-audit-quality-guardian.md`**: charters
+  `Agent-QualityGuardian` as a Layer 3 maintenance agent whose scope is
+  the enterprise-audit bar itself — running the recurring audit and
+  watching for standards that erode silently (license drift, unpinned
+  actions, evidence-free releases, weakened gates).
+- **Anti-patterns Q-01…Q-08** in the new always-on rule
+  `agentic/rules/18-audit-quality.md` — a deliberately separate namespace
+  from `D-01→D-38` (see ADR-043 §2 for the rationale: different review
+  audience, avoids a 4-document renumber cascade per addition).
+- **`enterprise-audit` skill**: recurring 23-domain audit procedure
+  (governance → observability → architecture → technical debt → DX),
+  composing `rule-audit` and `doc-coherence` and adding the domains
+  neither covers. Scan is AUTO, fixing findings is CONSULT, weakening any
+  gate is STOP.
+- **`/audit-quality` workflow**: operational sequence for the skill above
+  — deterministic-gate check, Q-pattern quick sweep, full domain sweep,
+  findings triage, report, audit-trail entry, chains to
+  `/document-changes`.
+- **`/document-changes` workflow**: `Agent-DocUpdater`'s first operational
+  entry point (it previously had a Layer-3 charter but no invokable
+  procedure) — collects the change surface, writes the CHANGELOG entry,
+  propagates the rule-16 cascade, verifies the coherence gate, and
+  records an audit-trail entry.
+- Surface counts: 18→19 rules, 26→27 skills, 18→20 workflows (both root
+  and `templates/service/` manifests, adapters regenerated via
+  `sync_agentic_adapters.py`).
+
+### Fixed — R11 enterprise/ISO audit remediation (`docs/audit/AUDIT_R11_ISO_ENTERPRISE.md`)
+
+- **M-2 (supply chain)**: `release-on-tag.yml` gained a
+  `supply-chain-evidence` job — source SBOM (CycloneDX + SPDX via syft)
+  and a keyless Sigstore signature over the checksum manifest, attached
+  to every GitHub Release. The template's own releases now carry the
+  same evidence class its scaffolded services already produce for
+  images.
+- **M-3 (reproducibility)**: `templates/service/Makefile` gained a
+  `make lock` target (`uv pip compile --generate-hashes`) producing
+  `requirements.lock.txt` for byte-identical rebuilds; `~=` pinning still
+  states intent, the lockfile guarantees the rebuild.
+- **L-2 (gitleaks false positives)**: `.gitleaks.toml` — added
+  `__pycache__` to the redaction-fixture allowlist, and mirrored all
+  path/regex exemptions into a legacy singular `[allowlist]` block
+  (root cause: gitleaks < 8.25 silently ignores the plural
+  `[[allowlists]]` tables, so local scans diverged from CI regardless of
+  entry count).
+- **Doc drift**: `llms.txt` license badge corrected from `MIT` to
+  `Apache-2.0` (matching `LICENSE`); ADR and agentic surface counts
+  synced across `llms.txt` and `CLAUDE.md` (rule 16 cascade).
+- **L-1 (working-tree hygiene)**: removed a locally-cluttered
+  Alertmanager release tarball and extracted directory (never tracked by
+  git; local-only clutter).
+- **`scripts/audit_record.py` import path** (discovered while exercising
+  the Audit Trail Protocol for this change): the `common_utils` import
+  pointed at `templates/` — stale from before the `templates/service/`
+  nesting; `templates/common_utils` never existed, only
+  `templates/service/common_utils`. `scripts/generate_report.py` already
+  used the correct path. Every root-level invocation of
+  `audit_record.py` (including the `golden-path.yml` `audit-trail` job)
+  was silently failing with `ModuleNotFoundError`. One-line fix.
+
 ## [0.21.0] — 2026-07-06
 
 MINOR release under [`docs/RELEASING.md`](docs/RELEASING.md) §1.2

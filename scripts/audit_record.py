@@ -132,12 +132,12 @@ def main() -> int:
 
     # Late import: the helpers live inside templates/, so allow callers to
     # set TEMPLATE_PATH or rely on PYTHONPATH=.
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "templates"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "templates" / "service"))
     try:
         from common_utils.agent_context import AgentMode, AuditLog, Environment
     except ImportError as exc:
         print(f"error: cannot import common_utils.agent_context ({exc})", file=sys.stderr)
-        print("hint: run from repo root or set PYTHONPATH=templates", file=sys.stderr)
+        print("hint: run from repo root or set PYTHONPATH=templates/service", file=sys.stderr)
         return 1
 
     try:

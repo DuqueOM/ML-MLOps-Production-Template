@@ -128,10 +128,10 @@ examples/minimal/      → Working fraud detection demo (5 min)
 scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
 releases/              → Release notes: active v0.x line + legacy v1.x audit snapshots (see releases/README.md)
-.claude/rules/         → 18 path-scoped rule pointers (this IDE)
-.claude/skills/        → 26 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
-agentic/             → Canonical: 18 rules + 26 skills + 18 workflows
-.cursor/rules/         → 18 glob-scoped .mdc rule pointers
+.claude/rules/         → 19 path-scoped rule pointers (this IDE)
+.claude/skills/        → 27 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
+agentic/             → Canonical: 19 rules + 27 skills + 20 workflows
+.cursor/rules/         → 19 glob-scoped .mdc rule pointers
 ```
 
 ## Recent template audit (closed)

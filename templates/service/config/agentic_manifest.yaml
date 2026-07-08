@@ -129,6 +129,10 @@ agents:
     layer: 3
     phase: "operate"
     authority: "AGENTS.md#Agent Architecture"
+  - id: "Agent-QualityGuardian"
+    layer: 3
+    phase: "operate"
+    authority: "docs/decisions/ADR-043-audit-quality-guardian.md"
 
 # -----------------------------------------------------------------------------
 # Rules — canonical source is agentic/rules/. Other surfaces adapt (ADR-027).
@@ -186,6 +190,12 @@ rules:
     surfaces: ["devin", "cursor", "claude", "codex"]
   - id: "16-doc-coherence"
     source: "agentic/rules/16-doc-coherence.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "17-edge-protection"
+    source: "agentic/rules/17-edge-protection.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+  - id: "18-audit-quality"
+    source: "agentic/rules/18-audit-quality.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
 
 # -----------------------------------------------------------------------------
@@ -283,12 +293,22 @@ skills:
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "enterprise-audit"
+    source: "agentic/skills/enterprise-audit/SKILL.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "docs/decisions/ADR-043-audit-quality-guardian.md"
 
 # -----------------------------------------------------------------------------
 # Workflows — slash-invokable procedures. Canonical in agentic/workflows/.
 # Cursor + Claude surfaces carry adapter files under `commands/`.
 # -----------------------------------------------------------------------------
 workflows:
+  - id: "audit-quality"
+    source: "agentic/workflows/audit-quality.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "docs/decisions/ADR-043-audit-quality-guardian.md"
   - id: "cost-review"
     source: "agentic/workflows/cost-review.md"
     surfaces: ["devin", "cursor", "claude", "codex"]
@@ -299,6 +319,11 @@ workflows:
     surfaces: ["devin", "cursor", "claude", "codex"]
     mode: "AUTO"
     authority: "AGENTS.md#Agent Behavior Protocol"
+  - id: "document-changes"
+    source: "agentic/workflows/document-changes.md"
+    surfaces: ["devin", "cursor", "claude", "codex"]
+    mode: "AUTO"
+    authority: "docs/decisions/ADR-043-audit-quality-guardian.md"
   - id: "drift-check"
     source: "agentic/workflows/drift-check.md"
     surfaces: ["devin", "cursor", "claude", "codex"]

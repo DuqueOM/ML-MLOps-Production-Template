@@ -7,6 +7,31 @@ title = "ML-MLOps Production Template"
 [extend]
 useDefault = true
 
+# Legacy singular allowlist — gitleaks < 8.25 ignores the [[allowlists]]
+# plural tables below, so the path exemptions are mirrored here to keep
+# local scans (any version) consistent with CI (AUDIT R11 L-2 root cause:
+# version-dependent config parsing, not a missing entry).
+[allowlist]
+paths = [
+    '''templates/.*\.env\.example''',
+    '''examples/.*\.env\.example''',
+    '''.*test_memory_redaction\.py$''',
+    '''.*secret-history-scan\.md$''',
+    '''.*\.pyc$''',
+    '''.*__pycache__.*''',
+    '''docs/audit/AUDIT_R[0-9]+_STAFF_LEAD\.md$''',
+]
+regexes = [
+    '''YOUR_GCP_PROJECT''',
+    '''YOUR_AWS_ACCOUNT''',
+    '''\{SERVICE[_A-Z]*\}''',
+    '''\{service[_a-z]*\}''',
+    '''example\.com''',
+    '''localhost''',
+    '''127\.0\.0\.1''',
+    '''<YOUR_''',
+]
+
 [[allowlists]]
 description = "Template placeholders and example values"
 regexes = [
@@ -36,6 +61,9 @@ paths = [
     '''.*test_memory_redaction\.py$''',
     '''.*secret-history-scan\.md$''',
     '''.*\.pyc$''',
+    # Compiled bytecode of the redaction fixtures above — local `--no-git`
+    # scans walk __pycache__ even though git never tracks it (AUDIT R11 L-2).
+    '''.*__pycache__.*''',
 ]
 
 [[allowlists]]

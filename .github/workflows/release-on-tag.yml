@@ -151,3 +151,70 @@ jobs:
               --verify-tag \
               ${LATEST}
           fi
+
+  # Supply-chain evidence for the TEMPLATE's own release artifact
+  # (AUDIT R11 M-2). Scaffolded services already ship SBOM + Cosign
+  # signatures for their images (templates/service ci.yml); this job
+  # closes the same gap for the template source itself:
+  #   1. Deterministic source tarball via `git archive` at the tag.
+  #   2. Source SBOM in CycloneDX + SPDX (syft dir scan).
+  #   3. Keyless Sigstore signature over the checksum manifest
+  #      (cosign sign-blob, GitHub OIDC identity — same trust root as
+  #      the service image signing chain, no long-lived keys).
+  # Verification (any consumer):
+  #   cosign verify-blob --bundle checksums.txt.sigstore.json \
+  #     --certificate-identity-regexp 'github.com/.+/release-on-tag' \
+  #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  #     checksums.txt
+  supply-chain-evidence:
+    name: Source SBOM + Sigstore provenance
+    needs: publish-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # `gh release upload`
+      id-token: write   # cosign keyless (OIDC)
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v2.4.0
+
+      - name: Build source tarball + SBOMs + checksum manifest
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p /tmp/evidence
+          git archive --format=tar.gz \
+            --prefix="ml-mlops-template-${TAG}/" \
+            -o "/tmp/evidence/source-${TAG}.tar.gz" "${TAG}"
+          syft dir:. -o cyclonedx-json > "/tmp/evidence/sbom-${TAG}.cyclonedx.json"
+          syft dir:. -o spdx-json      > "/tmp/evidence/sbom-${TAG}.spdx.json"
+          # Hash into a path OUTSIDE the globbed dir first — a redirect
+          # target inside it would be created (empty) before the glob
+          # expands and end up hashing itself.
+          (cd /tmp/evidence && sha256sum ./*) > /tmp/checksums.txt
+          mv /tmp/checksums.txt /tmp/evidence/checksums.txt
+
+      - name: Sign checksum manifest (keyless)
+        run: |
+          set -eu
+          cosign sign-blob --yes \
+            --bundle /tmp/evidence/checksums.txt.sigstore.json \
+            /tmp/evidence/checksums.txt
+
+      - name: Attach evidence to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          gh release upload "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber \
+            /tmp/evidence/*
