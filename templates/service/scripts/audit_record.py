@@ -130,14 +130,23 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # Late import: the helpers live inside templates/, so allow callers to
-    # set TEMPLATE_PATH or rely on PYTHONPATH=.
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "templates"))
+    # Late import: this script is vendored byte-for-byte into
+    # templates/service/scripts/audit_record.py (drift-gate enforced), so it
+    # runs from two different roots depending on context:
+    #   - monorepo root: common_utils/ lives under templates/service/
+    #   - a scaffolded standalone service: common_utils/ is a direct sibling
+    # Try both candidates instead of hardcoding one, so the same bytes work
+    # in either location.
+    repo_root = Path(__file__).resolve().parent.parent
+    for candidate in (repo_root, repo_root / "templates" / "service"):
+        if (candidate / "common_utils").is_dir():
+            sys.path.insert(0, str(candidate))
+            break
     try:
         from common_utils.agent_context import AgentMode, AuditLog, Environment
     except ImportError as exc:
         print(f"error: cannot import common_utils.agent_context ({exc})", file=sys.stderr)
-        print("hint: run from repo root or set PYTHONPATH=templates", file=sys.stderr)
+        print("hint: run from repo root, or from templates/service/, or set PYTHONPATH", file=sys.stderr)
         return 1
 
     try:

@@ -61,6 +61,8 @@ WORKFLOW_TO_MAKE: dict[str, str] = {
     "onboard": "onboard",
     "ci-green": "ci-green",
     "edge-setup": "edge-setup",
+    "audit-quality": "audit-quality",
+    "document-changes": "document-changes",
 }
 
 

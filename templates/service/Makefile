@@ -16,7 +16,8 @@
         new-service eda drift-check retrain release-checklist rollback \
         incident-runbook performance-review cost-review new-adr \
         secret-breach-check security-audit audit-rules batch-inference doc-coherence \
-        local-loop switch-profile onboard ci-green scaffold-update edge-setup
+        local-loop switch-profile onboard ci-green scaffold-update edge-setup \
+        audit-quality document-changes
 
 # Colors
 RED    := \033[0;31m
@@ -348,6 +349,14 @@ ci-green: ## Verify GitHub Actions CI is green before promote/release/deploy (RE
 	else \
 		echo "$(YELLOW)gh CLI not found — see agentic/skills/ci-green-verify/SKILL.md$(NC)"; \
 	fi
+
+audit-quality: ## Run the recurring 23-domain enterprise audit + Q-01..Q-08 anti-pattern sweep (ADR-043)
+	@echo "$(GREEN)Running enterprise audit sweep...$(NC)"
+	@echo "$(YELLOW)See agentic/skills/enterprise-audit/SKILL.md and agentic/rules/18-audit-quality.md$(NC)"
+
+document-changes: ## Document the current change surface: CHANGELOG entry, rule-16 cascade, audit-trail record (ADR-043)
+	@echo "$(GREEN)Documenting change surface...$(NC)"
+	@echo "$(YELLOW)See agentic/workflows/document-changes.md (Agent-DocUpdater entry point)$(NC)"
 
 edge-setup: ## Audit edge-protection coverage for OVERLAY=gcp-prod|aws-prod (D-38, ADR-042; terraform apply itself is CONSULT — see docs/runbooks/edge-protection-setup.md)
 	@echo "$(GREEN)Checking edge-protection coverage for $(OVERLAY)...$(NC)"

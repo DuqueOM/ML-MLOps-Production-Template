@@ -140,6 +140,8 @@ inheriting the agentic surface.
 | `/onboard` | `make onboard` (copies `config/adopter_context.example.yaml`, prints the schema-validation command) | `agentic/skills/template-onboard/SKILL.md` (ADR-029 Wave 3) |
 | `/ci-green` | `make ci-green REF=<branch-or-sha>` (lists workflow run status via `gh`) | `agentic/skills/ci-green-verify/SKILL.md` (D-36, ADR-039) |
 | `/edge-setup` | `make edge-setup OVERLAY=<gcp-prod\|aws-prod\|...>` (renders the overlay, checks the edge-protection annotation) | `agentic/skills/edge-audit/SKILL.md` (D-38, ADR-042) |
+| `/audit-quality` | `make audit-quality` (points to the enterprise-audit skill) | `agentic/skills/enterprise-audit/SKILL.md` (ADR-043) |
+| `/document-changes` | `make document-changes` (points to the Agent-DocUpdater entry point) | `agentic/workflows/document-changes.md` (ADR-043) |
 
 ### Skill → CLI / runbook map
 
@@ -163,6 +165,7 @@ underlying CLI tool plus the corresponding human runbook:
 | `doc-coherence` | `make doc-coherence` (cross-document coherence gate; rule 16, ADR-031) |
 | `stack-switch` | `make switch-profile PROFILE=<local\|staging\|prod>` (ADR-033) |
 | `template-onboard` | `make onboard` (ADR-029 Wave 3) |
+| `enterprise-audit` | `make audit-quality` (23-domain audit procedure; ADR-043) |
 | `debug-ml-inference` | `docs/runbooks/debug-ml-inference.md` (manual procedure; no CLI equivalent — pure RCA reasoning) |
 | `performance-degradation-rca` | `docs/runbooks/performance-degradation-rca.md` (manual RCA procedure) |
 | `concept-drift-analysis` | `make performance-review` + `docs/runbooks/concept-drift-analysis.md` |
