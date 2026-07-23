@@ -68,6 +68,9 @@ RUN set -e && \
     # Uncomment if using xgboost/lightgbm:
     # pip install --no-cache-dir --no-deps "xgboost>=1.5.0,<3.0" && \
     # pip install --no-cache-dir --no-deps "lightgbm>=4.0.0,<5.0" && \
+    # narwhals: required transitive dep of lightgbm>=4.7, excluded by --no-deps
+    # (pip check below catches this if omitted):
+    # pip install --no-cache-dir "narwhals>=1.15" && \
     pip check && \
     # Clean up to reduce image size
     find /opt/venv -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null; \
