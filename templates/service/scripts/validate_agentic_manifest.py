@@ -146,12 +146,18 @@ except ImportError:  # pragma: no cover - bootstrap guard
 
 try:
     import jsonschema  # type: ignore
+
+    HAVE_JSONSCHEMA = True
 except ImportError:  # pragma: no cover - bootstrap guard
-    print(
-        "error: jsonschema is required. Install with: pip install jsonschema",
-        file=sys.stderr,
-    )
-    sys.exit(2)
+    # NOT a hard exit. This script runs as a copier post-copy task, BEFORE the
+    # generated service's dependencies (which declare jsonschema) have been
+    # installed — so requiring it here means scaffolding fails for every
+    # adopter whose ambient python happens not to have it, while passing for
+    # anyone whose does. Every check that does not need JSON Schema still runs;
+    # the schema-validation checks report themselves as SKIPPED so their
+    # absence is visible rather than silently assumed to have passed.
+    jsonschema = None  # type: ignore[assignment]
+    HAVE_JSONSCHEMA = False
 
 
 # ---------------------------------------------------------------------------
@@ -456,6 +462,11 @@ def _scan_for_secret_patterns(text: str) -> list[str]:
     return hits
 
 
+# Files whose JSON Schema validation could not run because jsonschema is
+# absent. Reported explicitly: a skipped check must never read as a passed one.
+skipped_schema_checks: list[str] = []
+
+
 def _load_schema() -> dict:
     if not SCHEMA.exists():
         raise ValidationError(f"missing schema: {SCHEMA}")
@@ -482,6 +493,9 @@ def validate_context_examples(strict: bool) -> list[str]:
             errors.append(f"{path.name}: YAML parse error: {exc}")
             continue
         try:
+            if not HAVE_JSONSCHEMA:
+                skipped_schema_checks.append(str(path))
+                continue
             jsonschema.validate(doc, schema)
         except jsonschema.ValidationError as exc:
             errors.append(f"{path.name}: schema violation: {exc.message}")
@@ -515,6 +529,9 @@ def _validate_local_yamls_if_present(schema: dict) -> list[str]:
             errors.append(f"{candidate.name}: YAML parse error: {exc}")
             continue
         try:
+            if not HAVE_JSONSCHEMA:
+                skipped_schema_checks.append(str(candidate))
+                continue
             jsonschema.validate(doc, schema)
         except jsonschema.ValidationError as exc:
             errors.append(f"{candidate.name}: schema violation: {exc.message}")
@@ -730,6 +747,14 @@ def main() -> int:
                     print(f"  - {err}", file=sys.stderr)
             else:
                 print(f"[ OK ] {check}")
+    if skipped_schema_checks:
+        # A skipped check must never read as a passed one.
+        print(
+            f"note: JSON Schema validation SKIPPED for {len(skipped_schema_checks)} file(s) "
+            "— jsonschema is not installed. Every other check ran. Install it "
+            "(pip install jsonschema) for full strictness; CI always has it.",
+            file=sys.stderr,
+        )
     return 0 if total == 0 else 1
 
 
