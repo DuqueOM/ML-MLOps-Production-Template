@@ -202,8 +202,7 @@ class MemoryUnit:
         # 5. evidence_uri MUST be a non-empty URI-like string with a scheme.
         if not isinstance(self.evidence_uri, str) or "://" not in self.evidence_uri:
             raise ValueError(
-                "MemoryUnit.evidence_uri must include a scheme (e.g. s3://, gs://, file://); "
-                f"got {self.evidence_uri!r}"
+                f"MemoryUnit.evidence_uri must include a scheme (e.g. s3://, gs://, file://); got {self.evidence_uri!r}"
             )
 
         # 6. tenant_key MUST be 'default' in Phase 1.

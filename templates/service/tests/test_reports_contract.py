@@ -56,13 +56,11 @@ def test_schema_parses_and_lists_canonical_types() -> None:
     assert doc.get("$schema", "").startswith("https://json-schema.org/")
     types_enum = doc["properties"]["report_type"]["enum"]
     assert sorted(types_enum) == sorted(CANONICAL_TYPES), (
-        f"report_type enum {sorted(types_enum)} != canonical " f"{sorted(CANONICAL_TYPES)}"
+        f"report_type enum {sorted(types_enum)} != canonical {sorted(CANONICAL_TYPES)}"
     )
     # oneOf branches: one per canonical type.
     branches = doc.get("oneOf") or []
-    assert len(branches) == len(CANONICAL_TYPES), (
-        f"oneOf must have one branch per canonical type " f"(got {len(branches)})"
-    )
+    assert len(branches) == len(CANONICAL_TYPES), f"oneOf must have one branch per canonical type (got {len(branches)})"
 
 
 @pytest.mark.parametrize("rtype", CANONICAL_TYPES)
@@ -222,9 +220,9 @@ def test_manifest_reports_block_lists_canonical_types() -> None:
         rel = block.get(key)
         assert rel and (REPO_ROOT / rel).exists(), f"reports.{key} path missing: {rel!r}"
     storage = block.get("storage_root")
-    assert (
-        storage and (REPO_ROOT / storage).is_dir()
-    ), f"reports.storage_root must be an existing directory ({storage!r})"
+    assert storage and (REPO_ROOT / storage).is_dir(), (
+        f"reports.storage_root must be an existing directory ({storage!r})"
+    )
 
 
 def test_cli_help_lists_only_read_only_subcommands() -> None:
@@ -244,7 +242,7 @@ def test_cli_help_lists_only_read_only_subcommands() -> None:
     forbidden = ("delete", "rotate", "promote", "deploy", "rollback")
     for term in forbidden:
         assert term not in out, (
-            f"generate_report.py --help advertises forbidden subcommand " f"{term!r}; CLI must remain read-only"
+            f"generate_report.py --help advertises forbidden subcommand {term!r}; CLI must remain read-only"
         )
 
 

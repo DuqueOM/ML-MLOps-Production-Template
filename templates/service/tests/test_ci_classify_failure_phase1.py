@@ -290,6 +290,6 @@ def test_classifier_has_no_memory_fields() -> None:
 )
 def test_collector_detects_canonical_signatures(log_fragment: str, expected_signature: str) -> None:
     result = _run_collect("--job-name", "x", "--workflow", "y", log=log_fragment)
-    assert (
-        expected_signature in result["error_signatures"]
-    ), f"expected {expected_signature!r} in {result['error_signatures']!r} for log {log_fragment!r}"
+    assert expected_signature in result["error_signatures"], (
+        f"expected {expected_signature!r} in {result['error_signatures']!r} for log {log_fragment!r}"
+    )

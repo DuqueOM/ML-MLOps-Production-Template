@@ -247,9 +247,9 @@ def test_network_mode_variable_exists(cloud: str) -> None:
     assert var_block, f"{cloud}: variable.network_mode must be defined (ADR-017)"
 
     block = var_block.group(0)
-    assert (
-        "managed" in block and "existing" in block
-    ), f"{cloud}: network_mode validation must accept 'managed' and 'existing'"
+    assert "managed" in block and "existing" in block, (
+        f"{cloud}: network_mode validation must accept 'managed' and 'existing'"
+    )
     assert "validation" in block, f"{cloud}: network_mode must have a validation block"
 
 
@@ -299,6 +299,6 @@ def test_gcp_runtime_drift_retrain_have_workload_identity_bindings() -> None:
             rf'resource\s+"google_service_account_iam_member"\s+"{sa}_workload_identity"',
             content,
         )
-        assert (
-            wi_binding
-        ), f"GCP {sa} SA must have a Workload Identity binding to a KSA in ml-services namespace (ADR-017)"
+        assert wi_binding, (
+            f"GCP {sa} SA must have a Workload Identity binding to a KSA in ml-services namespace (ADR-017)"
+        )

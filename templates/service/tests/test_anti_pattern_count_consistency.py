@@ -120,5 +120,5 @@ def test_canonical_max_is_at_least_32() -> None:
     bump this lower bound (R5-L1 is the floor, not the ceiling).
     """
     assert _canonical_max() >= 32, (
-        f"AGENTS.md canon {_canonical_max()} is below the R5-L1 floor of 32. " "Did the canon table get truncated?"
+        f"AGENTS.md canon {_canonical_max()} is below the R5-L1 floor of 32. Did the canon table get truncated?"
     )

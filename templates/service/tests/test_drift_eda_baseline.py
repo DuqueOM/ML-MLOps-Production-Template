@@ -177,9 +177,9 @@ def test_detect_drift_eda_baseline_no_drift(
     assert results["summary"]["baseline_source"] == "eda_parquet"
     assert results["summary"]["requires_action"] is False
     for feat, data in results["features"].items():
-        assert (
-            data["psi"] < drift.DEFAULT_WARNING
-        ), f"feature {feat}: PSI {data['psi']} above warning threshold on no-drift data"
+        assert data["psi"] < drift.DEFAULT_WARNING, (
+            f"feature {feat}: PSI {data['psi']} above warning threshold on no-drift data"
+        )
         # In EDA-baseline-only mode (no reference CSV), reference stats are None.
         assert data["reference_mean"] is None
         assert data["reference_std"] is None

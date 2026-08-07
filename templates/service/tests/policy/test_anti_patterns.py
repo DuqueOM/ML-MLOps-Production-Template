@@ -209,7 +209,7 @@ def test_d23_probes_use_distinct_paths(yaml_load_all, glob_files) -> None:
                 rpath = readiness.get("path")
                 if lpath and rpath and lpath == rpath:
                     offenders.append(
-                        f"{dep_file.name}/{container.get('name')}: " f"liveness and readiness share path {lpath!r}"
+                        f"{dep_file.name}/{container.get('name')}: liveness and readiness share path {lpath!r}"
                     )
     assert not offenders, "D-23 violation: " + "; ".join(offenders)
 
@@ -243,7 +243,7 @@ def test_d25_grace_period_beats_uvicorn_shutdown(yaml_load_all, glob_files) -> N
                 offenders.append(f"{dep_file.name}: no terminationGracePeriodSeconds set")
             elif grace < min_grace_default:
                 offenders.append(
-                    f"{dep_file.name}: terminationGracePeriodSeconds={grace} " f"(< {min_grace_default}s default)"
+                    f"{dep_file.name}: terminationGracePeriodSeconds={grace} (< {min_grace_default}s default)"
                 )
     assert not offenders, "D-25 violation: " + "; ".join(offenders)
 
@@ -293,7 +293,7 @@ def test_d29_pss_labels_on_overlays(yaml_load_all, glob_files) -> None:
             labels = (doc.get("metadata") or {}).get("labels") or {}
             if "pod-security.kubernetes.io/enforce" not in labels:
                 offenders.append(
-                    f"{ns_file.relative_to(ns_file.parents[4])}: missing " f"pod-security.kubernetes.io/enforce label"
+                    f"{ns_file.relative_to(ns_file.parents[4])}: missing pod-security.kubernetes.io/enforce label"
                 )
     if not namespace_seen:
         pytest.skip("No Namespace resources found under k8s/overlays/")
@@ -422,9 +422,9 @@ def test_d35_local_profile_no_cloud_deps(scaffold_dir: Path) -> None:
     data = yaml.safe_load(profile_yaml.read_text())
 
     requires = data.get("requires", {})
-    assert (
-        requires.get("cloud_credentials") is False
-    ), "D-35 violation: local profile has requires.cloud_credentials != false"
+    assert requires.get("cloud_credentials") is False, (
+        "D-35 violation: local profile has requires.cloud_credentials != false"
+    )
     assert requires.get("kubernetes") is False, "D-35 violation: local profile has requires.kubernetes != false"
     assert requires.get("docker") is False, "D-35 violation: local profile has requires.docker != false"
 

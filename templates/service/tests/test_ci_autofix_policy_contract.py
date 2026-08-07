@@ -84,7 +84,7 @@ PRODUCTION_ADJACENT_ROUTES = {
 @pytest.fixture(scope="module")
 def autofix() -> dict:
     assert AUTOFIX_POLICY.is_file(), (
-        "ADR-019 violation: ci_autofix_policy.yaml is missing. " "Phase 0 acceptance requires this file to exist."
+        "ADR-019 violation: ci_autofix_policy.yaml is missing. Phase 0 acceptance requires this file to exist."
     )
     return yaml.safe_load(AUTOFIX_POLICY.read_text())
 
@@ -113,7 +113,7 @@ def test_stop_classes_have_no_allowed_paths(autofix: dict) -> None:
             f"ci_autofix_policy.yaml — the kill list is incomplete."
         )
         cls = classes[stop_name]
-        assert cls["mode"] == "STOP", f"ADR-019 violation: {stop_name!r} mode is {cls['mode']!r}, " f"must be STOP."
+        assert cls["mode"] == "STOP", f"ADR-019 violation: {stop_name!r} mode is {cls['mode']!r}, must be STOP."
         assert "allowed_paths" not in cls, (
             f"ADR-019 violation: STOP class {stop_name!r} has allowed_paths "
             f"({cls.get('allowed_paths')}); STOP classes refuse autofix entirely."
@@ -171,7 +171,7 @@ def test_failure_class_verifiers_resolve(autofix: dict) -> None:
         for v in cls.get("verifiers", []):
             if v not in verifier_groups:
                 bad.append(f"{cls_name} -> {v!r}")
-    assert not bad, f"ADR-019 violation: failure_classes.*.verifiers reference unknown " f"verifier_groups: {bad}"
+    assert not bad, f"ADR-019 violation: failure_classes.*.verifiers reference unknown verifier_groups: {bad}"
 
 
 def test_verifier_commands_reference_existing_repo_scripts(autofix: dict) -> None:
@@ -230,7 +230,7 @@ def test_preview_route_has_at_least_one_preview(routing: dict) -> None:
     candidates = routing["routes"]["frontier_preview_nonprod"]["candidates"]
     has_preview = any(c.get("maturity") == "preview" for c in candidates)
     assert has_preview, (
-        "ADR-019 violation: frontier_preview_nonprod contains no " "preview-maturity model — the lane is misconfigured."
+        "ADR-019 violation: frontier_preview_nonprod contains no preview-maturity model — the lane is misconfigured."
     )
 
 

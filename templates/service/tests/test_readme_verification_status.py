@@ -86,7 +86,7 @@ def test_verification_matrix_covers_all_four_layers(readme_text: str, layer_toke
     # Look for the bold-L pattern "**L1 — ..." inside the verification section.
     section = _extract_section(readme_text, "Verification status")
     assert re.search(rf"\*\*{layer_token}\s*[—-]", section), (
-        f"Verification status section must describe layer {layer_token}; " "current section does not name it."
+        f"Verification status section must describe layer {layer_token}; current section does not name it."
     )
 
 

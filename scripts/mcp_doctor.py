@@ -75,9 +75,7 @@ def _load_yaml(path: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _collect_errors(
-    registry: dict, surfaces: dict, manifest: dict
-) -> dict[str, list[str]]:
+def _collect_errors(registry: dict, surfaces: dict, manifest: dict) -> dict[str, list[str]]:
     """Return a mapping of check-name → list of human error strings."""
     errors: dict[str, list[str]] = {
         "skill_references": [],
@@ -95,9 +93,7 @@ def _collect_errors(
             for ref in spec.get(key) or []:
                 if ref not in known_actions:
                     errors["skill_references"].append(
-                        f"mcps.{mcp_id}.{key}: references "
-                        f"unknown skill/workflow {ref!r} "
-                        "(not in agentic_manifest.yaml)"
+                        f"mcps.{mcp_id}.{key}: references unknown skill/workflow {ref!r} (not in agentic_manifest.yaml)"
                     )
 
     # 2) Every surface in mcp_registry is also in surface_capabilities
@@ -105,47 +101,24 @@ def _collect_errors(
     reg_surfaces = set((registry.get("surfaces") or {}).keys())
     cap_surfaces = set((surfaces.get("surfaces") or {}).keys())
     for s in reg_surfaces - cap_surfaces:
-        errors["surface_symmetry"].append(
-            f"surfaces.{s}: in mcp_registry but missing from "
-            "surface_capabilities.yaml"
-        )
+        errors["surface_symmetry"].append(f"surfaces.{s}: in mcp_registry but missing from surface_capabilities.yaml")
     for s in cap_surfaces - reg_surfaces:
-        errors["surface_symmetry"].append(
-            f"surfaces.{s}: in surface_capabilities but missing from "
-            "mcp_registry.yaml"
-        )
+        errors["surface_symmetry"].append(f"surfaces.{s}: in surface_capabilities but missing from mcp_registry.yaml")
 
     # 3) Every MCP's install_mode covers every known surface.
     for mcp_id, spec in (registry.get("mcps") or {}).items():
         im = spec.get("install_mode") or {}
         for s in cap_surfaces:
             if s not in im:
-                errors["install_matrix"].append(
-                    f"mcps.{mcp_id}.install_mode: missing entry for "
-                    f"surface {s!r}"
-                )
+                errors["install_matrix"].append(f"mcps.{mcp_id}.install_mode: missing entry for surface {s!r}")
 
     # 4) Every skill/workflow's required capabilities are supported by
     #    every surface that claims the action.
-    overrides = (
-        surfaces.get("skill_capability_requirements", {}).get("overrides") or {}
-    )
-    default_req = set(
-        surfaces.get("skill_capability_requirements", {})
-        .get("default", {})
-        .get("requires")
-        or []
-    )
-    surface_supports = {
-        s: set((spec.get("supports") or []))
-        for s, spec in (surfaces.get("surfaces") or {}).items()
-    }
-    actions = [
-        ("skills", item)
-        for item in (manifest.get("skills") or [])
-    ] + [
-        ("workflows", item)
-        for item in (manifest.get("workflows") or [])
+    overrides = surfaces.get("skill_capability_requirements", {}).get("overrides") or {}
+    default_req = set(surfaces.get("skill_capability_requirements", {}).get("default", {}).get("requires") or [])
+    surface_supports = {s: set((spec.get("supports") or [])) for s, spec in (surfaces.get("surfaces") or {}).items()}
+    actions = [("skills", item) for item in (manifest.get("skills") or [])] + [
+        ("workflows", item) for item in (manifest.get("workflows") or [])
     ]
     for kind, action in actions:
         sid = action.get("id")
@@ -158,8 +131,7 @@ def _collect_errors(
             missing = reqs - supports
             if missing:
                 errors["capability_support"].append(
-                    f"{kind}.{sid}: surface {surface!r} does not support "
-                    f"required capabilities {sorted(missing)}"
+                    f"{kind}.{sid}: surface {surface!r} does not support required capabilities {sorted(missing)}"
                 )
 
     return errors
@@ -170,9 +142,7 @@ def _collect_errors(
 # ---------------------------------------------------------------------------
 
 
-def _render_doctor(
-    registry: dict, surfaces: dict, manifest: dict, errors: dict[str, list[str]]
-) -> str:
+def _render_doctor(registry: dict, surfaces: dict, manifest: dict, errors: dict[str, list[str]]) -> str:
     buf: list[str] = []
     buf.append("MCP Doctor — full report")
     buf.append("=" * 50)
@@ -207,9 +177,7 @@ def _render_doctor(
     # Skill coverage
     buf.append("Skill coverage")
     buf.append("-" * 50)
-    overrides = (
-        surfaces.get("skill_capability_requirements", {}).get("overrides") or {}
-    )
+    overrides = surfaces.get("skill_capability_requirements", {}).get("overrides") or {}
     for skill in manifest.get("skills") or []:
         sid = skill.get("id")
         reqs = (overrides.get(sid) or {}).get("requires") or ["read_file"]
@@ -242,10 +210,7 @@ def _render_docs(registry: dict, surfaces: dict, manifest: dict) -> str:
     buf.append("")
     buf.append("# MCP Portability Matrix")
     buf.append("")
-    buf.append(
-        "Source: `templates/config/mcp_registry.yaml` "
-        "+ `templates/config/surface_capabilities.yaml`."
-    )
+    buf.append("Source: `templates/config/mcp_registry.yaml` + `templates/config/surface_capabilities.yaml`.")
     buf.append("")
     buf.append("## Registered MCPs")
     buf.append("")
@@ -254,8 +219,7 @@ def _render_docs(registry: dict, surfaces: dict, manifest: dict) -> str:
     for mcp_id, spec in (registry.get("mcps") or {}).items():
         required = ", ".join(f"`{r}`" for r in (spec.get("required_for") or [])) or "—"
         buf.append(
-            f"| `{mcp_id}` | {spec.get('purpose', '').strip()} "
-            f"| `{spec.get('risk_mode', 'AUTO')}` | {required} |"
+            f"| `{mcp_id}` | {spec.get('purpose', '').strip()} | `{spec.get('risk_mode', 'AUTO')}` | {required} |"
         )
     buf.append("")
     buf.append("## Install mode by surface")

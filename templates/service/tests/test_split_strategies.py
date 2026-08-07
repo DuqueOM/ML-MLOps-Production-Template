@@ -111,7 +111,7 @@ def test_temporal_split_puts_latest_rows_in_test() -> None:
     train_max_ts = splits["X_train"]["ts"].max()
     test_min_ts = splits["X_test"]["ts"].min()
     assert train_max_ts <= test_min_ts, (
-        "temporal split leaked future into train: " f"train_max_ts={train_max_ts} > test_min_ts={test_min_ts}"
+        f"temporal split leaked future into train: train_max_ts={train_max_ts} > test_min_ts={test_min_ts}"
     )
     assert len(splits["X_test"]) == 40
     assert len(splits["X_train"]) == 160

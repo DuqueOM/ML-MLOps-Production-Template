@@ -91,7 +91,7 @@ def test_doctor_has_only_diagnostic_modes() -> None:
     forbidden = ("install", "rotate", "credential", "deploy", "apply")
     for term in forbidden:
         assert term not in proc.stdout.lower(), (
-            f"mcp_doctor.py --help mentions forbidden term {term!r}; " "diagnostics only (ADR-023 I-3)"
+            f"mcp_doctor.py --help mentions forbidden term {term!r}; diagnostics only (ADR-023 I-3)"
         )
 
 
@@ -157,7 +157,7 @@ def test_canonical_mcp_present(mcp_id: str) -> None:
     """
     doc = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
     assert mcp_id in (doc.get("mcps") or {}), (
-        f"MCP {mcp_id!r} is documented in AGENTS.md but missing from " "templates/config/mcp_registry.yaml"
+        f"MCP {mcp_id!r} is documented in AGENTS.md but missing from templates/config/mcp_registry.yaml"
     )
 
 
@@ -172,7 +172,7 @@ def test_every_skill_in_manifest_has_capability_decision() -> None:
     overrides = surfaces.get("skill_capability_requirements", {}).get("overrides") or {}
     default_present = bool(surfaces.get("skill_capability_requirements", {}).get("default", {}).get("requires"))
     assert default_present, (
-        "surface_capabilities.yaml must define a non-empty default " "requires list (read_file at minimum)"
+        "surface_capabilities.yaml must define a non-empty default requires list (read_file at minimum)"
     )
     skill_ids = [s["id"] for s in manifest.get("skills") or []]
     for sid in skill_ids:

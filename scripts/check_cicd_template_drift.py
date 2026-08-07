@@ -91,9 +91,7 @@ def _collect_versions(directory: Path) -> dict[str, set[str]]:
         for line in text.splitlines():
             match = _USES_RE.match(line)
             if match:
-                versions.setdefault(match.group("action"), set()).add(
-                    match.group("version")
-                )
+                versions.setdefault(match.group("action"), set()).add(match.group("version"))
     return versions
 
 
@@ -115,8 +113,7 @@ def main() -> int:
 
     if not shared:
         print(
-            "[cicd-drift] OK — no shared actions between "
-            ".github/workflows/ and templates/service/.github/workflows/."
+            "[cicd-drift] OK — no shared actions between .github/workflows/ and templates/service/.github/workflows/."
         )
         return 0
 

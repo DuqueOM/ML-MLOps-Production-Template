@@ -90,7 +90,7 @@ def test_adoption_doc_has_maturity_matrix() -> None:
     text = (REPO_ROOT / "docs" / "ADOPTION.md").read_text()
     for rating in ("ready", "partial", "roadmap"):
         assert f"| {rating} |" in text, (
-            f"ADOPTION.md missing ratings rows of type {rating!r}. " f"The maturity matrix has been damaged."
+            f"ADOPTION.md missing ratings rows of type {rating!r}. The maturity matrix has been damaged."
         )
 
 
@@ -137,8 +137,7 @@ def test_workflow_to_make_map_matches_filesystem() -> None:
         f"in templates/Makefile and update this test's map."
     )
     assert not extra_in_map, (
-        f"WORKFLOW_TO_MAKE references nonexistent workflow(s): "
-        f"{sorted(extra_in_map)}. Stale entries must be removed."
+        f"WORKFLOW_TO_MAKE references nonexistent workflow(s): {sorted(extra_in_map)}. Stale entries must be removed."
     )
 
 
@@ -153,7 +152,7 @@ def test_every_workflow_has_make_target() -> None:
     for workflow, make_target in WORKFLOW_TO_MAKE.items():
         if make_target not in declared_targets:
             missing.append(f"{workflow} → make {make_target}")
-    assert not missing, "PR-R2-12 violation: workflow(s) lack the documented Makefile " "equivalent:\n  " + "\n  ".join(
+    assert not missing, "PR-R2-12 violation: workflow(s) lack the documented Makefile equivalent:\n  " + "\n  ".join(
         missing
     )
 
@@ -167,9 +166,9 @@ def test_make_targets_appear_in_adoption_doc() -> None:
     for workflow, make_target in WORKFLOW_TO_MAKE.items():
         if f"make {make_target}" not in adoption:
             missing.append(f"`make {make_target}` (from /{workflow})")
-    assert (
-        not missing
-    ), "PR-R2-12 violation: ADOPTION.md does not document the following " "make targets:\n  " + "\n  ".join(missing)
+    assert not missing, (
+        "PR-R2-12 violation: ADOPTION.md does not document the following make targets:\n  " + "\n  ".join(missing)
+    )
 
 
 # ---------------------------------------------------------------------------

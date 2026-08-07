@@ -170,9 +170,7 @@ def _select_class(
 
         if changed_files:
             if not all(_path_matches_any(f, allowed) for f in changed_files):
-                rationale.append(
-                    f"{cls_name!r}: not all changed files match allowed_paths {allowed!r}"
-                )
+                rationale.append(f"{cls_name!r}: not all changed files match allowed_paths {allowed!r}")
                 continue
             if any(_path_matches_any(f, blocked) for f in changed_files):
                 rationale.append(f"{cls_name!r}: at least one file matches blocked_if_paths_match")
@@ -219,9 +217,7 @@ def classify(context: dict[str, Any], policy: dict[str, Any]) -> Classification:
             input_signatures=tuple(signatures),
             matched_class="blast_radius_exceeded",
             final_mode="STOP",
-            rationale=tuple(
-                [f"protected paths hit: {protected_hits!r}", "policy §protected_paths forces STOP"]
-            ),
+            rationale=tuple([f"protected paths hit: {protected_hits!r}", "policy §protected_paths forces STOP"]),
             blast_radius_match=_blast_radius(policy, "consult", changed_files, blast_lines),
             protected_paths_hit=tuple(protected_hits),
             verifiers_required=tuple(),

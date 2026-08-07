@@ -62,11 +62,7 @@ PLACEHOLDER_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 
 
 def _iter_common_utils_files() -> list[Path]:
-    return [
-        p
-        for p in TEMPLATE_COMMON_UTILS.rglob("*")
-        if p.is_file() and "__pycache__" not in p.parts
-    ]
+    return [p for p in TEMPLATE_COMMON_UTILS.rglob("*") if p.is_file() and "__pycache__" not in p.parts]
 
 
 def _scan_file(path: Path) -> list[tuple[int, str, str]]:
@@ -86,9 +82,7 @@ def _scan_file(path: Path) -> list[tuple[int, str, str]]:
 
 def main() -> int:
     if not TEMPLATE_COMMON_UTILS.exists():
-        sys.stderr.write(
-            f"template common_utils/ not found at {TEMPLATE_COMMON_UTILS}\n"
-        )
+        sys.stderr.write(f"template common_utils/ not found at {TEMPLATE_COMMON_UTILS}\n")
         return 2
 
     failures: list[str] = []
@@ -117,10 +111,7 @@ def main() -> int:
         )
         return 1
 
-    print(
-        f"[common_utils-drift] OK — {scanned} files scanned, "
-        "no scaffold-rewriteable placeholders found."
-    )
+    print(f"[common_utils-drift] OK — {scanned} files scanned, no scaffold-rewriteable placeholders found.")
     return 0
 
 

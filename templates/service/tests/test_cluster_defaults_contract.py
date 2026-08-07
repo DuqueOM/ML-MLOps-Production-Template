@@ -108,9 +108,9 @@ def test_aws_public_endpoint_is_opt_in() -> None:
         re.DOTALL,
     )
     assert default_match, "AWS must define variable.allow_public_endpoint with default"
-    assert (
-        default_match.group(1) == "false"
-    ), "AWS allow_public_endpoint default must remain false (PR-R2-6, reaffirmed by PR-A3)"
+    assert default_match.group(1) == "false", (
+        "AWS allow_public_endpoint default must remain false (PR-R2-6, reaffirmed by PR-A3)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -164,9 +164,9 @@ def test_workload_pool_has_taint(cloud: str) -> None:
     pool = pool_match.group(1)
 
     assert re.search(r"taint\s*\{", pool), f"{cloud} workload pool must declare a taint block"
-    assert (
-        "NO_SCHEDULE" in pool
-    ), f"{cloud} workload pool taint must use effect=NO_SCHEDULE (system pods stay on system pool)"
+    assert "NO_SCHEDULE" in pool, (
+        f"{cloud} workload pool taint must use effect=NO_SCHEDULE (system pods stay on system pool)"
+    )
 
 
 @pytest.mark.parametrize("cloud", ["aws", "gcp"])
@@ -190,9 +190,9 @@ def test_system_pool_has_no_taint(cloud: str) -> None:
 
     # No `taint {` block in the system pool — strip comments first.
     code_only = "\n".join(line for line in pool.splitlines() if not line.lstrip().startswith("#"))
-    assert not re.search(
-        r"^\s*taint\s*\{", code_only, re.MULTILINE
-    ), f"{cloud} system pool must NOT declare a taint (kube-system needs to land here)"
+    assert not re.search(r"^\s*taint\s*\{", code_only, re.MULTILINE), (
+        f"{cloud} system pool must NOT declare a taint (kube-system needs to land here)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -236,9 +236,9 @@ def test_deny_default_is_in_kustomization() -> None:
         pytest.skip("kustomization not in this layout")
 
     content = kustomization.read_text()
-    assert (
-        "networkpolicy-deny-default.yaml" in content
-    ), "kustomization.yaml must include networkpolicy-deny-default.yaml (PR-A3)"
+    assert "networkpolicy-deny-default.yaml" in content, (
+        "kustomization.yaml must include networkpolicy-deny-default.yaml (PR-A3)"
+    )
 
 
 # ---------------------------------------------------------------------------

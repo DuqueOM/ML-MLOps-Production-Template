@@ -265,7 +265,7 @@ def _validate_mode_enum(manifest: dict) -> list[str]:
             mode = entry.get("mode")
             if mode is not None and mode not in MODE_STRICTNESS:
                 errors.append(
-                    f"{bucket}:{entry.get('id')}: invalid mode {mode!r}; " f"must be one of {list(MODE_STRICTNESS)}"
+                    f"{bucket}:{entry.get('id')}: invalid mode {mode!r}; must be one of {list(MODE_STRICTNESS)}"
                 )
     return errors
 
@@ -389,7 +389,7 @@ def _validate_adapter_pointers(manifest: dict) -> list[str]:
                     continue
                 if not path.exists():
                     errors.append(
-                        f"{bucket}:{item_id}: adapter pointer missing for {surface}: " f"{path.relative_to(REPO_ROOT)}"
+                        f"{bucket}:{item_id}: adapter pointer missing for {surface}: {path.relative_to(REPO_ROOT)}"
                     )
                     continue
                 body = path.read_text(encoding="utf-8")
@@ -516,7 +516,7 @@ def _validate_local_yamls_if_present(schema: dict) -> list[str]:
         placeholders = PLACEHOLDER_RE.findall(raw)
         # Strip legitimate curly content from YAML key names (none expected).
         if placeholders:
-            errors.append(f"{candidate.name}: unreplaced placeholders: " f"{sorted(set(placeholders))}")
+            errors.append(f"{candidate.name}: unreplaced placeholders: {sorted(set(placeholders))}")
         secrets = _scan_for_secret_patterns(raw)
         if secrets:
             errors.append(
@@ -594,20 +594,20 @@ def validate_context_pointers() -> list[str]:
         lines = path.read_text(encoding="utf-8").splitlines()
         if len(lines) > CONTEXT_POINTER_MAX_LINES:
             errors.append(
-                f"{path.name}: {len(lines)} lines exceeds " f"CONTEXT_POINTER_MAX_LINES={CONTEXT_POINTER_MAX_LINES}"
+                f"{path.name}: {len(lines)} lines exceeds CONTEXT_POINTER_MAX_LINES={CONTEXT_POINTER_MAX_LINES}"
             )
         # No date-led lines (prevents diary drift).
         for n, line in enumerate(lines, start=1):
             if re.match(r"^\s*(?:##+\s+)?20\d{2}[\-/]", line):
                 errors.append(
-                    f"{path.name}:{n}: date-led line {line.strip()!r} " "(context files must not drift into diaries)"
+                    f"{path.name}:{n}: date-led line {line.strip()!r} (context files must not drift into diaries)"
                 )
                 break
         # No oversized tables.
         for idx, count in enumerate(_table_row_counts("\n".join(lines))):
             if count > CONTEXT_POINTER_MAX_TABLE_ROWS:
                 errors.append(
-                    f"{path.name}: table #{idx + 1} has {count} rows " f"(limit is {CONTEXT_POINTER_MAX_TABLE_ROWS})"
+                    f"{path.name}: table #{idx + 1} has {count} rows (limit is {CONTEXT_POINTER_MAX_TABLE_ROWS})"
                 )
     return errors
 
@@ -685,12 +685,10 @@ def _validate_reports_block(manifest: dict) -> list[str]:
             continue
         prod = entry.get("producer")
         if prod and prod not in known_actions:
-            errors.append(
-                f"reports.types[id={entry.get('id')!r}].producer: " f"references unknown skill/workflow {prod!r}"
-            )
+            errors.append(f"reports.types[id={entry.get('id')!r}].producer: references unknown skill/workflow {prod!r}")
         mode = entry.get("mode")
         if mode not in ("AUTO", "CONSULT", "STOP"):
-            errors.append(f"reports.types[id={entry.get('id')!r}].mode: " f"invalid value {mode!r}")
+            errors.append(f"reports.types[id={entry.get('id')!r}].mode: invalid value {mode!r}")
     return errors
 
 

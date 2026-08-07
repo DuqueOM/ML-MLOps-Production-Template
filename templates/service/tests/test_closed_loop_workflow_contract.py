@@ -91,8 +91,7 @@ def test_workflow_payload_includes_all_required_schema_fields(workflow_text: str
     """
     required = _required_pydantic_fields(schema_text, "PredictionRequest")
     assert required, (
-        "Sanity check failed: could not extract any required fields "
-        "from PredictionRequest. Did the parser regex break?"
+        "Sanity check failed: could not extract any required fields from PredictionRequest. Did the parser regex break?"
     )
 
     payload_keys = _payload_keys(workflow_text, "VALID_BODY")

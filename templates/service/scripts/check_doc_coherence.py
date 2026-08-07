@@ -203,8 +203,7 @@ def check_anti_pattern_count() -> list[str]:
         m = re.search(r"(\d+)\s+anti-patterns", readme)
         if m and int(m.group(1)) != canonical:
             problems.append(
-                f"README.md claims {m.group(1)} anti-patterns; AGENTS.md defines {canonical}. "
-                f"AGENTS.md is canonical."
+                f"README.md claims {m.group(1)} anti-patterns; AGENTS.md defines {canonical}. AGENTS.md is canonical."
             )
     if llms is not None:
         m = re.search(r"\(D-01\s*to\s*D-(\d{2})\)", llms)
@@ -347,8 +346,7 @@ def check_doc_language_and_privacy() -> list[str]:
             shown = ", ".join(spanish_hits[:5])
             more = f" (+{len(spanish_hits) - 5} more)" if len(spanish_hits) > 5 else ""
             problems.append(
-                f"{rel} contains Spanish word(s): {shown}{more}. "
-                f"This repo's documentation is English-only (AUDIT R10)."
+                f"{rel} contains Spanish word(s): {shown}{more}. This repo's documentation is English-only (AUDIT R10)."
             )
 
         lowered = text.lower()

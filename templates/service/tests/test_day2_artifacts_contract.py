@@ -275,7 +275,7 @@ def test_audit_record_cli_actually_works_with_workflow_args(
     ]
     cli = next((p for p in candidates if p.is_file()), None)
     if cli is None:
-        pytest.skip("audit_record.py not present in any candidate path; " "skipping smoke test")
+        pytest.skip("audit_record.py not present in any candidate path; skipping smoke test")
 
     # Find common_utils so audit_record can import it. Same dual-layout
     # logic as the drills test.
@@ -326,14 +326,12 @@ def test_audit_record_cli_actually_works_with_workflow_args(
         timeout=30,
     )
     assert proc.returncode == 0, (
-        f"audit_record.py exited {proc.returncode} with workflow args. "
-        f"stderr:\n{proc.stderr}\nstdout:\n{proc.stdout}"
+        f"audit_record.py exited {proc.returncode} with workflow args. stderr:\n{proc.stderr}\nstdout:\n{proc.stdout}"
     )
 
     audit_log = audit_dir / "audit.jsonl"
     assert audit_log.is_file(), (
-        f"audit_record.py exited 0 but ops/audit.jsonl was not created. "
-        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        f"audit_record.py exited 0 but ops/audit.jsonl was not created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     )
     lines = [ln for ln in audit_log.read_text().splitlines() if ln.strip()]
     assert len(lines) == 1, f"expected 1 audit line, got {len(lines)}"

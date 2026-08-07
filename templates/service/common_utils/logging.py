@@ -111,7 +111,7 @@ class HumanFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         color = self.COLORS.get(record.levelname, self.RESET)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return f"{timestamp} {color}{record.levelname:8s}{self.RESET} " f"[{record.module}] {record.getMessage()}"
+        return f"{timestamp} {color}{record.levelname:8s}{self.RESET} [{record.module}] {record.getMessage()}"
 
 
 def get_logger(

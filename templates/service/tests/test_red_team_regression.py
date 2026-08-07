@@ -112,7 +112,7 @@ def test_entry_2_and_3_protected_path_short_circuits_formatter_drift() -> None:
         blast_radius_lines=5,
     )
     assert result["final_mode"] == "STOP", (
-        "Entry 3 regression: a protected-path touch MUST produce STOP " f"regardless of signature. Got: {result}"
+        f"Entry 3 regression: a protected-path touch MUST produce STOP regardless of signature. Got: {result}"
     )
     assert result["matched_class"] == "blast_radius_exceeded", (
         "Entry 3 regression: the classifier should attribute STOP to the "
@@ -120,7 +120,7 @@ def test_entry_2_and_3_protected_path_short_circuits_formatter_drift() -> None:
         "`blast_radius_exceeded` which owns the protected-paths check)."
     )
     assert "templates/service/common_utils/secrets.py" in list(result.get("protected_paths_hit") or ()), (
-        "Entry 3 regression: the hit path must be surfaced so the " "investigator can see WHY STOP was chosen."
+        "Entry 3 regression: the hit path must be surfaced so the investigator can see WHY STOP was chosen."
     )
 
 

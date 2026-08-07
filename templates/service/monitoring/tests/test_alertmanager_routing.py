@@ -206,7 +206,7 @@ def test_amtool_routes_alert(
     args = [amtool_bin, "config", "routes", "test", f"--config.file={config_path}"]
     args += [f"{k}={v}" for k, v in labels.items()]
     proc = subprocess.run(args, capture_output=True, text=True, timeout=15)
-    assert proc.returncode == 0, f"amtool exited {proc.returncode}: stdout={proc.stdout!r} " f"stderr={proc.stderr!r}"
+    assert proc.returncode == 0, f"amtool exited {proc.returncode}: stdout={proc.stdout!r} stderr={proc.stderr!r}"
     got = proc.stdout.strip().splitlines()[-1].strip()
     assert got == expected, (
         f"[{priority}] amtool routed {labels} → {got!r}, expected {expected!r}. "
@@ -229,7 +229,7 @@ def test_amtool_check_config_passes(amtool_bin: str | None, config_path: Path) -
         text=True,
         timeout=15,
     )
-    assert proc.returncode == 0, f"amtool check-config failed: stdout={proc.stdout!r} " f"stderr={proc.stderr!r}"
+    assert proc.returncode == 0, f"amtool check-config failed: stdout={proc.stdout!r} stderr={proc.stderr!r}"
     assert "SUCCESS" in proc.stdout, f"amtool check-config did not report SUCCESS: {proc.stdout!r}"
 
 
@@ -278,7 +278,7 @@ def test_inhibit_rule_suppresses_lower_severity(parsed_config: dict) -> None:
     # Find the critical→warning|info rule.
     critical_rules = [r for r in rules if any('severity="critical"' in m for m in (r.get("source_matchers") or []))]
     assert critical_rules, (
-        "no inhibit rule with source severity=critical; adopters will " "get paged twice per service outage."
+        "no inhibit rule with source severity=critical; adopters will get paged twice per service outage."
     )
     r = critical_rules[0]
     assert "service" in (r.get("equal") or []), (

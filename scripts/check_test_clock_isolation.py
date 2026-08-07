@@ -78,14 +78,12 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
         (
             28,
             "time.time",
-            "wait_for_service polling timeout: delta measurement, "
-            "absolute clock value never asserted",
+            "wait_for_service polling timeout: delta measurement, absolute clock value never asserted",
         ),
         (
             29,
             "time.time",
-            "wait_for_service polling timeout: delta measurement, "
-            "absolute clock value never asserted",
+            "wait_for_service polling timeout: delta measurement, absolute clock value never asserted",
         ),
     ],
     "templates/service/tests/integration/test_service_integration.py": [
@@ -183,7 +181,7 @@ def main() -> int:
             print(f"  - {line}", file=sys.stderr)
         print(
             "\nContext: see docs/audit/feedback-may-2026-triage.md "
-            "§\"Closure summary\" for the bug this contract prevents.",
+            '§"Closure summary" for the bug this contract prevents.',
             file=sys.stderr,
         )
         return 1
