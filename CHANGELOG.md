@@ -72,6 +72,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   `audit_record.py` (including the `golden-path.yml` `audit-trail` job)
   was silently failing with `ModuleNotFoundError`. One-line fix.
 
+### Fixed — copier post-copy validation required an uninstalled dependency (#56)
+
+- **`scripts/validate_agentic_manifest.py` and its vendored copy under
+  `templates/service/scripts/`**: the `jsonschema` import guard hard-exited
+  with status 2 when the package was absent. `_tasks` runs the validator
+  immediately after copy — *before* the generated service's dependencies
+  (which do declare `jsonschema`, in `templates/service/pyproject.toml` and
+  `requirements.txt`) have been installed — so copier rolled the entire
+  generation back and left **zero files** for any adopter whose ambient
+  interpreter lacked the package. The scaffold was unusable, not degraded.
+  A post-copy task cannot depend on a package that the copy step itself
+  only makes available later.
+- **Why it stayed invisible**: this repository's environment happens to
+  carry `jsonschema` globally, so the scaffolder E2E job passed. That is
+  the failure shape — green for the author, broken for every adopter. It
+  surfaced only by actually exercising `copier copy` against a clean
+  interpreter rather than trusting the declared dependency.
+- **The fix**: the bootstrap guard no longer exits. Every check that does
+  not need JSON Schema still runs; the two schema-validation call sites
+  record themselves in `skipped_schema_checks` and the count is reported on
+  stderr (`JSON Schema validation SKIPPED for N file(s)`), so a skipped
+  check can never read as a passed one. CI always installs `jsonschema`,
+  so strictness there is unchanged.
+- Applied to **both** copies. `_tasks` runs in the destination directory,
+  so the script actually executed is the vendored one — patching only the
+  root copy would have left the scaffold broken while looking fixed.
+  `check_vendored_runtime_drift.py` caught exactly that partial fix.
+
 ## [0.21.0] — 2026-07-06
 
 MINOR release under [`docs/RELEASING.md`](docs/RELEASING.md) §1.2
