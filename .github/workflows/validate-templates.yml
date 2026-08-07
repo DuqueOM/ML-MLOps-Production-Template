@@ -53,6 +53,9 @@ jobs:
       - name: gitleaks pin drift (3 sites must agree)
         run: python3 scripts/check_gitleaks_pin.py
 
+      - name: Adopter scaffold command pins the current release
+        run: python3 scripts/check_adopter_scaffold_ref.py
+
       - name: gitleaks (D-17)
         env:
           GITLEAKS_VERSION: "8.30.1"

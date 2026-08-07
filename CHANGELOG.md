@@ -10,6 +10,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — the documented scaffold command served a stale template
+
+- **`README.md`, `QUICK_START.md`, `docs/TUTORIAL.md`, `docs/PROGRESSION.md`**:
+  every adopter-facing `copier copy` example omitted `--vcs-ref`. Copier
+  resolves an unpinned git source to the **highest-sorting tag**, and this
+  repo carries the frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014)
+  alongside the active `v0.x` line. `v1.12.0` sorts above every `v0.x`
+  tag, so the documented command served the **April 2026 snapshot**.
+- Nothing errored. The adopter received a complete, plausible, stale
+  scaffold. Measured at `v0.22.0`: **435 files and no
+  `.copier-answers.yml`** unpinned, versus **626 files with a correct
+  answers file** when pinned. This means the `v0.22.0` copier-update fix
+  did not reach anyone following the documentation.
+- Found by executing the adopter path against the published tag rather
+  than assuming it — the same method that surfaced the four `v0.22.0`
+  defects. The R11 audit noted the adjacent symptom (*"confuses `sort -V`
+  and any tooling that assumes monotonicity"*) without connecting it to
+  Copier's tag resolution.
+- **New `scripts/check_adopter_scaffold_ref.py`**: fails the build if any
+  adopter-facing command is unpinned or pins a version other than
+  `VERSION`. Wired into pre-commit and CI, and added to the
+  `docs/RELEASING.md` §3 checklist so a release cannot ship with the docs
+  pointing at the previous one.
+- The `v1.x` tags were **not** deleted or renamed. `agentic/rules/18` and
+  ADR-014 both declare them immutable; changing that is a governance
+  decision requiring its own ADR, not a side effect of a docs fix.
+
 ## [0.22.0] — 2026-08-07
 
 MINOR release under [`docs/RELEASING.md`](docs/RELEASING.md) §1.2. The

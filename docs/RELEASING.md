@@ -155,6 +155,16 @@ Every release MUST satisfy the following before tagging:
       that flips the Status.
 - [ ] Release notes file `releases/vX.Y.Z.md` exists with the same bump
       rationale. `scripts/check_doc_coherence.py` (check C6) enforces this.
+- [ ] Every adopter-facing `copier copy` example pins
+      `--vcs-ref=vX.Y.Z` for the release being cut.
+      `scripts/check_adopter_scaffold_ref.py` enforces this and CI runs it.
+      **This is not cosmetic**: Copier resolves an unpinned git source to
+      the highest-sorting tag, and the frozen `v1.0.0`–`v1.12.0` audit
+      snapshots (ADR-014) sort above every `v0.x` tag. An unpinned command
+      silently scaffolds the April 2026 snapshot — a complete, plausible,
+      stale service. Measured at v0.22.0: 435 files and no
+      `.copier-answers.yml` unpinned, versus 626 files with a correct
+      answers file when pinned.
 - [ ] Tag is annotated (`git tag -a vX.Y.Z -m '...'`) and pushed to
       origin alongside the merge commit.
 - [ ] GitHub Release publication is **automatic** —

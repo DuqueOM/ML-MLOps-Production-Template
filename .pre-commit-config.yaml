@@ -208,6 +208,19 @@ repos:
         language: system
         pass_filenames: false
         files: ^(\.pre-commit-config\.yaml|templates/service/\.pre-commit-config\.yaml|\.github/workflows/validate-templates\.yml|scripts/check_gitleaks_pin\.py)$
+      - id: adopter-scaffold-ref
+        name: adopter scaffold command pins the current release
+        description: |
+          Copier resolves a git source to the highest-sorting tag when no
+          --vcs-ref is given. This repo carries frozen v1.x audit
+          snapshots alongside the active v0.x line, and v1.12.0 sorts
+          above every v0.x tag — so an unpinned command silently
+          scaffolds a stale snapshot. Fires on VERSION or adopter-doc
+          changes.
+        entry: python3 scripts/check_adopter_scaffold_ref.py
+        language: system
+        pass_filenames: false
+        files: ^(VERSION|README\.md|QUICK_START\.md|docs/TUTORIAL\.md|docs/PROGRESSION\.md|scripts/check_adopter_scaffold_ref\.py)$
       - id: ci-autofix-policy-contract
         name: CI autofix policy contract (ADR-019)
         description: |
