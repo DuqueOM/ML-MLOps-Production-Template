@@ -234,8 +234,38 @@ if [[ -f "$SERVICE_DIR/config/agentic_manifest.yaml" ]]; then
 else
   fail "Agentic manifest missing"
 fi
-# .copier-answers.yml is only created by `copier update`, not `copier copy`.
-# It's expected to be absent after the initial scaffold.
+# ════════════════════════════════════════════════
+# Validation 5a-bis — Copier answers file (the update path)
+# ════════════════════════════════════════════════
+# `copier copy` DOES create this file — provided the template ships an
+# answers-file template in the render root. It is not an update-only
+# artifact; the previous comment here asserted the opposite and thereby
+# encoded a real defect as expected behaviour, which is why a template
+# that could never be updated passed this suite for its whole life.
+#
+# Without this file `copier update` cannot run and the generated service
+# is "a fork with extra steps" — precisely what ADR-003 §"Generation, not
+# copying" exists to prevent, and what the scaffold-update workflow and
+# _message_after_copy both promise. Assert it, never assume it.
+info "Checking Copier answers file (ADR-003 update path)..."
+ANSWERS_FILE="$SERVICE_DIR/.copier-answers.yml"
+if [[ -f "$ANSWERS_FILE" ]]; then
+  pass "Copier answers file present (.copier-answers.yml)"
+  # `_commit` is what `copier update` diffs against. An answers file
+  # without it records answers but still strands the service.
+  if grep -qE '^_commit:' "$ANSWERS_FILE"; then
+    pass "Answers file records _commit (update path is live)"
+  else
+    fail "Answers file lacks _commit — 'copier update' has no base revision to diff from"
+  fi
+  if grep -qE '^service_slug:' "$ANSWERS_FILE"; then
+    pass "Answers file records the scaffold answers"
+  else
+    fail "Answers file lacks service_slug — answers were not persisted"
+  fi
+else
+  fail "Copier answers file MISSING — generated service has no 'copier update' path (ADR-003)"
+fi
 
 # ════════════════════════════════════════════════
 # Validation 5b — Generated CI/CD expects root-service layout
