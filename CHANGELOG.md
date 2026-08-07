@@ -100,6 +100,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   root copy would have left the scaffold broken while looking fixed.
   `check_vendored_runtime_drift.py` caught exactly that partial fix.
 
+### Fixed — generated services had no `copier update` path (ADR-003 blocker)
+
+- **`templates/service/{@ _copier_conf.answers_file @}`** (new): the template
+  never shipped an answers-file template, so `copier copy` produced services
+  with **no `.copier-answers.yml`**. Without it `copier update` cannot run,
+  which made every generated service "a fork with extra steps" — the exact
+  outcome ADR-003 §"Generation, not copying" exists to prevent. The template
+  promised the capability in three places while structurally lacking it:
+  ADR-003, the `scaffold-update` workflow ("required for `copier update`"),
+  and `_message_after_copy` ("re-run `copier update` in this project").
+- **Root cause of the silent failure**: `copier.yml` sets custom `_envops`
+  (`variable_start_string: "{@"`). The stock Copier filename form
+  (`{{ _copier_conf.answers_file }}`) therefore does not render here — Copier
+  emits it as a *literal* filename instead of erroring, so the omission
+  produced no signal at generation time.
+- **`scripts/test_scaffold.sh`**: the E2E suite carried a comment asserting
+  that `.copier-answers.yml` "is only created by `copier update`, not
+  `copier copy`" and that its absence "is expected". That is false, and it
+  encoded the defect as intended behaviour — which is why a template that
+  could never be updated passed its own scaffolder suite for its entire
+  life. Replaced with a real assertion covering file presence, `_commit`
+  (the revision `copier update` diffs against), and answer persistence.
+  Verified in both directions: the guard exits 1 with the answers template
+  removed and passes with it present.
+- **Verified end-to-end**: `copier copy` → `git init` → template commit →
+  `copier update` pulls the change into the generated service and advances
+  `_commit`. This is the first time the ADR-003 update path has been
+  executed rather than assumed.
+- **Adopter impact**: services generated before this fix have no answers
+  file and cannot be updated in place. See `MIGRATION.md` for the recovery
+  procedure (write the file by hand with the originating `_commit`).
+- **Reaches adopters only on the next tag.** `copier copy` against a git
+  source resolves to the latest *tag*, not `HEAD`, so this fix is inert
+  until a release is cut.
+
 ## [0.21.0] — 2026-07-06
 
 MINOR release under [`docs/RELEASING.md`](docs/RELEASING.md) §1.2
