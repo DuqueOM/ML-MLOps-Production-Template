@@ -1,32 +1,37 @@
-"""Contract test for R4 audit finding C2 — Phase-0 disclosure for ADR-018/019.
+"""Contract test — README must disclose that ADR-018/019 are not live runtime.
 
-Two invariants guard against silent regression of the Phase-0 status
-of the Operational Memory Plane (ADR-018) and the Agentic CI
-Self-Healing lane (ADR-019):
+Origin: R4 audit finding C2.
 
-1. **Section heading banner** — the `## Operational Memory Plane` and
-   `## Agentic CI self-healing` sections in `README.md` MUST carry a
-   banner block containing the canonical phrase
-   "Phase 0 only. Runtime NOT implemented." until the corresponding
-   ADR transitions out of Phase 0.
+WHY THIS WAS REWRITTEN
+----------------------
+The original version guarded the *Phase 0* wording and every check began::
 
-2. **Hero list disclaimer** — the §"What this template is" bullet list
-   that mentions self-healing AND Memory Plane MUST mark each as
-   "Phase 0; not implemented yet".
+    if not _is_phase_0(ADR):
+        pytest.skip("ADR is no longer Phase 0 — banner no longer mandatory.")
 
-3. **Maturity matrix row** — the §"Production-ready scope" table MUST
-   list each capability with a "Phase 0 — runtime not implemented"
-   status (NOT "Production-ready" and NOT "Optional companion" alone).
+Both ADRs advanced to Phase 1, so all six invariants began skipping and the
+suite reported ``6 skipped`` — a green run that enforced nothing. The
+disclosure it was written to protect became deletable without any test
+failing, which is the exact regression the test existed to prevent.
 
-If a future contributor flips ADR-018 or ADR-019 status to Phase 1+ in
-the ADR file, they MUST also update this test alongside removing the
-banner. The test is a reminder, not a permanent block.
+A guard that disarms itself the moment the thing it guards changes state is
+worse than no guard: it reports success while doing nothing, so nobody goes
+looking. This version is **phase-aware instead of phase-pinned**:
+
+* it re-derives what to enforce from the ADR's own declared phase, and
+* it FAILS rather than skips when it cannot determine what to enforce.
+
+The disclosure requirement lifts only when an ADR explicitly declares its
+runtime complete (see ``RUNTIME_LIVE_MARKERS``). Advancing 1 → 2 → 3 keeps
+the guard armed automatically; no test edit is required, and forgetting to
+edit it can no longer silently disarm it.
 
 Authority: R4 audit C2, ADR-020, ACTION_PLAN_R4 §S0-2.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -36,143 +41,203 @@ README = REPO_ROOT / "README.md"
 ADR_018 = REPO_ROOT / "docs" / "decisions" / "ADR-018-operational-memory-plane.md"
 ADR_019 = REPO_ROOT / "docs" / "decisions" / "ADR-019-agentic-ci-self-healing.md"
 
-CANONICAL_BANNER_PHRASE = "Phase 0 only. Runtime NOT implemented."
-
 MEMORY_HEADING = "## Operational Memory Plane"
 SELF_HEALING_HEADING = "## Agentic CI self-healing"
+
+HERO_HEADING = "## What this template is"
+MATRIX_HEADING = "## Production-ready scope"
+
+# Phrases in an ADR Status line that mean "the runtime actually ships now".
+# Only these lift the disclosure requirement.
+RUNTIME_LIVE_MARKERS = (
+    "runtime complete",
+    "runtime live",
+    "fully implemented",
+    "generally available",
+)
+
+# Substance markers: at least one must appear in the disclosure surface.
+# A list rather than one canonical phrase so honest rewording does not break
+# the build, while the *claim* stays enforced.
+NOT_LIVE_MARKERS = (
+    "not implemented",
+    "not runtime",
+    "not yet implemented",
+    "no runtime",
+    "shadow-only",
+    "shadow mode",
+    "read-only",
+    "deferred",
+    "contracts only",
+    "contracts-only",
+    "writes nothing",
+    "roadmap",
+)
+
+
+def _read(path: Path) -> str:
+    assert path.exists(), f"required file not found: {path}"
+    return path.read_text(encoding="utf-8")
 
 
 @pytest.fixture(scope="module")
 def readme_text() -> str:
-    assert README.exists(), f"README.md not found at {README}"
-    return README.read_text(encoding="utf-8")
+    return _read(README)
 
 
-def _section_after(text: str, heading: str, max_chars: int = 1500) -> str:
-    """Return the first `max_chars` after `heading` in `text` (banner zone)."""
+def _status_line(adr_path: Path) -> str:
+    """Return the ADR's Status line, lowercased.
+
+    Fails loudly when absent: an unparseable ADR must never be read as
+    "nothing to enforce".
+    """
+    for line in _read(adr_path).splitlines():
+        stripped = line.strip().lower()
+        if stripped.startswith("- **status**"):
+            return stripped
+    pytest.fail(
+        f"{adr_path.name} has no '- **Status**:' line, so the required "
+        "disclosure level cannot be derived. Restore the Status line."
+    )
+    raise AssertionError("unreachable")
+
+
+def _declared_phase(adr_path: Path) -> int:
+    status = _status_line(adr_path)
+    match = re.search(r"phase\s+(\d+)", status)
+    if not match:
+        pytest.fail(
+            f"{adr_path.name} Status line does not declare a 'Phase N': {status!r}. "
+            "The disclosure guard derives its requirement from that number; "
+            "without it the guard cannot stay armed."
+        )
+    return int(match.group(1))
+
+
+def _runtime_is_live(adr_path: Path) -> bool:
+    status = _status_line(adr_path)
+    return any(marker in status for marker in RUNTIME_LIVE_MARKERS)
+
+
+def _section(text: str, heading: str, max_chars: int = 2500) -> str:
     idx = text.find(heading)
     assert idx != -1, f"README is missing the {heading!r} heading"
     return text[idx : idx + max_chars]
 
 
-def _adr_phase_status(adr_path: Path) -> str:
-    """Return the Status line from an ADR file, normalized to lowercase."""
-    text = adr_path.read_text(encoding="utf-8")
-    for line in text.splitlines():
-        stripped = line.strip().lower()
-        if stripped.startswith("- **status**") or stripped.startswith("- **status:**"):
-            return stripped
-    pytest.fail(f"ADR {adr_path.name} is missing a Status line")
-    return ""  # unreachable
-
-
-def _is_phase_0(adr_path: Path) -> bool:
-    status = _adr_phase_status(adr_path)
-    return "phase 0" in status
-
-
-# ---------------------------------------------------------------------------
-# Invariant 1 — section banner present while ADR is Phase 0.
-# ---------------------------------------------------------------------------
-
-
-def test_memory_plane_section_carries_phase0_banner(readme_text: str) -> None:
-    if not _is_phase_0(ADR_018):
-        pytest.skip("ADR-018 is no longer Phase 0 — banner no longer mandatory.")
-    section = _section_after(readme_text, MEMORY_HEADING)
-    assert CANONICAL_BANNER_PHRASE in section, (
-        f"§'{MEMORY_HEADING}' must carry the canonical phrase "
-        f"{CANONICAL_BANNER_PHRASE!r} while ADR-018 is in Phase 0. "
-        "See docs/audit/ACTION_PLAN_R4.md §S0-2."
-    )
-
-
-def test_self_healing_section_carries_phase0_banner(readme_text: str) -> None:
-    if not _is_phase_0(ADR_019):
-        pytest.skip("ADR-019 is no longer Phase 0 — banner no longer mandatory.")
-    section = _section_after(readme_text, SELF_HEALING_HEADING)
-    assert CANONICAL_BANNER_PHRASE in section, (
-        f"§'{SELF_HEALING_HEADING}' must carry the canonical phrase "
-        f"{CANONICAL_BANNER_PHRASE!r} while ADR-019 is in Phase 0. "
+def _assert_discloses(surface: str, where: str, adr_name: str) -> None:
+    lowered = surface.lower()
+    hits = [marker for marker in NOT_LIVE_MARKERS if marker in lowered]
+    assert hits, (
+        f"{where} must state that the {adr_name} capability is NOT live runtime. "
+        f"None of the accepted markers appear: {list(NOT_LIVE_MARKERS)}. "
+        "An adopter reading this surface would conclude the feature ships. "
         "See docs/audit/ACTION_PLAN_R4.md §S0-2."
     )
 
 
 # ---------------------------------------------------------------------------
-# Invariant 2 — hero list bullets flag both capabilities.
+# Invariant 0 — the guard itself must be armed.
 # ---------------------------------------------------------------------------
 
 
-def test_hero_list_marks_self_healing_phase0(readme_text: str) -> None:
-    if not _is_phase_0(ADR_019):
-        pytest.skip("ADR-019 is no longer Phase 0 — hero-list flag no longer required.")
-    # Locate the "What this template is" hero bullets and check the
-    # self-healing line carries the phase flag.
-    hero_idx = readme_text.find("## What this template is")
-    assert hero_idx != -1
-    hero_block = readme_text[hero_idx : hero_idx + 2500]
-    self_healing_line = next(
-        (line for line in hero_block.splitlines() if "CI self-healing" in line),
-        None,
-    )
-    assert self_healing_line is not None, "Hero bullet for CI self-healing is missing."
-    assert "Phase 0" in self_healing_line and "not implemented yet" in self_healing_line, (
-        "Hero list bullet for CI self-healing must declare 'Phase 0; not implemented yet'. "
-        "See docs/audit/ACTION_PLAN_R4.md §S0-2."
-    )
+@pytest.mark.parametrize("adr", [ADR_018, ADR_019], ids=["ADR-018", "ADR-019"])
+def test_adr_declares_a_parseable_phase(adr: Path) -> None:
+    """The whole guard hangs off this. Assert it rather than assume it."""
+    phase = _declared_phase(adr)
+    assert phase >= 0
 
 
-def test_hero_list_marks_memory_plane_phase0(readme_text: str) -> None:
-    if not _is_phase_0(ADR_018):
-        pytest.skip("ADR-018 is no longer Phase 0.")
-    hero_idx = readme_text.find("## What this template is")
-    assert hero_idx != -1
-    hero_block = readme_text[hero_idx : hero_idx + 2500]
-    memory_line = next(
-        (line for line in hero_block.splitlines() if "Operational Memory Plane" in line),
-        None,
-    )
-    assert memory_line is not None, "Hero bullet for Operational Memory Plane is missing."
-    assert "Phase 0" in memory_line and "not implemented yet" in memory_line, (
-        "Hero list bullet for Operational Memory Plane must declare 'Phase 0; not implemented yet'. "
-        "See docs/audit/ACTION_PLAN_R4.md §S0-2."
+# ---------------------------------------------------------------------------
+# Invariant 1 — section banner discloses non-runtime status.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("adr", "heading", "label"),
+    [
+        (ADR_018, MEMORY_HEADING, "ADR-018"),
+        (ADR_019, SELF_HEALING_HEADING, "ADR-019"),
+    ],
+    ids=["ADR-018", "ADR-019"],
+)
+def test_section_banner_discloses_non_runtime(readme_text: str, adr: Path, heading: str, label: str) -> None:
+    if _runtime_is_live(adr):
+        pytest.skip(f"{label} declares its runtime live; disclosure no longer required.")
+    _assert_discloses(_section(readme_text, heading), f"README §'{heading}'", label)
+
+
+# ---------------------------------------------------------------------------
+# Invariant 2 — the README banner's phase matches the ADR's phase.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("adr", "heading", "label"),
+    [
+        (ADR_018, MEMORY_HEADING, "ADR-018"),
+        (ADR_019, SELF_HEALING_HEADING, "ADR-019"),
+    ],
+    ids=["ADR-018", "ADR-019"],
+)
+def test_section_banner_phase_matches_adr(readme_text: str, adr: Path, heading: str, label: str) -> None:
+    """Catch the drift where an ADR advances and the README keeps the old number."""
+    if _runtime_is_live(adr):
+        pytest.skip(f"{label} declares its runtime live; phase banner no longer required.")
+    phase = _declared_phase(adr)
+    section = _section(readme_text, heading)
+    assert re.search(rf"phase\s+{phase}\b", section, re.IGNORECASE), (
+        f"README §'{heading}' does not state 'Phase {phase}', but {adr.name} "
+        f"declares Phase {phase}. The README and the ADR disagree about how "
+        "much of this capability is real."
     )
 
 
 # ---------------------------------------------------------------------------
-# Invariant 3 — maturity matrix row uses the right status string.
+# Invariant 3 — hero list flags both capabilities.
 # ---------------------------------------------------------------------------
 
 
-def test_maturity_matrix_self_healing_row(readme_text: str) -> None:
-    if not _is_phase_0(ADR_019):
-        pytest.skip("ADR-019 is no longer Phase 0.")
-    matrix_idx = readme_text.find("## Production-ready scope")
-    assert matrix_idx != -1
-    matrix_block = readme_text[matrix_idx : matrix_idx + 3000]
+@pytest.mark.parametrize(
+    ("adr", "capability", "label"),
+    [
+        (ADR_018, "Operational Memory Plane", "ADR-018"),
+        (ADR_019, "CI self-healing", "ADR-019"),
+    ],
+    ids=["ADR-018", "ADR-019"],
+)
+def test_hero_list_flags_capability(readme_text: str, adr: Path, capability: str, label: str) -> None:
+    if _runtime_is_live(adr):
+        pytest.skip(f"{label} declares its runtime live; hero-list flag no longer required.")
+    hero = _section(readme_text, HERO_HEADING)
+    assert capability in hero, f"§'{HERO_HEADING}' no longer mentions {capability!r}."
+    _assert_discloses(hero, f"README §'{HERO_HEADING}'", label)
+
+
+# ---------------------------------------------------------------------------
+# Invariant 4 — maturity matrix row must not read as production-ready.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("adr", "row_key", "label"),
+    [
+        (ADR_018, "Operational Memory Plane", "ADR-018"),
+        (ADR_019, "Agentic CI self-healing", "ADR-019"),
+    ],
+    ids=["ADR-018", "ADR-019"],
+)
+def test_maturity_matrix_row_not_production_ready(readme_text: str, adr: Path, row_key: str, label: str) -> None:
+    if _runtime_is_live(adr):
+        pytest.skip(f"{label} declares its runtime live; matrix caveat no longer required.")
+    matrix = _section(readme_text, MATRIX_HEADING, max_chars=4000)
     row = next(
-        (line for line in matrix_block.splitlines() if "Agentic CI self-healing" in line and "|" in line),
+        (line for line in matrix.splitlines() if row_key in line and "|" in line),
         None,
     )
-    assert row is not None, "Maturity matrix row for Agentic CI self-healing is missing."
-    assert "Phase 0" in row and "runtime not implemented" in row.lower(), (
-        "Maturity matrix row for Agentic CI self-healing must declare 'Phase 0 — runtime not implemented'. "
-        "See docs/audit/ACTION_PLAN_R4.md §S0-2."
-    )
-
-
-def test_maturity_matrix_memory_plane_row(readme_text: str) -> None:
-    if not _is_phase_0(ADR_018):
-        pytest.skip("ADR-018 is no longer Phase 0.")
-    matrix_idx = readme_text.find("## Production-ready scope")
-    assert matrix_idx != -1
-    matrix_block = readme_text[matrix_idx : matrix_idx + 3000]
-    row = next(
-        (line for line in matrix_block.splitlines() if "Operational Memory Plane" in line and "|" in line),
-        None,
-    )
-    assert row is not None, "Maturity matrix row for Operational Memory Plane is missing."
-    assert "Phase 0" in row and "runtime not implemented" in row.lower(), (
-        "Maturity matrix row for Operational Memory Plane must declare 'Phase 0 — runtime not implemented'. "
-        "See docs/audit/ACTION_PLAN_R4.md §S0-2."
+    assert row is not None, f"Maturity matrix row for {row_key!r} is missing."
+    _assert_discloses(row, f"maturity-matrix row for {row_key!r}", label)
+    assert "production-ready" not in row.lower(), (
+        f"Maturity matrix row for {row_key!r} claims production-ready while "
+        f"{adr.name} has not declared its runtime live."
     )

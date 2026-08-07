@@ -20,11 +20,25 @@ name: ci-self-healing-shadow
 
 on:
   workflow_run:
+    # ⚠️ These are workflow `name:` values, NOT filenames. GitHub matches
+    # `workflow_run.workflows` against the upstream workflow's `name:` field
+    # and silently never fires on a value that matches nothing — there is no
+    # validation error and no log line.
+    #
+    # This list previously held the FILENAME stems (`validate-templates`,
+    # `policy-tests`, `golden-path`, `golden-path-extended`). None of them
+    # equals a real `name:`, so this workflow recorded ZERO runs across its
+    # entire lifetime while appearing `state=active`, and ADR-019's Phase
+    # 1 → Phase 2 gate ("14 days of shadow precision data") was
+    # unsatisfiable by construction rather than by choice.
+    #
+    # `tests/test_shadow_workflow_phase1.py` now asserts every entry here
+    # resolves to a real workflow `name:`.
     workflows:
-      - "validate-templates"
-      - "policy-tests"
-      - "golden-path"
-      - "golden-path-extended"
+      - "Validate Templates"                 # validate-templates.yml
+      - "Policy Tests (D-XX anti-patterns)"  # policy-tests.yml
+      - "Golden Path E2E"                    # golden-path.yml
+      - "Golden Path E2E (extended)"         # golden-path-extended.yml
     types:
       - completed
   workflow_dispatch:
