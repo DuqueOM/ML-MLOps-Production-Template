@@ -79,7 +79,10 @@ def main() -> int:
     if "_prepare_model_features" not in app or "transform_inference" not in app:
         failures.append("fastapi_app.py does not enforce inference feature transformation")
     parity_match = re.search(
-        r"def test_inference_uses_same_features\(.*?(?=\n    def |\n\n# ---------------------------------------------------------------------------)",
+        # Section separator the regex stops at, kept off the pattern line so
+        # the line stays inside the 120-char limit.
+        r"def test_inference_uses_same_features\(.*?"
+        r"(?=\n    def |\n\n# " + "-" * 75 + r")",
         training_test,
         flags=re.S,
     )

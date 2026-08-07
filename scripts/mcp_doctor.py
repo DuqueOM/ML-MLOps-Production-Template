@@ -46,7 +46,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MCP_REGISTRY = REPO_ROOT / "templates" / "config" / "mcp_registry.yaml"
@@ -283,7 +282,10 @@ def main() -> int:
         "--mode",
         choices=["check", "doctor", "render-docs"],
         default="check",
-        help="check = pass/fail; doctor = long-form report; render-docs = overwrite mcp-portability.md generated section.",
+        help=(
+            "check = pass/fail; doctor = long-form report; "
+            "render-docs = overwrite mcp-portability.md generated section."
+        ),
     )
     parser.add_argument(
         "--json",
