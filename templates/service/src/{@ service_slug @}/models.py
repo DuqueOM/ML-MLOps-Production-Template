@@ -91,7 +91,7 @@ class ResampleClassifier(BaseEstimator, ClassifierMixin):
         self.estimator_.fit(X_resampled, y_resampled)
 
         logger.info(
-            "ResampleClassifier fitted: strategy='%s', " "original=%d samples, resampled=%d samples",
+            "ResampleClassifier fitted: strategy='%s', original=%d samples, resampled=%d samples",
             self.strategy,
             len(y),
             len(y_resampled),
@@ -129,8 +129,7 @@ class ResampleClassifier(BaseEstimator, ClassifierMixin):
                 return smote.fit_resample(X, y)
             except ImportError:
                 logger.warning(
-                    "imblearn not installed — falling back to no resampling. "
-                    "Install with: pip install imbalanced-learn"
+                    "imblearn not installed — falling back to no resampling. Install with: pip install imbalanced-learn"
                 )
                 return X, y
 

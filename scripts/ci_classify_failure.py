@@ -75,6 +75,11 @@ SCHEMA_VERSION = "1"
 # point to the same class; the classifier picks the most specific match per
 # §Phase 1 deterministic-fallback rule.
 SIGNATURE_TO_CLASS: dict[str, list[str]] = {
+    # Ruff replaced black+isort+flake8 (ADR-044). The legacy classes are
+    # retained so historical failure logs still classify, and so a service
+    # scaffolded before the migration keeps working.
+    "ruff.format_drift": ["formatter_drift"],
+    "ruff.lint": ["formatter_drift"],
     "black.format_drift": ["formatter_drift"],
     "isort.import_drift": ["formatter_drift"],
     "flake8.lint": ["formatter_drift"],

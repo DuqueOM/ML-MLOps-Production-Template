@@ -23,7 +23,6 @@ It is the *behavioral* counterpart to the structural tests in
 from __future__ import annotations
 
 import json
-import time
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,7 +37,6 @@ from common_utils.risk_context import (
     get_risk_context,
     render_audit_line,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers — synthesize each named signal via the file loader
@@ -63,13 +61,9 @@ def _seed_ops_dir(ops_dir: Path, signals: Iterable[str]) -> None:
     if "incident_active" in enabled:
         (ops_dir / "incident_state.json").write_text(json.dumps({"active": True}))
     if "drift_severe" in enabled:
-        (ops_dir / "last_drift_report.json").write_text(
-            json.dumps({"any_psi_over_2x_threshold": True})
-        )
+        (ops_dir / "last_drift_report.json").write_text(json.dumps({"any_psi_over_2x_threshold": True}))
     if "recent_rollback" in enabled:
-        (ops_dir / "audit.jsonl").write_text(
-            json.dumps({"operation": "rollback", "timestamp": _now_iso()}) + "\n"
-        )
+        (ops_dir / "audit.jsonl").write_text(json.dumps({"operation": "rollback", "timestamp": _now_iso()}) + "\n")
     # off_hours and error_budget_exhausted are not file-driven; we
     # synthesize them by replacing the loaded RiskContext.
 
@@ -107,9 +101,7 @@ def _build_context(tmp_path: Path, signals: Iterable[str], cache_key: str) -> Ri
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("base_mode", ["AUTO", "CONSULT", "STOP"])
 @pytest.mark.parametrize("signal", SIGNAL_NAMES)
-def test_each_signal_escalates_one_step(
-    tmp_path: Path, base_mode: Mode, signal: str
-) -> None:
+def test_each_signal_escalates_one_step(tmp_path: Path, base_mode: Mode, signal: str) -> None:
     """Every individual signal must trigger exactly one escalation step.
 
     Walks: AUTO -> CONSULT, CONSULT -> STOP, STOP -> STOP.

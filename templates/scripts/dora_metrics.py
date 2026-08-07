@@ -89,9 +89,7 @@ def compute_deployment_frequency(deploy_runs: list[dict]) -> dict[str, Any]:
 
 def compute_lead_time(merged_prs: list[dict], deploy_runs: list[dict]) -> dict[str, Any]:
     """Median seconds from PR merge to the next successful prod deploy."""
-    deploys = sorted(
-        [_parse_iso(r["created_at"]) for r in deploy_runs if r.get("conclusion") == "success"]
-    )
+    deploys = sorted([_parse_iso(r["created_at"]) for r in deploy_runs if r.get("conclusion") == "success"])
     if not deploys or not merged_prs:
         return {"median_seconds": None, "p95_seconds": None, "n": 0}
     deltas: list[float] = []
@@ -176,7 +174,9 @@ def main() -> int:
             token,
             params={"created": f">{since}", "event": "push", "status": "completed", "per_page": 100},
         )
-        deploy_runs = [r for r in deploy_runs if "deploy" in r.get("name", "").lower() and "prod" in r.get("name", "").lower()]
+        deploy_runs = [
+            r for r in deploy_runs if "deploy" in r.get("name", "").lower() and "prod" in r.get("name", "").lower()
+        ]
         merged_prs = _gh_get(
             f"https://api.github.com/repos/{args.repo}/pulls",
             token,
@@ -184,7 +184,7 @@ def main() -> int:
         )
         merged_prs = [pr for pr in merged_prs if pr.get("merged_at") and pr["merged_at"] >= since]
         rollback_issues = _gh_get(
-            f"https://api.github.com/search/issues",
+            "https://api.github.com/search/issues",
             token,
             params={"q": f"repo:{args.repo} is:issue label:rollback created:>{since}"},
         )

@@ -241,7 +241,7 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             return _err(f"set_registered_model_alias failed: {exc}", 3)
 
-    print(f"Promoted {args.service} v{registered.version} \u2192 " f"alias '{args.alias}' (run_id={run.info.run_id})")
+    print(f"Promoted {args.service} v{registered.version} \u2192 alias '{args.alias}' (run_id={run.info.run_id})")
     return 0
 
 

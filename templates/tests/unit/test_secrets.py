@@ -9,7 +9,6 @@ that prove the invariants hold.
 
 from __future__ import annotations
 
-import importlib
 import logging
 from pathlib import Path
 
@@ -111,16 +110,10 @@ class TestDetectCloud:
 # .env.local + local backend
 # ---------------------------------------------------------------------------
 class TestLocalBackend:
-    def test_dotenv_parsing_strips_quotes_and_whitespace(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_dotenv_parsing_strips_quotes_and_whitespace(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         env_file = tmp_path / ".env.local"
         env_file.write_text(
-            'API_KEY = "sk_test_123"\n'
-            "DB_PASSWORD = 'pw'\n"
-            "BARE_VAL=plain\n"
-            "# COMMENT=ignored\n"
-            "MALFORMED_NO_EQUALS\n"
+            "API_KEY = \"sk_test_123\"\nDB_PASSWORD = 'pw'\nBARE_VAL=plain\n# COMMENT=ignored\nMALFORMED_NO_EQUALS\n"
         )
         monkeypatch.chdir(tmp_path)
         _load_dotenv_local.cache_clear()
@@ -183,9 +176,7 @@ class TestProductionInvariants:
     """
 
     @pytest.mark.parametrize("env_label", ["staging", "production"])
-    def test_unknown_cloud_in_non_local_raises(
-        self, monkeypatch: pytest.MonkeyPatch, env_label: str
-    ) -> None:
+    def test_unknown_cloud_in_non_local_raises(self, monkeypatch: pytest.MonkeyPatch, env_label: str) -> None:
         monkeypatch.setenv("ENV", env_label)
         # No CLOUD_PROVIDER, no IRSA, no GCP metadata.
         # Even if API_KEY is in os.environ, get_secret MUST refuse it.
@@ -224,9 +215,7 @@ class TestProductionInvariants:
     def test_default_returned_on_miss_in_staging(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("ENV", "staging")
         monkeypatch.setenv("CLOUD_PROVIDER", "aws")
-        monkeypatch.setattr(
-            secrets, "_get_aws", lambda *a, **kw: (_ for _ in ()).throw(SecretNotFoundError("miss"))
-        )
+        monkeypatch.setattr(secrets, "_get_aws", lambda *a, **kw: (_ for _ in ()).throw(SecretNotFoundError("miss")))
         assert get_secret("MISSING", default="fallback") == "fallback"
 
 
@@ -259,6 +248,4 @@ class TestD17NeverLogValue:
             for key, val in record.__dict__.items():
                 if key in {"args", "msg", "message"}:
                     continue
-                assert sentinel not in str(val), (
-                    f"Secret leaked into log record field {key!r}: {val!r}"
-                )
+                assert sentinel not in str(val), f"Secret leaked into log record field {key!r}: {val!r}"

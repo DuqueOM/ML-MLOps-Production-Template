@@ -152,16 +152,14 @@ class SplitConfig(BaseModel):
                 raise ValueError("split.strategy='temporal' requires split.timestamp_column")
             if self.timestamp_column not in columns:
                 raise ValueError(
-                    f"split.timestamp_column={self.timestamp_column!r} not found "
-                    f"in dataframe columns {sorted(columns)}"
+                    f"split.timestamp_column={self.timestamp_column!r} not found in dataframe columns {sorted(columns)}"
                 )
         elif self.strategy == "grouped":
             if not self.entity_id_column:
                 raise ValueError("split.strategy='grouped' requires split.entity_id_column")
             if self.entity_id_column not in columns:
                 raise ValueError(
-                    f"split.entity_id_column={self.entity_id_column!r} not found "
-                    f"in dataframe columns {sorted(columns)}"
+                    f"split.entity_id_column={self.entity_id_column!r} not found in dataframe columns {sorted(columns)}"
                 )
         elif self.strategy == "random":
             if not self.acknowledge_iid:

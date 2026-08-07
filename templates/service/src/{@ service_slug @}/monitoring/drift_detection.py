@@ -236,8 +236,7 @@ def detect_drift(
     """
     if reference_path is None and eda_baseline_dir is None:
         raise ValueError(
-            "detect_drift requires either reference_path (legacy CSV mode) "
-            "or eda_baseline_dir (PR-B2 canonical mode)."
+            "detect_drift requires either reference_path (legacy CSV mode) or eda_baseline_dir (PR-B2 canonical mode)."
         )
 
     cur_df = pd.read_csv(current_path)
@@ -273,7 +272,7 @@ def detect_drift(
         eda_bin_edges = _bin_edges_from_baseline_df(baseline_df)
         eda_baseline_used = True
         logger.info(
-            "drift_detection: PR-B2 mode — using EDA baseline at %s " "(%d numeric features with precomputed bins)",
+            "drift_detection: PR-B2 mode — using EDA baseline at %s (%d numeric features with precomputed bins)",
             eda_baseline_dir,
             len(eda_bin_edges),
         )

@@ -90,7 +90,7 @@ pytest test_service.py -v
 python drift_check.py
 
 # Validate templates (CI)
-flake8 --max-line-length=120 templates/service/ templates/common_utils/
+ruff check templates/service/ templates/common_utils/
 kustomize build templates/k8s/base/ > /dev/null
 ```
 
@@ -163,7 +163,7 @@ Match solution complexity to problem scale:
 
 ## Coding Conventions
 
-- black (line-length=120), isort (profile=black), flake8, mypy
+- ruff (lint + format, line-length=120) — replaces black/isort/flake8 (ADR-044) — plus mypy
 - Google-style docstrings, type hints on all public functions
 - `~=` for ML package pinning (never `==` or bare `>=`)
 - Coverage: >= 90% lines, >= 80% branches

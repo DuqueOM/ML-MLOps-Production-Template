@@ -21,7 +21,7 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit
 
-      - name: Run pre-commit hooks (black, isort, flake8, gitleaks)
+      - name: Run pre-commit hooks (ruff, mypy, bandit, gitleaks)
         # Single source of truth for versions: .pre-commit-config.yaml.
         # Prevents version drift between CI and local pre-commit install.
         # Runs all commit-stage hooks (excludes pre-push scaffold smoke).
