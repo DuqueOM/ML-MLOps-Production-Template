@@ -52,7 +52,7 @@ jobs:
       version: ${{ steps.version.outputs.v }}
       image_digests: ${{ steps.digests.outputs.json }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Workload Identity Federation — NO static credentials (D-18, ADR-014 §3.1).
       # GitHub mints a short-lived OIDC token; GCP exchanges it for a SA via WIF.
