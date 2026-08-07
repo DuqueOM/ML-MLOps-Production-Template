@@ -1774,6 +1774,234 @@ render (not just static file reads). `v0.20.0` is cut on this basis.
 
 ---
 
+## Entry 016 — v0.22.0: four documented-but-non-functional capabilities
+
+- **Date**: 2026-08-07
+- **Branch**: `fix/copier-answers-file`, `fix/gitleaks-version-drift`, `fix/phase-disclosure-guards`, `docs/release-v0.22.0`
+- **Base commit**: `6a7e613` (main at start of work)
+- **Environment**: local Linux developer workstation (WSL2), Python 3.11.15, copier 9.16.0, gitleaks 8.30.1
+- **Operator**: Staff/Lead engineer
+- **Scope**: ADR-003 copier update path - secret-scan parity local/CI - Phase-1 disclosure guard - ADR-019 shadow-lane reachability
+
+### What was executed
+
+#### 1. ADR-003 update path - executed, not assumed
+
+Defect reproduced first:
+
+```
+$ copier copy --trust --defaults . /tmp/baseline
+$ ls -la /tmp/baseline/.copier-answers.yml
+ls: cannot access '.../.copier-answers.yml': No such file or directory
+```
+
+After the fix, generating from a git source at HEAD:
+
+```
+$ cat /tmp/e2e/.copier-answers.yml | grep -v '^#'
+_commit: v0.21.0-16-g76b9613
+_src_path: /home/duqueom/projects/main_projects/template_MLOps
+gh_org: DuqueOM
+gh_repo: demand-forecast
+profile: local
+service_slug: demand_forecast
+```
+
+The update path itself, end to end - scaffold, git init, change the
+template, pull the change:
+
+```
+$ cd /tmp/e2e && copier update --trust --defaults --vcs-ref=HEAD
+UPDATE-EXIT=0
+
+$ tail -1 README.md
+# update-path probe
+
+$ grep '^_commit' .copier-answers.yml
+_commit: v0.21.0-17-g51fff14
+```
+
+`_commit` advanced from `-16-g76b9613` to `-17-g51fff14`. This is the
+first execution of the ADR-003 update path in the repository's history;
+prior releases asserted it without running it.
+
+Regression guard verified in both directions:
+
+```
+# answers template present
+✓ Copier answers file present (.copier-answers.yml)
+✓ Answers file records _commit (update path is live)
+✓ Answers file records the scaffold answers
+━━━ SCAFFOLD TEST PASSED ━━━
+
+# answers template removed
+✗ Copier answers file MISSING — generated service has no 'copier update' path (ADR-003)
+━━━ SCAFFOLD TEST FAILED ━━━
+SCRIPT-EXIT=1
+```
+
+#### 2. Secret-scan parity - gitleaks 8.21.2 vs 8.30.1
+
+The dialect conflict, reproduced against the pre-fix config:
+
+```
+$ pre-commit run gitleaks --all-files
+FTL Failed to load config
+    error="[allowlist] is deprecated, it cannot be used alongside [[allowlists]]"
+Command exited with non-zero status 1
+```
+
+After removing the deprecated singular block:
+
+```
+$ pre-commit run gitleaks --all-files
+gitleaks (secret detection)..............................................Passed
+WALL: 0.17 s
+```
+
+Full git-history scan, replaying the exact CI step (pinned binary,
+explicit `--config`):
+
+```
+$ /tmp/gitleaks version
+8.30.1
+$ /tmp/gitleaks detect --source=. --config=.gitleaks.toml --redact --no-banner
+INF 342 commits scanned.
+INF scanned ~6252101 bytes (6.25 MB) in 504ms
+INF no leaks found
+```
+
+Pin-drift guard, both directions:
+
+```
+$ python3 scripts/check_gitleaks_pin.py
+[ OK ] gitleaks pinned to 8.30.1 in all 3 sites (>= 8.25.0)
+
+# with templates/service/.pre-commit-config.yaml reverted to v8.21.2
+error: gitleaks version DRIFT — the three sites disagree:
+  8.30.1       .pre-commit-config.yaml
+  8.21.2       templates/service/.pre-commit-config.yaml
+  8.30.1       .github/workflows/validate-templates.yml
+EXIT=1
+```
+
+#### 3. Phase-1 disclosure guard - from dormant to armed
+
+Before (both ADRs at Phase 1, every check gated on `_is_phase_0`):
+
+```
+$ python3 -m pytest templates/service/tests/test_phase0_disclosure.py
+6 skipped in 0.02s
+```
+
+After the phase-aware rewrite:
+
+```
+$ python3 -m pytest templates/service/tests/test_phase0_disclosure.py
+10 passed in 0.03s
+```
+
+Verified it can fail. Promoting the maturity-matrix row:
+
+```
+FAILED test_maturity_matrix_row_not_production_ready[ADR-019]
+```
+
+Stripping every disclosure marker from the section body:
+
+```
+FAILED test_section_banner_discloses_non_runtime[ADR-019]
+```
+
+#### 4. ADR-019 shadow lane - reachability
+
+Before the fix, across the workflow's entire lifetime:
+
+```
+$ gh api repos/DuqueOM/ml-service-template/actions/workflows/ci-self-healing-shadow.yml/runs --jq .total_count
+0
+```
+
+Cause: `workflow_run.workflows` matches the upstream workflow's `name:`
+field, and the list held filename stems. None matched:
+
+| Declared | Real `name:` |
+|---|---|
+| `validate-templates` | `Validate Templates` |
+| `policy-tests` | `Policy Tests (D-XX anti-patterns)` |
+| `golden-path` | `Golden Path E2E` |
+| `golden-path-extended` | `Golden Path E2E (extended)` |
+
+After the fix, measured on `main` post-merge:
+
+```
+$ gh api repos/DuqueOM/ml-service-template/actions/workflows/ci-self-healing-shadow.yml/runs --jq .total_count
+2
+$ gh run list --workflow=ci-self-healing-shadow.yml --limit 5
+skipped	workflow_run	2026-08-07T23:14:37Z
+skipped	workflow_run	2026-08-07T23:13:39Z
+```
+
+`conclusion=skipped` is the correct outcome here: the job is gated on
+`github.event.workflow_run.conclusion == 'failure'` and the upstream runs
+succeeded. The trigger fires; the guard clause then declines the work.
+
+Reachability guard verified in reverse - reintroducing one filename stem:
+
+```
+AssertionError: workflow_run trigger references workflow names that do not exist:
+    - 'validate-templates'
+```
+
+#### 5. Pre-commit suite timing (measured, previously only asserted)
+
+```
+$ pre-commit run --all-files      # cold, installs envs
+TOTAL WALL: 28.07 s
+
+$ pre-commit run --all-files      # warm
+TOTAL WALL: 2.62 s   (13 hooks)
+TOTAL WALL: 2.96 s   (14 hooks, after adding the pin-drift guard)
+```
+
+The config header's `< 5 s` target holds on the worst case
+(`--all-files`); a real commit touches fewer files. This measurement
+retired the performance argument for the deferred ruff migration.
+
+#### 6. `main` green at the release commit
+
+```
+success	Validate Templates
+success	CI — Examples, Unit Tests & Coverage
+success	pr-smoke-lane
+success	OpenSSF Scorecard
+success	Template-Context Tests
+skipped	ci-self-healing-shadow   (upstream green; job gated on failure)
+```
+
+### What was NOT validated (pending)
+
+- **Shadow-lane classification quality** — the lane can now fire but has
+  processed zero real failures. Precision against the ADR-019 Phase 2 gate
+  (>= 0.90 on AUTO classifications over 14 days) remains entirely
+  unmeasured. Owner: template maintainer. Tracking: ADR-019 §Phase plan.
+- **`copier update` against a remote `gh:` source.** Verified only against
+  a local path and a local git clone. The `_src_path` written for adopters
+  is a remote URL, and that path has not been exercised. Owner: template
+  maintainer.
+- **The MIGRATION.md recovery procedure was not rehearsed.** It is written
+  from the mechanism, not from a performed recovery on a real stranded
+  service. Owner: first adopter to need it; the procedure should be
+  re-verified the first time it is used.
+- **gitleaks 8.30.1 against a customised `.gitleaks.toml`.** Verified only
+  against this repo's config. Adopters carrying a singular `[allowlist]`
+  block will hit the load error documented in MIGRATION.md; that failure
+  path was reproduced here but not the adopter's migration of it.
+- **L4 cloud validation** — unchanged from prior entries. No entry in this
+  release was exercised against a real GKE or EKS cluster.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

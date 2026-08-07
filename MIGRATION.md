@@ -17,6 +17,20 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## v0.21.0 → v0.22.0 (2026-08-07)
+
+| Change | Manual action required |
+|--------|------------------------|
+| **gitleaks pre-commit pin `v8.21.2` → `v8.30.1`** | Run `pre-commit install --install-hooks` (or just let the next commit rebuild the env). Adopters maintaining a custom `.pre-commit-config.yaml` overlay must merge the bump in **both** the repo config and the scaffolded service's. |
+| **`.gitleaks.toml` singular `[allowlist]` table removed** | **Required if you customised `.gitleaks.toml`.** gitleaks >= 8.25 refuses to load a config containing both `[allowlist]` (singular) and `[[allowlists]]` (plural) — it exits with `FTL Failed to load config`. Move every `paths`/`regexes` entry from your singular block into a `[[allowlists]]` table and delete the singular one. Verify with `gitleaks detect --source=. --config=.gitleaks.toml`. |
+| **CI installs a pinned gitleaks binary instead of `gitleaks-action`** | No action for adopters using the shipped workflow. If you forked `validate-templates.yml` and kept the action, be aware its bundled version may sit below the 8.25 dialect floor, in which case your CI silently ignores the `[[allowlists]]` tables. `scripts/check_gitleaks_pin.py` now fails the build on that drift — keep the three declaration sites in lockstep. |
+| **Scaffolded services now contain `.copier-answers.yml`** | New services: nothing to do — keep the file committed. **Services scaffolded before this release have no update path**; see §"Recovering the update path for a service scaffolded before the fix" below for the full procedure. |
+| **`test_phase0_disclosure.py` rewritten** | Only affects adopters who vendored the template's test suite and edited that file. The new version derives its requirement from the ADR Status line instead of hard-coding "Phase 0", and fails rather than skips when it cannot parse one. |
+
+**Tracking**: see `releases/v0.22.0.md` and `CHANGELOG.md` §`[0.22.0]`.
+
+---
+
 ## Copier scaffolding migration (ADR-030)
 
 The scaffolder (`templates/scripts/new-service.sh`) is now a thin wrapper

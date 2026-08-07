@@ -10,6 +10,116 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-08-07
+
+MINOR release under [`docs/RELEASING.md`](docs/RELEASING.md) §1.2. The
+additions are backward-compatible; the fixes are not behaviour changes to
+any shipped contract but repairs to contracts that were **documented and
+never actually working**.
+
+The theme of this release is unflattering and worth naming: four separate
+capabilities were asserted in documentation, guarded by tests that passed,
+and did not function. In each case the test passed *because* of how it was
+written, not because the capability worked.
+
+| Capability | Asserted in | Reality |
+|---|---|---|
+| `copier update` path | ADR-003 + 4 other places | No answers file was ever emitted |
+| Secret-scan parity local↔CI | `.pre-commit-config.yaml` header | Two different allowlist dialects |
+| Phase-1 disclosure guard | `test_phase0_disclosure.py` | 6/6 skipped, 0 enforced |
+| ADR-019 shadow lane | README §"Agentic CI self-healing" | 0 runs in its entire life |
+
+### Fixed — secret-scan parity between local and CI (security)
+
+- **`.gitleaks.toml`, both `.pre-commit-config.yaml` files,
+  `validate-templates.yml`**: the pre-commit hook pinned `v8.21.2` while CI
+  delegated to `gitleaks-action`'s bundled version. gitleaks changed its
+  config dialect at **8.25** — below it the plural `[[allowlists]]` tables
+  are silently ignored, at or above it the singular `[allowlist]` form is
+  rejected outright. Local and CI therefore scanned the same tree under
+  **different allowlists**, silently, in both directions. On a secrets gate
+  the local run is the one contributors trust, so the failure mode is a
+  false green at exactly the moment a secret would enter history.
+- The AUDIT R11 "L-2" compatibility shim (a duplicate singular
+  `[allowlist]` block) had become the blocker: modern gitleaks refuses to
+  load a config carrying both dialects. Removed — every entry was a strict
+  duplicate of the plural tables, so no scan outcome changes on >= 8.25.
+- CI now installs an **explicitly pinned binary** rather than inheriting
+  one, and passes `--config` explicitly instead of relying on
+  auto-discovery that could silently degrade to default rules.
+- **New `scripts/check_gitleaks_pin.py`**: fails the build if the three
+  declaration sites drift, or if the pin falls below the 8.25 dialect
+  floor. Wired into pre-commit and CI.
+- Verified: full-history scan (342 commits) under 8.30.1 → `no leaks
+  found`. Guard verified in both directions.
+
+### Fixed — a disclosure guard that had silently disarmed itself
+
+- **`templates/service/tests/test_phase0_disclosure.py`**: every check
+  opened with `if not _is_phase_0(ADR): pytest.skip(...)`. Both ADRs
+  advanced to Phase 1, so all six invariants skipped and the README
+  statements they protect became deletable with **no test failing**. A
+  guard that disarms itself the moment its subject changes state is worse
+  than none: it reports green while doing nothing, so nobody looks.
+- Rewritten to be **phase-aware rather than phase-pinned** — it derives
+  the requirement from the ADR's declared phase, **fails rather than
+  skips** when it cannot determine one, and lifts only when an ADR
+  explicitly declares its runtime live. Advancing 1 → 2 → 3 keeps it armed
+  with no test edit required.
+- **6 skipped / 0 enforced → 10 passed / 0 skipped.**
+
+### Fixed — the ADR-019 shadow lane could never fire
+
+- **`.github/workflows/ci-self-healing-shadow.yml`**: the
+  `workflow_run.workflows` list held **filename stems**
+  (`validate-templates`, `policy-tests`, …). GitHub matches that field
+  against a workflow's `name:` value (`Validate Templates`, `Policy Tests
+  (D-XX anti-patterns)`, …). Nothing matched, and GitHub reports no error
+  for an unmatchable entry — so the workflow recorded **zero runs across
+  its entire life** while reporting `state=active`.
+- Consequence beyond the workflow: ADR-019's Phase 1 → Phase 2 gate
+  requires *"14 days of shadow precision data"*. Nothing was producing it.
+  The roadmap was blocked **by construction, not by choice**, while the
+  README claimed the classifier *"observes failures"*.
+- **`test_shadow_workflow_phase1.py`** guarded "the workflow is read-only"
+  but never "the workflow can run". Added that assertion.
+- Verified post-merge: run count **0 → 2**, `event=workflow_run`,
+  `conclusion=skipped` (correct — upstream CI succeeded, and the job is
+  gated on `conclusion == 'failure'`). The shadow clock is running for the
+  first time.
+
+### Changed — adopter-visible
+
+- **gitleaks pre-commit pin `v8.21.2` → `v8.30.1`** in both the template's
+  own config and the scaffolded service's. Adopters maintaining a custom
+  `.pre-commit-config.yaml` overlay must merge the bump; adopters with a
+  custom `.gitleaks.toml` carrying a singular `[allowlist]` table must
+  migrate it to `[[allowlists]]`. See `MIGRATION.md`.
+- **Scaffolded services now contain `.copier-answers.yml`.** New services
+  get it automatically. Existing ones need the recovery procedure in
+  `MIGRATION.md`.
+
+### Known follow-ons
+
+Deferred deliberately, not overlooked:
+
+- **Ruff migration** (`black` + `isort` + `flake8` → `ruff`). Scoped: a
+  43-file cascade touching `CLAUDE.md` and `agentic/rules/01`, which are
+  normative documents mandating the toolchain — so it needs its own ADR
+  and its own MIGRATION rows. Measurement removed the urgency argument:
+  the current hook suite runs `--all-files` in **2.62 s** warm, inside the
+  `< 5 s` target the config header claims. The remaining case is
+  maintenance surface (the 8-line `exclude:` block is triplicated), not
+  speed.
+- **Template ADR namespacing.** Generated services ship six template ADRs
+  (`ADR-010`, `-014`, `-018`, `-019`, `-023`, `-043`) with no namespace
+  prefix, colliding with the adopter's own ADR numbering. Renaming to
+  `template-ADR-NNN` cascades into every cross-reference in the generated
+  service.
+- **Shadow-lane precision data.** The lane can now fire but has produced
+  no failure classifications yet. The Phase 1 → Phase 2 decision stays
+  blocked on 14 days of real data — now obtainable rather than impossible.
+
 ### Added — Agent-QualityGuardian: audit-grade quality preservation (ADR-043)
 
 - **`docs/decisions/ADR-043-audit-quality-guardian.md`**: charters
