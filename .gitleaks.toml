@@ -7,30 +7,23 @@ title = "ML-MLOps Production Template"
 [extend]
 useDefault = true
 
-# Legacy singular allowlist — gitleaks < 8.25 ignores the [[allowlists]]
-# plural tables below, so the path exemptions are mirrored here to keep
-# local scans (any version) consistent with CI (AUDIT R11 L-2 root cause:
-# version-dependent config parsing, not a missing entry).
-[allowlist]
-paths = [
-    '''templates/.*\.env\.example''',
-    '''examples/.*\.env\.example''',
-    '''.*test_memory_redaction\.py$''',
-    '''.*secret-history-scan\.md$''',
-    '''.*\.pyc$''',
-    '''.*__pycache__.*''',
-    '''docs/audit/AUDIT_R[0-9]+_STAFF_LEAD\.md$''',
-]
-regexes = [
-    '''YOUR_GCP_PROJECT''',
-    '''YOUR_AWS_ACCOUNT''',
-    '''\{SERVICE[_A-Z]*\}''',
-    '''\{service[_a-z]*\}''',
-    '''example\.com''',
-    '''localhost''',
-    '''127\.0\.0\.1''',
-    '''<YOUR_''',
-]
+# NOTE — do NOT reintroduce a singular `[allowlist]` table here.
+#
+# One was added (AUDIT R11 "L-2") to work around gitleaks < 8.25 silently
+# ignoring the plural `[[allowlists]]` tables below. It duplicated every
+# entry, and gitleaks >= 8.25 REFUSES to load a config containing both:
+#
+#   FTL Failed to load config
+#       error="[allowlist] is deprecated, it cannot be used alongside [[allowlists]]"
+#
+# So the compatibility shim became the thing blocking the upgrade. The fix
+# is the other direction: pin a modern gitleaks everywhere (>= 8.25) and
+# keep exactly one allowlist dialect — the plural one. Every entry the
+# singular block carried is present in the plural tables below; it was a
+# strict duplicate, so removing it changes no scan outcome on >= 8.25.
+#
+# The version pin lives in BOTH `.pre-commit-config.yaml` files and in the
+# CI job that installs the binary. Those must move together.
 
 [[allowlists]]
 description = "Template placeholders and example values"
