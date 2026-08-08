@@ -2197,6 +2197,82 @@ All contract suites green; full pre-commit sweep 16 hooks passing.
 
 ---
 
+## Entry 018 — v0.24.0: a bare `copier update` destroyed the service
+
+- **Date**: 2026-08-07
+- **Branch**: `fix/copier-update-tag-resolution`
+- **Base commit**: `0a01c40` (main at v0.23.0)
+- **Environment**: local Linux workstation (WSL2), copier 9.16.0
+- **Operator**: Staff/Lead engineer
+- **Scope**: destructive tag resolution on the `copier update` path
+
+### What was executed
+
+Scaffolded a service from the freshly published v0.23.0 tag, committed it,
+then ran the update command exactly as `_message_after_copy` instructed:
+
+```
+$ copier copy --vcs-ref=v0.23.0 gh:DuqueOM/ml-service-template ./final
+files=627
+$ grep '^_commit' final/.copier-answers.yml
+_commit: v0.23.0
+
+$ cd final && git init && git add -A && git commit -m init
+$ copier update --trust --defaults          # exactly as documented
+
+$ find . -type f -not -path "*/.git/*" | wc -l
+435
+$ git status --porcelain | grep -c "^ D"
+582
+$ ls .copier-answers.yml
+ls: cannot access '.copier-answers.yml': No such file or directory
+```
+
+582 files deleted, and the answers file itself removed — so the service
+loses the record that `copier update` reads, and cannot recover on its own.
+
+Cause is the same tag sort that produced the v0.22.0 defect: unpinned,
+copier resolves to the highest-sorting tag, and the frozen v1.x audit
+snapshots sort above every v0.x tag. 435 is the v1.12.0 file count.
+
+After pinning, on an identically-created service:
+
+```
+files before=627 after=627
+answers file: PRESENT
+deleted files: 0
+```
+
+Guard extended to cover `copier update`, verified in both directions:
+
+```
+$ python3 scripts/check_adopter_scaffold_ref.py
+[ OK ] 4 adopter scaffold command(s) pin --vcs-ref=v0.24.0
+
+# with one `copier update` unpinned
+error: agentic/skills/scaffold-update/SKILL.md:95: `copier update` without
+--vcs-ref. Unpinned it DOWNGRADES the service to a frozen v1.x snapshot and
+deletes .copier-answers.yml, removing the update path itself.
+EXIT=1
+```
+
+### What was NOT validated (pending)
+
+- **The recovery procedure in MIGRATION.md was not rehearsed.** It is
+  derived from the mechanism (the pre-update commit must exist, because
+  `copier update` requires a clean tree), not from a performed recovery.
+- **`copier update` across a real version gap.** Verified v0.23.0 →
+  v0.23.0 (a no-op that proves non-destructiveness) and the destructive
+  unpinned case. An update that actually crosses two releases and
+  three-way-merges local modifications has still not been exercised.
+- **The structural tag-collision fix remains undone.** Three defects have
+  now come from it and all three fixes were pins. Moving the snapshots out
+  of the tag namespace, or advancing the active line past v1.12.0, needs
+  its own ADR and has not been decided.
+- **L4 cloud validation** — unchanged.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

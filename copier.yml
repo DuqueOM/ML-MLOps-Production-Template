@@ -154,5 +154,13 @@ _message_after_copy: |
     - prod:     `make deploy` targets prod cluster (STOP — via GitHub Actions)
 
   Switch profile: `make switch-profile PROFILE=staging`
-  Upgrade path:   re-run `copier update` in this project to pull template
-                  improvements without losing your changes.
+  Upgrade path:   copier update --vcs-ref=<release-tag>
+
+                  ⚠️ --vcs-ref is REQUIRED. Without it Copier resolves to
+                  the highest-sorting tag, and this template carries frozen
+                  v1.x audit snapshots that sort above the active v0.x line.
+                  A bare `copier update` DOWNGRADES the service to that
+                  snapshot and deletes .copier-answers.yml, removing the
+                  update path itself. Measured: 627 files -> 435, 582 deleted.
+
+                  Latest tag: github.com/DuqueOM/ML-MLOps-Production-Template/releases/latest

@@ -69,7 +69,10 @@ If either check fails → STOP with a clear message.
 Show what would change without applying:
 
 ```bash
-copier update --dry-run
+# --vcs-ref is REQUIRED: a bare `copier update` resolves to the highest-
+# sorting tag, which is a frozen v1.x audit snapshot, and DOWNGRADES the
+# service while deleting .copier-answers.yml. Always pin the target release.
+copier update --vcs-ref=<release-tag> --dry-run
 ```
 
 Categorize the diff:
@@ -89,7 +92,7 @@ Wait for explicit approval before proceeding.
 ### Step 4 — Apply update (CONSULT → approved)
 
 ```bash
-copier update --trust --defaults
+copier update --vcs-ref=<release-tag> --trust --defaults
 ```
 
 Copier will:
