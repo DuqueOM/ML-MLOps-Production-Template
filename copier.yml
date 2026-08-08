@@ -163,4 +163,4 @@ _message_after_copy: |
                   snapshot and deletes .copier-answers.yml, removing the
                   update path itself. Measured: 627 files -> 435, 582 deleted.
 
-                  Latest tag: github.com/DuqueOM/ML-MLOps-Production-Template/releases/latest
+                  Latest tag: github.com/DuqueOM/ml-service-template/releases/latest

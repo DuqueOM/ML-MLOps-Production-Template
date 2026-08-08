@@ -18,7 +18,12 @@ required for `copier update`.
 ## 2. Dry-run Diff
 
 ```bash
-copier update --dry-run
+# --vcs-ref is MANDATORY. Unpinned, Copier resolves to the highest-sorting
+# tag — a frozen v1.x audit snapshot that sorts above the active v0.x line —
+# and rewrites the service BACKWARDS, deleting .copier-answers.yml and with
+# it the update path itself. Measured: 627 files → 435, 582 deleted.
+# Latest tag: https://github.com/DuqueOM/ml-service-template/releases/latest
+copier update --vcs-ref=<release-tag> --dry-run
 ```
 
 Review the diff. Categorize:
@@ -34,7 +39,7 @@ propose a resolution. Wait for approval.
 ## 4. Apply Update
 
 ```bash
-copier update --trust --defaults
+copier update --vcs-ref=<release-tag> --trust --defaults
 ```
 
 Copier re-renders all template files and runs post-gen tasks:

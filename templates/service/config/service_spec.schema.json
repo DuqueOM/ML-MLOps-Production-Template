@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/service_spec.schema.json",
+  "$id": "https://github.com/DuqueOM/ml-service-template/service_spec.schema.json",
   "title": "New-service ML problem specification",
   "description": "Captured by the new-service-spec skill BEFORE scaffolding. Distinct from context.schema.json (company/project risk-context, ADR-023) and adopter_context.schema.json (infra wiring): this schema covers the ML PROBLEM definition — label, fairness attribute, cost asymmetry, data source.",
   "type": "object",

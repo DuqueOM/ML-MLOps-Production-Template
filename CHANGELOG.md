@@ -10,6 +10,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-08-08
+
+Both defects in this release were found by an adopter **consuming** the
+template, not by the template's own CI. Both were partially fixed in
+`v0.24.0` — which is the more useful finding.
+
+### Breaking for adopters
+
+| Change | Manual action required |
+|---|---|
+| **`/scaffold-update` workflow now pins `--vcs-ref`** | If you scaffolded under `v0.24.0` or earlier, the `agentic/workflows/scaffold-update.md` in **your service** carries an unpinned `copier update`. Running it downgrades the service and deletes `.copier-answers.yml`. Pull this release, or edit the two commands in that file by hand before invoking `/scaffold-update`. |
+| **Repository renamed to `ml-service-template` in live instructions** | None — GitHub 301-redirects the old path (verified). Update any bookmarks or forks pointing at `ML-MLOps-Production-Template` at your convenience. |
+
+### Fixed — `v0.24.0` pinned three of four surfaces
+
+- `v0.24.0` pinned `--vcs-ref` on `copier.yml`, the `scaffold-update`
+  **skill**, and rule `15-template-lifecycle`. It missed
+  **`agentic/workflows/scaffold-update.md`** — the one an operator actually
+  executes as `/scaffold-update`, and which is vendored into **every
+  generated service**. Unpinned there, the destructive downgrade documented
+  in `v0.24.0` was still one command away, in the exact place an operator
+  would run it.
+- **Root cause is the guard, not the omission.**
+  `check_adopter_scaffold_ref.py` carried a hand-written list of three
+  files. A guard whose coverage is a literal list is only ever as complete
+  as the moment someone last remembered to edit it — the same defect class
+  as the six-copy exclude list closed in `v0.23.0` and the gitleaks
+  three-site pin closed in `v0.22.0`.
+- **The guard now scans the tree** for executable `copier update` commands
+  instead of enumerating files, skipping historical records. Re-run against
+  the pre-fix tree it finds all six occurrences (canonical, vendored, and
+  the `.devin` adapter) that the enumerated version missed.
+
+### Fixed — generated services inherited a repository name that no longer exists
+
+- Live adopter instructions, JSON Schema `$id` values, and files vendored
+  into every generated service still carried `ML-MLOps-Production-Template`.
+  The repo is `ml-service-template`.
+- **The audit finding was right to flag it and wrong about the reason.**
+  This is not a private-repo leak: the repository is public and GitHub
+  301-redirects the old path (verified: `301 → .../ml-service-template`).
+  It is a stale identifier that every generated service inherited.
+- Renamed in live instructions, runbook examples, schema `$id`s, and the
+  files vendored into the render root. Verified: zero occurrences in a
+  freshly generated service.
+- **The codecov badge deliberately keeps the old slug.** Codecov does not
+  follow GitHub's redirect and is keyed on the pre-rename name — fetching
+  both confirms the old path returns `40%` and the new one returns
+  `unknown`. "Fixing" it to match the other badges would break a working
+  badge. A comment in `README.md` says so, next to the badge.
+- Historical records (`CHANGELOG.md`, `releases/`, `docs/audit/`, ADRs) are
+  **not** rewritten. They record what was true when written.
+
+### Known follow-ons
+
+- **The `v1.x` tag-sort collision remains unresolved** — now four defects
+  and four pins. Still needs its own ADR.
+- **Codecov project is still linked to the old repo slug.** Re-linking it
+  is a codecov-side action outside this repo; until then the badge URL and
+  the repo URL disagree by design.
+- Carried forward from `v0.24.0`: un-rehearsed MIGRATION recovery
+  procedures, `copier update` across a real version gap, clock-allowlist
+  brittleness, ruff `UP`/`B`/`S`, `mypy` → `pyright`, shadow-lane data.
+
 ## [0.24.0] — 2026-08-07
 
 Hotfix for a **destructive** defect in `v0.23.0` and earlier, found by

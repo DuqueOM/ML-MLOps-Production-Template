@@ -24,7 +24,7 @@ PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(project
 POOL_ID="github"                              # one pool per repo or per org is fine
 PROVIDER_ID="github"
 GH_OWNER="DuqueOM"                            # change to your org / user
-GH_REPO="ML-MLOps-Production-Template"        # change to your repo
+GH_REPO="ml-service-template"        # change to your repo
 SA_NAME="ci-deployer"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 ```

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/blob/main/templates/config/report_schema.json",
+  "$id": "https://github.com/DuqueOM/ml-service-template/blob/main/templates/config/report_schema.json",
   "title": "Reports v1 (ADR-023 F6)",
   "description": "Canonical JSON Schema for the four report types produced by agentic workflows: release, drift, training, incident. The schema freezes the shape so CI, dashboards, and humans can parse reports without ad-hoc adapters. Reports are append-only: a new report is a new file; mutations require issuing a new report.",
   "type": "object",

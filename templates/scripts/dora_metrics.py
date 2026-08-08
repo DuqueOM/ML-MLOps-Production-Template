@@ -23,7 +23,7 @@ Auth: the GitHub token is read from env (GITHUB_TOKEN). When absent,
 the script degrades to ops/audit.jsonl only.
 
 Usage:
-  python scripts/dora_metrics.py --repo DuqueOM/ML-MLOps-Production-Template \\
+  python scripts/dora_metrics.py --repo DuqueOM/ml-service-template \\
       --since 2026-03-01 --output ops/dora/2026-04-metrics.json
 """
 

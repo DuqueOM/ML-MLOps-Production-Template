@@ -17,6 +17,17 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## v0.24.0 → v0.25.0 (2026-08-08)
+
+| Change | Manual action required |
+|--------|------------------------|
+| **`/scaffold-update` workflow was unpinned in services scaffolded under v0.24.0 and earlier** | Your service's `agentic/workflows/scaffold-update.md` contains `copier update --dry-run` and `copier update --trust --defaults` with no `--vcs-ref`. **Do not invoke `/scaffold-update` until you fix it** — unpinned it downgrades the service to a frozen `v1.x` snapshot and deletes `.copier-answers.yml`. Either add `--vcs-ref=v0.25.0` to both commands by hand, or run `copier update --vcs-ref=v0.25.0 --trust --defaults` once manually to pull this release (which fixes the file). |
+| **Repository renamed to `ml-service-template`** | None required — GitHub 301-redirects the old path. Your `.copier-answers.yml` `_src_path` keeps working. Update it at your convenience for clarity. |
+
+**Tracking**: see `releases/v0.25.0.md` and `CHANGELOG.md` §`[0.25.0]`.
+
+---
+
 ## v0.23.0 → v0.24.0 (2026-08-07)
 
 | Change | Manual action required |

@@ -47,14 +47,24 @@ DOC_FILES = [
     "docs/PROGRESSION.md",
 ]
 
-# Files carrying executable `copier update` instructions. Unlike the scaffold
-# command these may legitimately use a placeholder ref (the target release
-# varies), so they are checked for the PRESENCE of --vcs-ref, not its value.
-UPDATE_DOC_FILES = [
-    "copier.yml",
-    "agentic/skills/scaffold-update/SKILL.md",
-    "templates/service/agentic/rules/15-template-lifecycle.md",
-]
+# `copier update` instructions are NOT enumerated by hand.
+#
+# v0.24.0 shipped a hand-written list of three files and missed
+# `agentic/workflows/scaffold-update.md` -- the one an operator actually
+# executes as /scaffold-update, and which is vendored into every generated
+# service. A guard whose coverage is a literal list is only ever as complete
+# as the moment someone last remembered to edit it, which is exactly the
+# defect class this repo keeps finding.
+#
+# So: SCAN the tree. Anything that looks like an executable `copier update`
+# must be pinned, wherever it lives.
+#
+# Directories holding historical records rather than live instructions.
+# Rewriting them would falsify the record.
+HISTORICAL_DIRS = ("releases", "docs/audit")
+HISTORICAL_FILES = ("CHANGELOG.md", "VALIDATION_LOG.md", "MIGRATION.md")
+
+SCAN_EXTENSIONS = (".md", ".yml", ".yaml", ".sh")
 
 SCAFFOLD_CMD = re.compile(r"copier\s+copy\s+(?P<args>[^\n]*?)https://github\.com/[^\s]+")
 # `copier update` is the DESTRUCTIVE path: unpinned it does not merely
@@ -108,25 +118,49 @@ def main() -> int:
         )
         return 1
 
-    # `copier update` — presence of --vcs-ref only; the ref is a placeholder.
-    for rel in UPDATE_DOC_FILES:
-        path = REPO_ROOT / rel
-        if not path.exists():
-            problems.append(f"{rel}: file missing")
+    # `copier update` — scanned, not enumerated. Presence of --vcs-ref only;
+    # the target release varies so a placeholder ref is legitimate.
+    update_cmds_seen = 0
+    for path in sorted(REPO_ROOT.rglob("*")):
+        if not path.is_file() or path.suffix not in SCAN_EXTENSIONS:
             continue
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        if rel.startswith(".git/") or "__pycache__" in rel:
+            continue
+        if rel in HISTORICAL_FILES or rel.startswith(tuple(d + "/" for d in HISTORICAL_DIRS)):
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (UnicodeDecodeError, OSError):
+            continue
+        for lineno, line in enumerate(lines, start=1):
             if "copier update" not in line:
                 continue
-            # Prose mentions ("upgrade via `copier update`") are not commands.
-            if "--" not in line and not line.strip().startswith(("copier", "$", "#", "4.")):
+            stripped = line.strip()
+            # An executable command starts the line (optionally after a shell
+            # prompt or list marker). Prose like "upgrade via `copier update`"
+            # is a mention, not an instruction, and is left alone.
+            is_command = (
+                stripped.startswith(("copier update", "$ copier update"))
+                or stripped.startswith(("python -m copier update", "python3 -m copier update"))
+                or bool(re.match(r"^[-*\d.]+\s+.*`?copier update\s+--", stripped))
+            )
+            if not is_command:
                 continue
+            update_cmds_seen += 1
             match = UPDATE_CMD.search(line)
-            if match and "--vcs-ref" not in match.group("args") and "--vcs-ref" not in line:
+            if match and "--vcs-ref" not in match.group("args"):
                 problems.append(
-                    f"{rel}:{lineno}: `copier update` without --vcs-ref. Unpinned it "
-                    f"DOWNGRADES the service to a frozen v1.x snapshot and deletes "
-                    f".copier-answers.yml, removing the update path itself."
+                    f"{rel}:{lineno}: executable `copier update` without --vcs-ref. "
+                    f"Unpinned it DOWNGRADES the service to a frozen v1.x snapshot and "
+                    f"deletes .copier-answers.yml, removing the update path itself."
                 )
+
+    if not update_cmds_seen:
+        problems.append(
+            "no executable `copier update` command found anywhere. Either the docs "
+            "changed shape or this scan is broken — both need a human."
+        )
 
     if problems:
         print("error: adopter scaffold command would serve the wrong template:", file=sys.stderr)

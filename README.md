@@ -2,25 +2,30 @@
 
 Opinionated, production-grade template for building and operating ML systems on Kubernetes with multi-cloud deployment (GKE + EKS), governed CI/CD, closed-loop monitoring, supply-chain security, and agentic automation that stays inside enterprise guardrails.
 
-[![Release](https://img.shields.io/github/v/release/DuqueOM/ML-MLOps-Production-Template.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/releases)
+[![Release](https://img.shields.io/github/v/release/DuqueOM/ml-service-template.svg)](https://github.com/DuqueOM/ml-service-template/releases)
 [![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11_%7C_3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 [![Terraform >= 1.7](https://img.shields.io/badge/terraform-%3E%3D1.7-blueviolet.svg)](https://www.terraform.io/)
 [![Kubernetes](https://img.shields.io/badge/k8s-GKE%20%2B%20EKS-326CE5.svg)](https://kubernetes.io/)
 
-[![Validate Templates](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/actions/workflows/validate-templates.yml)
+[![Validate Templates](https://github.com/DuqueOM/ml-service-template/actions/workflows/validate-templates.yml/badge.svg)](https://github.com/DuqueOM/ml-service-template/actions/workflows/validate-templates.yml)
+<!-- codecov is keyed on the PRE-RENAME repo slug and does not follow GitHub's
+     redirect. Verified by fetching both: the old path returns `40%`, the new
+     `ml-service-template` path returns `unknown`. Do NOT "fix" this to match
+     the other badges -- that breaks a working badge. It changes only when the
+     codecov project itself is re-linked. -->
 [![codecov](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template/branch/main/graph/badge.svg)](https://codecov.io/gh/DuqueOM/ML-MLOps-Production-Template)
-[![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ML-MLOps-Production-Template/generate)
+[![Template](https://img.shields.io/badge/use%20as-template-brightgreen.svg)](https://github.com/DuqueOM/ml-service-template/generate)
 [![Anti-Patterns](https://img.shields.io/badge/anti--patterns-38%20encoded-red.svg)](#anti-patterns-encoded)
 [![Agentic](https://img.shields.io/badge/agentic-Devin_%7C_Cursor_%7C_Claude_%7C_Codex-blueviolet.svg)](#agentic-system)
 
 ```bash
 # scaffold a new ML service in under a minute
-copier copy --vcs-ref=v0.24.0 https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
+copier copy --vcs-ref=v0.25.0 https://github.com/DuqueOM/ml-service-template.git ChurnPredictor
 # or: git clone + ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
 ```
 
-> **`--vcs-ref` is required, not decorative.** Without it Copier resolves to the highest-sorting tag, and this repo carries frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014) alongside the active `v0.x` line. `v1.12.0` sorts above `v0.24.0`, so the bare command silently scaffolds an April 2026 snapshot — complete, plausible, and stale. Always pin the active version shown above; `scripts/check_adopter_scaffold_ref.py` keeps this snippet in sync with `VERSION`.
+> **`--vcs-ref` is required, not decorative.** Without it Copier resolves to the highest-sorting tag, and this repo carries frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014) alongside the active `v0.x` line. `v1.12.0` sorts above `v0.25.0`, so the bare command silently scaffolds an April 2026 snapshot — complete, plausible, and stale. Always pin the active version shown above; `scripts/check_adopter_scaffold_ref.py` keeps this snippet in sync with `VERSION`.
 
 **Start here:** [QUICK_START.md](QUICK_START.md) | [docs/TUTORIAL.md](docs/TUTORIAL.md) | [RUNBOOK.md](RUNBOOK.md) | [AGENTS.md](AGENTS.md) | [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -836,7 +841,7 @@ This adds the required `Signed-off-by` line to your commit. No CLA is required.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution process, issue templates, and ADR conventions.
 
-Questions and discussion: [file an issue](https://github.com/DuqueOM/ML-MLOps-Production-Template/issues/new/choose).
+Questions and discussion: [file an issue](https://github.com/DuqueOM/ml-service-template/issues/new/choose).
 
 ---
 

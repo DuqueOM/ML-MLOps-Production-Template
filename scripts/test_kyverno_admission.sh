@@ -70,7 +70,7 @@ kubectl -n kyverno rollout status deploy/kyverno-admission-controller --timeout=
 log "applying shipped ClusterPolicies"
 # Replace {ORG}/{REPO} placeholders so the policy YAML parses even
 # though the signature rule will not be exercised here (see header).
-sed 's|{ORG}/{REPO}|DuqueOM/ML-MLOps-Production-Template|g' "${POLICY_FILE}" \
+sed 's|{ORG}/{REPO}|DuqueOM/ml-service-template|g' "${POLICY_FILE}" \
   | kubectl apply -f -
 
 # Kyverno takes a few seconds to sync the policy into the webhook.

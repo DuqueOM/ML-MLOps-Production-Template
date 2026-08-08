@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/DuqueOM/ML-MLOps-Production-Template/context.schema.json",
+  "$id": "https://github.com/DuqueOM/ml-service-template/context.schema.json",
   "title": "Agentic context files (company + project)",
   "description": "JSON schema covering both company_context.*.yaml and project_context.*.yaml. The validator resolves which top-level key is expected by file name.",
   "type": "object",

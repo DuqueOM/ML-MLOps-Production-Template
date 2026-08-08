@@ -46,7 +46,7 @@ To eliminate confusion with local untracked files and to validate the
 
 ```bash
 cd "$(mktemp -d)"
-git clone --mirror https://github.com/DuqueOM/ML-MLOps-Production-Template.git history-scan.git
+git clone --mirror https://github.com/DuqueOM/ml-service-template.git history-scan.git
 cd history-scan.git
 ```
 

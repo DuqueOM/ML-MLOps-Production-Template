@@ -2273,6 +2273,114 @@ EXIT=1
 
 ---
 
+## Entry 019 — v0.25.0: the fourth surface, and a stale repository name
+
+- **Date**: 2026-08-08
+- **Branch**: `fix/scaffold-update-pin-and-repo-name`
+- **Base commit**: `a02ea24` (main at v0.24.0)
+- **Environment**: local Linux workstation (WSL2), copier 9.16.0
+- **Operator**: Staff/Lead engineer
+- **Scope**: unpinned /scaffold-update workflow - stale repository name in generated services
+- **Reported by**: adopter consuming the template, not by this repo's CI
+
+### What was executed
+
+#### 1. The guard was incomplete by construction
+
+v0.24.0's `check_adopter_scaffold_ref.py` enumerated three files. Replacing
+the enumeration with a tree scan, run against the pre-fix tree:
+
+```
+error: adopter scaffold command would serve the wrong template:
+  - .devin/workflows/scaffold-update.md:21
+  - .devin/workflows/scaffold-update.md:37
+  - agentic/workflows/scaffold-update.md:21
+  - agentic/workflows/scaffold-update.md:37
+  - templates/service/agentic/workflows/scaffold-update.md:21
+  - templates/service/agentic/workflows/scaffold-update.md:37
+EXIT=1
+```
+
+Six occurrences the enumerated version could not see: the canonical
+workflow, its vendored copy, and the generated `.devin` adapter. The
+workflow is what `/scaffold-update` executes and it ships inside every
+generated service, so the destructive downgrade documented in v0.24.0 was
+still one command away in the most likely place to run it.
+
+After pinning:
+
+```
+$ python3 scripts/check_adopter_scaffold_ref.py
+[ OK ] 4 adopter scaffold command(s) pin --vcs-ref=v0.25.0
+```
+
+Confirmed in a freshly generated service:
+
+```
+$ grep -n "copier update" <svc>/agentic/workflows/scaffold-update.md
+26:copier update --vcs-ref=<release-tag> --dry-run
+42:copier update --vcs-ref=<release-tag> --trust --defaults
+```
+
+#### 2. Repository name — measured, not assumed
+
+The finding was reported as a private-repo reference. It is not:
+
+```
+$ curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}" \
+    https://github.com/DuqueOM/ML-MLOps-Production-Template
+301 -> https://github.com/DuqueOM/ml-service-template
+```
+
+Public repo, working redirect. Nothing was broken; the problem is a stale
+identifier inherited by every generated service.
+
+Badge behaviour differs per service, which decided the scope:
+
+```
+shields.io release badge, OLD name  -> <title>release: v0.24.0</title>   (follows the API redirect)
+codecov badge, OLD name             -> 40%
+codecov badge, NEW name             -> unknown
+```
+
+Codecov does not follow GitHub's redirect and is keyed on the pre-rename
+slug, so renaming that one URL would have broken a working badge. It keeps
+the old slug with an explanatory comment; everything else was renamed.
+
+After the rename, in a freshly generated service:
+
+```
+$ grep -rl "ML-MLOps-Production-Template" <svc>
+(no output)
+```
+
+Repo-wide checks after the change:
+
+```
+[vendored-drift] OK - all vendored runtime files match canonical originals.
+[doc-coherence]  OK - all 7 cross-document checks pass.
+all template JSON parses
+pre-commit run --all-files: 15 hooks, 0 failures
+```
+
+JSON Schema `$id` values were changed only after confirming nothing
+resolves schemas by `$id` - every `$ref` in the repo is an internal
+fragment (`#/$defs/...`).
+
+### What was NOT validated (pending)
+
+- **Services already scaffolded under v0.24.0 or earlier cannot fix
+  themselves.** Their vendored workflow is still unpinned. The MIGRATION
+  row tells them to edit two lines by hand or run one pinned update first;
+  that procedure was not rehearsed on a real stranded service.
+- **The codecov re-link was not performed** - it is a codecov-side action
+  outside this repo. Until then the badge URL and the repo URL disagree by
+  design.
+- **The tag-sort collision remains unresolved** - four defects, four pins.
+- **L4 cloud validation** - unchanged.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:
