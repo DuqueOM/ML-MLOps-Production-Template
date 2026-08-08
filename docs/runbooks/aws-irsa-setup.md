@@ -41,7 +41,7 @@ Both flows use OIDC; they are separate IAM Identity Providers.
 ACCOUNT_ID="123456789012"                        # your AWS account
 REGION="us-east-1"
 GH_OWNER="DuqueOM"
-GH_REPO="ML-MLOps-Production-Template"
+GH_REPO="ml-service-template"
 EKS_CLUSTER="ml-prod"                            # only for IRSA half
 EKS_OIDC_URL="$(aws eks describe-cluster --name $EKS_CLUSTER \
                  --query 'cluster.identity.oidc.issuer' --output text \

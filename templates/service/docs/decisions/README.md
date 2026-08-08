@@ -45,7 +45,7 @@ Two consequences:
    the template's entire governance history into every generated service
    would be worse than a pointer. Resolve any of them at:
 
-   <https://github.com/DuqueOM/ML-MLOps-Production-Template/tree/main/docs/decisions>
+   <https://github.com/DuqueOM/ml-service-template/tree/main/docs/decisions>
 
 If your repo runs a link or reference checker, this is why it may flag
 `ADR-027` or similar as unresolved: it is a **template** ADR, resolvable at

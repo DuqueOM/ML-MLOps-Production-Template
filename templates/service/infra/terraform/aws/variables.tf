@@ -184,7 +184,7 @@ variable "availability_zones" {
 # GitHub OIDC (ADR-017 / PR-A1)
 # ----------------------------------------------------------------------
 # Required for the CI + Deploy roles' trust policies. Format:
-#   "owner/repo" e.g. "DuqueOM/ML-MLOps-Production-Template"
+#   "owner/repo" e.g. "DuqueOM/ml-service-template"
 # Empty string skips creation of CI/Deploy roles (callers using
 # long-lived AWS keys instead).
 # ----------------------------------------------------------------------

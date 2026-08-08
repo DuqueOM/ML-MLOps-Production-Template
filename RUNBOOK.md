@@ -21,8 +21,8 @@ Quick reference for working with the template: scaffolding services, running exa
 - Optional: kustomize, terraform, kubectl (for validation targets)
 
 ```bash
-git clone https://github.com/DuqueOM/ML-MLOps-Production-Template.git
-cd ML-MLOps-Production-Template
+git clone https://github.com/DuqueOM/ml-service-template.git
+cd ml-service-template
 make install-dev    # Install contributor tools + pre-commit hooks
 ```
 
@@ -135,7 +135,7 @@ Pre-commit hooks run automatically on `git commit`.
 
 ## Release Process
 
-See [templates/docs/CHECKLIST_RELEASE.md](templates/docs/CHECKLIST_RELEASE.md) for the full checklist.
+See [templates/service/docs/CHECKLIST_RELEASE.md](templates/service/docs/CHECKLIST_RELEASE.md) for the full checklist.
 
 Quick summary:
 ```bash
