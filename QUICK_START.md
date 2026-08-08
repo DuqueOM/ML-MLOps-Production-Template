@@ -73,7 +73,7 @@ cd ML-MLOps-Production-Template
 pip install copier
 
 # Scaffold a new service (Copier renders templates/service/ with your answers)
-copier copy --vcs-ref=v0.22.0 https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
+copier copy --vcs-ref=v0.23.0 https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
 
 # Or via the thin wrapper script
 # ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
@@ -84,7 +84,7 @@ copier copy --vcs-ref=v0.22.0 https://github.com/DuqueOM/ML-MLOps-Production-Tem
 
 > **Why `--vcs-ref`?** Without it Copier resolves to the highest-sorting tag,
 > and this repo carries frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014)
-> alongside the active `v0.x` line. `v1.12.0` sorts above `v0.22.0`, so the
+> alongside the active `v0.x` line. `v1.12.0` sorts above `v0.23.0`, so the
 > bare command silently scaffolds an April 2026 snapshot. Always pin the
 > active version.
 

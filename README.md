@@ -16,11 +16,11 @@ Opinionated, production-grade template for building and operating ML systems on 
 
 ```bash
 # scaffold a new ML service in under a minute
-copier copy --vcs-ref=v0.22.0 https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
+copier copy --vcs-ref=v0.23.0 https://github.com/DuqueOM/ML-MLOps-Production-Template.git ChurnPredictor
 # or: git clone + ./templates/scripts/new-service.sh ChurnPredictor churn_predictor
 ```
 
-> **`--vcs-ref` is required, not decorative.** Without it Copier resolves to the highest-sorting tag, and this repo carries frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014) alongside the active `v0.x` line. `v1.12.0` sorts above `v0.22.0`, so the bare command silently scaffolds an April 2026 snapshot — complete, plausible, and stale. Always pin the active version shown above; `scripts/check_adopter_scaffold_ref.py` keeps this snippet in sync with `VERSION`.
+> **`--vcs-ref` is required, not decorative.** Without it Copier resolves to the highest-sorting tag, and this repo carries frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014) alongside the active `v0.x` line. `v1.12.0` sorts above `v0.23.0`, so the bare command silently scaffolds an April 2026 snapshot — complete, plausible, and stale. Always pin the active version shown above; `scripts/check_adopter_scaffold_ref.py` keeps this snippet in sync with `VERSION`.
 
 **Start here:** [QUICK_START.md](QUICK_START.md) | [docs/TUTORIAL.md](docs/TUTORIAL.md) | [RUNBOOK.md](RUNBOOK.md) | [AGENTS.md](AGENTS.md) | [CONTRIBUTING.md](CONTRIBUTING.md)
 
