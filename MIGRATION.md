@@ -17,6 +17,17 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## v0.25.0 → v0.26.0 (2026-08-08)
+
+| Change | Manual action required |
+|--------|------------------------|
+| **`v1.x` tags archived to `archive/v1.x`** (ADR-045) | None for scaffolding — this *removes* a trap. An unpinned `copier copy` or `copier update` now resolves to the active `v0.x` line instead of the April 2026 snapshot. If you scripted anything against `refs/tags/v1.12.0`, or linked to `/releases/tag/v1.12.0`, repoint it to `archive/v1.12.0`. Commits and content are unchanged. |
+| **`--vcs-ref` still recommended** | Keep pinning. The trap is gone, but pinning an explicit ref remains correct practice for any Copier template — the default resolves to whatever tag sorts highest, which is surprising in general. |
+
+**Tracking**: see `releases/v0.26.0.md` and `CHANGELOG.md` §`[0.26.0]`.
+
+---
+
 ## v0.24.0 → v0.25.0 (2026-08-08)
 
 | Change | Manual action required |

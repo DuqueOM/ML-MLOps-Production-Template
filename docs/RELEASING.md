@@ -113,8 +113,18 @@ deploy, smoke, metrics, drift, retrain, and decision evidence.
 ## 2. Pre-GA hardening channel
 
 Per the post-audit versioning reset, `v1.0.0` through `v1.12.0` are
-kept as immutable historical tags, but they are no longer treated as a
-GA stability signal. The active public channel is:
+kept as immutable historical snapshots, but they are no longer treated as
+a GA stability signal.
+
+**They live under `archive/v1.x`, outside the version namespace**
+([ADR-045](decisions/ADR-045-tag-namespace-separation.md)). Version-resolving
+tooling picks the highest-sorting tag, and `v1.12.0` outranked every `v0.x`
+release — which silently served an April 2026 snapshot to anyone who did not
+pin a ref, and produced four defects in four releases. `archive/v1.12.0` is
+not a valid PEP 440 version, so it is filtered out before sorting. The
+commits, trees and signatures are unchanged; only the reference name moved.
+
+The active public channel is:
 
 - `v0.x.0` — hardening releases for adopter-visible template work.
 - `v0.x.y` — hardening patch releases.

@@ -49,7 +49,7 @@ its unit tests + contract tests on your laptop. No cluster yet.
 
 **Run**:
 ```bash
-copier copy --vcs-ref=v0.25.0 https://github.com/DuqueOM/ml-service-template.git ChurnPredictor
+copier copy --vcs-ref=v0.26.0 https://github.com/DuqueOM/ml-service-template.git ChurnPredictor
 cd ChurnPredictor
 # Option A: uv (recommended, 10× faster)
 uv sync
@@ -61,7 +61,7 @@ make contract-test   # schema + policy contracts
 
 > **Why `--vcs-ref`?** Without it Copier resolves to the highest-sorting tag,
 > and this repo carries frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014)
-> alongside the active `v0.x` line. `v1.12.0` sorts above `v0.25.0`, so the
+> alongside the active `v0.x` line. `v1.12.0` sorts above `v0.26.0`, so the
 > bare command silently scaffolds an April 2026 snapshot. Always pin the
 > active version.
 

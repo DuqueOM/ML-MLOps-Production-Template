@@ -2381,6 +2381,121 @@ fragment (`#/$defs/...`).
 
 ---
 
+## Entry 020 — v0.26.0: closing the tag-namespace collision (ADR-045)
+
+- **Date**: 2026-08-08
+- **Branch**: `chore/archive-v1-tag-namespace`
+- **Base commit**: `9d1d7a3` (main at v0.25.0)
+- **Environment**: local Linux workstation (WSL2), copier 9.16.0
+- **Operator**: Staff/Lead engineer
+- **Scope**: archive v1.x audit snapshots out of the version namespace
+
+### What was executed
+
+#### 1. Mechanism confirmed in copier's source before acting
+
+```python
+# copier/_vcs.py :: get_latest_tag
+all_tags = (tag for tag in all_tags if valid_version(tag))   # PEP 440 filter
+sorted_tags = sorted(all_tags, key=version.parse, reverse=True)
+return sorted_tags[0]
+```
+
+```
+v1.12.0          PEP440-valid=True   parses as 1.12.0
+v0.25.0          PEP440-valid=True   parses as 0.25.0
+archive/v1.12.0  PEP440-valid=False  -> FILTERED OUT by copier
+```
+
+#### 2. Recovery record taken BEFORE any mutation
+
+15 tag->commit pairs recorded, and all 15 GitHub Release bodies exported
+to JSON. Confirmed all 15 also have in-repo notes under `releases/v1.*.md`,
+so no content depended on the Release objects.
+
+#### 3. Archive tags created and verified against originals
+
+```
+✓ v1.0.0  -> 0b6b2e59      ✓ v1.8.0  -> 7ba92587
+✓ v1.1.0  -> 13a26452      ✓ v1.8.1  -> a2ac4a14
+...                        ✓ v1.12.0 -> 5ce52a09
+MISMATCHES=0
+
+$ git diff v1.12.0 archive/v1.12.0
+(empty)  -> trees byte-identical
+```
+
+15/15 matched by SHA before anything was deleted.
+
+#### 4. Deletion tested on ONE tag first
+
+```
+BEFORE: tag=v1.0.0 draft=false
+$ git push origin :refs/tags/v1.0.0
+ - [deleted]  v1.0.0
+AFTER:  tag=v1.0.0 draft=true
+```
+
+Deleting a tag DRAFTS its GitHub Release rather than destroying it. The
+release was re-pointed and un-drafted:
+
+```
+$ gh release edit v1.0.0 --tag archive/v1.0.0 --draft=false
+tag=archive/v1.0.0 draft=false name=v1.0.0 — Initial Release
+```
+
+Only after observing that on one tag were the remaining 14 processed.
+
+#### 5. Final remote state
+
+```
+v1.x:     0
+archive/: 15
+v0.x:     16
+```
+
+#### 6. The verification the whole exercise exists for
+
+```
+$ get_latest_tag('https://github.com/DuqueOM/ml-service-template.git')
+BEFORE: v1.12.0
+AFTER:  v0.25.0
+```
+
+Bare `copier copy`, no `--vcs-ref` — the command that had been serving the
+April 2026 snapshot for four releases:
+
+```
+files:   627        (435 = v1.12.0 snapshot, 627 = current)
+answers: PRESENT
+_commit: v0.25.0
+```
+
+Bare `copier update`, no `--vcs-ref` — the destructive path:
+
+```
+files: 627 -> 627
+deleted: 0
+answers: PRESENT
+```
+
+Both traps structurally gone, not merely documented around.
+
+### What was NOT validated (pending)
+
+- **External links to `/releases/tag/v1.x` now 404.** Verified that the
+  Release objects survive at their `archive/` URLs, but no redirect exists
+  for the old tag URLs and none is possible. Accepted, not mitigated.
+- **`git describe` and other consumers were not exercised.** The PEP 440
+  argument says they are protected; only Copier was measured end to end.
+- **The MIGRATION recovery procedures remain un-rehearsed** across all
+  releases that introduced them.
+- **Services scaffolded under v0.24.0 or earlier still carry an unpinned
+  vendored workflow** and cannot fix themselves.
+- **L4 cloud validation** — unchanged.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

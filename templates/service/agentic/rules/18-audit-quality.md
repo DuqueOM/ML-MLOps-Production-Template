@@ -49,13 +49,22 @@ deliberately separate from the runtime `D-NN` namespace in AGENTS.md
   hash-pinned lockfile (`make lock` → `requirements.lock.txt`).
   `requirements.txt` with `~=` states intent; the lockfile is what an
   auditor accepts as "rebuildable in a year."
-- **Secret-scan parity**: `.gitleaks.toml` must keep the legacy singular
-  `[allowlist]` mirrored with the `[[allowlists]]` tables — gitleaks
-  < 8.25 silently ignores the plural form, so a one-sided edit reopens
-  local/CI false-positive divergence (R11 L-2 root cause).
+- **Secret-scan parity**: `.gitleaks.toml` uses the plural
+  `[[allowlists]]` tables ONLY. The legacy singular `[allowlist]` mirror
+  that R11 L-2 introduced was removed in v0.22.0: gitleaks >= 8.25 refuses
+  to load a config containing both dialects, so the compatibility shim had
+  become the blocker for upgrading. Parity is now held by pinning one
+  version across all three declaration sites — enforced by
+  `scripts/check_gitleaks_pin.py`.
 - **Signed history forward**: commits and release tags are signed from
-  v0.21.0 onward. Never rewrite history to retro-sign (tags are
-  immutable per AGENTS.md).
+  v0.21.0 onward. Never rewrite history to retro-sign, and never move a
+  tag to a different commit (tags are immutable per AGENTS.md).
+  **Scope clarified by ADR-045**: immutability attaches to the commit and
+  its content, not to the reference name used to reach it. Renaming a tag
+  while preserving its commit, tree and signature — as done for the
+  `archive/v1.x` audit snapshots — is a tooling-namespace change, not a
+  historical claim. Deleting an archived snapshot outright remains
+  forbidden: archiving preserves provenance, deletion destroys it.
 - **Evidence discipline**: audit claims cite `file:line` or a command
   with its output. "We have tests" is not evidence; a coverage report is.
 

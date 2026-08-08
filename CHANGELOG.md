@@ -4,11 +4,81 @@ All notable changes to the ML-MLOps Production Template are documented in this f
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
-> **Versioning policy is now governed by [`docs/RELEASING.md`](docs/RELEASING.md).** Adopter migration guidance lives in [`MIGRATION.md`](MIGRATION.md). Verified-execution evidence lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md). Tags `v1.0.0`–`v1.12.0` remain immutable historical audit snapshots. The active public line is now `v0.x` hardening; `v1.0.0` is reserved for the first real cloud E2E validation across GKE and EKS.
+> **Versioning policy is now governed by [`docs/RELEASING.md`](docs/RELEASING.md).** Adopter migration guidance lives in [`MIGRATION.md`](MIGRATION.md). Verified-execution evidence lives in [`VALIDATION_LOG.md`](VALIDATION_LOG.md). Tags `v1.0.0`–`v1.12.0` are immutable historical audit snapshots, archived under `archive/v1.x` per [ADR-045](docs/decisions/ADR-045-tag-namespace-separation.md) so version-resolving tooling stops picking them over the active line; the commits, trees and signatures are unchanged. The active public line is now `v0.x` hardening; `v1.0.0` is reserved for the first real cloud E2E validation across GKE and EKS.
 
 ---
 
 ## [Unreleased]
+
+## [0.26.0] — 2026-08-08
+
+Closes the root cause behind four consecutive releases of pinning
+(ADR-045). The `v1.x` frozen audit snapshots now live under `archive/v1.x`,
+outside the version namespace.
+
+### Changed — frozen audit snapshots archived out of the version namespace
+
+- **The defect was never the numbering; it was the namespace.** This repo
+  used one mechanism — git tags — for two incompatible purposes: release
+  markers that tooling resolves automatically, and frozen audit artifacts
+  that must never be resolved. `v1.12.0` outsorted every `v0.x` release, so
+  it won every unpinned resolution.
+- `v1.0.0`…`v1.12.0` → `archive/v1.0.0`…`archive/v1.12.0`, **same commits,
+  same trees, same signatures**. Verified 15/15 by SHA, with `git diff`
+  confirming byte-identical trees.
+- **Why it works**: Copier filters tags through a PEP 440 check before
+  sorting (`copier/_vcs.py:get_latest_tag`). `archive/v1.12.0` is not a
+  valid PEP 440 version, so it is discarded before the sort. The same
+  filter protects `sort -V`, `git describe` heuristics, "latest release"
+  queries, and dependency bots — this is not a Copier-specific patch.
+- **Measured, before and after**, on the bare unpinned commands that caused
+  every prior defect:
+
+  | Command | Before | After |
+  |---|---|---|
+  | `get_latest_tag()` | `v1.12.0` | **`v0.25.0`** |
+  | `copier copy` (no ref) | 435 files, no answers file | **627 files, `_commit: v0.25.0`** |
+  | `copier update` (no ref) | 627 → 435, 582 deleted, answers file gone | **627 → 627, 0 deleted, answers file present** |
+
+- **Pins and guards are retained.** `--vcs-ref` pinning is correct practice
+  for any Copier template regardless of this repo's history, because
+  silently resolving to the highest tag is surprising in general. This
+  release removes the trap; the pin stays as hygiene.
+
+### Changed — the immutability rule, reinterpreted explicitly (ADR-045)
+
+- `agentic/rules/18` and `docs/RELEASING.md` §2 amended. The rule protects
+  **the commit and its content**, not the reference name used to reach it:
+  a tag must never move to a different commit, and history must never be
+  re-signed to imply verification that did not happen. Renaming a reference
+  while preserving commit, tree and signature is a tooling-namespace
+  decision.
+- Deleting an archived snapshot outright remains **forbidden** — archiving
+  preserves provenance, deletion destroys it, and the two must not be
+  confused.
+- Renumbering the active line past `v1.12.0` was considered and **rejected**:
+  `RELEASING.md` §2 reserves `v1.0.0` for cloud E2E evidence, and inflating
+  the version to outrank a dead tag would make the version number misstate
+  the project's maturity to satisfy a sort order.
+
+### Fixed — stale rule text asserting a removed gitleaks workaround
+
+- `agentic/rules/18` still required `.gitleaks.toml` to mirror the legacy
+  singular `[allowlist]` alongside `[[allowlists]]`. That mirror was removed
+  in `v0.22.0` because gitleaks >= 8.25 refuses to load a config containing
+  both. The rule was mandating the exact state that breaks the scanner.
+
+### Known follow-ons
+
+- **The 15 `v1.x` GitHub Releases were re-pointed to their `archive/` tags**
+  and remain public. Deleting a tag drafts its release; each was re-pointed
+  and un-drafted. Any external link to `/releases/tag/v1.12.0` now 404s —
+  acceptable given the template has no adopters beyond the maintainer, and
+  the content is duplicated in `releases/v1.*.md`.
+- Carried forward: un-rehearsed MIGRATION recovery procedures, `copier
+  update` across a real version gap, clock-allowlist brittleness keyed by
+  `file:line`, ruff `UP`/`B`/`S`, `mypy` → `pyright`, shadow-lane data,
+  codecov still linked to the pre-rename slug.
 
 ## [0.25.0] — 2026-08-08
 
