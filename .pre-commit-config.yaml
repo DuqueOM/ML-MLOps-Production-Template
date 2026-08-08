@@ -195,6 +195,18 @@ repos:
         language: system
         pass_filenames: false
         files: ^(VERSION|README\.md|QUICK_START\.md|docs/TUTORIAL\.md|docs/PROGRESSION\.md|scripts/check_adopter_scaffold_ref\.py)$
+      - id: service-adr-references
+        name: generated service ADR references are resolvable
+        description: |
+          The render root cites 39 template ADRs and vendors 6. Without a
+          resolution doc the other 33 are unresolvable for the adopter and
+          collide with their own ADR numbering. Renaming to
+          template-ADR-NNN is blocked by the byte-identical vendored drift
+          gate, so the contract is a resolution layer instead.
+        entry: python3 scripts/check_service_adr_references.py
+        language: system
+        pass_filenames: false
+        files: ^(templates/service/docs/decisions/|scripts/check_service_adr_references\.py)
       - id: ci-autofix-policy-contract
         name: CI autofix policy contract (ADR-019)
         description: |
