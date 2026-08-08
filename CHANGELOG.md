@@ -10,6 +10,96 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-08-07
+
+`v0.x.0` bump carrying **full MAJOR paperwork** per the newly-added
+[`docs/RELEASING.md`](docs/RELEASING.md) §2.1. The pre-commit hook set
+changed, which §1.3 classifies as MAJOR — but §2 reserves `v1.0.0` for
+cloud E2E evidence, so a MAJOR-class change had nowhere to go. §2.1
+resolves that gap: on the pre-GA channel the *number* is smaller, the
+*obligations* are identical.
+
+### Breaking for adopters
+
+| Change | Manual action required |
+|---|---|
+| **`black`, `isort`, `flake8` pre-commit hooks removed; `ruff-check` + `ruff-format` added** (ADR-044) | Run `pre-commit install --install-hooks`. Adopters with a custom `.pre-commit-config.yaml` overlay must merge the swap in both the repo config and the scaffolded service's. Custom `[tool.black]` / `[tool.isort]` sections should move to `[tool.ruff]`. |
+| **`ruff format` output differs from `black`** | Expect a one-time reflow of your Python tree (55 of 134 files here). Apply it as an isolated commit and register it in `.git-blame-ignore-revs`. |
+| **Adopter scaffold command now requires `--vcs-ref`** | Use `copier copy --vcs-ref=v0.23.0 …`. Without it Copier resolves to the highest-sorting tag, which is a frozen `v1.x` audit snapshot. |
+
+### Fixed — the documented scaffold command served a stale template
+
+- Every adopter-facing `copier copy` example omitted `--vcs-ref`. Copier
+  resolves an unpinned git source to the **highest-sorting tag**, and the
+  frozen `v1.0.0`–`v1.12.0` audit snapshots (ADR-014) sort above every
+  `v0.x` tag. The documented command served the **April 2026 snapshot**:
+  **435 files and no `.copier-answers.yml`**, versus **626 files with a
+  correct answers file** when pinned. The `v0.22.0` copier-update fix
+  therefore reached nobody following the documentation.
+- **New `scripts/check_adopter_scaffold_ref.py`** + a `RELEASING.md` §3
+  checklist item, so a release cannot ship with the docs pointing at the
+  previous version. The `v1.x` tags were **not** touched: `agentic/rules/18`
+  and ADR-014 both declare them immutable, so changing that needs its own
+  ADR.
+
+### Fixed — generated services carried 33 unresolvable ADR references
+
+- The render root cites **39** template ADRs and vendors **6**. The other
+  33 were dangling: a consuming repo's reference checker flagged them as
+  missing files, and the 6 that do ship collide with the adopter's own ADR
+  numbering.
+- Renaming to `template-ADR-NNN` — the obvious fix — is **structurally
+  blocked**: `check_vendored_runtime_drift.py` holds
+  `templates/service/agentic`, the shipped ADR files, and the config
+  schemas byte-identical to their root counterparts. Rewriting identifiers
+  there would break that gate or fork the generated service from upstream,
+  making every future `copier update` a conflict.
+- Shipped a **resolution layer** instead:
+  `templates/service/docs/decisions/README.md` names the collision, lists
+  exactly what vendors in, points upstream for the rest, and recommends
+  `template-ADR-NNN` for the adopter's *own* prose — where nothing is
+  drift-gated. Enforced by `scripts/check_service_adr_references.py`.
+
+### Changed — lint/format toolchain consolidated into ruff (ADR-044)
+
+- `black` + `isort` + `flake8` → **ruff** (`check` + `format`), pinned
+  `v0.15.15`, configured once per `pyproject.toml`.
+- **Speed was not the reason and is not claimed as one.** The previous
+  suite already ran `--all-files` in **2.62 s**, inside the config's own
+  `< 5 s` target. The case was six copies of one exclude list (three tools
+  × two configs) and a lint coverage hole: `flake8`'s `files:` pattern
+  excluded `scripts/` and `templates/tests/`, so the repo's own tooling was
+  type-checked and security-linted but never style-linted.
+- **Rule scope is parity-only** (`E,W,F,I`). Ruff's `UP`/`B`/`S` rulesets
+  were measured at **90 additional findings** and deliberately not enabled:
+  mixing them in would turn a toolchain swap into a code change.
+- **Ruff does not replace `mypy`** (no type checking) and only partially
+  overlaps `bandit`; both retained. Pyright considered and rejected here.
+- Formatter reflow (55 files) isolated in its own commit and registered in
+  `.git-blame-ignore-revs`. Equivalence verified: the collectible test
+  suite returns an **identical** result before and after.
+
+### Fixed — two real defects surfaced by the new lint coverage
+
+- **`test_different_cache_keys_isolated` asserted nothing about isolation.**
+  It created `ctx1`, never read it, and only checked `ctx2`. It would have
+  passed with caching absent entirely. Fixed by adding the missing
+  `assert ctx1 is not ctx2` — not by deleting the variable, which is what
+  the linter literally suggested.
+- Unused import and two over-length lines in `scripts/`. The regex edit was
+  verified to compile to a byte-identical pattern.
+
+### Known follow-ons
+
+- **Clock-isolation allowlist is keyed by `file:line`**, so any reformat
+  invalidates it (it did, and was remapped 1:1 after verifying same call
+  count, same APIs, same order). Keying on the enclosing test name would
+  survive that churn.
+- **Ruff `UP`/`B`/`S` rulesets** — 90 findings, deferred to their own ADR.
+- **mypy → pyright** — considered in ADR-044, not ruled out later.
+- **Shadow-lane precision data** — the ADR-019 lane fires now but has
+  classified nothing; Phase 2 still needs 14 days of real data.
+
 ### Fixed — the documented scaffold command served a stale template
 
 - **`README.md`, `QUICK_START.md`, `docs/TUTORIAL.md`, `docs/PROGRESSION.md`**:

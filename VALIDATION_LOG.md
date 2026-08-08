@@ -2002,6 +2002,201 @@ skipped	ci-self-healing-shadow   (upstream green; job gated on failure)
 
 ---
 
+## Entry 017 — v0.23.0: the release that reached nobody, plus ruff consolidation
+
+- **Date**: 2026-08-07
+- **Branch**: `fix/adopter-tag-resolution`, `refactor/ruff-toolchain`, `fix/template-adr-namespace`, `docs/release-v0.23.0`
+- **Base commit**: `8d2d3f4` (main at v0.22.0)
+- **Environment**: local Linux workstation (WSL2), Python 3.11.15, copier 9.16.0, ruff 0.15.15
+- **Operator**: Staff/Lead engineer
+- **Scope**: adopter tag resolution - ruff toolchain consolidation - template ADR reference resolvability
+
+### What was executed
+
+#### 1. The documented scaffold command served a stale template
+
+Run as an adopter would, against the published tag:
+
+```
+$ copier copy gh:DuqueOM/ml-service-template /tmp/adopter
+-> 435 files, NO .copier-answers.yml
+
+$ copier copy --vcs-ref=v0.22.0 gh:DuqueOM/ml-service-template /tmp/pinned
+-> 626 files
+$ grep '^_commit' /tmp/pinned/.copier-answers.yml
+_commit: v0.22.0
+```
+
+Cause confirmed:
+
+```
+$ git tag --sort=-v:refname | head -1
+v1.12.0
+```
+
+Copier resolves an unpinned git source to the highest-sorting tag. The
+frozen v1.x audit snapshots sort above every v0.x tag, so the documented
+command served the April 2026 snapshot. The v0.22.0 copier-update fix
+reached nobody following the docs.
+
+Guard verified in three directions:
+
+```
+$ python3 scripts/check_adopter_scaffold_ref.py
+[ OK ] 4 adopter scaffold command(s) pin --vcs-ref=v0.23.0
+
+# unpinned
+error: README.md:19: `copier copy` has no --vcs-ref ... EXIT=1
+
+# pinned but stale
+error: README.md:19: --vcs-ref=v0.21.0 but VERSION is 0.22.0 ... EXIT=1
+```
+
+#### 2. Ruff consolidation - measurement first
+
+```
+$ pre-commit run --all-files      # BEFORE, warm
+TOTAL WALL: 2.62 s
+$ pre-commit run --all-files      # AFTER, warm
+TOTAL WALL: 1.62 s
+```
+
+The stated target in the config header is < 5 s. The previous setup
+already met it, so speed was NOT the justification and is not claimed as
+one in ADR-044.
+
+Rule-scope measurement that set the boundary:
+
+```
+# with UP + B enabled
+Found 90 errors.
+# parity scope E,W,F,I
+All checks passed!
+```
+
+Formatter equivalence - the decisive check:
+
+```
+$ ruff format templates/service/ examples/ scripts/
+55 files reformatted, 79 files left unchanged
+(214 insertions, 290 deletions)
+
+# collectible suite, AFTER reformat
+19 failed, 672 passed, 30 skipped, 73 errors
+
+# same command on main, BEFORE
+19 failed, 672 passed, 30 skipped, 73 errors
+```
+
+Identical. All failures are pre-existing local dependency gaps. Every
+reformatted file also passes py_compile.
+
+#### 3. Two real defects surfaced by the new lint coverage
+
+flake8's `files:` was `^(templates/service/|examples/)`, so `scripts/` and
+`templates/tests/` had never been style-linted.
+
+```
+F841 Local variable `ctx1` is assigned to but never used
+   --> templates/tests/unit/test_risk_context.py:216:9
+```
+
+`test_different_cache_keys_isolated` asserted only on `ctx2`. The test
+named for an isolation property never asserted it - it would have passed
+with caching absent entirely. Fixed by ADDING `assert ctx1 is not ctx2`,
+not by deleting the variable as the linter suggested.
+
+```
+$ python3 -m pytest templates/tests/unit/test_risk_context.py -q
+33 passed
+```
+
+Plus an unused import and two over-length lines in `scripts/`. The regex
+edit was verified to compile to a byte-identical pattern:
+
+```
+dashes in original: 75
+identical: True
+```
+
+#### 4. Two gates the reformat legitimately broke
+
+Both caught by CI, both real:
+
+```
+FAIL: vendored runtime files drifted from their canonical originals.
+  - templates/service/agentic/rules/01-mlops-conventions.md
+```
+
+The root rule was updated and its byte-identical vendored copy was not -
+exactly the class the gate exists for. Synced with `--fix`.
+
+```
+FAIL: wall-clock isolation contract violations:
+  - templates/tests/unit/test_risk_context.py:173 ...
+```
+
+Its ALLOWLIST is keyed by file:line and the reformat shifted every entry.
+Verified 1:1 before remapping - same call count, same APIs, same order per
+file - so a pure line shift, not a new wall-clock call.
+
+```
+$ python3 scripts/check_test_clock_isolation.py
+[clock-isolation] OK - scanned 16 test file(s); 10 allowlisted call(s).
+$ python3 scripts/check_vendored_runtime_drift.py
+[vendored-drift] OK - all vendored runtime files match canonical originals.
+```
+
+#### 5. Template ADR references
+
+```
+39 distinct template ADRs referenced inside the render root
+ 6 vendored into the generated service
+33 dangling
+```
+
+Rename to `template-ADR-NNN` was attempted and abandoned on evidence:
+`check_vendored_runtime_drift.py` holds `templates/service/agentic`, the
+shipped ADR files and the config schemas byte-identical to their root
+counterparts. Rewriting identifiers there breaks the gate or forks the
+generated service from upstream.
+
+Resolution layer verified in three directions:
+
+```
+$ python3 scripts/check_service_adr_references.py
+[ OK ] 40 template ADRs referenced, 6 vendored, 34 resolvable via README.md
+
+# doc removed
+error: templates/service/docs/decisions/README.md is missing. EXIT=1
+
+# a vendored ADR dropped from the table
+error: ADR-043 is vendored ... but is not listed in README.md EXIT=1
+```
+
+#### 6. `main` green at the release commit
+
+All contract suites green; full pre-commit sweep 16 hooks passing.
+
+### What was NOT validated (pending)
+
+- **The `--vcs-ref` fix was verified against `v0.22.0`, not `v0.23.0`** -
+  the latter did not exist at measurement time. The mechanism is
+  tag-independent, but the specific published-tag scaffold for `v0.23.0`
+  should be re-run after this release is cut.
+- **Ruff behaviour on an adopter's customised config** - verified only
+  against this repo's `[tool.ruff]`. An adopter with custom black/isort
+  settings may see findings this run cannot predict.
+- **The MIGRATION recovery procedures remain un-rehearsed** - both the
+  answers-file recovery (Entry 016) and the new ruff reflow guidance are
+  written from the mechanism, not from a performed migration.
+- **Shadow-lane classification quality** - the ADR-019 lane fires but has
+  processed zero real failures. Phase 2 precision remains unmeasured.
+- **L4 cloud validation** - unchanged. Nothing in this release was
+  exercised against a real GKE or EKS cluster.
+
+---
+
 ## Template for future entries
 
 Each subsequent entry MUST follow this skeleton:

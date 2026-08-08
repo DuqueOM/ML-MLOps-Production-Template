@@ -17,6 +17,24 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## v0.22.0 → v0.23.0 (2026-08-07)
+
+Contains a §1.3 MAJOR-class change shipped as a `v0.x.0` bump per
+[`docs/RELEASING.md`](docs/RELEASING.md) §2.1. Treat it as a breaking
+release.
+
+| Change | Manual action required |
+|--------|------------------------|
+| **Scaffold command now requires `--vcs-ref`** | Use `copier copy --vcs-ref=v0.23.0 …`. **Without it Copier serves a frozen `v1.x` audit snapshot from April 2026**, because it resolves an unpinned git source to the highest-sorting tag and `v1.12.0` sorts above every `v0.x` tag. Symptom: 435 files and no `.copier-answers.yml` instead of 626 with one. If you scaffolded before this release, check `test -f .copier-answers.yml` — an absent file means you got the snapshot. |
+| **`black`, `isort`, `flake8` pre-commit hooks removed; `ruff-check` + `ruff-format` added** (ADR-044) | Run `pre-commit install --install-hooks`. If you maintain a custom `.pre-commit-config.yaml` overlay, merge the swap in **both** the repo config and the scaffolded service's. Move any custom `[tool.black]` / `[tool.isort]` settings to `[tool.ruff]` — `line-length`, `target-version`, and `known-first-party` map across directly. |
+| **`ruff format` output differs from `black`** | Expect a one-time reflow: 55 of 134 files here, 214 insertions / 290 deletions. Apply it as an **isolated commit** that changes nothing else, then register that commit in `.git-blame-ignore-revs` and enable it with `git config blame.ignoreRevsFile .git-blame-ignore-revs`. Verify equivalence by running your test suite before and after and comparing the result exactly. |
+| **Ruff now lints directories flake8 skipped** | `flake8`'s `files:` pattern was `^(templates/service/|examples/)`. If your service has code under `scripts/` or a top-level `tests/`, ruff will lint it for the first time. Rule scope is parity-only (`E,W,F,I`), so findings are genuine pre-existing style issues, not new rules. |
+| **Generated services gain `docs/decisions/README.md`** | No action. It explains that bare `ADR-NNN` in template-provided files are the *template's* ADRs, not yours, and points upstream for the 33 that are referenced but not vendored. If your reference checker flagged `ADR-027` or similar as missing, this is the resolution. |
+
+**Tracking**: see `releases/v0.23.0.md` and `CHANGELOG.md` §`[0.23.0]`.
+
+---
+
 ## v0.21.0 → v0.22.0 (2026-08-07)
 
 | Change | Manual action required |
