@@ -47,7 +47,22 @@ DOC_FILES = [
     "docs/PROGRESSION.md",
 ]
 
+# Files carrying executable `copier update` instructions. Unlike the scaffold
+# command these may legitimately use a placeholder ref (the target release
+# varies), so they are checked for the PRESENCE of --vcs-ref, not its value.
+UPDATE_DOC_FILES = [
+    "copier.yml",
+    "agentic/skills/scaffold-update/SKILL.md",
+    "templates/service/agentic/rules/15-template-lifecycle.md",
+]
+
 SCAFFOLD_CMD = re.compile(r"copier\s+copy\s+(?P<args>[^\n]*?)https://github\.com/[^\s]+")
+# `copier update` is the DESTRUCTIVE path: unpinned it does not merely
+# scaffold something stale, it rewrites an existing service backwards.
+# Measured on a v0.23.0 service: 627 files -> 435, 582 deleted, and
+# .copier-answers.yml itself removed -- so the service loses the very file
+# that would let it recover. Any documented `copier update` must be pinned.
+UPDATE_CMD = re.compile(r"copier\s+update(?P<args>[^\n]*)")
 VCS_REF = re.compile(r"--vcs-ref[= ](?P<ref>\S+)")
 
 
@@ -92,6 +107,26 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    # `copier update` — presence of --vcs-ref only; the ref is a placeholder.
+    for rel in UPDATE_DOC_FILES:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            problems.append(f"{rel}: file missing")
+            continue
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if "copier update" not in line:
+                continue
+            # Prose mentions ("upgrade via `copier update`") are not commands.
+            if "--" not in line and not line.strip().startswith(("copier", "$", "#", "4.")):
+                continue
+            match = UPDATE_CMD.search(line)
+            if match and "--vcs-ref" not in match.group("args") and "--vcs-ref" not in line:
+                problems.append(
+                    f"{rel}:{lineno}: `copier update` without --vcs-ref. Unpinned it "
+                    f"DOWNGRADES the service to a frozen v1.x snapshot and deletes "
+                    f".copier-answers.yml, removing the update path itself."
+                )
 
     if problems:
         print("error: adopter scaffold command would serve the wrong template:", file=sys.stderr)

@@ -10,6 +10,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-08-07
+
+Hotfix for a **destructive** defect in `v0.23.0` and earlier, found by
+running `copier update` on a freshly generated service instead of assuming
+it worked.
+
+### Breaking for adopters
+
+| Change | Manual action required |
+|---|---|
+| **`copier update` now requires `--vcs-ref`** | Use `copier update --vcs-ref=v0.24.0 …`. A bare `copier update` **downgrades your service to a frozen April 2026 snapshot and deletes `.copier-answers.yml`**, removing the update path itself. If you already ran one, see `MIGRATION.md`. |
+
+### Fixed — a bare `copier update` destroyed the service it was meant to upgrade
+
+- `v0.23.0` pinned `--vcs-ref` on every documented `copier copy`, but left
+  **`copier update`** unpinned — in `copier.yml`'s `_message_after_copy`,
+  the `scaffold-update` skill, and rule `15-template-lifecycle`. Same tag
+  resolution (highest-sorting tag wins, and the frozen `v1.x` audit
+  snapshots sort above every `v0.x`), far worse consequence.
+- `copier copy` unpinned gives you a stale scaffold. **`copier update`
+  unpinned rewrites a current service backwards.** Measured on a real
+  `v0.23.0` service:
+
+  | | Unpinned | Pinned `--vcs-ref=v0.23.0` |
+  |---|---|---|
+  | Files after | **435** | 627 |
+  | Files deleted | **582** | 0 |
+  | `.copier-answers.yml` | **deleted** | present |
+
+  The deleted answers file is the sharp edge: it is the record `copier
+  update` needs, so the service cannot recover on its own afterwards.
+- `_message_after_copy` was actively telling every adopter to run the
+  destructive form, as the last thing they read after scaffolding.
+- `scripts/check_adopter_scaffold_ref.py` now covers `copier update` as
+  well as `copier copy`. Verified in both directions.
+
+### Known follow-ons
+
+Unchanged from `v0.23.0`, plus:
+
+- **The `v1.x` tag-sort collision keeps producing defects** — three so far
+  (`copier copy` docs, `copier update` docs, and the release that reached
+  nobody). Each fix has been a pin. The structural options — moving the
+  snapshots out of the tag namespace, or advancing the active line past
+  `v1.12.0` — remain open and need their own ADR. Pinning is correct under
+  all of them, but it is mitigation, not resolution.
+
 ## [0.23.0] — 2026-08-07
 
 `v0.x.0` bump carrying **full MAJOR paperwork** per the newly-added

@@ -17,6 +17,17 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## v0.23.0 → v0.24.0 (2026-08-07)
+
+| Change | Manual action required |
+|--------|------------------------|
+| **`copier update` now requires `--vcs-ref`** | Use `copier update --vcs-ref=v0.24.0 --trust --defaults`. **A bare `copier update` is destructive**: it resolves to the highest-sorting tag — a frozen `v1.x` audit snapshot — and rewrites your service backwards. Measured: 627 files → 435, 582 deleted, and `.copier-answers.yml` itself removed. |
+| **If you already ran a bare `copier update`** | Your service was downgraded and lost its answers file. Recover with `git revert` or `git reset` to the commit before the update — `copier update` requires a clean tree, so that commit exists. If it was already committed and pushed, restore `.copier-answers.yml` from the pre-update commit (`git show <sha>:.copier-answers.yml`) and re-run the update **pinned**. Do not re-scaffold; the answers file is recoverable from history. |
+
+**Tracking**: see `releases/v0.24.0.md` and `CHANGELOG.md` §`[0.24.0]`.
+
+---
+
 ## v0.22.0 → v0.23.0 (2026-08-07)
 
 Contains a §1.3 MAJOR-class change shipped as a `v0.x.0` bump per

@@ -91,7 +91,10 @@ upgrade procedure:
 1. Pre-flight: clean working tree + `.copier-answers.yml` present.
 2. Dry-run diff to categorize changes (no-op / conflict / new).
 3. Review with operator (CONSULT mode).
-4. Apply via `copier update --trust --defaults`.
+4. Apply via `copier update --vcs-ref=<release-tag> --trust --defaults`.
+   **`--vcs-ref` is mandatory.** Unpinned, Copier resolves to the
+   highest-sorting tag — a frozen `v1.x` audit snapshot — and downgrades
+   the service, deleting `.copier-answers.yml` and with it the update path.
 5. Resolve conflicts manually.
 6. Validate (agentic manifest, CI workflows, K8s overlays, tests).
 7. Commit with template version reference.
