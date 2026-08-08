@@ -85,9 +85,9 @@ def test_batch_uses_canonical_customers_key(load_test_mod) -> None:
         "Locust BATCH_PAYLOAD must use 'customers' (canonical schema key); "
         f"got keys={list(load_test_mod.BATCH_PAYLOAD)!r}"
     )
-    assert (
-        "instances" not in load_test_mod.BATCH_PAYLOAD
-    ), "Legacy 'instances' key is forbidden — would silently 4xx in load runs."
+    assert "instances" not in load_test_mod.BATCH_PAYLOAD, (
+        "Legacy 'instances' key is forbidden — would silently 4xx in load runs."
+    )
 
 
 def test_batch_entity_ids_are_unique(load_test_mod) -> None:
@@ -98,15 +98,15 @@ def test_batch_entity_ids_are_unique(load_test_mod) -> None:
     """
     customers = load_test_mod.BATCH_PAYLOAD["customers"]
     ids = [c["entity_id"] for c in customers]
-    assert len(set(ids)) == len(
-        ids
-    ), "BATCH_PAYLOAD has duplicate entity_id values; closed-loop join " "(D-20) would collapse rows. Got: " + repr(ids)
+    assert len(set(ids)) == len(ids), (
+        "BATCH_PAYLOAD has duplicate entity_id values; closed-loop join (D-20) would collapse rows. Got: " + repr(ids)
+    )
 
 
 def test_sample_payload_carries_entity_id(load_test_mod) -> None:
     """``entity_id`` is the join key required by ADR-006 and is mandatory
     in the canonical schema. Forgetting it is the most common drift
     when contributors copy this file from older templates."""
-    assert (
-        "entity_id" in load_test_mod.SAMPLE_PAYLOAD
-    ), "SAMPLE_PAYLOAD must include 'entity_id' (D-20 closed-loop join key)."
+    assert "entity_id" in load_test_mod.SAMPLE_PAYLOAD, (
+        "SAMPLE_PAYLOAD must include 'entity_id' (D-20 closed-loop join key)."
+    )

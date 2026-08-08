@@ -33,7 +33,6 @@ from __future__ import annotations
 import io
 import json
 import sqlite3
-import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -44,7 +43,6 @@ from common_utils.prediction_logger import (
     SQLiteBackend,
     StdoutBackend,
 )
-
 
 # ---------------------------------------------------------------------------
 # Reusable factory
@@ -114,8 +112,7 @@ class TestSQLiteBackendAsIs:
 
         conn = sqlite3.connect(str(tmp_path / "preds.db"))
         row = conn.execute(
-            "SELECT features_json, deployment_id FROM predictions_log "
-            "WHERE prediction_id = ?",
+            "SELECT features_json, deployment_id FROM predictions_log WHERE prediction_id = ?",
             ("pred-001",),
         ).fetchone()
         conn.close()
@@ -130,8 +127,9 @@ class TestSQLiteBackendAsIs:
         persists exactly the redacted view. This documents the
         recommended pattern: redact upstream, log downstream."""
         backend = SQLiteBackend(path=str(tmp_path / "preds.db"))
-        redacted = {k: ("[REDACTED]" if k in {"ssn", "email", "ip_address"} else v)
-                    for k, v in SENSITIVE_FEATURES.items()}
+        redacted = {
+            k: ("[REDACTED]" if k in {"ssn", "email", "ip_address"} else v) for k, v in SENSITIVE_FEATURES.items()
+        }
         backend.write_batch([_event(features=redacted)])
 
         conn = sqlite3.connect(str(tmp_path / "preds.db"))

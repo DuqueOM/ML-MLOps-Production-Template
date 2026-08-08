@@ -269,13 +269,13 @@ jobs:
       - name: Install pre-commit + local-hook deps
         # The pre-commit framework itself + the deps the LOCAL hooks
         # need (validate-agentic, ci-autofix-policy-contract). Remote
-        # hooks (black/isort/flake8/mypy/bandit/gitleaks) bring their
+        # hooks (ruff/mypy/bandit/gitleaks) bring their
         # own envs via pre-commit; only locals share this Python.
         run: |
           pip install pre-commit
           pip install pytest pyyaml jsonschema
 
-      - name: Run pre-commit hooks (black, isort, flake8, gitleaks)
+      - name: Run pre-commit hooks (ruff, mypy, bandit, gitleaks)
         # Single source of truth for versions: .pre-commit-config.yaml.
         # Prevents version drift between CI and local pre-commit install.
         # Runs all commit-stage hooks (excludes pre-push scaffold smoke).

@@ -128,6 +128,25 @@ The reset is intentionally explicit: the template is serious and
 production-oriented, but it should not imply GA enterprise stability
 before the full cloud golden path is proven.
 
+### 2.1 How a §1.3 MAJOR-class change lands on the pre-GA channel
+
+§1.3 lists changes that "require a MAJOR" — but §2 reserves `v1.0.0` for
+cloud E2E evidence, so a MAJOR-class change cannot take the next major
+number. This was an unresolved gap in the policy; the resolution:
+
+**On the `v0.x` channel a §1.3 MAJOR-class change ships as a `v0.x.0`
+bump, and MUST carry the full MAJOR paperwork:** a
+`### Breaking for adopters` block in `CHANGELOG.md` with one row per
+change mapped to a manual action, AND a matching `from → to` section in
+`MIGRATION.md`.
+
+This follows SemVer's own rule for the `0.y.z` range (anything may change
+in a minor bump) while preserving the reservation of `v1.0.0`. The bump
+*number* is smaller; the *obligations* are identical. Nothing about being
+pre-GA reduces what an adopter is owed when a contract breaks.
+
+First applied: `v0.23.0` (ADR-044, pre-commit hook set changed).
+
 ---
 
 ## 3. Release checklist

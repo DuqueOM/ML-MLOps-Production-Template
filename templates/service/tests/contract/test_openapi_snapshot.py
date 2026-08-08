@@ -43,7 +43,7 @@ def openapi_current() -> dict:
 
 def test_snapshot_file_exists():
     assert SNAP.exists(), (
-        f"{SNAP.name} missing. Run `python scripts/refresh_contract.py` to " "generate it on first setup."
+        f"{SNAP.name} missing. Run `python scripts/refresh_contract.py` to generate it on first setup."
     )
 
 

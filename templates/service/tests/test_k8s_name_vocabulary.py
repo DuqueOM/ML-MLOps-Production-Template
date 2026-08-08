@@ -321,7 +321,7 @@ def test_discovery_finds_canonical_manifests() -> None:
 def test_bug_trigger_slug_actually_violates_rfc1123() -> None:
     """Sanity check: ``golden_path-dev`` MUST fail RFC 1123, otherwise
     the test is asserting against a too-loose regex."""
-    assert (
-        _rfc1123_violations(f"{SAMPLE_SNAKE}-dev") is not None
-    ), "golden_path-dev unexpectedly matches RFC 1123 — test regex is wrong"
+    assert _rfc1123_violations(f"{SAMPLE_SNAKE}-dev") is not None, (
+        "golden_path-dev unexpectedly matches RFC 1123 — test regex is wrong"
+    )
     assert _rfc1123_violations(SAMPLE_KEBAB) is None, "golden-path unexpectedly fails RFC 1123 — test regex is wrong"

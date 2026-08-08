@@ -185,7 +185,7 @@ class DriftPayload:
         if not self.features:
             raise ValueError("drift.features must be non-empty")
         if self.retrain_recommendation not in ("none", "soft", "hard"):
-            raise ValueError(f"drift.retrain_recommendation invalid: " f"{self.retrain_recommendation!r}")
+            raise ValueError(f"drift.retrain_recommendation invalid: {self.retrain_recommendation!r}")
 
 
 @dataclass(frozen=True)
@@ -271,9 +271,7 @@ class IncidentPayload:
 
     def __post_init__(self) -> None:
         if not _INCIDENT_ID_RE.match(self.incident_id):
-            raise ValueError(
-                f"incident.incident_id must match {_INCIDENT_ID_RE.pattern!r} " f"(got {self.incident_id!r})"
-            )
+            raise ValueError(f"incident.incident_id must match {_INCIDENT_ID_RE.pattern!r} (got {self.incident_id!r})")
         if self.severity not in ("P1", "P2", "P3"):
             raise ValueError(f"incident.severity invalid: {self.severity!r}")
         detected = _parse_iso(self.detected_at, "incident.detected_at")
@@ -325,7 +323,7 @@ class ReportEnvelope:
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
-            raise ValueError(f"unsupported schema_version {self.schema_version} " f"(expected {SCHEMA_VERSION})")
+            raise ValueError(f"unsupported schema_version {self.schema_version} (expected {SCHEMA_VERSION})")
         if self.report_type not in REPORT_TYPES:
             raise ValueError(f"unknown report_type {self.report_type!r}")
         if not _REPORT_ID_RE.match(self.report_id):

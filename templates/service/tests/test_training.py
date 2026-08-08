@@ -209,9 +209,9 @@ class TestFeatureEngineering:
         X_train, _ = fe.transform(full_df)
         X_infer = fe.transform_inference(full_df.drop(columns=["target"]))
 
-        assert list(X_train.columns) == list(
-            X_infer.columns
-        ), f"Train/inference feature drift detected: train={list(X_train.columns)} vs infer={list(X_infer.columns)}"
+        assert list(X_train.columns) == list(X_infer.columns), (
+            f"Train/inference feature drift detected: train={list(X_train.columns)} vs infer={list(X_infer.columns)}"
+        )
 
 
 # ---------------------------------------------------------------------------

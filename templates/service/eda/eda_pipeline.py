@@ -262,7 +262,7 @@ def phase0_ingest(input_path: Path, output_dir: Path) -> pd.DataFrame:
     logger.info("Phase 0 — Ingest & normalization")
 
     if "production" in str(input_path) or "live" in str(input_path):
-        raise ValueError(f"D-13 violation: EDA on production path {input_path}. " "Copy to data/raw/ first.")
+        raise ValueError(f"D-13 violation: EDA on production path {input_path}. Copy to data/raw/ first.")
 
     if input_path.suffix == ".csv":
         df = pd.read_csv(input_path)
@@ -297,11 +297,11 @@ def phase0_ingest(input_path: Path, output_dir: Path) -> pd.DataFrame:
 - **Source**: `{input_path}`
 - **Rows**: {len(df):,}
 - **Columns**: {len(df.columns)}
-- **Dropped null columns**: {null_cols or 'none'}
+- **Dropped null columns**: {null_cols or "none"}
 - **Output**: `{out_path}`
 
 ## Column renames (snake_case normalization)
-{chr(10).join(f'- `{a}` → `{b}`' for a, b in zip(original_cols, df.columns) if a != b) or 'No renames needed.'}
+{chr(10).join(f"- `{a}` → `{b}`" for a, b in zip(original_cols, df.columns) if a != b) or "No renames needed."}
 """
     )
 
@@ -411,7 +411,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
                 "kurtosis": float(series.kurtosis()),
             }
             univariate_summary.append(
-                f"- **{col}**: mean={series.mean():.3f}, std={series.std():.3f}, " f"skew={series.skew():.3f}"
+                f"- **{col}**: mean={series.mean():.3f}, std={series.std():.3f}, skew={series.skew():.3f}"
             )
         elif col != target:
             # Categorical: value_counts as the baseline distribution
@@ -423,9 +423,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
                 "n_rare_labels": int(len(rare)),
                 "cardinality": int(series.nunique()),
             }
-            univariate_summary.append(
-                f"- **{col}** (categorical): {series.nunique()} unique, " f"{len(rare)} rare labels"
-            )
+            univariate_summary.append(f"- **{col}** (categorical): {series.nunique()} unique, {len(rare)} rare labels")
 
     # Target distribution
     if target in df.columns:
@@ -460,7 +458,7 @@ def phase2_univariate(df: pd.DataFrame, target: str, output_dir: Path) -> dict[s
 (consumed by drift CronJob in production)</p>
 <h2>Per-feature summary</h2>
 <ul>
-{''.join(f'<li>{line[2:]}</li>' for line in univariate_summary)}
+{"".join(f"<li>{line[2:]}</li>" for line in univariate_summary)}
 </ul>
 </body></html>"""
     (output_dir / "reports" / "02_univariate.html").write_text(report_html)
@@ -504,7 +502,7 @@ def phase3_correlations(df: pd.DataFrame, target: str, output_dir: Path) -> pd.D
         f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Correlations</title></head>
 <body><h1>Feature ↔ Target Correlations</h1>
-{ranking.to_html(index=False, float_format=lambda x: f'{x:.4f}')}
+{ranking.to_html(index=False, float_format=lambda x: f"{x:.4f}")}
 </body></html>"""
     )
 

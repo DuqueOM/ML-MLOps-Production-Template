@@ -1,0 +1,8 @@
+# Revisions to skip in `git blame`. Add with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Only pure-mechanical reformats belong here -- never a commit that also
+# changes behaviour, or blame becomes misleading in the other direction.
+
+# style: apply ruff format (black -> ruff formatter swap, ADR-044)
+606b13c90be5495e92db37d8f60036cef9de7222

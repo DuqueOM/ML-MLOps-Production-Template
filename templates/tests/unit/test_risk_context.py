@@ -146,8 +146,7 @@ class TestOnHoursOverrideHardening:
         with caplog.at_level(_logging.WARNING, logger="common_utils.risk_context"):
             _is_off_hours(datetime(2026, 4, 27, 3, 0, tzinfo=timezone.utc))
         assert any(
-            "MLOPS_ON_HOURS_UTC" in rec.message and "full day" in rec.message.lower()
-            for rec in caplog.records
+            "MLOPS_ON_HOURS_UTC" in rec.message and "full day" in rec.message.lower() for rec in caplog.records
         ), "Expected a warning mentioning MLOPS_ON_HOURS_UTC and 'full day'."
 
 
@@ -163,9 +162,7 @@ class TestFileSignals:
         assert ctx.incident_active is True
 
     def test_drift_severe_detected(self, tmp_path):
-        (tmp_path / "last_drift_report.json").write_text(
-            json.dumps({"any_psi_over_2x_threshold": True})
-        )
+        (tmp_path / "last_drift_report.json").write_text(json.dumps({"any_psi_over_2x_threshold": True}))
         ctx = get_risk_context(ops_dir=tmp_path)
         assert ctx.drift_severe is True
 
@@ -219,6 +216,11 @@ class TestCaching:
         ctx1 = get_risk_context(ops_dir=tmp_path, cache_key="a")
         (tmp_path / "incident_state.json").write_text(json.dumps({"active": True}))
         ctx2 = get_risk_context(ops_dir=tmp_path, cache_key="b")
+        # The isolation claim itself: a different cache key must NOT return
+        # the cached instance. Without this the test passed even if caching
+        # were absent entirely — `ctx1` was assigned and never read, which is
+        # how ruff's F841 surfaced the gap (flake8 never scanned this dir).
+        assert ctx1 is not ctx2
         assert ctx2.incident_active is True
 
 

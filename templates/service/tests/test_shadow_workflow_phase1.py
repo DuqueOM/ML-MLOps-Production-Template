@@ -56,7 +56,7 @@ def test_permissions_are_read_only(shadow_yaml: str, permission: str) -> None:
     a governance review.
     """
     assert permission in shadow_yaml, (
-        f"Shadow workflow must declare `{permission}` in the permissions " "block (ADR-019 Phase 1 invariant)."
+        f"Shadow workflow must declare `{permission}` in the permissions block (ADR-019 Phase 1 invariant)."
     )
 
 
@@ -77,9 +77,7 @@ def test_no_write_permissions_present(shadow_yaml: str) -> None:
 
 
 def test_workflow_run_trigger_present(shadow_yaml: str) -> None:
-    assert "workflow_run:" in shadow_yaml, (
-        "Shadow workflow must trigger on workflow_run completion " "(ADR-019 §Phase 1)."
-    )
+    assert "workflow_run:" in shadow_yaml, "Shadow workflow must trigger on workflow_run completion (ADR-019 §Phase 1)."
 
 
 def test_log_artifact_url_input_present(shadow_yaml: str) -> None:
@@ -144,7 +142,7 @@ def test_pr_base_diff_resolution_present(shadow_yaml: str) -> None:
     only the last commit, not the full PR).
     """
     assert "pulls/${PR_NUMBER}" in shadow_yaml, (
-        "changed-files step must resolve PR base via " "`gh api /repos/.../pulls/${PR_NUMBER}` (R5-M1 / red-team F1)."
+        "changed-files step must resolve PR base via `gh api /repos/.../pulls/${PR_NUMBER}` (R5-M1 / red-team F1)."
     )
     assert 'DIFF_MODE="pr-base"' in shadow_yaml, (
         "Workflow must report diff_mode=pr-base when a PR context is "
@@ -190,7 +188,7 @@ def test_no_pr_creation_or_push(shadow_yaml: str) -> None:
     ]
     for fp in forbidden:
         assert not re.search(fp, shadow_yaml), (
-            f"Shadow workflow contains forbidden write op matching `{fp}`; " "Phase 1 is strictly read-only."
+            f"Shadow workflow contains forbidden write op matching `{fp}`; Phase 1 is strictly read-only."
         )
 
 

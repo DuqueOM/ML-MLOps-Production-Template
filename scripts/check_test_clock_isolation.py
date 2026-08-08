@@ -59,7 +59,7 @@ PATTERN = re.compile(
 ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
     "templates/tests/unit/test_dora_metrics.py": [
         (
-            90,
+            88,
             "datetime.now",
             "seeds the timestamp inside a synthetic audit entry; "
             "the test asserts on aggregate counts, not on the timestamp value",
@@ -67,7 +67,7 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
     ],
     "templates/tests/unit/test_risk_context_behavior.py": [
         (
-            56,
+            54,
             "datetime.now",
             "_now_iso() helper writes recent_rollback fixture; "
             "no assertion depends on the literal value (window check happens "
@@ -78,14 +78,12 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
         (
             28,
             "time.time",
-            "wait_for_service polling timeout: delta measurement, "
-            "absolute clock value never asserted",
+            "wait_for_service polling timeout: delta measurement, absolute clock value never asserted",
         ),
         (
             29,
             "time.time",
-            "wait_for_service polling timeout: delta measurement, "
-            "absolute clock value never asserted",
+            "wait_for_service polling timeout: delta measurement, absolute clock value never asserted",
         ),
     ],
     "templates/service/tests/integration/test_service_integration.py": [
@@ -104,23 +102,23 @@ ALLOWLIST: dict[str, list[tuple[int, str, str]]] = {
     ],
     "templates/tests/unit/test_risk_context.py": [
         (
-            176,
+            173,
             "datetime.now",
             "fixture seed: writes a recent rollback timestamp; assertion is on "
             "the loaded RiskContext.recent_rollback boolean, not the value",
         ),
         (
-            179,
+            176,
             "time.time",
             "cache_key uniqueness only; not used in any assertion",
         ),
         (
-            186,
+            183,
             "time.time",
             "cache_key uniqueness only; not used in any assertion",
         ),
         (
-            359,
+            361,
             "datetime.now",
             "fixture seed for an audit entry; assertion is on parsed dataclass",
         ),
@@ -183,7 +181,7 @@ def main() -> int:
             print(f"  - {line}", file=sys.stderr)
         print(
             "\nContext: see docs/audit/feedback-may-2026-triage.md "
-            "§\"Closure summary\" for the bug this contract prevents.",
+            '§"Closure summary" for the bug this contract prevents.',
             file=sys.stderr,
         )
         return 1

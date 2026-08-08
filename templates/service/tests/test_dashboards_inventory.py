@@ -84,7 +84,7 @@ def test_every_listed_file_exists(inventory_text: str) -> None:
     # Filter to names that actually look like dashboard files (exclude
     # template `.json` that might appear elsewhere in the doc).
     orphans = [c for c in claimed if not (DASHBOARDS_DIR / c).exists()]
-    assert not orphans, "Inventory mentions dashboard files that do not exist on " f"disk: {orphans}"
+    assert not orphans, f"Inventory mentions dashboard files that do not exist on disk: {orphans}"
 
 
 @pytest.mark.parametrize(

@@ -216,7 +216,7 @@ def test_deploy_degraded_drill_blocks(tmp_path: Path, monkeypatch: pytest.Monkey
     # the test is the canary for that drift in the synthesis routine.
     assert facts["delta_auc_point"] is not None
     assert facts["delta_auc_point"] <= 0.05, (
-        f"shuffled-label challenger should not look superior; got " f"delta_auc_point={facts['delta_auc_point']}"
+        f"shuffled-label challenger should not look superior; got delta_auc_point={facts['delta_auc_point']}"
     )
 
     cc_report = runs[0] / "artifacts" / "champion_challenger.json"
@@ -265,4 +265,4 @@ def test_drills_catalogue_has_canonical_entries() -> None:
     expected = {"run_drift_drill.py", "run_deploy_degraded_drill.py"}
     present = {p.name for p in drills_dir.glob("run_*_drill.py")}
     missing = expected - present
-    assert not missing, f"drills catalogue missing canonical entries: {sorted(missing)}\n" f"present: {sorted(present)}"
+    assert not missing, f"drills catalogue missing canonical entries: {sorted(missing)}\npresent: {sorted(present)}"

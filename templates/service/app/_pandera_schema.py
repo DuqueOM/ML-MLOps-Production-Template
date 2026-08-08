@@ -84,7 +84,7 @@ def _resolve() -> Optional[Any]:
     schema = getattr(module, _SCHEMA_ATTR, None)
     if schema is None:
         logger.warning(
-            "Module %s.schemas exists but exposes no %s attribute. " "Restore the contract or rename the schema class.",
+            "Module %s.schemas exists but exposes no %s attribute. Restore the contract or rename the schema class.",
             package,
             _SCHEMA_ATTR,
         )

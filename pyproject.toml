@@ -22,21 +22,54 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 
-[tool.black]
+# ── Ruff: lint + format, replacing black + isort + flake8 (ADR-044) ──────────
+#
+# One tool, one config, one exclude list. The three it replaces each carried
+# their own copy of the same exclude block, in two pre-commit configs — six
+# places to keep in sync, which is the actual cost this consolidation
+# removes. Speed was NOT the motivation: the previous suite already ran
+# `--all-files` in 2.62 s, inside the config's own < 5 s target.
+#
+# Ruff does NOT replace mypy (no type checking) and only partially overlaps
+# bandit; both are retained. See ADR-044 for the full rationale.
+[tool.ruff]
 line-length = 120
-exclude = '''
-/(
-    \.git
-  | \.venv
-  | data
-  | models
-  | mlruns
-  | __pycache__
-)/
-'''
+target-version = "py311"
+exclude = [
+    ".git",
+    ".venv",
+    "data",
+    "models",
+    "mlruns",
+    "__pycache__",
+    # Copier render root — `{@ service_slug @}` path segments are Jinja
+    # tokens, not valid Python identifiers. Same rationale as the mypy
+    # scope note in .pre-commit-config.yaml.
+    "templates/service/src",
+]
 
-[tool.isort]
-profile = "black"
-line_length = 120
-skip_gitignore = true
-known_first_party = ["app", "common_utils"]
+[tool.ruff.lint]
+# DELIBERATE PARITY SCOPE — this set reproduces exactly what
+# black + isort + flake8 already enforced, nothing more:
+#
+#   E,W = pycodestyle (flake8 core)
+#   F   = pyflakes    (flake8 core)
+#   I   = isort
+#
+# Ruff also ships `UP` (pyupgrade), `B` (bugbear), `S` (bandit) and others.
+# Enabling them here would surface 90 new findings in this repo and turn a
+# toolchain swap into a code change — two different reviews in one diff.
+# They are a separate, deliberate decision; see ADR-044 §"Deferred rulesets".
+select = ["E", "W", "F", "I"]
+# E203 (whitespace before ':') conflicts with the formatter, exactly as it
+# did under black — it was in the old flake8 `--extend-ignore` for the same
+# reason. W503 has no ruff equivalent; ruff never emits it.
+ignore = ["E203"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "common_utils"]
+
+[tool.ruff.format]
+# Matches the black settings this replaces.
+quote-style = "double"
+indent-style = "space"

@@ -193,14 +193,14 @@ def _parse_on_hours_override(span: str) -> tuple[int, int]:
         end = int(end_s)
     except ValueError:
         logger.warning(
-            "MLOPS_ON_HOURS_UTC=%r is malformed (expected 'HH-HH'); " "falling back to 08-18.",
+            "MLOPS_ON_HOURS_UTC=%r is malformed (expected 'HH-HH'); falling back to 08-18.",
             span,
         )
         return (_DEFAULT_ON_HOURS_START, _DEFAULT_ON_HOURS_END)
 
     if start < 0 or start > 24 or end < 0 or end > 24:
         logger.warning(
-            "MLOPS_ON_HOURS_UTC=%r has out-of-range hour; " "falling back to 08-18.",
+            "MLOPS_ON_HOURS_UTC=%r has out-of-range hour; falling back to 08-18.",
             span,
         )
         return (_DEFAULT_ON_HOURS_START, _DEFAULT_ON_HOURS_END)
@@ -324,7 +324,7 @@ def _query_prometheus_scalar(prom_url: str, query: str, timeout: float) -> bool 
                 ssl_ctx = ssl.create_default_context(cafile=ca_bundle or None)
             else:
                 logger.warning(
-                    "PROMETHEUS_INSECURE_SKIP_VERIFY=true — TLS verification disabled. " "Acceptable in dev/local only."
+                    "PROMETHEUS_INSECURE_SKIP_VERIFY=true — TLS verification disabled. Acceptable in dev/local only."
                 )
                 # Bandit B323: intentional — gated by BOTH an explicit opt-in env var
                 # (PROMETHEUS_INSECURE_SKIP_VERIFY=true) AND an ENVIRONMENT=dev|local

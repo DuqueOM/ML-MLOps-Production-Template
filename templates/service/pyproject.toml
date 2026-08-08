@@ -68,22 +68,23 @@ dev = [
 # xgboost = ["xgboost ~= 2.1.0"]
 # lightgbm = ["lightgbm ~= 4.5.0"]
 
-[tool.black]
+# ── Ruff: lint + format, replacing black + isort + flake8 (ADR-044) ──────────
+[tool.ruff]
 line-length = 120
-target-version = ["py311"]
-exclude = '''
-/(
-    \.git
-  | \.venv
-  | data
-  | models
-  | mlruns
-)/
-'''
+target-version = "py311"
+exclude = [".git", ".venv", "data", "models", "mlruns", "__pycache__"]
 
-[tool.isort]
-profile = "black"
-line_length = 120
+[tool.ruff.lint]
+# Parity scope with the black+isort+flake8 setup this replaces.
+select = ["E", "W", "F", "I"]
+ignore = ["E203"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "common_utils"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

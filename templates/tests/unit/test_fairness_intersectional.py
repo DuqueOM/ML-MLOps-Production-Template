@@ -7,13 +7,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
 _SVC = Path(__file__).resolve().parents[2] / "service" / "src" / "{@ service_slug @}"
 sys.path.insert(0, str(_SVC.parent.parent))
 
 # The template service dir is literally "{@ service_slug @}" — dynamic import.
-import importlib.util
+# E402 is unavoidable and intentional here: the import must follow the
+# sys.path insertion above, because the package directory name is an
+# unrendered Copier token and cannot be imported by name.
+import importlib.util  # noqa: E402
 
 spec = importlib.util.spec_from_file_location("fairness", _SVC / "fairness.py")
 fairness = importlib.util.module_from_spec(spec)
@@ -71,9 +73,7 @@ class TestIntersectional:
         y_true = rng.integers(0, 2, size=n)
         y_pred = rng.integers(0, 2, size=n)
         sensitive = pd.DataFrame({"race": race, "gender": gender})
-        report = fairness.compute_intersectional_fairness(
-            y_true, y_pred, sensitive, min_samples_per_cell=5
-        )
+        report = fairness.compute_intersectional_fairness(y_true, y_pred, sensitive, min_samples_per_cell=5)
         # Rare (B, F) cells should be marked insufficient_data
         groups = report["(race, gender)"]["groups"]
         insufficient = [g for g in groups.values() if isinstance(g, dict) and g.get("status") == "insufficient_data"]

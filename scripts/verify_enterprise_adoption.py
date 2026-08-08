@@ -58,12 +58,12 @@ def main() -> int:
         "cd ${{ matrix.service }}",
         "${{ matrix.service }}/coverage.xml",
         "${{ matrix.service }}/results/",
-        "docker build -t \"$IMAGE\" ${{ matrix.service }}/",
+        'docker build -t "$IMAGE" ${{ matrix.service }}/',
     ]
     for token in forbidden_ci:
         if token in ci:
             failures.append(f"ci.yml still assumes nested service layout: {token}")
-    if "docker build -t \"$IMAGE\" ." not in ci:
+    if 'docker build -t "$IMAGE" .' not in ci:
         failures.append("ci.yml does not build Docker image from scaffolded repo root")
 
     deploy = _read("templates/service/.github/workflows/deploy-gcp.yml") + _read(
@@ -79,7 +79,10 @@ def main() -> int:
     if "_prepare_model_features" not in app or "transform_inference" not in app:
         failures.append("fastapi_app.py does not enforce inference feature transformation")
     parity_match = re.search(
-        r"def test_inference_uses_same_features\(.*?(?=\n    def |\n\n# ---------------------------------------------------------------------------)",
+        # Section separator the regex stops at, kept off the pattern line so
+        # the line stays inside the 120-char limit.
+        r"def test_inference_uses_same_features\(.*?"
+        r"(?=\n    def |\n\n# " + "-" * 75 + r")",
         training_test,
         flags=re.S,
     )

@@ -48,7 +48,7 @@ Always `~=` for ML packages. Never `==` (conflicts) or bare `>=` (breaks).
 ## Quality Standards
 - Coverage >= 90% lines, >= 80% branches
 - Type hints on all public functions, Google-style docstrings
-- black (120), isort (black profile), flake8, mypy
+- ruff (lint + format, line-length 120) — replaces black/isort/flake8 per ADR-044 — plus mypy
 - ADR for every non-trivial decision in `docs/decisions/`
 
 ## Engineering Calibration

@@ -35,6 +35,7 @@ def main() -> int:
 
     # Also fail if INDEX references a file that doesn't exist.
     import re
+
     referenced_in_doc = set(re.findall(r"dashboard-[A-Za-z0-9_-]+\.json", text))
     missing_on_disk = referenced_in_doc - on_disk
 

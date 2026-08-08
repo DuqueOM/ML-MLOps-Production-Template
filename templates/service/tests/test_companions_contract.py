@@ -108,7 +108,7 @@ def test_cloud_companions_have_anti_lists() -> None:
     body = CLOUD_DOC.read_text(encoding="utf-8").lower()
     # Each companion must enumerate things NOT to do — prevents scope creep.
     occurrences = len(re.findall(r"anti[- ]list", body))
-    assert occurrences >= 2, "Each cloud companion must carry its own anti-list " f"(found {occurrences} occurrences)"
+    assert occurrences >= 2, f"Each cloud companion must carry its own anti-list (found {occurrences} occurrences)"
 
 
 def test_no_vendored_provider_sdk_in_templates() -> None:

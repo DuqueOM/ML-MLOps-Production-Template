@@ -92,8 +92,7 @@ def test_infracost_breakdown_emits_artifact_and_summary(workflow: dict[str, Any]
     assert len(breakdown) == 1, f"{job_id} must have exactly one infracost breakdown step"
     body = breakdown[0]["run"]
     assert "GITHUB_STEP_SUMMARY" in body, (
-        f"{job_id} breakdown must append to GITHUB_STEP_SUMMARY — "
-        "otherwise the cost number is invisible to reviewers."
+        f"{job_id} breakdown must append to GITHUB_STEP_SUMMARY — otherwise the cost number is invisible to reviewers."
     )
     assert "totalMonthlyCost" in body, (
         f"{job_id} breakdown must read .totalMonthlyCost from the JSON "
@@ -118,7 +117,7 @@ def test_workflow_header_documents_infracost_secret() -> None:
     raw = WORKFLOW.read_text(encoding="utf-8")
     head = raw.split("jobs:", 1)[0]
     assert "INFRACOST_API_KEY" in head, (
-        "workflow header comment must document the optional " "INFRACOST_API_KEY secret (see R4-L3 rationale)."
+        "workflow header comment must document the optional INFRACOST_API_KEY secret (see R4-L3 rationale)."
     )
     assert "R4-L3" in raw, (
         "workflow should self-label the infracost integration with the "

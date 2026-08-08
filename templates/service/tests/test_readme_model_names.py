@@ -85,7 +85,7 @@ def test_section_heading_no_longer_claims_verified(model_routing_section: str) -
         "See docs/audit/ACTION_PLAN_R4.md §S0-1."
     )
     assert "cadence-anticipated" in model_routing_section.lower() or "Cadence-anticipated" in model_routing_section, (
-        "Section heading must declare cadence-anticipated status. " "See docs/audit/ACTION_PLAN_R4.md §S0-1."
+        "Section heading must declare cadence-anticipated status. See docs/audit/ACTION_PLAN_R4.md §S0-1."
     )
 
 
@@ -121,9 +121,9 @@ def test_verification_subsection_lists_three_providers(model_routing_section: st
     if not has_speculative:
         pytest.skip("No speculative names — no verification subsection required.")
 
-    assert (
-        "Verifying model availability before adoption" in model_routing_section
-    ), "Section must include the 'Verifying model availability before adoption' subsection."
+    assert "Verifying model availability before adoption" in model_routing_section, (
+        "Section must include the 'Verifying model availability before adoption' subsection."
+    )
 
     required_dashboards = [
         "platform.openai.com/docs/models",
@@ -132,5 +132,5 @@ def test_verification_subsection_lists_three_providers(model_routing_section: st
     ]
     for dashboard in required_dashboards:
         assert dashboard in model_routing_section, (
-            f"Verification subsection must link to {dashboard!r}. " "See docs/audit/ACTION_PLAN_R4.md §S0-1."
+            f"Verification subsection must link to {dashboard!r}. See docs/audit/ACTION_PLAN_R4.md §S0-1."
         )

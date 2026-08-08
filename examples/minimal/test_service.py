@@ -139,9 +139,9 @@ class TestSHAP:
         actual = float(pipeline.predict_proba(pd.DataFrame(sample, columns=feature_names))[:, 1][0])
         reconstructed = float(explainer.expected_value) + float(shap_values[0].sum())
 
-        assert (
-            abs(actual - reconstructed) < 0.05
-        ), f"SHAP inconsistency: actual={actual:.4f}, reconstructed={reconstructed:.4f}"
+        assert abs(actual - reconstructed) < 0.05, (
+            f"SHAP inconsistency: actual={actual:.4f}, reconstructed={reconstructed:.4f}"
+        )
 
 
 # ---------------------------------------------------------------------------

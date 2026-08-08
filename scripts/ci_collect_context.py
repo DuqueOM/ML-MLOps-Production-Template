@@ -114,8 +114,7 @@ def _read_changed_files(args: argparse.Namespace) -> tuple[str, ...]:
         # from --changed-files-file in that case to keep stdin available for log.
         if not args.changed_files_file:
             print(
-                "ERROR: --changed-files-from-stdin requires --changed-files-file "
-                "(stdin is reserved for the log).",
+                "ERROR: --changed-files-from-stdin requires --changed-files-file (stdin is reserved for the log).",
                 file=sys.stderr,
             )
             sys.exit(2)

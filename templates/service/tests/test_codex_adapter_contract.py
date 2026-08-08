@@ -112,10 +112,10 @@ def test_codex_skills_match_manifest_surfaces_codex() -> None:
     missing_pointers = declared_codex_skills - pointer_skills
     extra_pointers = pointer_skills - declared_codex_skills
     assert not missing_pointers, (
-        f"manifest claims codex consumes {sorted(missing_pointers)} " "but no pointer file exists in .codex/skills/"
+        f"manifest claims codex consumes {sorted(missing_pointers)} but no pointer file exists in .codex/skills/"
     )
     assert not extra_pointers, (
-        f"pointer files exist for {sorted(extra_pointers)} but the " "manifest does not list them under surfaces.codex"
+        f"pointer files exist for {sorted(extra_pointers)} but the manifest does not list them under surfaces.codex"
     )
 
 
@@ -193,7 +193,7 @@ def test_live_mcp_json_is_not_tracked() -> None:
     )
     tracked = [line for line in proc.stdout.splitlines() if line.strip()]
     assert not tracked, (
-        f".codex/mcp.json is tracked by git (violates ADR-023 I-2 / " f"D-18): {tracked}. Remove and re-run."
+        f".codex/mcp.json is tracked by git (violates ADR-023 I-2 / D-18): {tracked}. Remove and re-run."
     )
 
 
@@ -234,9 +234,8 @@ def test_codex_context_pointer_is_compact() -> None:
     body = CONTEXT_POINTER.read_text(encoding="utf-8")
     lines = body.splitlines()
     assert 0 < len(lines) <= 60, (
-        f".codex_context.md has {len(lines)} lines; surface pointers "
-        "capped at 60 (matches the other surface pointers)"
+        f".codex_context.md has {len(lines)} lines; surface pointers capped at 60 (matches the other surface pointers)"
     )
     assert "AGENT_CONTEXT.md" in body, (
-        ".codex_context.md must reference AGENT_CONTEXT.md to keep the " "authority chain single-rooted"
+        ".codex_context.md must reference AGENT_CONTEXT.md to keep the authority chain single-rooted"
     )

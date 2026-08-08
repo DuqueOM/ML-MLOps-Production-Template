@@ -198,8 +198,7 @@ def decide(
     elif is_superior_point and is_significant:
         decision = "promote"
         reason = (
-            f"ΔAUC={point:.4f} > {config.superiority_margin} "
-            f"AND McNemar p={p_value:.4f} < {config.alpha} (significant)"
+            f"ΔAUC={point:.4f} > {config.superiority_margin} AND McNemar p={p_value:.4f} < {config.alpha} (significant)"
         )
     elif is_superior_point and not is_significant:
         decision = "keep"

@@ -115,9 +115,9 @@ class TestDecide:
 # ---------------------------------------------------------------------------
 class TestCompareModels:
     def test_end_to_end_promotes_better_model(self) -> None:
-        from sklearn.linear_model import LogisticRegression
         from sklearn.datasets import make_classification
         from sklearn.ensemble import RandomForestClassifier
+        from sklearn.linear_model import LogisticRegression
 
         X, y = make_classification(n_samples=1000, n_features=10, n_informative=5, random_state=42, class_sep=1.5)
         X_df = pd.DataFrame(X, columns=[f"f{i}" for i in range(10)])

@@ -124,7 +124,7 @@ def test_surface_pointer_is_compact(pointer: Path) -> None:
     # A pointer must explicitly refer the reader back to the canonical
     # index. Otherwise it risks being read as a standalone source.
     assert "AGENT_CONTEXT.md" in pointer.read_text(encoding="utf-8"), (
-        f"{pointer.name} must reference AGENT_CONTEXT.md to keep the " "authority chain single-rooted"
+        f"{pointer.name} must reference AGENT_CONTEXT.md to keep the authority chain single-rooted"
     )
 
 
