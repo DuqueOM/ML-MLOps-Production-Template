@@ -2486,8 +2486,35 @@ Both traps structurally gone, not merely documented around.
 - **External links to `/releases/tag/v1.x` now 404.** Verified that the
   Release objects survive at their `archive/` URLs, but no redirect exists
   for the old tag URLs and none is possible. Accepted, not mitigated.
-- **`git describe` and other consumers were not exercised.** The PEP 440
-  argument says they are protected; only Copier was measured end to end.
+- ~~**`git describe` and other consumers were not exercised.**~~ **CLOSED
+  2026-08-08.** The claim was that the PEP 440 argument generalises beyond
+  Copier. It was asserted, not measured, so it was carried as pending until
+  exercised. All six resolvers now verified against the live repository:
+
+  | Resolver | Consumer | Result |
+  |---|---|---|
+  | `git tag --sort=-v:refname \| head -1` | the original diagnostic | `v0.26.0` |
+  | `git tag \| sort -V \| tail -1` | shell scripts, Makefiles | `v0.26.0` |
+  | `git describe --tags` | build stamping | `v0.26.0` |
+  | `git describe --tags --abbrev=0` | nearest-tag lookups | `v0.26.0` |
+  | GitHub `releases/latest` | release automation, bots | `v0.26.0` |
+  | `copier.get_latest_tag()` | scaffolding | `v0.26.0` |
+
+  Every one previously returned `v1.12.0`. The archived tags are still
+  present (15) and rank at position **18 of 32** under version sort —
+  demoted, not removed.
+
+  Content preservation re-verified at the same time, since "the tags still
+  exist" is not the same claim as "the snapshots are intact": all 15 match
+  their recorded commit SHA, and `archive/v1.12.0` resolves to a tree of
+  **435 files** — the same count Copier served when it was still winning
+  resolution — with `README.md` readable at 30,992 bytes.
+
+  One correction to the original entry: the first content spot-check used
+  `git show archive/v1.12.0:VERSION`, which returned empty. That was not a
+  failure — the `VERSION` file did not exist yet at `v1.12.0`. The check
+  proved nothing either way and was replaced with the tree/file-count
+  verification above.
 - **The MIGRATION recovery procedures remain un-rehearsed** across all
   releases that introduced them.
 - **Services scaffolded under v0.24.0 or earlier still carry an unpinned
