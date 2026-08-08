@@ -135,7 +135,7 @@ Pre-commit hooks run automatically on `git commit`.
 
 ## Release Process
 
-See [templates/docs/CHECKLIST_RELEASE.md](templates/docs/CHECKLIST_RELEASE.md) for the full checklist.
+See [templates/service/docs/CHECKLIST_RELEASE.md](templates/service/docs/CHECKLIST_RELEASE.md) for the full checklist.
 
 Quick summary:
 ```bash

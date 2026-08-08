@@ -63,6 +63,14 @@ template, not by the template's own CI. Both were partially fixed in
 - Historical records (`CHANGELOG.md`, `releases/`, `docs/audit/`, ADRs) are
   **not** rewritten. They record what was true when written.
 
+### Fixed — a broken link in `RUNBOOK.md` (pre-existing)
+
+- `RUNBOOK.md:138` pointed at `templates/docs/CHECKLIST_RELEASE.md`; the
+  file lives at `templates/service/docs/CHECKLIST_RELEASE.md`. Present on
+  `main` and surfaced only because this release touched `RUNBOOK.md` and
+  re-triggered the Link Check job on it — the job runs on changed markdown,
+  so a stale link in an untouched file can sit indefinitely.
+
 ### Known follow-ons
 
 - **The `v1.x` tag-sort collision remains unresolved** — now four defects
