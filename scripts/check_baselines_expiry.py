@@ -61,12 +61,25 @@ BASELINE_DIR = REPO_ROOT / ".security-baselines"
 # list / empty file has no entries to expire, which is the valid v0.15.0
 # default state.
 ENTRY_PATTERNS = {
-    # YAML files: any line that starts with "  - " inside a sequence we care
-    # about. We look at exclude: / skip-check: blocks.
-    "yaml_entry": re.compile(r"^\s*-\s+[\"']?[A-Z]+[A-Z0-9_-]*[\"']?\s*(#.*)?$"),
+    # YAML files: a sequence item inside a suppression block. Case-insensitive
+    # because checkov ids are upper (`CKV_AWS_18`) and tfsec ids are lower
+    # (`google-gke-enable-master-networks`).
+    #
+    # The block-awareness is not decoration. This pattern used to require an
+    # uppercase first character, so the three lowercase tfsec exclusions were
+    # invisible: the gate that exists to stop suppressed HIGH findings from
+    # ageing reported "no entries" while three HIGH GKE checks sat suppressed.
+    # Matching lowercase alone is not enough either — `framework: [terraform,
+    # kubernetes, dockerfile]` in checkov.yml is a sequence too, and is not a
+    # suppression. Only items under `exclude:` / `skip-check:` are entries.
+    "yaml_entry": re.compile(r"^\s*-\s+[\"']?[A-Za-z][A-Za-z0-9_.-]*[\"']?\s*(#.*)?$"),
     # Trivy ignore: any non-blank, non-comment line.
     "trivy_entry": re.compile(r"^\s*([A-Z]+-\d{4}-\d+)\s*(#.*)?$"),
 }
+
+# Top-level keys whose sequence items are suppressions subject to expiry.
+SUPPRESSION_KEYS = ("exclude", "skip-check", "skip_check")
+_BLOCK_KEY = re.compile(r"^(?P<indent>\s*)(?P<key>[A-Za-z_][A-Za-z0-9_.-]*)\s*:")
 
 EXPIRY_PATTERN = re.compile(r"#\s*expiry:\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
 
@@ -95,7 +108,14 @@ def _scan_yaml(path: Path, today: dt.date) -> list[BaselineFinding]:
         return findings
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
+    in_suppression_block = False
     for i, line in enumerate(lines, start=1):
+        key_match = _BLOCK_KEY.match(line)
+        if key_match:
+            in_suppression_block = key_match.group("key") in SUPPRESSION_KEYS
+            continue
+        if not in_suppression_block:
+            continue
         if not ENTRY_PATTERNS["yaml_entry"].match(line):
             continue
         # Look for an expiry annotation on the entry line OR the line above

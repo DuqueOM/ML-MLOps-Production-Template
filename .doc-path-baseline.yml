@@ -35,10 +35,3 @@ entries:
     expiry: 2027-09-04
 
   # --- unimplemented --------------------------------------------------------
-  - path: docs/audit/baseline-review.md
-    reason: unimplemented — .security-baselines/README.md promises a quarterly baseline review document that was never created
-    expiry: 2026-12-01
-
-  - path: docs/decisions/README.md
-    reason: unimplemented — docs/COMPLIANCE_MAPPING.md cites an ADR index as EU AI Act Art. 11 evidence; this repo has 45 ADRs and no index (the generated service does get one, which is what MIGRATION.md describes)
-    expiry: 2026-12-01
