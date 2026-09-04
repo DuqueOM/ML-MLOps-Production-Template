@@ -50,6 +50,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   accepted edge-protection components under ADR-042 / D-38. A provider
   bump could have broken it with CI staying green. Added the fifth
   validate step.
+### Fixed — the CI/CD Template Drift Gate had a narrower scope than the surface it guards
+
+- **The gate scanned one directory and was trusted to cover a tree.**
+  `scripts/check_cicd_template_drift.py` walked
+  `templates/service/.github/workflows/` only, on the assumption that the
+  scaffolder's workflow directory was the sole place shipping GitHub
+  Action references to adopters. It was not.
+- `templates/governance/promote-with-approval.yml` is copied into the
+  adopter's own `.github/workflows/` by hand
+  (`templates/governance/README.md`) and carried a floating
+  `actions/setup-python@v5` and `actions/checkout@v4` — unpinned against
+  the SHA-pinning policy the rest of the repo follows, and two and three
+  majors behind runtime respectively. Both sat there for the entire life
+  of the gate, reported green, precisely because they were outside the
+  scan scope.
+- The scan scope is now the whole `templates/` tree. Widening it costs
+  nothing in false positives: the comparison is an intersection over
+  action names, so template-only actions (the cloud-auth actions an
+  adopter needs but this repo never runs) stay ignored exactly as before.
+  Re-running the widened gate against the pre-fix tree fails on
+  `actions/checkout` with `template-only versions to remove or upgrade:
+  ['v4']`, which is the evidence that the old scope was the bug.
+- `actions/checkout@v4` is now pinned to the same SHA runtime uses
+  (`3d3c42e5…`, v7.0.1). The `setup-python@v5` half was pinned in #76.
+- A tag-versus-SHA divergence is caught as a side effect of the subset
+  rule, since a floating tag is a version runtime does not use. Documented
+  as such; a dedicated `--require-sha` mode remains separate hardening.
+
+### Fixed — the drift gate's governance doc pointed at a directory that no longer exists
+
+- `docs/governance/cicd-templates-drift.md` described the gate in terms of
+  `templates/cicd/`, a path removed in the Copier migration (ADR-030). The
+  script had moved to `templates/service/.github/workflows/` and the doc
+  never followed, so the canonical record of an enforced contract
+  described a directory that had not existed for several releases. Paths
+  corrected throughout and the scope change documented.
 
 ## [0.26.0] — 2026-08-08
 
