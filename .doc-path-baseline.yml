@@ -35,10 +35,6 @@ entries:
     expiry: 2027-09-04
 
   # --- unimplemented --------------------------------------------------------
-  - path: templates/service/tests/test_context_files_hygiene.py
-    reason: unimplemented — docs/agentic/contextualization.md cites it as the enforcing test; the test was never written
-    expiry: 2026-12-01
-
   - path: docs/audit/baseline-review.md
     reason: unimplemented — .security-baselines/README.md promises a quarterly baseline review document that was never created
     expiry: 2026-12-01
