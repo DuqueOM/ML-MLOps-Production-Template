@@ -93,6 +93,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - The secret patterns are themselves pinned by a test, because a scanner
   that silently stops matching passes everything.
 - Baseline down from 5 entries to 4.
+### Fixed — the baseline expiry gate could not see the entries it exists to watch
+
+- `scripts/check_baselines_expiry.py` reported `OK — no expired or
+  unannotated entries` while **three HIGH-severity GKE checks sat
+  suppressed** in `.security-baselines/tfsec.yml`. It was not lying about
+  the entries it saw; it saw none.
+- Its `yaml_entry` pattern required a suppression id to start with an
+  uppercase letter. That matches checkov (`CKV_AWS_18`) and misses every
+  tfsec id (`google-gke-enable-master-networks`). Zero matches, zero
+  expired, pass.
+- Widening it to lowercase alone would have been wrong: `framework:
+  [terraform, kubernetes, dockerfile]` in `checkov.yml` is a sequence too.
+  The scanner is now **block-aware** and treats only items under
+  `exclude:` / `skip-check:` as entries — which is what the code's own
+  comment had claimed since it was written.
+- The three entries also carried `Review-by: 2027-01`, a format the gate
+  does not parse. Normalised to `# expiry: 2027-01-01` with the original
+  justification prose kept intact.
+- Verified: all three are now seen and in-date, `--as-of 2027-06-01` fails
+  all three as expired, and `framework:` still produces no false positive.
+
+### Added — `docs/audit/baseline-review.md`, the review record that was promised
+
+- `.security-baselines/README.md` step 4 has instructed reviewers to
+  update this file since the baselines were introduced. It did not exist,
+  so three HIGH suppressions had a justification in a YAML comment and no
+  review record anywhere.
+- The first dated review records all three, each with its compensating
+  control and expiry. All three are **tool limitations, not accepted
+  risks**: PSP was removed from Kubernetes 1.25 and PSS covers it via
+  namespace labels; `master_authorized_networks_config` exists as a
+  `dynamic` block tfsec cannot evaluate; the metadata attribute lives on
+  the node pools rather than the cluster tfsec inspects.
+
+### Added — a generated ADR index, and the Art. 11 claim it backs
+
+- `docs/COMPLIANCE_MAPPING.md` cited an ADR index as EU AI Act Art. 11
+  evidence. The index did not exist, and the same row claimed "ADRs (37)"
+  against 45 on disk. A compliance mapping that points at a missing
+  artefact and miscounts the one it has is worse than none: it is an
+  assertion an auditor falsifies in one command.
+- `scripts/generate_adr_index.py` generates `docs/decisions/README.md`
+  from the files themselves and `--check` fails CI when it goes stale, so
+  the next ADR cannot reintroduce the drift. Wired as a CI step and a
+  pre-commit hook. It parses both heading conventions in use
+  (`# ADR-001: Title` and `# ADR-045 — Title`).
+- The Art. 11 row now links the index instead of restating a count, which
+  removes the drift surface rather than correcting one instance of it.
+- Baseline down to 2 entries once the three PRs in this series land, both
+  `runtime-artifact` — no `unimplemented` entries remain.
 
 ### Fixed — the Copier migration relocated the template tree and the prose never followed
 

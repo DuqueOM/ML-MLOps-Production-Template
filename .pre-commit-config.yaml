@@ -285,6 +285,17 @@ repos:
         language: system
         pass_filenames: false
         files: \.(md|txt)$|^scripts/check_doc_path_refs\.py$|^\.doc-path-baseline\.yml$
+      - id: adr-index
+        name: ADR index is current
+        description: |
+          docs/decisions/README.md is generated from the ADR files and
+          cited by docs/COMPLIANCE_MAPPING.md as EU AI Act Art. 11
+          evidence. Adding an ADR without regenerating leaves a
+          compliance claim an auditor can falsify.
+        entry: python3 scripts/generate_adr_index.py --check
+        language: system
+        pass_filenames: false
+        files: ^(docs/decisions/|scripts/generate_adr_index\.py)
       - id: service-adr-references
         name: generated service ADR references are resolvable
         description: |

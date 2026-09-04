@@ -16,7 +16,8 @@ exclude:
   # 1.25.  GKE clusters on REGULAR channel run 1.27+; enabling PSP would
   # cause a Terraform error.  Pod Security Standards (PSS) are enforced via
   # namespace labels in every overlay (D-29, templates/k8s/overlays/*/
-  # namespace.yaml).  Review-by: 2027-01 (when tfsec migrates to trivy/PSS).
+  # namespace.yaml).  Re-evaluate when tfsec migrates to trivy/PSS.
+  # expiry: 2027-01-01  reason: ADR-024 §Review — PSS via namespace labels (D-29)
   - google-gke-enforce-pod-security-policy
 
   # master_authorized_networks_config IS present in compute.tf (lines 38–49)
@@ -25,7 +26,8 @@ exclude:
   # block as absent even when the HCL is correct.  Environment overlays
   # MUST supply non-empty `master_authorized_networks` for staging/prod
   # (enforced by the variable validation rule in variables.tf).
-  # Review-by: 2027-01 (re-evaluate after tfsec→trivy migration).
+  # Re-evaluate after the tfsec->trivy migration.
+  # expiry: 2027-01-01  reason: ADR-024 §Review — dynamic block not evaluated by tfsec v1.28
   - google-gke-enable-master-networks
 
   # tfsec evaluates `node_config.metadata["disable-legacy-endpoints"]` only on
@@ -45,8 +47,9 @@ exclude:
   #      — additionally blocks the v0.1 endpoint that does not require
   #      the Metadata-Flavor header. Redundant but kept (belt + suspenders).
   #
-  # Review-by: 2027-01 (re-evaluate after tfsec→trivy migration; trivy may
-  # correlate node_pool resources to the cluster correctly).
+  # Re-evaluate after the tfsec->trivy migration; trivy may correlate
+  # node_pool resources to the cluster correctly.
+  # expiry: 2027-01-01  reason: ADR-024 §Review — metadata hardening lives on the node pools
   - google-gke-metadata-endpoints-disabled
 
 minimum_severity: HIGH
