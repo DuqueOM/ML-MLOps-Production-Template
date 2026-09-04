@@ -29,7 +29,7 @@ upstream changed in a way that bypasses a documented gate.
 
 The template ships TWO drills (PR-C3, ADR-015 acceptance #10):
 
-- **`drift`** — `templates/service/scripts/drills/run_drift_drill.py`
+- **`drift`** — `scripts/drills/run_drift_drill.py`
   Injects a +3σ shift on `feature_a` against a synthetic baseline,
   runs the production `detect_drift(--eda-baseline …)` path, asserts
   PSI on the shifted feature exceeds the alert threshold AND the two

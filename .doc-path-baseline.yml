@@ -47,10 +47,6 @@ entries:
     reason: unimplemented — docs/agentic/contextualization.md cites it as the enforcing test; the test was never written
     expiry: 2026-12-01
 
-  - path: docs/runbooks/drills
-    reason: unimplemented — docs/ADOPTION.md points at a drills runbook directory; only the scripts exist, at templates/service/scripts/drills/
-    expiry: 2026-12-01
-
   - path: docs/audit/baseline-review.md
     reason: unimplemented — .security-baselines/README.md promises a quarterly baseline review document that was never created
     expiry: 2026-12-01

@@ -79,7 +79,7 @@ Each capability is rated **per environment**. Definitions:
 | `terraform plan` nightly drift detection | ready | ready | ready | PR-A4; opens dedup'd `infra-drift` issue |
 | Argo Rollouts canary template | partial | partial | partial | AnalysisTemplate scaffolded; metric thresholds per service |
 | Rollback runbook + automation | ready | ready | ready | `/rollback` workflow + `make rollback` |
-| Reproducible drills (drift, deploy-degraded) | ready | ready | ready | PR-C3; evidence under `docs/runbooks/drills/` |
+| Reproducible drills (drift, deploy-degraded) | ready | ready | ready | PR-C3; evidence under `templates/service/docs/runbooks/drills/` |
 
 ### Scaffolding & local-first
 

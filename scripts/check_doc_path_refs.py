@@ -35,9 +35,10 @@ The second root matters because ``agentic/**`` is mirrored byte-for-byte
 into ``templates/service/agentic/`` (enforced by
 ``check_vendored_runtime_drift.py``), and several root documents
 (``AGENTS.md``, ``AGENT_CONTEXT.md``) are vendored verbatim as well. One
-text has to serve both readers, so ``scripts/audit_record.py`` is correct
-prose in a rule that executes inside a scaffolded service even though the
-template repo keeps that file at ``templates/service/scripts/``.
+text has to serve both readers, so ``scripts/refresh_contract.py`` is
+correct prose in a rule that executes inside a scaffolded service even
+though this repo only has that file at
+``templates/service/scripts/refresh_contract.py``.
 
 Files that ship into a service are resolved against both roots. Files
 that never leave the template repo are resolved against the repo root

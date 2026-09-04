@@ -57,17 +57,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **Frozen records are excluded** (`docs/decisions/`, `docs/audit/`,
   `releases/`, `CHANGELOG.md`, `VALIDATION_LOG.md`). An ADR is supposed
   to name the tree as it stood; rewriting it would falsify the record.
-- `.doc-path-baseline.yml` carries the 8 residual references, each with a
+- `.doc-path-baseline.yml` carries the 7 residual references, each with a
   reason and an expiry, in the same shape as `.security-baselines/`. The
   gate fails on a new dead path, on an expired entry, and on an entry
   that starts resolving — so the baseline can only shrink.
-- Six of the eight are classified `unimplemented`: documented workflows
+- Five of the seven are classified `unimplemented`: documented workflows
   reach for `scripts/smoke_test.py`, `scripts/load_test_services.py`,
   `templates/service/tests/test_context_files_hygiene.py`,
   `docs/runbooks/drills`, `docs/audit/baseline-review.md` and an ADR index
   that `docs/COMPLIANCE_MAPPING.md` cites as EU AI Act Art. 11 evidence.
   None exist. They carry short expiries so the gap forces a decision
   rather than aging quietly.
+- Contract test: `templates/tests/unit/test_doc_path_refs_contract.py`,
+  38 cases pinning token classification, frozen-record exclusion,
+  dual-perspective resolution and all three baseline failure modes.
 - Rationale and the full contract: `docs/governance/doc-path-references.md`.
 
 ### Fixed — ADR-026 branch protection was documented but never deployed

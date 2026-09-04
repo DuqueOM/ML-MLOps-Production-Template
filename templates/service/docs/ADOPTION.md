@@ -110,7 +110,7 @@ inheriting the agentic surface.
 | `/new-service` | `make new-service NAME=<PascalCase> SLUG=<snake_case>` | `templates/scripts/new-service.sh --help` |
 | `/scaffold-update` | `copier update` (manual) | `agentic/workflows/scaffold-update.md` |
 | `/eda` | `make eda` (runs the 6-phase pipeline) | `eda/README.md` |
-| `/drift-check` | `make drift-check` (runs `templates/service/scripts/drills/run_drift_drill.py`) | `docs/runbooks/drift-detection.md` |
+| `/drift-check` | `make drift-check` (runs `scripts/drills/run_drift_drill.py`) | `docs/runbooks/drift-detection.md` |
 | `/retrain` | `make retrain` (invokes training pipeline + quality gates) | `docs/runbooks/model-retrain.md` |
 | `/load-test` | `make load-test` (Locust headless 60s) | `tests/load_test.py` docstring |
 | `/release` | `make release-checklist` (prints the canonical checklist) | `docs/runbooks/release-checklist.md` |
@@ -133,7 +133,7 @@ underlying CLI tool plus the corresponding human runbook:
 | `scaffold-update` | `copier update` (manual; see `agentic/workflows/scaffold-update.md`) |
 | `deploy-gke` / `deploy-aws` | `scripts/deploy.sh` + `docs/runbooks/deploy-{gke,aws}.md` |
 | `rollback` | `make rollback` + `docs/runbooks/rollback.md` |
-| `drift-detection` | `templates/service/scripts/drills/run_drift_drill.py` + `docs/runbooks/drift-detection.md` |
+| `drift-detection` | `scripts/drills/run_drift_drill.py` + `docs/runbooks/drift-detection.md` |
 | `model-retrain` | `make retrain` + `docs/runbooks/model-retrain.md` |
 | `eda-analysis` | `eda/run_eda.py` + `eda/README.md` |
 | `cost-audit` | `make cost-review` + `docs/runbooks/cost-review.md` |

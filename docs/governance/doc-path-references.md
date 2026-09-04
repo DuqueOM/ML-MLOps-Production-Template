@@ -70,10 +70,10 @@ A reference is valid if it resolves from **either** root:
 The second root is not a convenience. `agentic/**` is mirrored
 byte-for-byte into `templates/service/agentic/` (enforced by
 `check_vendored_runtime_drift.py`), and `AGENTS.md` / `AGENT_CONTEXT.md`
-are vendored verbatim. One text has to serve both readers, so
-`scripts/audit_record.py` is correct prose in a rule that executes inside
-a scaffolded service, even though this repo keeps that file at
-`templates/service/scripts/audit_record.py`.
+are vendored verbatim. One text has to serve both readers: the bare form
+scripts/refresh_contract.py is correct prose in a rule that executes
+inside a scaffolded service, even though this repo only has that file at
+`templates/service/scripts/refresh_contract.py`.
 
 Documents that ship into a service resolve against both roots. Documents
 that never leave the template repo resolve against the repo root only.
@@ -94,11 +94,13 @@ that never leave the template repo resolve against the repo root only.
   are scanned. Extending to `[text](path)` is a natural follow-up and
   would live in the same script.
 - **Paths written as plain prose.** This is a deliberate convention, not
-  a hole: a code span asserts *this resolves today*, so a document
-  discussing a path that has been removed — this one, for instance —
-  names it without code formatting. If you need to write a dead path,
-  that is how. Do not add it to the baseline: the baseline is for
-  references that are still making a live claim.
+  a hole: a code span asserts *this resolves today, from this document's
+  perspective*. A document discussing a path that has been removed, or
+  illustrating a form that is only valid from the other root — this one
+  does both — names it without code formatting. That is how you write a
+  path you are talking *about* rather than pointing *at*. Do not reach
+  for the baseline instead: the baseline is for references that are
+  still making a live claim.
 
 ## Baseline contract
 
