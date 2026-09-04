@@ -722,9 +722,10 @@ jobs:
     name: CI/CD Template Drift Gate
     runs-on: ubuntu-latest
     # Dependabot's github-actions ecosystem only scans .github/workflows/.
-    # Action references in templates/service/.github/workflows/ age silently
-    # and propagate to every scaffolded service. This gate fails when a
-    # shared action's version in templates lags the runtime workflows.
+    # Action references anywhere under templates/ age silently and
+    # propagate to every scaffolded service (and, for templates/governance/,
+    # into the adopter's own workflows). This gate fails when a shared
+    # action's version in templates lags the runtime workflows.
     # See docs/governance/cicd-templates-drift.md for the full rationale.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -732,7 +733,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
-      - name: Check templates/service/.github/workflows vs .github/workflows for action drift
+      - name: Check templates/ vs .github/workflows for action drift
         run: python3 scripts/check_cicd_template_drift.py
 
   vendored-runtime-drift:
