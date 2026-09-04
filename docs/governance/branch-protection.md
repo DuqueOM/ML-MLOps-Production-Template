@@ -24,10 +24,32 @@
 |---|---|---|
 | `deletion` | enabled | — |
 | `non_fast_forward` | enabled | — |
-| `pull_request` | enabled | `required_approving_review_count: 0`, `dismiss_stale_reviews_on_push: true`, `require_code_owner_review: false`, `require_last_push_approval: false`, `required_review_thread_resolution: true` |
+| `pull_request` | enabled | `required_approving_review_count: 0`, `dismiss_stale_reviews_on_push: true`, `require_code_owner_review: false`, `require_last_push_approval: false`, `required_review_thread_resolution: true`, `required_reviewers: []`, `require_extra_approval_for_unattributed_changes: true`, `allowed_merge_methods: [squash, rebase]` |
 | `required_linear_history` | enabled | — |
 | `required_status_checks` | enabled | `strict_required_status_checks_policy: false` (= "Require branches up to date" OFF), checks list below |
 | `required_signatures` | disabled | — |
+
+#### On the three parameters added 2026-09-04
+
+GitHub fills any ruleset parameter a payload omits with its own default and
+stores the result. `allowed_merge_methods`,
+`require_extra_approval_for_unattributed_changes` and `required_reviewers`
+were all being set that way, so the deployed ruleset carried settings this
+document — the declared single source of truth — never mentioned. They are
+now declared explicitly in `scripts/setup_branch_protection.sh`, which makes
+the applier deterministic and stops a future change to GitHub's defaults
+from silently moving the contract.
+
+`allowed_merge_methods` deliberately excludes `merge`. A merge commit cannot
+satisfy `required_linear_history` above, so offering the button only to
+reject the merge afterwards is a worse failure mode than not offering it.
+Squash is this repo's normal path; rebase stays available.
+
+`require_extra_approval_for_unattributed_changes` stays at GitHub's default
+of `true`. It interacts with `required_approving_review_count: 0`: a PR
+carrying commits GitHub cannot attribute to an account still needs one
+approval even though the baseline requires none. On a solo-maintained repo
+the admin bypass actor is the break-glass path.
 
 ### Required status checks (exactly 6)
 
@@ -109,10 +131,10 @@ GitHub.com → repo → Settings → Rules → Rulesets → New branch ruleset
 
 After applying, confirm:
 
-- [ ] `gh api repos/:owner/:repo/rulesets` returns 2 entries with `enforcement: active`
+- [x] `gh api repos/:owner/:repo/rulesets` returns 2 entries with `enforcement: active` — verified 2026-09-04 (`main-branch-baseline` id=22285485, `tag-immutability-v` id=22285487)
 - [ ] An attempt to `git push --force origin main` from a non-admin token is rejected
 - [ ] Opening a PR with a deliberately failing required check disables the merge button
-- [ ] Opening a PR that touches only `.md` files (no Python/YAML) still shows the 6 required checks as the gate (not "Docs Quality")
+- [x] Opening a PR that touches only `.md` files (no Python/YAML) still shows the 6 required checks as the gate (not "Docs Quality") — `ci-examples.yml` and `validate-templates.yml` both trigger on every `pull_request` to `main` with no `paths:` filter, so all six contexts always report
 - [ ] `git push --force origin v0.15.3` is rejected
 - [ ] `git push --delete origin v0.15.0` is rejected
 
@@ -123,3 +145,5 @@ After applying, confirm:
 | Date | Change | Author |
 |---|---|---|
 | 2026-05-15 | Initial ruleset (ADR-026) | `@DuqueOM` |
+| 2026-09-04 | Rulesets applied to the repository. The contract had been documented since 2026-05-15 but never deployed: `GET /rulesets` returned `0` and `GET /rules/branches/main` returned `0`, so `main` was unprotected the whole time. | `@DuqueOM` |
+| 2026-09-04 | Declared `required_reviewers`, `require_extra_approval_for_unattributed_changes` and `allowed_merge_methods` explicitly; previously left to GitHub defaults and therefore absent from this document. `allowed_merge_methods` narrowed to `[squash, rebase]` for coherence with `required_linear_history`. | `@DuqueOM` |

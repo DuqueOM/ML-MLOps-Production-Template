@@ -106,7 +106,10 @@ read -r -d '' MAIN_RULESET_JSON <<'JSON' || true
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
         "require_last_push_approval": false,
-        "required_review_thread_resolution": true
+        "required_review_thread_resolution": true,
+        "required_reviewers": [],
+        "require_extra_approval_for_unattributed_changes": true,
+        "allowed_merge_methods": ["squash", "rebase"]
       }
     },
     {
@@ -152,6 +155,26 @@ read -r -d '' TAGS_RULESET_JSON <<'JSON' || true
 }
 JSON
 
+# Note on the three pull_request parameters added 2026-09-04: GitHub fills
+# any parameter a payload omits with its own default and stores the result.
+# `allowed_merge_methods`, `require_extra_approval_for_unattributed_changes`
+# and `required_reviewers` were all being set that way, which meant the
+# deployed ruleset carried settings that docs/governance/branch-protection.md
+# — the declared single source of truth — never mentioned. They are now
+# declared explicitly so the applier is deterministic and a future change to
+# GitHub's defaults cannot silently move the contract.
+#
+# `allowed_merge_methods` deliberately excludes "merge": a merge commit
+# cannot satisfy the `required_linear_history` rule above, so offering the
+# button only to reject the merge afterwards is a worse failure mode than
+# not offering it. Squash is this repo's normal path; rebase stays available.
+#
+# `require_extra_approval_for_unattributed_changes` is kept at GitHub's
+# default of true. It interacts with `required_approving_review_count: 0`:
+# a PR carrying commits GitHub cannot attribute to an account still needs
+# one approval, even though the baseline requires none. On a solo-maintained
+# repo the admin bypass actor below is the break-glass path.
+#
 # Note on actor_id=5: in GitHub's RepositoryRole actor_type, the built-in
 # role ids are 1=Read, 2=Triage, 3=Write, 4=Maintain, 5=Admin. We bypass at
 # the Admin level only — Admin is the minimum that can already mutate the

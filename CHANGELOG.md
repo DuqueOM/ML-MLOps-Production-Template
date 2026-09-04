@@ -10,6 +10,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — ADR-026 branch protection was documented but never deployed
+
+- **The contract existed on paper only.** `docs/governance/branch-protection.md`
+  and `docs/decisions/ADR-026-branch-protection.md` had specified two
+  rulesets since 2026-05-15, and `scripts/setup_branch_protection.sh` was
+  written to apply them — but nobody had run it. `GET /rulesets` returned
+  `0` entries and `GET /rules/branches/main` returned `0` rules, so `main`
+  accepted direct pushes, force-pushes and deletion for the entire period
+  the repository advertised itself as protected.
+- Both rulesets are now active: `main-branch-baseline` (deletion,
+  non-fast-forward, linear history, pull request, six required status
+  checks) and `tag-immutability-v`.
+- Verified the six required contexts resolve: `ci-examples.yml` and
+  `validate-templates.yml` both trigger on every `pull_request` to `main`
+  with no `paths:` filter, so none of the six can ever fail to report and
+  deadlock a PR — the failure mode ADR-026 flags as its critical
+  invariant.
+
+### Fixed — the ruleset payload left three parameters to GitHub's defaults
+
+- Applying the ruleset surfaced a second problem: GitHub fills any
+  parameter a payload omits with its own default and stores the result.
+  `allowed_merge_methods`, `require_extra_approval_for_unattributed_changes`
+  and `required_reviewers` were all being set that way, so the deployed
+  ruleset carried three settings that `docs/governance/branch-protection.md`
+  — the declared single source of truth — never mentioned. A future change
+  to a GitHub default would have moved the contract silently.
+- All three are now declared explicitly in
+  `scripts/setup_branch_protection.sh` and documented.
+- `allowed_merge_methods` is narrowed to `[squash, rebase]`. A merge commit
+  cannot satisfy the `required_linear_history` rule that sits beside it, so
+  offering the merge button only to reject the merge afterwards is a worse
+  failure mode than not offering it.
+
 ### Fixed — Dependabot never saw three of the five Terraform root modules
 
 - **`directory:` is a literal path, not a prefix.** `.github/dependabot.yml`
