@@ -72,6 +72,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   38 cases pinning token classification, frozen-record exclusion,
   dual-perspective resolution and all three baseline failure modes.
 - Rationale and the full contract: `docs/governance/doc-path-references.md`.
+### Fixed — the Kyverno admission smoke tested whatever Kubernetes version kind happened to bundle
+
+- `scripts/test_kyverno_admission.sh` called `kind create cluster` with no
+  `--image`, so the Kubernetes version the shipped ClusterPolicies were
+  proven against was whatever the kind binary bundled at that moment.
+  That version moves with every `helm/kind-action` bump, which means a
+  routine dependency PR could silently change the platform the admission
+  contract is validated on — and the smoke would still report green.
+- Surfaced while reviewing #81 (`kind-action` 1.14.0 → 1.15.0), whose
+  release notes carry `chore: bump default kind and kubectl`. The
+  golden-path workflows were unaffected because they pass an explicit
+  `node_image`; this script was the one place that did not.
+- Pinned to `kindest/node:v1.30.0` via `KIND_NODE_IMAGE`, the same image
+  `KIND_IMAGE` pins in `golden-path.yml` and `golden-path-extended.yml`,
+  so admission and end-to-end now test one platform. Overridable by
+  environment variable, matching the existing `KYVERNO_VERSION` idiom.
 
 ### Fixed — ADR-026 branch protection was documented but never deployed
 

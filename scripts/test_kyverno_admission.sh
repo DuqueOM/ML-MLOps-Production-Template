@@ -34,6 +34,13 @@ POLICY_FILE="${REPO_ROOT}/templates/k8s/policies/kyverno-image-verification.yaml
 CLUSTER_NAME="kyverno-smoke"
 TEST_NS="test-prod"
 KYVERNO_VERSION="${KYVERNO_VERSION:-3.2.6}"
+# Pin the node image. `kind create cluster` with no --image uses whatever
+# Kubernetes version the kind binary bundles, which moves every time
+# helm/kind-action is bumped — so the version these admission policies
+# are proven against would drift silently with a dependency PR. The
+# golden-path workflows already pin this exact image via KIND_IMAGE;
+# keep the two in step so admission and end-to-end test one platform.
+KIND_NODE_IMAGE="${KIND_NODE_IMAGE:-kindest/node:v1.30.0}"
 
 log() { printf '==> %s\n' "$*" >&2; }
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
@@ -51,7 +58,7 @@ command -v helm >/dev/null 2>&1 || fail "helm not installed"
 [[ -f "${POLICY_FILE}" ]] || fail "policy file not found: ${POLICY_FILE}"
 
 log "creating kind cluster: ${CLUSTER_NAME}"
-kind create cluster --name "${CLUSTER_NAME}" --wait 120s
+kind create cluster --name "${CLUSTER_NAME}" --image "${KIND_NODE_IMAGE}" --wait 120s
 
 log "installing Kyverno ${KYVERNO_VERSION}"
 helm repo add kyverno https://kyverno.github.io/kyverno/ >/dev/null
