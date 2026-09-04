@@ -202,6 +202,12 @@ verify: ## Run every fast CI gate locally (the pre-push contract). Slow E2E live
 		printf '  %-34s FAIL\n' "adapter-sync"; \
 		failed="$$failed sync_agentic_adapters"; \
 	fi; \
+	if python3 scripts/generate_adr_index.py --check >/tmp/adr_index.out 2>&1; then \
+		printf '  %-34s PASS\n' "adr-index"; \
+	else \
+		printf '  %-34s FAIL\n' "adr-index"; \
+		failed="$$failed generate_adr_index"; \
+	fi; \
 	if [ -n "$$failed" ]; then \
 		echo "$(RED)✗ failing gates:$$failed$(NC)"; \
 		for g in $$failed; do echo "--- $$g ---"; tail -20 /tmp/$$g.out; done; \
