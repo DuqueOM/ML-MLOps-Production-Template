@@ -518,6 +518,17 @@ jobs:
           terraform init -backend=false -upgrade=false
           terraform validate
 
+      # ADR-042 / D-38 — Cloudflare is one of the three accepted edge
+      # protection components (alongside Cloud Armor and AWS WAFv2). It is
+      # a root module with its own `required_providers`, so it needs its
+      # own validate step; without one a provider bump could break the
+      # module and CI would stay green.
+      - name: Validate Cloudflare (edge protection)
+        run: |
+          cd templates/service/infra/terraform/cloudflare
+          terraform init -backend=false -upgrade=false
+          terraform validate
+
   example-e2e:
     name: Example End-to-End (train → serve → test → drift)
     runs-on: ubuntu-latest

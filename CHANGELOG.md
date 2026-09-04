@@ -10,6 +10,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — Dependabot never saw three of the five Terraform root modules
+
+- **`directory:` is a literal path, not a prefix.** `.github/dependabot.yml`
+  declared `terraform` entries for `/templates/service/infra/terraform/gcp`
+  and `.../aws` only. Dependabot does not recurse, so `gcp/bootstrap`,
+  `aws/bootstrap` and `cloudflare` — each a separate root module with its
+  own `required_providers` block — were never scanned and aged silently.
+- The blast radius was measurable: `gcp/bootstrap` sat on
+  `hashicorp/google ~> 5.0` while the live layer had already moved to
+  `~> 8.0` (three majors of divergence), and `aws/bootstrap` on
+  `hashicorp/aws ~> 5.0` against a live `~> 6.43`. Both provision the
+  Terraform state bucket, the KMS keys that encrypt it, and the container
+  registry — the layer an adopter runs *first* and then never revisits
+  (ADR-015 PR-A2), which is exactly why it cannot rely on manual bumps.
+- This is the same blind-spot class the CI/CD Template Drift Gate was
+  built to catch (`docs/governance/cicd-templates-drift.md`): a scanner
+  whose scope is narrower than the surface it is trusted to cover.
+- Added the three missing `terraform` ecosystems and brought both
+  bootstrap layers onto the same provider surface as their live
+  counterparts (`google ~> 8.0`, `aws ~> 6.43`).
+- Upgrade impact audited against the google 6/7/8 and aws 6 upgrade
+  guides. Nothing in the bootstrap inventory is affected: no
+  `lifecycle_rule.condition.no_age` (removed in google 6), no
+  `retention_period` on `google_storage_bucket` and no
+  `public_repository` on `google_artifact_registry_repository` (both
+  changed in google 7), no `region` argument on `aws_s3_bucket` (repurposed
+  by aws 6 Enhanced Region Support). The one behavioural change that does
+  land is additive: google 6 attaches a `goog-terraform-provisioned` label
+  to newly created resources by default.
+- Verified with `terraform init -backend=false && terraform validate`
+  across all five root modules, resolving `google 8.1.0`, `aws 6.63.0` and
+  `cloudflare 5.24.0`. All green.
+
+### Fixed — the Cloudflare edge module had no CI validation at all
+
+- `Terraform Validate` covered four root modules and skipped
+  `templates/service/infra/terraform/cloudflare`, one of the three
+  accepted edge-protection components under ADR-042 / D-38. A provider
+  bump could have broken it with CI staying green. Added the fifth
+  validate step.
+
 ## [0.26.0] — 2026-08-08
 
 Closes the root cause behind four consecutive releases of pinning

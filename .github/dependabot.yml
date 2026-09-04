@@ -46,3 +46,46 @@ updates:
     labels:
       - "dependencies"
       - "terraform"
+
+  # ---------------------------------------------------------------------
+  # Bootstrap + edge layers.
+  #
+  # Dependabot resolves `directory:` literally — it does NOT recurse into
+  # subdirectories. The two entries above therefore cover only the live
+  # layers; `gcp/bootstrap`, `aws/bootstrap` and `cloudflare` are separate
+  # root modules with their own `required_providers` blocks and were
+  # ageing silently (google was three majors behind the live layer before
+  # this entry existed). Same blind-spot class the CI/CD Template Drift
+  # Gate was built to catch — see docs/governance/cicd-templates-drift.md.
+  #
+  # The bootstrap layers are provisioned once per (project, environment)
+  # and touched roughly annually (ADR-015 PR-A2), which is precisely why
+  # they need automated bumps: nobody revisits them by hand.
+  # ---------------------------------------------------------------------
+
+  # Terraform (GCP bootstrap — state bucket, KMS, Artifact Registry)
+  - package-ecosystem: "terraform"
+    directory: "/templates/service/infra/terraform/gcp/bootstrap"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "terraform"
+
+  # Terraform (AWS bootstrap — state bucket, DynamoDB lock table, KMS, ECR)
+  - package-ecosystem: "terraform"
+    directory: "/templates/service/infra/terraform/aws/bootstrap"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "terraform"
+
+  # Terraform (Cloudflare edge protection — ADR-042 / D-38)
+  - package-ecosystem: "terraform"
+    directory: "/templates/service/infra/terraform/cloudflare"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "terraform"
