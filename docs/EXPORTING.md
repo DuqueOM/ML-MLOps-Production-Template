@@ -25,9 +25,9 @@ you deploy them, because none of them are Kubernetes-specific:
 | Artifact | Where it lives | Why it's portable |
 |---|---|---|
 | The predictor container image | `templates/service/Dockerfile` | A signed, SBOM-attested OCI image with no orchestrator-specific assumptions baked in |
-| The API contract | `app/schemas.py`, `docs/model-card-template.md` | `/health`, `/predict`, `/predict_batch` request/response shapes are plain JSON over HTTP |
+| The API contract | `app/schemas.py`, `templates/service/docs/model-card-template.md` | `/health`, `/predict`, `/predict_batch` request/response shapes are plain JSON over HTTP |
 | The data contract | `src/<service>/schemas.py` (Pandera) | Input validation is a Python library call, not a K8s resource |
-| The quality evidence | `docs/model-card-template.md`, `VALIDATION_LOG.md`-style entries | Fairness (DIR), SHAP, and quality-gate results are just numbers with provenance |
+| The quality evidence | `templates/service/docs/model-card-template.md`, `VALIDATION_LOG.md`-style entries | Fairness (DIR), SHAP, and quality-gate results are just numbers with provenance |
 
 What does **not** travel as-is: `k8s/base/*.yaml`, `infra/terraform/*`,
 the Kyverno admission policies, and the Prometheus/Grafana stack. Those
@@ -61,7 +61,7 @@ gcloud ai models upload \
 
 Model monitoring, batch prediction jobs, and endpoint deployment are then
 Vertex AI's own mechanisms — configure them per Vertex's documentation,
-using `docs/model-card-template.md`'s recorded metrics as your baseline
+using `templates/service/docs/model-card-template.md`'s recorded metrics as your baseline
 for drift/skew thresholds.
 
 ## Registering the same image as a SageMaker Model Package
@@ -111,6 +111,6 @@ the natural place to attach the model card as package documentation.
 ## Related
 
 - `docs/decisions/ADR-001-template-scope-boundaries.md` — why Vertex/SageMaker orchestration is out of scope
-- `docs/model-card-template.md` — the quality evidence that travels with the model
+- `templates/service/docs/model-card-template.md` — the quality evidence that travels with the model
 - `agentic/rules/04a-python-serving.md` — the serving contract this document assumes
 - `README.md` §"How this compares" — positioning against platforms with native pipeline orchestration

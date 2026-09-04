@@ -16,7 +16,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Coming from a Cookiecutter Data Science background? See
-[docs/CCDS_MAPPING.md](docs/CCDS_MAPPING.md) for how this layout maps to the
+[templates/service/docs/CCDS_MAPPING.md](templates/service/docs/CCDS_MAPPING.md) for how this layout maps to the
 `data/ notebooks/ models/ references/` vocabulary (ADR-034).
 
 ## Model

@@ -133,7 +133,7 @@ job, not a re-architecture.
 
 - Authority: ADR-023 §F9.
 - Revisit when AWS publishes parity for the structured handoff
-  schema in `templates/common_utils/agent_context.py` (today it is
+  schema in `templates/service/common_utils/agent_context.py` (today it is
   closer than Vertex AI but still not 1:1).
 
 ---

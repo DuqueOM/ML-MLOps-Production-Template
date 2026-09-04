@@ -64,9 +64,9 @@ mv ${SVC_NAME}/src/\{service\} ${SVC_NAME}/src/${SVC_SLUG}
 
 ```bash
 # Copy K8s templates
-cp templates/k8s/deployment.yaml k8s/base/${SVC_SLUG}-deployment.yaml
-cp templates/k8s/hpa.yaml k8s/base/${SVC_SLUG}-hpa.yaml
-cp templates/k8s/service.yaml k8s/base/${SVC_SLUG}-service.yaml
+cp templates/service/k8s/base/deployment.yaml k8s/base/${SVC_SLUG}-deployment.yaml
+cp templates/service/k8s/base/hpa.yaml k8s/base/${SVC_SLUG}-hpa.yaml
+cp templates/service/k8s/base/service.yaml k8s/base/${SVC_SLUG}-service.yaml
 sed -i "s/{@ service_slug @}/${SVC_SLUG}/g" k8s/base/${SVC_SLUG}-*.yaml
 ```
 

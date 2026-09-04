@@ -1,7 +1,7 @@
 # Runbook — AWS IRSA + GitHub OIDC setup
 
 One-time setup for the GitHub Actions → AWS authentication used by
-`templates/cicd/deploy-aws.yml`, `deploy-common.yml`, `drift-detection.yml`,
+`templates/service/.github/workflows/deploy-aws.yml`, `deploy-common.yml`, `drift-detection.yml`,
 and the in-cluster IRSA bindings used by every scaffolded service.
 
 After this runbook, **no long-lived AWS access keys live in the repo
@@ -249,7 +249,7 @@ aws iam put-role-policy --role-name "$SVC_ROLE_NAME" \
 
 ### B.3 Annotate the K8s ServiceAccount
 
-In your service's K8s manifests (`templates/k8s/base/serviceaccount.yaml`):
+In your service's K8s manifests (`templates/service/k8s/base/serviceaccount.yaml`):
 
 ```yaml
 apiVersion: v1
@@ -265,7 +265,7 @@ The pod-identity-webhook injects AWS_ROLE_ARN +
 AWS_WEB_IDENTITY_TOKEN_FILE env vars + a projected SA token. The
 boto3/aws-sdk in the pod auto-resolves them — no code changes needed.
 
-The CI's `IRSA/Workload Identity enforcement` step in `templates/cicd/ci.yml`
+The CI's `IRSA/Workload Identity enforcement` step in `templates/service/.github/workflows/ci.yml`
 already greps for this annotation in staging/prod manifests and FAILS
 the pipeline if it is missing (D-18 invariant).
 
@@ -311,8 +311,8 @@ missing or the pod-identity-webhook is not installed
 
 - ADR-014 §3.1 — Phase 3 supply-chain governance
 - Invariants D-17, D-18
-- `templates/cicd/deploy-common.yml` — consumer (uses `vars.AWS_ROLE_ARN`)
-- `templates/cicd/deploy-aws.yml` — chain entry point
+- `templates/service/.github/workflows/deploy-common.yml` — consumer (uses `vars.AWS_ROLE_ARN`)
+- `templates/service/.github/workflows/deploy-aws.yml` — chain entry point
 - GCP counterpart: `docs/runbooks/gcp-wif-setup.md`
 - AWS docs: <https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html>
 - GitHub OIDC docs: <https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services>

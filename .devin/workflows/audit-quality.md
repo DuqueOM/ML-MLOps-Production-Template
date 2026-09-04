@@ -29,7 +29,7 @@ Red gate → that IS a finding. Record it before fixing anything.
 
 // turbo
 ```bash
-grep -rhoE "uses: [^@]+@(v[0-9][^ ]*|main|master)" .github/workflows templates/service/.github/workflows templates/cicd 2>/dev/null | sort -u
+grep -rhoE "uses: [^@]+@(v[0-9][^ ]*|main|master)" .github/workflows templates | sort -u
 ```
 
 Any output = Q-01 violation (unpinned action).

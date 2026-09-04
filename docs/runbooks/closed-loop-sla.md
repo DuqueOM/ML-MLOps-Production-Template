@@ -34,7 +34,7 @@ latency target.
 | 1. Prediction logged | < 1 s after `/predict` returns | `prediction_logger.write_batch()` (D-21/D-22) | Service team |
 | 2. Ground truth available | **`T_gt` ≤ 24 h** by default; tune per domain | Adopter's data warehouse / event stream | Data eng |
 | 3. Drift / quality detected | Same day as ground truth lands | Drift CronJob + sliced-performance CronJob | ML team |
-| 4. Retrain → promote | < 1 business day after the drift / regression alert | `templates/cicd/retrain-service.yml` + champion/challenger gate (ADR-008) | ML team + SRE |
+| 4. Retrain → promote | < 1 business day after the drift / regression alert | `templates/service/.github/workflows/retrain-service.yml` + champion/challenger gate (ADR-008) | ML team + SRE |
 
 `T_gt` is the **single most important number** in your closed loop.
 Domains where it is realistic:
@@ -61,12 +61,12 @@ Defaults set in the scaffolded service:
 
 | Mechanism | Default | File |
 |-----------|---------|------|
-| Drift CronJob cadence | hourly | `templates/k8s/base/cronjob-drift.yaml` |
-| Drift PSI per-feature alert | 0.20 | `templates/monitoring/prometheus/alerts-template.yaml` |
+| Drift CronJob cadence | hourly | `templates/service/k8s/base/cronjob-drift.yaml` |
+| Drift PSI per-feature alert | 0.20 | `templates/service/monitoring/prometheus/alerts-template.yaml` |
 | Drift PSI severe threshold (escalation signal) | 0.40 (= 2× alert) | `risk_context.py` |
-| Sliced-performance CronJob cadence | daily 02:00 UTC | `templates/k8s/base/cronjob-performance.yaml` |
+| Sliced-performance CronJob cadence | daily 02:00 UTC | `templates/service/k8s/base/cronjob-performance.yaml` |
 | Performance regression alert | -2 % vs prior 7-day window | `slo-prometheusrule.yaml` |
-| Retrain workflow trigger | manual + alert-driven (label `retrain-trigger`) | `templates/cicd/retrain-service.yml` |
+| Retrain workflow trigger | manual + alert-driven (label `retrain-trigger`) | `templates/service/.github/workflows/retrain-service.yml` |
 | Champion/challenger gate | DeLong superiority test, p < 0.05 + DIR ≥ 0.80 | `analysistemplate-champion-challenger.yaml` |
 
 These defaults are tuned for `T_gt ≤ 24h` domains. For longer
@@ -83,7 +83,7 @@ Documenting the explicit gaps so adopters do not assume coverage:
   ground-truth ingestion latency. Adopters MUST add a
   Prometheus metric (e.g. `ground_truth_ingestion_lag_seconds`) and
   alert when it exceeds the contracted SLO. A reference panel for
-  this is in `templates/monitoring/grafana/dashboard-closed-loop.json`,
+  this is in `templates/service/monitoring/grafana/dashboard-closed-loop.json`,
   but the metric source is adopter-side.
 
 - **L4 validation under load.** The closed-loop chain has been
@@ -126,8 +126,8 @@ window, multi-burn-rate alerts" canonical table.
 | Failure | Detection | Triage entry point |
 |---------|-----------|--------------------|
 | Ground truth never arrives | `ground_truth_ingestion_lag_seconds` exceeds SLO | `/incident` workflow |
-| Drift CronJob silently failing | `drift_cronjob_last_success_timestamp_seconds` heartbeat alert | `docs/runbooks/incident.md` |
-| Retrain produces a worse model | Champion/challenger gate FAILS in CI | `docs/decisions/ADR-008-champion-challenger.md` |
+| Drift CronJob silently failing | `drift_cronjob_last_success_timestamp_seconds` heartbeat alert | `docs/runbooks/incident-response.md` |
+| Retrain produces a worse model | Champion/challenger gate FAILS in CI | `docs/decisions/ADR-008-champion-challenger-statistical-gate.md` |
 | Retrain workflow fails before promotion | Audit entry with `result=failure` | `ops/audit.jsonl` |
 | Model promoted but worse on a slice | Sliced-performance alert fires post-deploy | `concept-drift-analysis` skill |
 

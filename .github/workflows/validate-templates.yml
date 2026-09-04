@@ -736,6 +736,24 @@ jobs:
       - name: Check templates/ vs .github/workflows for action drift
         run: python3 scripts/check_cicd_template_drift.py
 
+  doc-path-refs:
+    name: Documentation Path Reference Gate
+    runs-on: ubuntu-latest
+    # A path named in prose is a checkable claim. The Copier migration
+    # (ADR-030) moved the scaffolder payload under templates/service/ and
+    # updated every reference that executes; 30 documents kept pointing at
+    # directories that no longer existed, and the dead path later reached
+    # the audit tooling itself. Nothing caught it because nothing checked.
+    # See docs/governance/doc-path-references.md.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Check documentation path references resolve
+        run: python3 scripts/check_doc_path_refs.py
+
   vendored-runtime-drift:
     name: Vendored Runtime Drift Gate
     runs-on: ubuntu-latest

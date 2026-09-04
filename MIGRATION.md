@@ -269,9 +269,9 @@ contract versioning are additive. Existing services continue to function.
 | Change | Manual action required |
 |--------|------------------------|
 | Model warm-up + readiness gating (D-23, D-24) | If you maintained custom `livenessProbe` / `readinessProbe` / `startupProbe` definitions, replace them with the split-probes pattern. Pre-`v1.7.1` deploys had a 300–800 ms cold-inference window during which pods received traffic before SHAP was ready. |
-| PodDisruptionBudget + Rego v1 policies (D-27) | Apply the new `pdb.yaml` from `templates/k8s/base/`. Adopters who maintained custom PDBs should reconcile minimum-replicas assumptions (default minimum is 1 for dev, 2 for staging, 3 for prod). |
+| PodDisruptionBudget + Rego v1 policies (D-27) | Apply the new `pdb.yaml` from `templates/service/k8s/base/`. Adopters who maintained custom PDBs should reconcile minimum-replicas assumptions (default minimum is 1 for dev, 2 for staging, 3 for prod). |
 | Champion/Challenger in Argo Rollouts (G-02b) | Adopters using stock `Deployment` are unaffected. If you opt into Argo Rollouts, follow `docs/runbooks/` (no specific migration; this is opt-in). |
-| Environment promotion gates dev → staging → prod (D-26, ADR-011) | Wire `templates/cicd/deploy-common.yml` into your existing CI. Pre-`v1.7.1` deploys could skip staging; the new gate refuses prod deploys without staging success. |
+| Environment promotion gates dev → staging → prod (D-26, ADR-011) | Wire `templates/service/.github/workflows/deploy-common.yml` into your existing CI. Pre-`v1.7.1` deploys could skip staging; the new gate refuses prod deploys without staging success. |
 
 ---
 

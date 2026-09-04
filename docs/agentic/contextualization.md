@@ -26,7 +26,7 @@ files, fill placeholders, commit your `.local.yaml` variants **nowhere**
 Answers **WHO the adopter is**: legal entity, industry, regulatory
 regime, risk appetite, budget ceiling, approval model, on-hours window.
 
-It feeds directly into `templates/common_utils/risk_context.py`:
+It feeds directly into `templates/service/common_utils/risk_context.py`:
 
 - `risk_appetite: high` downgrades AUTO→CONSULT for any prod operation.
 - `monthly_budget_usd` gates the cost-overrun escalation (`cost_estimate > 1.2× budget` → STOP).
@@ -177,4 +177,4 @@ enforces at every PR:
 - `docs/decisions/ADR-023-agentic-portability-and-context.md`
 - `docs/decisions/ADR-010-dynamic-behavior-protocol.md` (consumer)
 - `agentic/rules/12-security-secrets.md` (what lives where)
-- `templates/common_utils/risk_context.py` (runtime consumer)
+- `templates/service/common_utils/risk_context.py` (runtime consumer)

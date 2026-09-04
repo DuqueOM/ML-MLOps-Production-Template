@@ -90,7 +90,7 @@ of kind / minikube / GKE / EKS), with the base Kustomize overlay.
 - `kustomize build k8s/overlays/<cloud>-dev/ | kubectl apply -f -`.
 - Liveness / readiness / `/ready` traffic gating.
 - Prometheus metrics scraping (local Prometheus or Grafana Cloud
-  with the dashboards from `templates/monitoring/grafana/`).
+  with the dashboards from `templates/service/monitoring/grafana/`).
 
 **Scope exclusions at this stage**:
 - Cosign verification (warn mode in dev, enforce in prod — that's
@@ -136,7 +136,7 @@ switch to Argo Rollouts for metric-gated deploys.
    (`docs/runbooks/closed-loop-sla.md` — PR-5 of this triage).
 3. Drift CronJob alert thresholds tuned from your own PSI baseline
    (see `docs/decisions/ADR-022-psi-thresholds.md`).
-4. Retrain workflow (`templates/cicd/retrain-service.yml`) pointed
+4. Retrain workflow (`templates/service/.github/workflows/retrain-service.yml`) pointed
    at your MLflow + model registry.
 5. OPTIONAL: swap Deployment → Rollout, wire AnalysisTemplate.
    See `docs/runbooks/progressive-delivery.md`.

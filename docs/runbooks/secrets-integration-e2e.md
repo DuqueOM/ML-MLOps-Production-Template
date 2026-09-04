@@ -2,7 +2,7 @@
 
 - **Authority**: ADR-020 §S2-5, R4 audit finding M1.
 - **Mode**: CONSULT (touches secret managers but only via existing helpers; no rotation).
-- **Scope**: validate that `templates/common_utils/secrets.py` correctly reads from GCP Secret Manager (GSM) and AWS Secrets Manager (ASM) end-to-end, in dev / staging / prod, without ever falling through to `os.environ` in non-dev environments (D-17).
+- **Scope**: validate that `templates/service/common_utils/secrets.py` correctly reads from GCP Secret Manager (GSM) and AWS Secrets Manager (ASM) end-to-end, in dev / staging / prod, without ever falling through to `os.environ` in non-dev environments (D-17).
 - **Approver**: Platform Lead.
 - **Audit trail**: each successful execution writes an entry to `VALIDATION_LOG.md`.
 
@@ -142,6 +142,6 @@ For each successful procedure, write a `VALIDATION_LOG.md` entry with:
 
 ## Cadence
 
-- After every change to `templates/common_utils/secrets.py`.
+- After every change to `templates/service/common_utils/secrets.py`.
 - Quarterly minimum.
 - After any cloud-provider API deprecation notice that touches Secret Manager / Secrets Manager.

@@ -74,7 +74,7 @@ If `BLOCKED_FEATURES` is non-empty:
 The pipeline may still emit legacy names such as
 `02_baseline_distributions.pkl` and `05_feature_proposals.yaml` for one
 transition cycle. New rules, skills, training gates, and drift consumers
-MUST use the canonical loaders in `templates/common_utils/eda_artifacts.py`.
+MUST use the canonical loaders in `templates/service/common_utils/eda_artifacts.py`.
 
 ## Dependencies
 - Required: `pandas`, `scipy`, `scikit-learn`, `pandera`, `matplotlib`

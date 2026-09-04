@@ -9,8 +9,8 @@ and the runbook that consumes it.
 
 | Dashboard | File | Audience | Source data | Runbook |
 |-----------|------|----------|-------------|---------|
-| ML service overview | `dashboard-template.json` | On-call SRE / ML engineer | Prometheus `<service>_*` metrics emitted by FastAPI app | `docs/runbooks/incident.md` |
-| Closed-loop monitoring | `dashboard-closed-loop.json` | ML engineer / data scientist | Prediction logger + drift CronJob output | `docs/runbooks/closed-loop-sla.md`, `docs/decisions/ADR-008-champion-challenger.md` |
+| ML service overview | `dashboard-template.json` | On-call SRE / ML engineer | Prometheus `<service>_*` metrics emitted by FastAPI app | `docs/runbooks/incident-response.md` |
+| Closed-loop monitoring | `dashboard-closed-loop.json` | ML engineer / data scientist | Prediction logger + drift CronJob output | `docs/runbooks/closed-loop-sla.md`, `docs/decisions/ADR-008-champion-challenger-statistical-gate.md` |
 | DORA delivery metrics | `dashboard-dora.json` | Engineering manager / Staff+ | `dora_*` Prometheus series (see Pipeline below) | `/performance-review` workflow |
 | Business KPIs | `dashboard-business.json` | Product owner / business stakeholder | `<service>_*` metrics + `<service>_monthly_cloud_cost_usd` (see Pipeline below) | `docs/observability/business-kpis.md` |
 | Edge protection | `dashboard-edge.json` | Platform / security engineer | `edge_protection_enabled` + `edge_protection_last_audit_timestamp` (see Pipeline below) | `docs/runbooks/edge-protection-setup.md` |
@@ -33,14 +33,14 @@ burn-rate panels reference the rules in `slo-prometheusrule.yaml`
 
 ### `dashboard-dora.json`
 
-`scripts/dora_metrics.py` writes JSON to `ops/dora/{YYYY-MM}-metrics.json`.
+`templates/scripts/dora_metrics.py` writes JSON to `ops/dora/{YYYY-MM}-metrics.json`.
 It does NOT emit Prometheus metrics itself — the design is
 intentionally deployment-agnostic.
 
 To populate the dashboard, the adopter MUST add a small companion
 job (CronJob or GitHub Action) that:
 
-1. Runs `python scripts/dora_metrics.py --output /tmp/dora.json`.
+1. Runs `python templates/scripts/dora_metrics.py --output /tmp/dora.json`.
 2. Translates each JSON field to a Prometheus push-gateway POST
    under the metric names referenced by the dashboard:
    - `dora_deploy_frequency_per_week`

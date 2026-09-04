@@ -32,7 +32,7 @@ Codex's automation engine is intentionally narrower than GitHub
 Actions: it runs from the contributor's editor environment, against
 the local checkout, with the contributor's own MCP credentials. That
 makes it a useful fast-feedback loop **before** changes land in the
-repo. The CI version (`.github/workflows/agentic-validation.yml`)
+repo. The CI version (the `Agentic System Validation` job in `.github/workflows/validate-templates.yml`)
 remains the authoritative gate.
 
 ## Failure handling

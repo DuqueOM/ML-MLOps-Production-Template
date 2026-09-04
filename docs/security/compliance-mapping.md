@@ -46,8 +46,8 @@ ADR-001).
 
 | Control category | Shipped artifact | SOC 2 | GDPR | HIPAA |
 |------------------|------------------|-------|------|-------|
-| Workload identity (no static keys) | `templates/k8s/base/serviceaccount.yaml` + IRSA / Workload Identity (D-18) | CC6.1, CC6.6 | Art 32 | §164.312(a)(1) |
-| RBAC least-privilege per service | `templates/k8s/base/rbac.yaml` | CC6.3 | Art 32 | §164.312(a)(1) |
+| Workload identity (no static keys) | `templates/service/k8s/base/serviceaccount.yaml` + IRSA / Workload Identity (D-18) | CC6.1, CC6.6 | Art 32 | §164.312(a)(1) |
+| RBAC least-privilege per service | `templates/service/k8s/base/rbac.yaml` | CC6.3 | Art 32 | §164.312(a)(1) |
 | Network segmentation | `networkpolicy-deny-default.yaml` + per-overlay allowances | CC6.6 | Art 32 | §164.312(e)(1) |
 | Service account scoping | One SA per scaffolded service, namespace-scoped | CC6.3 | — | §164.308(a)(4) |
 
@@ -74,7 +74,7 @@ ADR-001).
 | Control category | Shipped artifact | SOC 2 | GDPR | HIPAA |
 |------------------|------------------|-------|------|-------|
 | Append-only audit trail | `ops/audit.jsonl` + `scripts/audit_record.py` | CC4.1, CC7.3 | Art 30 | §164.312(b) |
-| Per-deploy audit entry | `templates/cicd/deploy-common.yml` records `if: always()` | CC7.3 | Art 30 | §164.308(a)(1)(ii)(D) |
+| Per-deploy audit entry | `templates/service/.github/workflows/deploy-common.yml` records `if: always()` | CC7.3 | Art 30 | §164.308(a)(1)(ii)(D) |
 | Risk-mode escalation logged | `risk_context.RiskContext` recorded per audit entry | CC4.1 | — | §164.312(b) |
 | MLflow experiment lineage | git_commit, params, metrics, artifacts | CC4.1, CC8.1 | Art 22 | §164.312(b) |
 

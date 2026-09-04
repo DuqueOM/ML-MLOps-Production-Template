@@ -46,7 +46,7 @@ Complete EDA with all 6 artifacts produced, leakage audit passing (or explicitly
 and `feature_catalog.yaml` ready for `features.py` consumption.
 
 ## Pre-conditions
-- `templates/eda/eda_pipeline.py` is available (copied by `new-service.sh`)
+- `templates/service/eda/eda_pipeline.py` is available (copied by `new-service.sh`)
 - Dataset is in `data/raw/` (NEVER read from production paths — invariant D-13)
 - Required deps installed: `pip install -r eda/requirements.txt`
 

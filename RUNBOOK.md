@@ -12,7 +12,7 @@ Quick reference for working with the template: scaffolding services, running exa
 | Lint all Python | `make lint-all` |
 | Format all Python | `make format-all` |
 | Run example tests | `make test-examples` |
-| Start MLflow stack | `docker compose -f templates/infra/docker-compose.mlflow.yml up -d` |
+| Start MLflow stack | `docker compose -f templates/service/infra/docker-compose.mlflow.yml up -d` |
 | Clean cache files | `make clean` |
 
 ## Prerequisites
@@ -84,16 +84,16 @@ python drift_check.py
 
 ```bash
 # Start MLflow + PostgreSQL + MinIO
-docker compose -f templates/infra/docker-compose.mlflow.yml up -d
+docker compose -f templates/service/infra/docker-compose.mlflow.yml up -d
 
 # Access
 # MLflow UI: http://localhost:5000
 # MinIO Console: http://localhost:9001
 
 # Stop
-docker compose -f templates/infra/docker-compose.mlflow.yml down
+docker compose -f templates/service/infra/docker-compose.mlflow.yml down
 # Full cleanup (remove volumes)
-docker compose -f templates/infra/docker-compose.mlflow.yml down -v
+docker compose -f templates/service/infra/docker-compose.mlflow.yml down -v
 ```
 
 ## Secret Management
@@ -119,7 +119,7 @@ aws secretsmanager create-secret --name mlflow-db-password --secret-string "..."
 # Reference in K8s: use ExternalSecrets Operator or IRSA + SDK
 ```
 
-**Anti-pattern D-10**: Never commit `terraform.tfstate` or `.tfvars` with real values. Use remote state (GCS/S3+DynamoDB) configured in `templates/infra/terraform/*/main.tf`.
+**Anti-pattern D-10**: Never commit `terraform.tfstate` or `.tfvars` with real values. Use remote state (GCS/S3+DynamoDB) configured in `templates/service/infra/terraform/*/main.tf`.
 
 ## Contributing to the Template
 

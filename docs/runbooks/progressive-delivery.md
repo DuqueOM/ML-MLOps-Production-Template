@@ -1,7 +1,7 @@
 # Runbook — Progressive delivery with Argo Rollouts
 
 > **Closes external-feedback gap 6.2 (May 2026).** Argo Rollouts ships
-> with the template but is **opt-in** — `templates/k8s/base/argo-rollout.yaml`
+> with the template but is **opt-in** — `templates/service/k8s/base/argo-rollout.yaml`
 > is intentionally NOT in `templates/k8s/base/kustomization.yaml#resources`.
 > Adopters reading the base manifest list miss it. This runbook makes
 > the enable path explicit.
@@ -62,7 +62,7 @@ kubectl apply -n argo-rollouts -f \
 
 ### 1. Switch the base resource
 
-In `templates/k8s/base/kustomization.yaml`:
+In `templates/service/k8s/base/kustomization.yaml`:
 
 ```yaml
 resources:

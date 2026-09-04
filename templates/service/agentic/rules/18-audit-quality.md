@@ -2,8 +2,7 @@
 trigger: glob
 globs:
   - ".github/workflows/**"
-  - "templates/service/.github/workflows/**"
-  - "templates/cicd/**"
+  - "templates/**"
   - "LICENSE"
   - "NOTICE"
   - "llms.txt"

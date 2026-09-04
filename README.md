@@ -174,7 +174,7 @@ L4 production rollout evidence remains the adopter's responsibility and the `v1.
 
 ### Optional: Progressive delivery (Argo Rollouts)
 
-`argo-rollout.yaml` ships in `templates/k8s/base/` with full security parity to `deployment.yaml` (PSS restricted, init containers, `model-verifier`), but it is **opt-in** — it is intentionally NOT in `kustomization.yaml#resources` because it and `deployment.yaml` cannot coexist (they own the same Pods). Enabling is a deliberate swap.
+`argo-rollout.yaml` ships in `templates/service/k8s/base/` with full security parity to `deployment.yaml` (PSS restricted, init containers, `model-verifier`), but it is **opt-in** — it is intentionally NOT in `kustomization.yaml#resources` because it and `deployment.yaml` cannot coexist (they own the same Pods). Enabling is a deliberate swap.
 
 Enable when you need canary deploys with metric-gated rollback, want to exercise the shipped champion/challenger `AnalysisTemplate`, or have an SRE rotation that cannot be paged for a metric regression a Rollout could have caught at 30 % traffic. Do not enable for single-replica, low-traffic services.
 
@@ -190,8 +190,8 @@ See [`docs/runbooks/progressive-delivery.md`](docs/runbooks/progressive-delivery
 | Scaffold a new ML service | [QUICK_START.md](QUICK_START.md) | `copier copy` or `./templates/scripts/new-service.sh` |
 | Follow the narrated tutorial | [docs/TUTORIAL.md](docs/TUTORIAL.md) | [QUICK_START.md](QUICK_START.md) |
 | Understand the operating model | [AGENTS.md](AGENTS.md) | [docs/decisions/](docs/decisions/) |
-| Review deployment and rollback flow | [RUNBOOK.md](RUNBOOK.md) | `templates/cicd/` and `templates/k8s/` |
-| Evaluate security posture | [SECURITY.md](SECURITY.md) | `templates/infra/`, `templates/k8s/`, `templates/cicd/` |
+| Review deployment and rollback flow | [RUNBOOK.md](RUNBOOK.md) | `templates/service/.github/workflows/` and `templates/k8s/` |
+| Evaluate security posture | [SECURITY.md](SECURITY.md) | `templates/service/infra/`, `templates/k8s/`, `templates/service/.github/workflows/` |
 | Extend agentic behavior | [AGENTS.md](AGENTS.md) | `templates/config/agentic_manifest.yaml`, `agentic/`, generated surfaces |
 | Contribute to the template | [CONTRIBUTING.md](CONTRIBUTING.md) | License and governance sections below |
 | Cut a release | [docs/RELEASING.md](docs/RELEASING.md) | [CHANGELOG.md](CHANGELOG.md) |
@@ -349,7 +349,7 @@ See [AGENTS.md](AGENTS.md) for the canonical operation matrix and invariant cata
 
 ## Operational Memory Plane
 
-> **Status — Phase 1 (contracts + redaction).** The canonical `MemoryUnit` dataclass and the gitleaks + PII redaction pipeline ship today: `templates/common_utils/memory_types.py` and `templates/common_utils/memory_redaction.py`, with 59 contract-test invariants enforcing immutability, severity normalization, sensitivity ≥ bucket-ACL minimum, single-tenant Phase 1 scope, idempotent redaction, and structural isolation from the `/predict` path. The ingest worker, the vector store, the retrieval API, and any agent-facing recall surface are **NOT yet implemented** in this template and are explicitly deferred per ADR-018 §Phase plan. Adopters cannot call retrieval APIs today; the section describes the **target shape** so the policy is reviewable before code lands. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan for the staged delivery.
+> **Status — Phase 1 (contracts + redaction).** The canonical `MemoryUnit` dataclass and the gitleaks + PII redaction pipeline ship today: `templates/service/common_utils/memory_types.py` and `templates/service/common_utils/memory_redaction.py`, with 59 contract-test invariants enforcing immutability, severity normalization, sensitivity ≥ bucket-ACL minimum, single-tenant Phase 1 scope, idempotent redaction, and structural isolation from the `/predict` path. The ingest worker, the vector store, the retrieval API, and any agent-facing recall surface are **NOT yet implemented** in this template and are explicitly deferred per ADR-018 §Phase plan. Adopters cannot call retrieval APIs today; the section describes the **target shape** so the policy is reviewable before code lands. See [`ADR-018`](docs/decisions/ADR-018-operational-memory-plane.md) §Phase plan for the staged delivery.
 >
 > _Audit trail: Phase 0 disclosure added in response to R4 finding C2; transitioned to Phase 1 in the same audit-r4 sprint. See [`docs/audit/ACTION_PLAN_R4.md`](docs/audit/ACTION_PLAN_R4.md) §S0-2 + §S2-1._
 

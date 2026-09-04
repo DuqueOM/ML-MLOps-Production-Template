@@ -20,10 +20,10 @@ R4 audit finding H2 documented a recurring class of bugs where new template comp
 
 The allowlist that triggers this requirement:
 
-- `.github/workflows/*.yml`, `templates/cicd/*.yml` (workflows / deploy YAML)
-- `templates/k8s/overlays/**`, `templates/k8s/policies/**` (cluster surface)
+- `.github/workflows/*.yml`, `templates/service/.github/workflows/*.yml` (workflows / deploy YAML)
+- `templates/service/k8s/overlays/**`, `templates/k8s/policies/**` (cluster surface)
 - `templates/service/tests/contract/**` (new contract tests)
-- `templates/common_utils/*.py` (adopter API surface)
+- `templates/service/common_utils/*.py` (adopter API surface)
 - `scripts/*.py`, `scripts/*.sh` (operational scripts)
 - `templates/config/*.yaml` (policy YAML)
 
@@ -49,8 +49,8 @@ When you touch any of the following, **run `make smoke` locally before push**:
 - `copier.yml` (Copier template configuration)
 - `templates/service/pyproject.toml` or `templates/service/requirements.txt`
 - any `{@ @}` Jinja token introduced into `templates/service/`
-- `templates/k8s/base/` or `templates/k8s/overlays/`
-- `templates/cicd/`
+- `templates/service/k8s/base/` or `templates/service/k8s/overlays/`
+- `templates/service/.github/workflows/`
 
 CI will catch the same class of bug, but the local feedback loop is faster.
 

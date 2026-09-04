@@ -28,7 +28,7 @@ Every ADR MUST include:
 7. **Consequences**: Positive and Negative trade-offs
 8. **Revisit When**: Conditions that would invalidate this decision
 
-Use template: `templates/docs/decisions/adr-template.md`
+Use template: `templates/service/docs/decisions/adr-template.md`
 
 ## Service README Standards
 
@@ -62,4 +62,4 @@ Every service MUST have a runbook with executable steps for:
 - **P3** (24 hours SLA): Investigation steps
 - **P4** (1 week SLA): Documentation and review steps
 
-Use template: `templates/docs/runbooks/runbook-template.md`
+Use template: `templates/service/docs/runbooks/runbook-template.md`

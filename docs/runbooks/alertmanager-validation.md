@@ -1,9 +1,9 @@
 # Alertmanager routing validation runbook
 
 **Authority**: ADR-020 §M5, ACTION_PLAN_R4 §S2-4.
-**Automated by**: `templates/monitoring/tests/test_alertmanager_routing.py`
-**Config under test**: `templates/monitoring/alertmanager.yml`
-**Rules emitting alerts**: `templates/monitoring/alertmanager-rules.yaml`
+**Automated by**: `templates/service/monitoring/tests/test_alertmanager_routing.py`
+**Config under test**: `templates/service/monitoring/alertmanager.yml`
+**Rules emitting alerts**: `templates/service/monitoring/alertmanager-rules.yaml`
 
 This runbook closes R4-M5: before M5, the template shipped alert rules
 but no one had ever exercised routing end-to-end. A mis-configured
@@ -45,7 +45,7 @@ simulator or the config has drifted from Alertmanager's semantics.
 
 ```bash
 # From repo root, assuming amtool is on PATH or unpacked locally.
-python -m pytest templates/monitoring/tests/test_alertmanager_routing.py -q
+python -m pytest templates/service/monitoring/tests/test_alertmanager_routing.py -q
 # 14 passed
 ```
 
@@ -153,9 +153,9 @@ The pytest run is AUTO — no audit entry required.
 
 ## 8. Related
 
-- `templates/monitoring/alertmanager.yml` — the config under test.
-- `templates/monitoring/alertmanager-rules.yaml` — the alert rules.
-- `templates/monitoring/tests/test_alertmanager_routing.py` — the
+- `templates/service/monitoring/alertmanager.yml` — the config under test.
+- `templates/service/monitoring/alertmanager-rules.yaml` — the alert rules.
+- `templates/service/monitoring/tests/test_alertmanager_routing.py` — the
   contract test (14 invariants).
 - ADR-020 §M5 — rationale for why this runbook exists.
 - ADR-014 §3.5 — audit-trail protocol referenced in §7.

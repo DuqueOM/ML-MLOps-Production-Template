@@ -149,7 +149,7 @@ cd ml-service-template
 pip install copier
 
 # Start MLflow + Pushgateway
-docker compose -f templates/infra/docker-compose.mlflow.yml up -d
+docker compose -f templates/service/infra/docker-compose.mlflow.yml up -d
 
 # Scaffold and run your service
 ./templates/scripts/new-service.sh MyService my_service

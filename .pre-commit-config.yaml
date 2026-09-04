@@ -195,6 +195,19 @@ repos:
         language: system
         pass_filenames: false
         files: ^(VERSION|README\.md|QUICK_START\.md|docs/TUTORIAL\.md|docs/PROGRESSION\.md|scripts/check_adopter_scaffold_ref\.py)$
+      - id: doc-path-refs
+        name: documentation path references resolve
+        description: |
+          A repo path named in prose is a checkable claim. The Copier
+          migration (ADR-030) relocated the scaffolder payload under
+          templates/service/ and updated every reference that executes;
+          30 documents kept pointing at directories that no longer
+          existed, and the dead path later reached the audit tooling
+          itself. Catch it at commit time, not on the next migration.
+        entry: python3 scripts/check_doc_path_refs.py
+        language: system
+        pass_filenames: false
+        files: \.(md|txt)$|^scripts/check_doc_path_refs\.py$|^\.doc-path-baseline\.yml$
       - id: service-adr-references
         name: generated service ADR references are resolvable
         description: |

@@ -16,7 +16,7 @@ The closed-loop monitoring chain in this template depends on three SLAs:
    "at-least-once durability within 30 seconds of the request" (D-21
    fire-and-forget).
 2. **Ground-truth ingestion freshness** — the per-domain CronJob in
-   `templates/service/monitoring/ground_truth.py` is the adopter's
+   `templates/service/src/{@ service_slug @}/monitoring/ground_truth.py` is the adopter's
    responsibility to fill in. The SLA below defines what "good enough"
    means for the closed loop to detect concept drift.
 3. **Sliced performance freshness** — the metrics that fire alerts
@@ -71,7 +71,7 @@ For each tier, the adopter's ground-truth pipeline MUST:
 
 ## SLA monitoring
 
-The `templates/k8s/policies/slo-prometheusrule.yaml` ships these alerts:
+The `templates/service/k8s/base/slo-prometheusrule.yaml` ships these alerts:
 
 - `GroundTruthIngestStale` — fires when `ground_truth_lag_hours` > tier
   freshness × 1.2 (20% slack). Severity: `warning`.
