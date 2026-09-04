@@ -43,6 +43,19 @@
 
 # Single-stage install — pre-push stage was retired in R5-L4 (May 2026);
 # `make smoke` + CI pr-smoke-lane.yml replace it.
+#
+# 2026-09-04: eight validate-templates.yml gates had no local hook at all
+# (doc-coherence, cicd-template-drift, vendored-runtime-drift,
+# common-utils-drift, dashboard-inventory, baselines-expiry,
+# test-clock-isolation, agentic-adapter-sync). That gap — not the missing
+# pre-push stage — is what let three breakages reach the remote in one
+# afternoon. They are added below as pre-commit hooks rather than by
+# reviving pre-push: all thirteen gates together run in 0.9 s, well inside
+# the < 5 s pre-commit budget this file targets, so R5-L4's reasoning
+# (a 60 s hook trains `--no-verify`) does not apply to them.
+#
+# `make verify` runs the same set in one command, for the sweep-before-PR
+# case where you want every gate regardless of which files you touched.
 default_install_hook_types: [pre-commit]
 
 # fail_fast: false is the DEFAULT (shown explicit for intent) — we
@@ -195,6 +208,70 @@ repos:
         language: system
         pass_filenames: false
         files: ^(VERSION|README\.md|QUICK_START\.md|docs/TUTORIAL\.md|docs/PROGRESSION\.md|scripts/check_adopter_scaffold_ref\.py)$
+      - id: doc-coherence
+        name: documentation coherence (rule 16, ADR-031)
+        description: |
+          C1-C7: VERSION vs CHANGELOG, llms.txt version, anti-pattern
+          counts, agentic surface counts, ADR traceability, release-note
+          existence, English-only + private-repo guard.
+        entry: python3 scripts/check_doc_coherence.py
+        language: system
+        pass_filenames: false
+        files: ^(VERSION|CHANGELOG\.md|llms\.txt|AGENTS\.md|README\.md|CLAUDE\.md|docs/decisions/|releases/|agentic/|scripts/check_doc_coherence\.py)
+      - id: cicd-template-drift
+        name: template action versions match runtime
+        description: |
+          Dependabot only scans .github/workflows/, so action references
+          under templates/ age silently and ship to every scaffolded
+          service. See docs/governance/cicd-templates-drift.md.
+        entry: python3 scripts/check_cicd_template_drift.py
+        language: system
+        pass_filenames: false
+        files: \.ya?ml$|^scripts/check_cicd_template_drift\.py$
+      - id: vendored-runtime-drift
+        name: vendored copies match their canonical originals
+        description: |
+          Files vendored byte-identical into templates/service/ (AGENTS.md,
+          the agentic surface, several scripts and runbooks) must not
+          diverge. Editing one side only is anti-pattern Q-06.
+        entry: python3 scripts/check_vendored_runtime_drift.py
+        language: system
+        pass_filenames: false
+        files: ^(scripts/|docs/runbooks/|agentic/|templates/service/|templates/config/|AGENTS\.md|AGENT_CONTEXT\.md)
+      - id: common-utils-drift
+        name: common_utils distribution contract (ADR-025)
+        entry: python3 scripts/check_common_utils_drift.py
+        language: system
+        pass_filenames: false
+        files: common_utils/
+      - id: dashboard-inventory
+        name: Grafana dashboard inventory is complete
+        entry: python3 scripts/check_dashboard_inventory.py
+        language: system
+        pass_filenames: false
+        files: ^(templates/service/monitoring/|docs/observability/|scripts/check_dashboard_inventory\.py)
+      - id: baselines-expiry
+        name: security baseline entries are dated and in-date
+        entry: python3 scripts/check_baselines_expiry.py
+        language: system
+        pass_filenames: false
+        files: ^(\.security-baselines/|scripts/check_baselines_expiry\.py)
+      - id: test-clock-isolation
+        name: tests do not depend on the wall clock
+        entry: python3 scripts/check_test_clock_isolation.py
+        language: system
+        pass_filenames: false
+        files: (^|/)tests?/.*\.py$|^scripts/check_test_clock_isolation\.py$
+      - id: agentic-adapter-sync
+        name: generated adapter surfaces are in sync
+        description: |
+          .devin/, .cursor/, .claude/ and .codex/ are generated from
+          agentic/ by sync_agentic_adapters.py. Editing agentic/ without
+          re-running the sync ships a stale adapter surface.
+        entry: python3 scripts/sync_agentic_adapters.py --check
+        language: system
+        pass_filenames: false
+        files: ^(agentic/|\.devin/|\.cursor/|\.claude/|\.codex/|templates/config/agentic_manifest\.yaml)
       - id: doc-path-refs
         name: documentation path references resolve
         description: |

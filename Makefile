@@ -12,7 +12,7 @@
 #   make test-examples     # Run example regression tests
 
 .PHONY: help install-dev lint-all format-all validate-templates \
-        validate-agentic bootstrap smoke \
+        validate-agentic bootstrap smoke verify \
         mcp-check mcp-doctor mcp-render-docs \
         report-validate report-example \
         demo-minimal test-examples clean
@@ -154,6 +154,60 @@ eda-validate: ## Validate EDA pipeline: syntax + run against example dataset
 
 validate-templates: lint-all validate-k8s validate-agentic test-scaffold eda-validate ## Validate all templates (lint + K8s + agentic + scaffold + EDA)
 	@echo "$(GREEN)✓ All templates validated$(NC)"
+
+# ═══════════════════════════════════════════════
+# Gate suite — the CI contract, runnable locally
+# ═══════════════════════════════════════════════
+# Every check below is a job in validate-templates.yml. Before this target
+# existed the only way to run the full set was to push and read CI, which
+# is how three separate breakages in one afternoon (Link Check, vendored
+# byte-identity, evidence-check) reached the remote instead of dying on the
+# contributor's machine.
+#
+# Deliberately excludes the slow ones: `make smoke` (scaffolder E2E, ~2.5
+# min) and the pytest suites. This target is the fast contract — every gate
+# here is sub-second — so it is cheap enough to sit on pre-push.
+#
+# Runs ALL gates and reports every failure, rather than stopping at the
+# first. A contributor who broke three things should learn that in one run.
+
+GATES := \
+	check_doc_coherence \
+	check_doc_path_refs \
+	check_cicd_template_drift \
+	check_vendored_runtime_drift \
+	check_common_utils_drift \
+	check_dashboard_inventory \
+	check_baselines_expiry \
+	check_gitleaks_pin \
+	check_adopter_scaffold_ref \
+	check_service_adr_references \
+	check_test_clock_isolation \
+	validate_agentic
+
+verify: ## Run every fast CI gate locally (the pre-push contract). Slow E2E lives in `make smoke`.
+	@echo "$(GREEN)Running the CI gate suite...$(NC)"
+	@failed=""; \
+	for gate in $(GATES); do \
+		if python3 scripts/$$gate.py >/tmp/$$gate.out 2>&1; then \
+			printf '  %-34s PASS\n' "$$gate"; \
+		else \
+			printf '  %-34s FAIL\n' "$$gate"; \
+			failed="$$failed $$gate"; \
+		fi; \
+	done; \
+	if python3 scripts/sync_agentic_adapters.py --check >/tmp/adapter_sync.out 2>&1; then \
+		printf '  %-34s PASS\n' "adapter-sync"; \
+	else \
+		printf '  %-34s FAIL\n' "adapter-sync"; \
+		failed="$$failed sync_agentic_adapters"; \
+	fi; \
+	if [ -n "$$failed" ]; then \
+		echo "$(RED)✗ failing gates:$$failed$(NC)"; \
+		for g in $$failed; do echo "--- $$g ---"; tail -20 /tmp/$$g.out; done; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)✓ every gate green — safe to push$(NC)"
 
 # ═══════════════════════════════════════════════
 # Example (Fraud Detection)

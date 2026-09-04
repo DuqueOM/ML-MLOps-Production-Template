@@ -10,6 +10,58 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — two baseline entries were misclassified, not unimplemented
+
+- **`scripts/smoke_test.py` was never missing.** The release-checklist
+  skill says in so many words that *"the template does not ship a
+  `scripts/smoke_test.py` script (would compete with `deploy-common.yml`
+  as SSOT)"*. It is a deliberate, documented non-existence. The path
+  reference gate flagged it only because the sentence wrapped it in a code
+  span, and the baseline then recorded a correct design decision as a
+  defect. Rewritten as plain prose per the convention in
+  `docs/governance/doc-path-references.md`: a code span asserts *this
+  resolves*, so a path you are talking about is not one.
+- **`scripts/load_test_services.py` was a wrong path, not a missing
+  file.** The artefact exists as `templates/service/tests/load_test.py`,
+  run via `make load-test`. The load-test workflow gave three
+  `locust -f scripts/load_test_services.py` commands that fail as written.
+  Corrected to `tests/load_test.py`, the form that is right from inside a
+  generated service.
+- Baseline down from 7 entries to 5.
+
+### Fixed — a broken link was suppressed rather than repaired
+
+- `templates/service/docs/ADOPTION.md` linked `[SECURITY.md](../SECURITY.md)`,
+  which resolves to `templates/service/SECURITY.md` in this repo and to the
+  service root in a generated one. Neither exists.
+- It never failed CI because `.github/markdown-link-check.json` carried a
+  dedicated `ignorePatterns` entry, `^\.\./SECURITY\.md$`, silencing that
+  exact link. The sentence is about *this template's* disclosure SLA, so
+  the link now points at the upstream `SECURITY.md` absolutely, and the
+  suppression is deleted. The repo-root copy of the same document was
+  always correct and is untouched.
+
+### Added — `make verify`, and the eight CI gates that had no local hook
+
+- Eight jobs in `validate-templates.yml` had no pre-commit hook at all:
+  doc-coherence, cicd-template-drift, vendored-runtime-drift,
+  common-utils-drift, dashboard-inventory, baselines-expiry,
+  test-clock-isolation and agentic-adapter-sync. There was no way to run
+  the full gate set locally, so the only feedback loop was push-and-read-CI.
+- All eight are now pre-commit hooks, path-filtered so each fires only on
+  the files it guards. This is deliberately **not** a revival of the
+  pre-push stage retired in R5-L4: that decision was about a 60-second
+  scaffold hook training `--no-verify`, and all thirteen gates together
+  run in 0.9 s — inside the < 5 s budget this config targets. The
+  reasoning is recorded next to the original decision.
+- `make verify` runs the same thirteen in one command for the
+  sweep-before-PR case, reporting **every** failure rather than stopping at
+  the first. Slow end-to-end stays in `make smoke`.
+- Verified negatively: introducing a dead path fails `check_doc_path_refs`
+  through `make verify`, and breaking the byte-identity of a vendored
+  runbook — the exact mistake that reached CI on #84 — is now caught by the
+  `vendored-runtime-drift` hook at commit time.
+
 ### Fixed — the Copier migration relocated the template tree and the prose never followed
 
 - **Root cause, traced.** ADR-030's migration (commit `fe89e92`,

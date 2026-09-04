@@ -13,7 +13,7 @@ Determine which service and environment to test:
 
 ## 2. Configure Locust
 
-Verify `scripts/load_test_services.py` has the correct endpoints and payloads for the target service.
+Verify `tests/load_test.py` has the correct endpoints and payloads for the target service.
 
 Before starting load, verify the FastAPI contract with the same auth
 posture production clients use:
@@ -40,7 +40,7 @@ running Locust. Do not load-test a payload that returns 422.
 ## 3. Run Load Test (GCP)
 
 ```bash
-locust -f scripts/load_test_services.py \
+locust -f tests/load_test.py \
   --host http://${GCP_ENDPOINT} \
   --users 100 \
   --spawn-rate 10 \
@@ -52,7 +52,7 @@ locust -f scripts/load_test_services.py \
 ## 4. Run Load Test (AWS)
 
 ```bash
-locust -f scripts/load_test_services.py \
+locust -f tests/load_test.py \
   --host http://${AWS_ENDPOINT} \
   --users 100 \
   --spawn-rate 10 \
