@@ -61,6 +61,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   through `make verify`, and breaking the byte-identity of a vendored
   runbook — the exact mistake that reached CI on #84 — is now caught by the
   `vendored-runtime-drift` hook at commit time.
+### Added — the context-file hygiene test that was documented but never written
+
+- `docs/agentic/contextualization.md` §7 states that
+  `templates/service/tests/test_context_files_hygiene.py` "enforces at
+  every PR" four properties of the agentic context files. It was cited as
+  the enforcing control and did not exist, so the properties were
+  documented and unchecked: a contributor could commit a real AWS key
+  inside `company_context.example.yaml` and nothing would object.
+- The test now exists, 32 cases across the seven `*.example.yaml` files
+  and their three schemas: no `*_context.local*.yaml` tracked (and the
+  pattern is actually gitignored, not merely untracked today), every
+  example validates against the schema that governs it, no real-looking
+  secret in the raw text, and placeholders in the `{PlaceholderName}` form.
+- **Two places where §7 was looser than code can be**, resolved
+  explicitly in the test's docstring rather than silently:
+  - §7 names `context.schema.json`, but two siblings carry their own
+    schemas. Each example is validated against the schema that governs
+    it, discovered by filename.
+  - Properties 2 and 4 contradict each other on placeholder-bearing
+    fields: `service_spec` declares `service_slug` with
+    `pattern: ^[a-z][a-z0-9_]*$` while the example sets `{service_slug}`.
+    An example file is by construction not filled in, so the resolution
+    is **structure enforced, placeholder values exempt** — a schema error
+    is tolerated only when the failing instance is exactly a
+    `{Placeholder}` string.
+- Secrets are scanned in raw text (a key leaked in a comment is still
+  leaked); placeholder style is checked against parsed values only
+  (comment prose naming a file pattern is documentation, not an
+  unreplaced value).
+- The secret patterns are themselves pinned by a test, because a scanner
+  that silently stops matching passes everything.
+- Baseline down from 5 entries to 4.
 
 ### Fixed — the Copier migration relocated the template tree and the prose never followed
 
