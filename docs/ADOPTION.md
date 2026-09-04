@@ -79,7 +79,7 @@ Each capability is rated **per environment**. Definitions:
 | `terraform plan` nightly drift detection | ready | ready | ready | PR-A4; opens dedup'd `infra-drift` issue |
 | Argo Rollouts canary template | partial | partial | partial | AnalysisTemplate scaffolded; metric thresholds per service |
 | Rollback runbook + automation | ready | ready | ready | `/rollback` workflow + `make rollback` |
-| Reproducible drills (drift, deploy-degraded) | ready | ready | ready | PR-C3; evidence under `docs/runbooks/drills/` |
+| Reproducible drills (drift, deploy-degraded) | ready | ready | ready | PR-C3; evidence under `templates/service/docs/runbooks/drills/` |
 
 ### Scaffolding & local-first
 
@@ -89,7 +89,7 @@ Each capability is rated **per environment**. Definitions:
 | `copier update` for template upgrades | ready | ready | ready | ADR-030; `/scaffold-update` workflow |
 | Local-first profile (`--profile local`) | ready | — | — | ADR-033; no Docker/K8s/TF/cloud creds (D-35) |
 | Stack profile switching | ready | ready | ready | ADR-033; `/stack-switch` workflow (CONSULT) |
-| CCDS layout mapping | ready | ready | ready | ADR-034; `docs/CCDS_MAPPING.md` |
+| CCDS layout mapping | ready | ready | ready | ADR-034; `templates/service/docs/CCDS_MAPPING.md` |
 | Adopter context file (`/onboard`) | ready | ready | ready | ADR-029 Wave 3; `*_context.local.yaml` validated against `adopter_context.schema.json` (gitignored, no secrets) |
 | `uv sync` support | ready | ready | ready | ADR-035; `make install-uv` (pip retained) |
 | Batch-only deployment topology | ready | ready | ready | ADR-036; `k8s/overlays/batch-only/` — no Deployment/Service/HPA, just the scoring `CronJob` |
@@ -124,7 +124,7 @@ inheriting the agentic surface.
 | `/new-service` | `make new-service NAME=<PascalCase> SLUG=<snake_case>` | `templates/scripts/new-service.sh --help` |
 | `/scaffold-update` | `copier update` (manual) | `agentic/workflows/scaffold-update.md` |
 | `/eda` | `make eda` (runs the 6-phase pipeline) | `eda/README.md` |
-| `/drift-check` | `make drift-check` (runs `scripts/drills/run_drift_drill.py`) | `docs/runbooks/drift-detection.md` |
+| `/drift-check` | `make drift-check` (runs `templates/service/scripts/drills/run_drift_drill.py`) | `docs/runbooks/drift-detection.md` |
 | `/retrain` | `make retrain` (invokes training pipeline + quality gates) | `docs/runbooks/model-retrain.md` |
 | `/load-test` | `make load-test` (Locust headless 60s) | `tests/load_test.py` docstring |
 | `/release` | `make release-checklist` (prints the canonical checklist) | `docs/runbooks/release-checklist.md` |
@@ -132,7 +132,7 @@ inheriting the agentic surface.
 | `/incident` | `make incident-runbook` (prints incident response steps) | `docs/runbooks/incident-response.md` |
 | `/performance-review` | `make performance-review` (sliced metrics + ground truth) | `docs/runbooks/performance-review.md` |
 | `/cost-review` | `make cost-review` (cloud billing pull + budget compare) | `docs/runbooks/cost-review.md` |
-| `/new-adr` | `make new-adr TITLE='<title>'` | `docs/decisions/template.md` |
+| `/new-adr` | `make new-adr TITLE='<title>'` | `templates/service/docs/decisions/adr-template.md` |
 | `/secret-breach` | `make secret-breach-check` (gitleaks scan) + escalation runbook | `docs/runbooks/secret-breach.md` |
 | `/scaffold-update` | `make scaffold-update` (copier update) | `MIGRATION.md` |
 | `/doc-coherence` | `make doc-coherence` (runs `scripts/check_doc_coherence.py`) | `agentic/skills/doc-coherence/SKILL.md` (rule 16, ADR-031) |
@@ -152,9 +152,9 @@ underlying CLI tool plus the corresponding human runbook:
 |---|---|
 | `new-service` | `templates/scripts/new-service.sh` |
 | `scaffold-update` | `copier update` (manual; see `agentic/workflows/scaffold-update.md`) |
-| `deploy-gke` / `deploy-aws` | `templates/scripts/deploy.sh` + `docs/runbooks/deploy-{gke,aws}.md` |
+| `deploy-gke` / `deploy-aws` | `templates/service/scripts/deploy.sh` + `docs/runbooks/deploy-{gke,aws}.md` |
 | `rollback` | `make rollback` + `docs/runbooks/rollback.md` |
-| `drift-detection` | `scripts/drills/run_drift_drill.py` + `docs/runbooks/drift-detection.md` |
+| `drift-detection` | `templates/service/scripts/drills/run_drift_drill.py` + `docs/runbooks/drift-detection.md` |
 | `model-retrain` | `make retrain` + `docs/runbooks/model-retrain.md` |
 | `eda-analysis` | `eda/run_eda.py` + `eda/README.md` |
 | `cost-audit` | `make cost-review` + `docs/runbooks/cost-review.md` |
@@ -170,7 +170,7 @@ underlying CLI tool plus the corresponding human runbook:
 | `performance-degradation-rca` | `docs/runbooks/performance-degradation-rca.md` (manual RCA procedure) |
 | `concept-drift-analysis` | `make performance-review` + `docs/runbooks/concept-drift-analysis.md` |
 | `release-checklist` | `make release-checklist` |
-| `batch-inference` | `templates/scripts/batch_inference.sh` (or `make batch-inference DATA=<path>`) |
+| `batch-inference` | `make batch-inference DATA=<path>` (target in the service `Makefile`) |
 
 ### Operational reality check
 
@@ -239,7 +239,7 @@ architect if the swap cost is legible in advance. This matrix answers
 | Serving backend | FastAPI + `ThreadPoolExecutor` (hand-rolled) | BentoML | Nothing shipped yet — ADR-032 is Phase 0 (invariant contract only); a `serving_backend` Copier choice is the documented Phase 1 seam | D-01/D-23/D-25 — the contract any backend must satisfy is written down in advance, not discovered by trial and error |
 | Model framework | scikit-learn / XGBoost / LightGBM (tabular) | PyTorch / TensorFlow (tabular) | `src/<service>/models.py`, `training/train.py`; `KernelExplainer` stays valid for any `predict_proba`-shaped model | `/predict` + `/predict_batch` contract, quality gates, K8s manifests |
 | Data validation | Pandera | Great Expectations or another schema tool | `common_utils/input_validation.py`, `app/_pandera_schema.py` | The second-wall-validation INVARIANT (D-14) — the library is swappable, the requirement that serving re-validates independently of training is not |
-| Drift detection | PSI (quantile bins) | Evidently, whylogs, a vendor | `scripts/drills/run_drift_drill.py` internals | CronJob wiring, alert routing, the closed-loop monitoring contract |
+| Drift detection | PSI (quantile bins) | Evidently, whylogs, a vendor | `templates/service/scripts/drills/run_drift_drill.py` internals | CronJob wiring, alert routing, the closed-loop monitoring contract |
 | Scaffolding engine | Copier | Cookiecutter (+ cruft) | `copier.yml` → `cookiecutter.json` rewrite | Nothing else survives cleanly — this is the one swap with a real, documented regression: native `copier update` 3-way merge is lost (ADR-030 §7 Alternatives) |
 | IaC | Terraform | Pulumi / CDK | Full rewrite of `infra/terraform/{gcp,aws}/` | The module BOUNDARIES (network / compute / IAM split) as a design reference, not the HCL itself |
 | Agentic host | Claude Code | Cursor / Devin / Codex CLI | Nothing — `agentic/` is the vendor-neutral canon (ADR-027); each host reads its own generated adapter | Everything — this row IS what ADR-027 exists to guarantee |
@@ -276,7 +276,7 @@ Authority: R4 audit M4, ADR-020 §S2-2.
 | Control area | Coverage | Evidence in template | Adopter responsibility |
 |---|---|---|---|
 | Article 5(1)(a) lawful processing | Out of scope | None | Define lawful basis per service domain |
-| Article 5(1)(c) data minimization | Partial | Pandera schema + `templates/eda/` baseline minimization heuristic | Per-service field selection review |
+| Article 5(1)(c) data minimization | Partial | Pandera schema + `templates/service/eda/` baseline minimization heuristic | Per-service field selection review |
 | Article 5(1)(f) integrity / confidentiality | Covered | Cosign signing + Kyverno admission + IRSA / WI + secret manager | Cluster posture + key rotation cadence |
 | Article 17 right to erasure | Out of scope | None | Per-service data retention + deletion pipeline |
 | Article 25 data protection by design | Covered | `memory_redaction.py` PII pipeline; `prediction_logger.py` redaction hooks | Define which features are personal data |

@@ -30,7 +30,7 @@ that answers it.
 | **GOVERN** | Are AI system actions constrained by an explicit authority/escalation policy? | `AGENTS.md` §Agent Behavior Protocol | AUTO/CONSULT/STOP modes; ADR-010 (escalation-only, never de-escalates) |
 | **GOVERN** | Are roles and responsibilities for the system defined? | `templates/governance/ROLES.md` | Named roles + approval paths for promotion/deploy |
 | **GOVERN** | Is there a documented process to review and modify the risk posture over time? | ADR "Revisit triggers" sections (all 37) | Explicit conditions under which each decision is reopened |
-| **MAP** | Is the model's operating context (schema, data sources, intended use) documented? | `docs/model-card-template.md`, `eda/CONTRACT.md` | Model card fields: intended use, out-of-scope use, training data description |
+| **MAP** | Is the model's operating context (schema, data sources, intended use) documented? | `templates/service/docs/model-card-template.md`, `eda/CONTRACT.md` | Model card fields: intended use, out-of-scope use, training data description |
 | **MAP** | Is there a structured process to understand data before training? | `eda/eda_pipeline.py` (6-phase EDA) | Univariate, correlation, leakage-gate report per run |
 | **MAP** | Are dynamic risk factors (load, error rate) fed back into system behavior? | `common_utils/risk_context.py` | ADR-010: Prometheus signals escalate CONSULT→STOP |
 | **MEASURE** | Is model quality measured against a documented threshold before promotion? | `templates/service/configs/quality_gates.yaml` | Metric threshold + fairness DIR ≥ 0.80 + leakage check, enforced pre-promotion |
@@ -50,10 +50,10 @@ that answers it.
 | Annex A control area | Template artifact | Evidence |
 |---|---|---|
 | **A.4 Resources** (data, tooling, compute) | `pyproject.toml`/`requirements.txt` (`~=` pinning), `docs/decisions/ADR-025-*.md` | Compatible-release pinning prevents silent breakage (e.g. numpy 2.x corrupting joblib) |
-| **A.5 AI system impact assessment** | `docs/model-card-template.md`, fairness gate (ADR-021) | DIR ≥ 0.80 floor documented with rationale (Siddiqi-style thresholds, ADR-022 for PSI) |
+| **A.5 AI system impact assessment** | `templates/service/docs/model-card-template.md`, fairness gate (ADR-021) | DIR ≥ 0.80 floor documented with rationale (Siddiqi-style thresholds, ADR-022 for PSI) |
 | **A.6 AI system life cycle** | `Makefile` targets (`train`, `serve`, `drift-check`), `dvc.yaml` | Reproducible pipeline stages, versioned via DVC |
 | **A.7 Data for AI systems** | `common_utils/input_validation.py`, Pandera `DataFrameModel` | Schema validation at training AND serving (second-wall validation, PR-R2-4) |
-| **A.8 Information for interested parties** | `docs/model-card-template.md`, `RUNBOOK.md`, `docs/runbooks/*.md` | Model card + operational runbooks for on-call/audit readers |
+| **A.8 Information for interested parties** | `templates/service/docs/model-card-template.md`, `RUNBOOK.md`, `docs/runbooks/*.md` | Model card + operational runbooks for on-call/audit readers |
 | **A.9 Use of AI systems** | K8s `readinessProbe`/`livenessProbe` (D-23), warmup gate (D-24) | System does not serve traffic before it is verifiably ready |
 | **A.10 Third-party and supplier relationships** | `SBOM` attestation (Cosign), `NOTICE`, dependabot | Every image ships a signed SBOM; dependency provenance is attested, not assumed |
 
@@ -81,7 +81,7 @@ good engineering independent of the regulatory calendar.
 | **Art. 15** — Accuracy, robustness, cybersecurity | Appropriate accuracy metrics; resilience to errors; cybersecurity measures | Quality gates (accuracy floor); IRSA/WI (no static creds); Cosign+SBOM+Kyverno (signed, verified-by-digest images); gitleaks/bandit in CI | Supply-chain integrity is enforced end-to-end, not just "we use HTTPS" |
 
 **Annex IV** (technical documentation content) maps almost 1:1 to the
-combination of `docs/model-card-template.md` + the relevant ADRs +
+combination of `templates/service/docs/model-card-template.md` + the relevant ADRs +
 `RUNBOOK.md` — an adopter completing Annex IV should start from those three
 files, not from a blank page.
 
@@ -111,11 +111,11 @@ This template cannot and does not provide:
 - A new NIST AI RMF profile or ISO/IEC 42001 amendment ships → re-audit
   this mapping's control coverage.
 - A template artifact referenced here is renamed/removed → update this file
-  in the same PR (same discipline as `docs/decisions/ADR-034` CCDS mapping).
+  in the same PR (same discipline as `docs/decisions/ADR-034-ccds-aligned-generated-layout.md` CCDS mapping).
 
 ## Related
 
 - `docs/decisions/ADR-038-compliance-mapping.md` — the ADR recording this
   decision and its scope boundary.
-- `docs/model-card-template.md`, `RUNBOOK.md`, `docs/decisions/` — the
+- `templates/service/docs/model-card-template.md`, `RUNBOOK.md`, `docs/decisions/` — the
   primary artifacts this document indexes.

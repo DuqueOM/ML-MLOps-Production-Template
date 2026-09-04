@@ -7,14 +7,14 @@
 - **Owner**: Platform Engineering.
 
 Adopters consume dashboards by pointing Grafana at the JSON files
-under `templates/monitoring/grafana/`. Every `{service}` placeholder
+under `templates/service/monitoring/grafana/`. Every `{service}` placeholder
 is substituted at scaffold time by `templates/scripts/new-service.sh`;
 `{ServiceName}` becomes the Pascal-case variant in the title.
 
 This document is regenerated (manually) whenever a new dashboard is
 added. The contract test
 [`test_dashboards_inventory.py`](../../templates/service/tests/test_dashboards_inventory.py)
-fails if a JSON dashboard exists under `templates/monitoring/grafana/`
+fails if a JSON dashboard exists under `templates/service/monitoring/grafana/`
 without a row in the table below, or if a listed dashboard references
 a file that no longer exists.
 
@@ -171,16 +171,16 @@ contract (an edge component correctly wired in) currently holds.
 
 ## Adding a new dashboard
 
-1. Place the JSON under `templates/monitoring/grafana/`.
+1. Place the JSON under `templates/service/monitoring/grafana/`.
 2. Append a row to the "Dashboards shipped" table above (file, title, purpose, tags).
 3. Add a per-dashboard "panels" subsection documenting each panel's type, title, and purpose. Keep it terse — the canonical source is the JSON.
 4. Run `python -m pytest templates/service/tests/test_dashboards_inventory.py` to confirm the contract test still passes.
-5. Open a PR. The PR evidence policy (ADR-020 §S1-2) applies because the dashboard file lives in the allow-listed `templates/monitoring/` surface.
+5. Open a PR. The PR evidence policy (ADR-020 §S1-2) applies because the dashboard file lives in the allow-listed `templates/service/monitoring/` surface.
 
 ---
 
 ## References
 
 - ACTION_PLAN_R4 §R4 findings table (`L2`)
-- `templates/monitoring/alertmanager-rules.yaml` — alerts these dashboards complement
+- `templates/service/monitoring/alertmanager-rules.yaml` — alerts these dashboards complement
 - `docs/decisions/ADR-022-psi-thresholds.md` — PSI numbers surfaced in panel 5 / panel 10

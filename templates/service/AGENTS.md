@@ -160,7 +160,7 @@ This makes handoffs auditable and reproducible.
 ## Agent Handoff Schema
 
 When one specialist agent produces an artifact consumed by another, the handoff
-MUST use a typed dataclass from `templates/common_utils/agent_context.py`. This
+MUST use a typed dataclass from `templates/service/common_utils/agent_context.py`. This
 replaces ad-hoc dict passing with validated contracts that fail fast.
 
 Canonical handoff chain:
@@ -188,7 +188,7 @@ The protocol is OPERATIONAL (ADR-014 §3.5):
   or local skill execution; takes `--agent --operation --environment
   --base-mode --final-mode --result --inputs --outputs --approver` and
   writes the entry plus a GHA step-summary section.
-- **Deploy chain**: `templates/cicd/deploy-common.yml` invokes
+- **Deploy chain**: `templates/service/.github/workflows/deploy-common.yml` invokes
   `audit_record.py` on every deploy (success AND failure via
   `if: always()`), passing the dynamically-computed `final_mode` from
   the `Compute dynamic risk mode` step (ADR-014 §4.2).

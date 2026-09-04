@@ -117,7 +117,7 @@ git checkout -b r4/bypass/skip-staging-$(date +%s)
 # Modify .github/workflows/deploy-aws.yml or deploy-gcp.yml to swap the
 # `needs:` chain so the prod job depends on `build` directly, not `staging`.
 sed -i 's/needs: \[deploy-staging\]/needs: [build]/' \
-    templates/cicd/deploy-aws.yml
+    templates/service/.github/workflows/deploy-aws.yml
 git add -A && git commit -s -m "r4-bypass-test: skip staging (must fail)"
 git push origin HEAD
 gh pr create --base main --title "[R4 bypass test] Skip staging (must fail)" \
@@ -225,5 +225,5 @@ Re-run this entire runbook:
 
 - After every MAJOR release (per `docs/RELEASING.md`).
 - After any change to `.gitleaks.toml`.
-- After any change to a security gate in `templates/cicd/`.
+- After any change to a security gate in `templates/service/.github/workflows/`.
 - Quarterly minimum, even if no triggering event occurred.

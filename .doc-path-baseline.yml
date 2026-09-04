@@ -1,0 +1,56 @@
+# Documentation path-reference baseline
+# =============================================================================
+# Enforced by `scripts/check_doc_path_refs.py`, wired into
+# `.github/workflows/validate-templates.yml`.
+#
+# Every entry here is a repo path named in living documentation that does not
+# resolve. The gate tolerates exactly these and fails on any new one, so the
+# list can only shrink without a deliberate decision.
+#
+# Contract, mirroring `.security-baselines/` (see
+# `scripts/check_baselines_expiry.py`): every entry is explicit, dated and
+# reviewable. Past its `expiry` the gate fails, which forces either a real fix
+# or a fresh justification. An entry whose path starts resolving also fails,
+# so the baseline cannot silently outlive its reason.
+#
+# Two kinds of entry live here and they are NOT equivalent:
+#
+#   runtime-artifact — the file is genuinely created while a generated service
+#     runs. The reference is correct; the file simply is not tracked in git.
+#
+#   unimplemented — the documentation promises something that was never built.
+#     These are defects with a doc-shaped symptom: an agent following the
+#     workflow will reach for a file that is not there. They carry short
+#     expiries on purpose.
+# =============================================================================
+
+entries:
+  # --- runtime-artifact -----------------------------------------------------
+  - path: docs/concept_drift_log.md
+    reason: runtime-artifact — appended by the concept-drift-analysis skill inside a generated service; not tracked here
+    expiry: 2027-09-04
+
+  - path: docs/performance_review_log.md
+    reason: runtime-artifact — appended by the performance-review workflow inside a generated service; not tracked here
+    expiry: 2027-09-04
+
+  # --- unimplemented --------------------------------------------------------
+  - path: scripts/smoke_test.py
+    reason: unimplemented — the release-checklist skill instructs running it; no such script exists in either root
+    expiry: 2026-12-01
+
+  - path: scripts/load_test_services.py
+    reason: unimplemented — the load-test workflow instructs running it; no such script exists in either root
+    expiry: 2026-12-01
+
+  - path: templates/service/tests/test_context_files_hygiene.py
+    reason: unimplemented — docs/agentic/contextualization.md cites it as the enforcing test; the test was never written
+    expiry: 2026-12-01
+
+  - path: docs/audit/baseline-review.md
+    reason: unimplemented — .security-baselines/README.md promises a quarterly baseline review document that was never created
+    expiry: 2026-12-01
+
+  - path: docs/decisions/README.md
+    reason: unimplemented — docs/COMPLIANCE_MAPPING.md cites an ADR index as EU AI Act Art. 11 evidence; this repo has 45 ADRs and no index (the generated service does get one, which is what MIGRATION.md describes)
+    expiry: 2026-12-01

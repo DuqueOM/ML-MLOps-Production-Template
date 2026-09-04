@@ -35,7 +35,7 @@ The access-log line closes that gap.
 
 ## Correlating in the demo stack (Loki)
 
-1. `docker compose -f templates/docker-compose.demo.yml --profile monitoring up --build`
+1. `docker compose -f templates/service/docker-compose.demo.yml --profile monitoring up --build`
 2. Open Grafana at `http://localhost:3000` (admin/admin). Prometheus
    and Loki are pre-provisioned as datasources — no manual setup.
 3. Explore → Loki → query:

@@ -91,7 +91,7 @@ Approver: Platform engineer with prod overlay merge rights.
 ## Out-of-scope
 
 - Application image (`{service}-predictor`) digest pinning is
-  handled automatically by `templates/cicd/deploy-common.yml`'s
+  handled automatically by `templates/service/.github/workflows/deploy-common.yml`'s
   `Pin image to digest` step using the digest emitted by the
   build job. Do NOT pin it manually here.
 - Kyverno signature verification on init images is queued for

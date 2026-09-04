@@ -12,12 +12,12 @@ There are now **two equivalent ways** to provision the state backend:
 
 | Path | When to use | How |
 |------|-------------|-----|
-| **Terraform bootstrap** (recommended) | New projects, reproducibility matters | `cd templates/infra/terraform/{gcp,aws}/bootstrap && terraform apply` per env |
+| **Terraform bootstrap** (recommended) | New projects, reproducibility matters | `cd templates/service/infra/terraform/{gcp,aws}/bootstrap && terraform apply` per env |
 | **CLI bootstrap** (legacy, below) | Existing deployments, manual control | `gcloud` / `aws` commands in §GCP / §AWS sections |
 
 The Terraform bootstrap creates state bucket + KMS key + container
 registry + (AWS) DynamoDB lock table, all version-controlled. See
-`templates/infra/terraform/README.md` for the full workflow including
+`templates/service/infra/terraform/README.md` for the full workflow including
 output capture and migration from CLI-bootstrapped buckets.
 
 The CLI sections below remain authoritative for adopters who prefer to
@@ -65,13 +65,13 @@ for ENV in dev staging prod; do
 done
 ```
 
-Then update `templates/infra/terraform/gcp/backend-configs/<env>.hcl`
+Then update `templates/service/infra/terraform/gcp/backend-configs/<env>.hcl`
 to match the bucket names you chose.
 
 Initialize:
 
 ```bash
-cd templates/infra/terraform/gcp
+cd templates/service/infra/terraform/gcp
 terraform init -backend-config=backend-configs/dev.hcl
 # To switch envs in the same checkout:
 terraform init -backend-config=backend-configs/staging.hcl -reconfigure
@@ -113,24 +113,24 @@ done
 Initialize:
 
 ```bash
-cd templates/infra/terraform/aws
+cd templates/service/infra/terraform/aws
 terraform init -backend-config=backend-configs/dev.hcl
 terraform init -backend-config=backend-configs/staging.hcl -reconfigure
 ```
 
 ## CI integration
 
-`templates/cicd/deploy-{gcp,aws}.yml` (or a dedicated `infra-apply.yml`
+`templates/service/.github/workflows/deploy-{gcp,aws}.yml` (or a dedicated `infra-apply.yml`
 in your scaffold) MUST pass the env-specific backend config:
 
 ```yaml
 - name: Init terraform (per env)
-  working-directory: templates/infra/terraform/${{ matrix.cloud }}
+  working-directory: templates/service/infra/terraform/${{ matrix.cloud }}
   run: |
     terraform init -backend-config=backend-configs/${{ matrix.env }}.hcl
 
 - name: Plan
-  run: terraform -chdir=templates/infra/terraform/${{ matrix.cloud }} plan
+  run: terraform -chdir=templates/service/infra/terraform/${{ matrix.cloud }} plan
 ```
 
 Without `-backend-config` Terraform errors out at init (the partial
@@ -143,7 +143,7 @@ to whatever default state existed before.
 ```bash
 # Each env's state is in its own bucket/key
 for ENV in dev staging prod; do
-  cd templates/infra/terraform/gcp
+  cd templates/service/infra/terraform/gcp
   terraform init -backend-config=backend-configs/${ENV}.hcl -reconfigure
   terraform state list | head -3
 done
@@ -156,7 +156,7 @@ pointing at the same bucket — fix immediately.
 
 - ADR-011 — environment promotion gates
 - D-10 invariant — remote state, no local tfstate
-- `templates/infra/terraform/{gcp,aws}/main.tf` — partial backend declarations
-- `templates/infra/terraform/{gcp,aws}/backend-configs/` — env-pinned configs
+- `templates/service/infra/terraform/{gcp,aws}/main.tf` — partial backend declarations
+- `templates/service/infra/terraform/{gcp,aws}/backend-configs/` — env-pinned configs
 - `docs/runbooks/gcp-wif-setup.md`, `docs/runbooks/aws-irsa-setup.md`
   — paired identity setup

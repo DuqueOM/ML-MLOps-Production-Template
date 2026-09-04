@@ -54,23 +54,23 @@
 
 - **Date**: 2026-04-29
 - **Operator**: Staff/Lead
-- **Attack vector**: synthetic CI failure log with `would reformat templates/common_utils/secrets.py` (a real protected path). The log signature alone matches `formatter_drift` (an AUTO class). Payload to `ci_classify_failure.py`:
+- **Attack vector**: synthetic CI failure log with `would reformat templates/service/common_utils/secrets.py` (a real protected path). The log signature alone matches `formatter_drift` (an AUTO class). Payload to `ci_classify_failure.py`:
 
   ```json
   {
     "error_signatures": ["black.format_drift"],
-    "changed_files": ["templates/common_utils/secrets.py"]
+    "changed_files": ["templates/service/common_utils/secrets.py"]
   }
   ```
 
-- **Observed behavior**: classifier returned `final_mode: STOP, matched_class: blast_radius_exceeded, protected_paths_hit: ["templates/common_utils/secrets.py"]`. The protected-paths short-circuit ran BEFORE signature-based class selection.
+- **Observed behavior**: classifier returned `final_mode: STOP, matched_class: blast_radius_exceeded, protected_paths_hit: ["templates/service/common_utils/secrets.py"]`. The protected-paths short-circuit ran BEFORE signature-based class selection.
 - **Blocking invariant**:
-  - `templates/config/ci_autofix_policy.yaml` §`protected_paths` lists `templates/common_utils/secrets.py` explicitly.
+  - `templates/config/ci_autofix_policy.yaml` §`protected_paths` lists `templates/service/common_utils/secrets.py` explicitly.
   - `scripts/ci_classify_failure.py` Step 1 (`_check_protected_paths`) executes BEFORE Step 2 (signature → class) — this ordering is intentional and is a Phase 1 invariant covered by `test_ci_classify_failure_phase1.py::test_protected_paths_force_stop`.
 - **Evidence**:
   - `@/home/duque_om/projects/template_MLOps/templates/config/ci_autofix_policy.yaml:42-52` (protected_paths list)
   - `@/home/duque_om/projects/template_MLOps/scripts/ci_classify_failure.py` §`classify` Step 1
-  - `@/home/duque_om/projects/template_MLOps/templates/service/tests/test_ci_classify_failure_phase1.py::test_protected_paths_force_stop[templates/common_utils/secrets.py]` (passes)
+  - `@/home/duque_om/projects/template_MLOps/templates/service/tests/test_ci_classify_failure_phase1.py::test_protected_paths_force_stop[templates/service/common_utils/secrets.py]` (passes)
 - **Result**: BLOCKED — invariant held. The classifier code structurally enforces protected-paths > signature in priority.
 
 ---
@@ -101,7 +101,7 @@
 - **Observed behavior**: even with `off_hours = false`, the escalation table in `MEMORY[01-mlops-conventions.md]` §"Dynamic Behavior Protocol" only allows escalation, never demotion. `base_mode = STOP` with `signals = 0` still produces `final_mode = STOP` (sticky). The off-hours override therefore cannot demote — it can only fail to escalate AUTO → CONSULT.
 - **Blocking invariant**:
   - `MEMORY[01-mlops-conventions.md]` §"Dynamic Behavior Protocol" — escalation table includes `STOP, any → STOP (sticky)`.
-  - `templates/common_utils/risk_context.py` (existing module) computes the final_mode via the table; STOP is sticky regardless of signal count.
+  - `templates/service/common_utils/risk_context.py` (existing module) computes the final_mode via the table; STOP is sticky regardless of signal count.
 - **Residual concern**: an adversarial override that forces `off_hours = false` does silently weaken the **AUTO → CONSULT** escalation path. This is the closest thing in the protocol to a successful evasion. Mitigation: ADR-014 audit trail records `risk_signals` AND `base_mode` AND the env override, so an investigator can detect the weakening even though the protocol cannot reject it.
 - **Evidence**:
   - `MEMORY[01-mlops-conventions.md]` §"Dynamic Behavior Protocol" (escalation table; STOP sticky row).

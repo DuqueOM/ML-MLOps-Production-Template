@@ -2,7 +2,7 @@
 
 This is the repo-level operational index for adopters and auditors
 before a service is scaffolded. The rendered service copy lives at
-`templates/docs/runbooks/day-2-operations.md` and replaces placeholders
+`templates/service/docs/runbooks/day-2-operations.md` and replaces placeholders
 such as `{service-name}` with the concrete service name.
 
 ## Required Cadence
@@ -44,7 +44,7 @@ against the wrong cluster.
 - Ground-truth ingestion SLA:
   `docs/runbooks/ground-truth-ingestion.md`
 - Service-rendered Day-2 commands:
-  `templates/docs/runbooks/day-2-operations.md`
+  `templates/service/docs/runbooks/day-2-operations.md`
 
 ## Definition of Done
 

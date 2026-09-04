@@ -44,7 +44,7 @@ remain the gate.
 ## Why a Codex automation and not a GitHub Action?
 
 This automation is a **complement**, not a replacement. The
-authoritative gate is `.github/workflows/evidence-check.yml` running
+authoritative gate is `.github/workflows/pr-evidence-check.yml` running
 in CI. The Codex automation runs the same checks earlier (during
 review) so reviewers see issues before the runners even start.
 Removing the GitHub Action would violate AGENTS.md permissions

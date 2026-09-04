@@ -14,7 +14,7 @@ A clear and concise description of the problem. Ex. "When deploying to EKS, I ne
 - [ ] Agentic system (`agentic/rules/`, `agentic/skills/`, `agentic/workflows/`)
 - [ ] CI/CD (`templates/service/.github/workflows/`)
 - [ ] Infrastructure (`templates/service/infra/`)
-- [ ] Documentation (`templates/docs/`)
+- [ ] Documentation (`templates/service/docs/`)
 
 **Describe the solution you'd like**
 A clear and concise description of what you want to happen.

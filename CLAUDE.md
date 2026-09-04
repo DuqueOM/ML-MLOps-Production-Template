@@ -90,7 +90,7 @@ pytest test_service.py -v
 python drift_check.py
 
 # Validate templates (CI)
-ruff check templates/service/ templates/common_utils/
+ruff check templates/service/ templates/service/common_utils/
 kustomize build templates/k8s/base/ > /dev/null
 ```
 
@@ -110,20 +110,27 @@ docs/runbooks/         → Operational runbooks:
   ├─ secret-rotation.md          — quarterly rotation
   └─ edge-protection-setup.md    — Cloud Armor/WAFv2/Cloudflare setup + equivalence matrix (D-38)
 templates/
-├── service/           → FastAPI + training + tests + Dockerfile + DVC pipeline
-├── tests/integration/ → Integration tests (health, predict, latency SLA)
-├── k8s/
-│   ├── base/          → Deployment, HPA, Service, SLO PrometheusRule, Kustomize
-│   └── overlays/      → 6 env×cloud overlays (gcp/aws × dev/staging/prod)
-│                          each with namespace.yaml carrying PSS labels (D-29)
-├── infra/terraform/   → GCP + AWS modules; partial backend config + per-env
-│                          backend-configs/{dev,staging,prod}.hcl (D-10, audit High-6)
-├── cicd/              → GitHub Actions workflows (deploy chain pins images by
-│                          digest → Cosign sign+attest → Kyverno verify)
-├── scripts/           → new-service.sh, deploy.sh, promote_model.sh
-├── docs/              → ADR, runbook, model card, CHECKLIST_RELEASE.md
-├── monitoring/        → AlertManager rules, Grafana dashboards, Prometheus
-└── common_utils/      → seed, logging, model_persistence, agent_context, risk_context
+├── service/           → the scaffolder payload: everything Copier renders into
+│   │                     a generated service (ADR-030 moved these here; the
+│   │                     old top-level templates/{cicd,k8s,monitoring,docs,
+│   │                     common_utils,infra,eda} paths no longer exist)
+│   ├── .github/workflows/ → GitHub Actions (deploy chain pins images by
+│   │                     digest → Cosign sign+attest → Kyverno verify)
+│   ├── k8s/base/      → Deployment, HPA, Service, SLO PrometheusRule, Kustomize
+│   ├── k8s/overlays/  → 6 env×cloud overlays (gcp/aws × dev/staging/prod)
+│   │                     each with namespace.yaml carrying PSS labels (D-29)
+│   ├── infra/terraform/ → GCP + AWS + Cloudflare root modules; partial backend
+│   │                     config + backend-configs/{dev,staging,prod}.hcl
+│   ├── monitoring/    → AlertManager rules, Grafana dashboards, Prometheus
+│   ├── common_utils/  → seed, logging, model_persistence, agent_context, risk_context
+│   ├── docs/          → ADR, runbook, model card, CHECKLIST_RELEASE.md
+│   ├── eda/           → EDA pipeline + artifact contract
+│   └── agentic/       → byte-identical mirror of the repo-root agentic/ surface
+├── config/            → agentic manifest, context schemas, MCP registry
+├── governance/        → promotion workflow + roles (copied into the adopter repo)
+├── k8s/policies/      → Kyverno ClusterPolicies (image digest + signature)
+├── scripts/           → new-service.sh, dora_metrics.py
+└── tests/             → template-repo tests (infra + unit)
 examples/minimal/      → Working fraud detection demo (5 min)
 scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
 scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)

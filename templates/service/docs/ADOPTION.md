@@ -118,7 +118,7 @@ inheriting the agentic surface.
 | `/incident` | `make incident-runbook` (prints incident response steps) | `docs/runbooks/incident-response.md` |
 | `/performance-review` | `make performance-review` (sliced metrics + ground truth) | `docs/runbooks/performance-review.md` |
 | `/cost-review` | `make cost-review` (cloud billing pull + budget compare) | `docs/runbooks/cost-review.md` |
-| `/new-adr` | `make new-adr TITLE='<title>'` | `docs/decisions/template.md` |
+| `/new-adr` | `make new-adr TITLE='<title>'` | `docs/decisions/adr-template.md` |
 | `/secret-breach` | `make secret-breach-check` (gitleaks scan) + escalation runbook | `docs/runbooks/secret-breach.md` |
 | `/scaffold-update` | `make scaffold-update` (copier update) | `MIGRATION.md` |
 
@@ -131,7 +131,7 @@ underlying CLI tool plus the corresponding human runbook:
 |---|---|
 | `new-service` | `templates/scripts/new-service.sh` |
 | `scaffold-update` | `copier update` (manual; see `agentic/workflows/scaffold-update.md`) |
-| `deploy-gke` / `deploy-aws` | `templates/scripts/deploy.sh` + `docs/runbooks/deploy-{gke,aws}.md` |
+| `deploy-gke` / `deploy-aws` | `scripts/deploy.sh` + `docs/runbooks/deploy-{gke,aws}.md` |
 | `rollback` | `make rollback` + `docs/runbooks/rollback.md` |
 | `drift-detection` | `scripts/drills/run_drift_drill.py` + `docs/runbooks/drift-detection.md` |
 | `model-retrain` | `make retrain` + `docs/runbooks/model-retrain.md` |
@@ -144,7 +144,7 @@ underlying CLI tool plus the corresponding human runbook:
 | `performance-degradation-rca` | `docs/runbooks/performance-degradation-rca.md` (manual RCA procedure) |
 | `concept-drift-analysis` | `make performance-review` + `docs/runbooks/concept-drift-analysis.md` |
 | `release-checklist` | `make release-checklist` |
-| `batch-inference` | `templates/scripts/batch_inference.sh` (or `make batch-inference DATA=<path>`) |
+| `batch-inference` | `make batch-inference DATA=<path>` (target in the service `Makefile`) |
 
 ### Operational reality check
 
@@ -213,7 +213,7 @@ Authority: R4 audit M4, ADR-020 §S2-2.
 | Control area | Coverage | Evidence in template | Adopter responsibility |
 |---|---|---|---|
 | Article 5(1)(a) lawful processing | Out of scope | None | Define lawful basis per service domain |
-| Article 5(1)(c) data minimization | Partial | Pandera schema + `templates/eda/` baseline minimization heuristic | Per-service field selection review |
+| Article 5(1)(c) data minimization | Partial | Pandera schema + `eda/` baseline minimization heuristic | Per-service field selection review |
 | Article 5(1)(f) integrity / confidentiality | Covered | Cosign signing + Kyverno admission + IRSA / WI + secret manager | Cluster posture + key rotation cadence |
 | Article 17 right to erasure | Out of scope | None | Per-service data retention + deletion pipeline |
 | Article 25 data protection by design | Covered | `memory_redaction.py` PII pipeline; `prediction_logger.py` redaction hooks | Define which features are personal data |

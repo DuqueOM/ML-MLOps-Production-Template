@@ -52,7 +52,7 @@ eda/
 
 ```bash
 # 1. Install deps (lightweight by default)
-pip install -r templates/eda/requirements.txt
+pip install -r eda/requirements.txt
 
 # 2. Run the 6-phase pipeline
 python -m eda.eda_pipeline \
@@ -90,7 +90,7 @@ Or in agentic mode:
 
 ### Heavy (opt-in)
 ```bash
-pip install -r templates/eda/requirements-heavy.txt
+pip install -r eda/requirements-heavy.txt
 python -m eda.eda_pipeline --heavy ...
 ```
 - Adds `ydata-profiling` (~500MB) for rich HTML profiling

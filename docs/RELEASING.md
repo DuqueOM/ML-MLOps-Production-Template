@@ -31,8 +31,8 @@ A PATCH release fixes a defect WITHOUT changing any of the following:
   contents at template-rendered boundaries, default flag values).
 - The shape of any contract under `templates/service/tests/contract/`.
 - The names of overlays, namespaces, ServiceAccounts, or other
-  cluster-bound identifiers in `templates/k8s/overlays/`.
-- The name or signature of any callable in `templates/common_utils/`
+  cluster-bound identifiers in `templates/service/k8s/overlays/`.
+- The name or signature of any callable in `templates/service/common_utils/`
   that is documented as part of the adopter API surface.
 - The name, severity, or routing of any Prometheus alert in the
   scaffolded `monitoring/` output.
@@ -73,7 +73,7 @@ A MAJOR release is required for **any** of the following:
   required-input change). Adding a new hook is MINOR; removing or
   renaming one is MAJOR.
 - Any breaking change in the public API surface of
-  `templates/common_utils/` documented modules.
+  `templates/service/common_utils/` documented modules.
 - Removing or renaming an ADR-recognized `make` target.
 - Removing or renaming any operation in the AGENTS.md AUTO/CONSULT/STOP
   matrix.

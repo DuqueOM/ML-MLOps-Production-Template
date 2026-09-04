@@ -34,7 +34,7 @@ zero-cloud-dependency on-ramp — no Docker, no K8s, no Terraform.
 ## 2. Explore the layout
 
 If you come from a Cookiecutter Data Science (CCDS) background, read
-`docs/CCDS_MAPPING.md` for a mapping from CCDS vocabulary to this
+`templates/service/docs/CCDS_MAPPING.md` for a mapping from CCDS vocabulary to this
 template's production layout.
 
 The key directories:

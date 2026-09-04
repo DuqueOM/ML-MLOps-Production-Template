@@ -43,13 +43,13 @@ promotion, monitoring, drift detection, and agentic governance.
 ### Kubernetes (manifests, HPA, overlays, NetworkPolicy)
 
 - `agentic/rules/02-kubernetes.md`
-- `templates/k8s/base/` and `templates/k8s/overlays/`
+- `templates/service/k8s/base/` and `templates/service/k8s/overlays/`
 - Invariants to watch: D-02, D-11, D-23, D-25, D-27, D-29, D-30
 
 ### Terraform (GCP + AWS infra, bootstrap)
 
 - `agentic/rules/03-terraform.md`
-- `templates/infra/terraform/{gcp,aws}/`
+- `templates/service/infra/terraform/{gcp,aws}/`
 - Invariants to watch: D-10 (remote state), D-18 (no literal creds)
 
 ### Agentic system (rules, skills, workflows, modes)
@@ -57,7 +57,7 @@ promotion, monitoring, drift detection, and agentic governance.
 - `AGENTS.md`
 - `templates/config/agentic_manifest.yaml`
 - `templates/config/ci_autofix_policy.yaml`
-- `templates/common_utils/risk_context.py`
+- `templates/service/common_utils/risk_context.py`
 - `scripts/validate_agentic_manifest.py`
 
 ### Security (secrets, supply chain, admission)
@@ -69,7 +69,7 @@ promotion, monitoring, drift detection, and agentic governance.
 ### Monitoring + drift (alerts, PSI, closed loop)
 
 - `agentic/rules/09-monitoring.md` and `13-closed-loop-monitoring.md`
-- `templates/monitoring/alertmanager.yml`
+- `templates/service/monitoring/alertmanager.yml`
 - `docs/runbooks/alertmanager-validation.md`
 
 ## How to contextualize (adopter-specific)
@@ -103,7 +103,7 @@ Details: `docs/agentic/contextualization.md`.
 ```
 python3 scripts/validate_agentic.py --strict
 python3 scripts/validate_agentic_manifest.py --strict
-python -m pytest templates/service/tests/ templates/tests/ templates/monitoring/tests/ --no-cov
+python -m pytest templates/service/tests/ templates/tests/ templates/service/monitoring/tests/ --no-cov
 ```
 
 ## Anti-index (what this file is NOT)

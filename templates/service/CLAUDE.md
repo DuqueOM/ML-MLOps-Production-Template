@@ -90,7 +90,7 @@ pytest test_service.py -v
 python drift_check.py
 
 # Validate templates (CI)
-ruff check templates/service/ templates/common_utils/
+ruff check src/ common_utils/
 kustomize build templates/k8s/base/ > /dev/null
 ```
 

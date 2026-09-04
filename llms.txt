@@ -41,9 +41,9 @@ governed by ADR-028.
 ## Template structure
 - templates/service/ — FastAPI async serving + training + monitoring + fairness + DVC
 - templates/k8s/ — base/ + 6 env×cloud overlays (gcp/aws × dev/staging/prod) with PSS
-- templates/infra/terraform/ — GCP (GKE + Workload Identity) + AWS (EKS + IRSA), per-env state
-- templates/cicd/ — GitHub Actions: build → digest-pin → Cosign sign+attest → Kyverno verify
-- templates/common_utils/ — seed, logging, model_persistence, agent_context, risk_context, memory_*
+- templates/service/infra/terraform/ — GCP (GKE + Workload Identity) + AWS (EKS + IRSA), per-env state
+- templates/service/.github/workflows/ — GitHub Actions: build → digest-pin → Cosign sign+attest → Kyverno verify
+- templates/service/common_utils/ — seed, logging, model_persistence, agent_context, risk_context, memory_*
 - examples/minimal/ — working fraud detection: train → serve → test → drift
 
 ## Key invariants (never violate)

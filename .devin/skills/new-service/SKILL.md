@@ -142,9 +142,9 @@ grep -r "{@ service_name @}\|{@ service_slug @}\|{@ SERVICE_NAME @}" $service-na
 
 ### 7. Kubernetes (Agent-K8sBuilder)
 
-1. Create deployment from `templates/k8s/deployment.yaml`
-2. Create HPA (CPU-only, 50-70% target) from `templates/k8s/hpa.yaml`
-3. Create Service from `templates/k8s/service.yaml`
+1. Create deployment from `templates/service/k8s/base/deployment.yaml`
+2. Create HPA (CPU-only, 50-70% target) from `templates/service/k8s/base/hpa.yaml`
+3. Create Service from `templates/service/k8s/base/service.yaml`
 4. Create Kustomize overlays for GCP and AWS
 5. Init container configured for model download
 
@@ -170,7 +170,7 @@ grep -r "{@ service_name @}\|{@ service_slug @}\|{@ SERVICE_NAME @}" $service-na
 ### 10. Monitoring (Agent-MonitoringSetup)
 
 1. Verify `/metrics` exports `{@ service_slug @}_requests_total`, `{@ service_slug @}_request_duration_seconds`
-2. Create Grafana dashboard from `templates/monitoring/grafana-dashboard.json`
+2. Create Grafana dashboard from `templates/service/monitoring/grafana/dashboard-template.json`
 3. Configure P1-P4 alerts in AlertManager
 4. Verify Pushgateway connectivity for drift metrics
 

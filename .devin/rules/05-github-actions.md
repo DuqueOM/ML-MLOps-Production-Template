@@ -89,7 +89,7 @@ jobs:
       - run: python src/{service}/monitoring/drift_detection.py
         continue-on-error: true
       - if: steps.drift.outcome == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         # Creates GitHub Issue automatically
 ```
 

@@ -10,7 +10,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **Template/File Affected**
-Which template or file is affected? (e.g., `templates/k8s/deployment.yaml`, `templates/service/app/main.py`)
+Which template or file is affected? (e.g., `templates/service/k8s/base/deployment.yaml`, `templates/service/app/main.py`)
 
 **To Reproduce**
 Steps to reproduce the behavior:

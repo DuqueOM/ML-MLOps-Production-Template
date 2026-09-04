@@ -3,7 +3,7 @@
 **Authority**: `docs/decisions/ADR-023-agentic-portability-and-context.md` §F6
 **Sources**:
 - `templates/config/report_schema.json` — JSON Schema (draft 2020-12)
-- `templates/common_utils/reports.py` — typed dataclasses + serializer
+- `templates/service/common_utils/reports.py` — typed dataclasses + serializer
 - `scripts/generate_report.py` — read-only CLI (`validate`, `example`)
 
 ---
@@ -146,7 +146,7 @@ entry are separate artefacts with separate retention rules.
 ```
 ADR-023 §F6
   └─ templates/config/report_schema.json   (canonical contract)
-       └─ templates/common_utils/reports.py (Python implementation)
+       └─ templates/service/common_utils/reports.py (Python implementation)
             └─ scripts/generate_report.py    (CLI wrapper)
                  └─ make report-validate / report-example
                       └─ producer workflows  (release, drift, training, incident)

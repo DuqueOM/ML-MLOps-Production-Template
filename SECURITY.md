@@ -44,7 +44,7 @@ If you discover a security vulnerability in this template, please report it priv
 **Secret management (D-17, D-18)**
 - `.gitleaks.toml` + pre-commit hook for secret detection
 - CI `security-audit` job: `gitleaks-action` + credential pattern grep (AWS/GCP/GitHub tokens) + `os.environ` secret-name detection
-- `templates/common_utils/secrets.py` — cloud-native loader that refuses to fall through to `os.environ` in staging/production
+- `templates/service/common_utils/secrets.py` — cloud-native loader that refuses to fall through to `os.environ` in staging/production
 - Workload Identity (GCP) and IRSA (AWS) — no hardcoded credentials in pods
 
 **Container & image security (D-11, D-19)**

@@ -42,11 +42,11 @@ removed at version bump 2.
 ## Adding a new artifact
 
 1. Add the canonical filename + loader to
-   `templates/common_utils/eda_artifacts.py` (with version check).
+   `common_utils/eda_artifacts.py` (with version check).
 2. Add a writer helper to `eda/eda_pipeline.py` that stamps
    `eda_artifact_version`.
 3. Wire the helper into the appropriate `phase*` function.
-4. Add an end-to-end test in `templates/eda/tests/test_eda_artifacts.py`.
+4. Add an end-to-end test in `eda/tests/test_eda_artifacts.py`.
 5. Document the new file in this table.
 
 ## Adding a new field to an existing artifact

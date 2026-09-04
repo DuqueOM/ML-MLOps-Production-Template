@@ -1,7 +1,7 @@
 # Runbook — GCP Workload Identity Federation (WIF) setup
 
 One-time setup for the GitHub Actions → GCP authentication used by
-`templates/cicd/deploy-gcp.yml`, `deploy-common.yml`, `drift-detection.yml`,
+`templates/service/.github/workflows/deploy-gcp.yml`, `deploy-common.yml`, `drift-detection.yml`,
 and `retrain-service.yml`. After this runbook, **no static service-account
 JSON keys live in the repo or in GitHub Secrets**.
 
@@ -129,7 +129,7 @@ common causes:
 
 - ADR-014 §3.1 — Phase 3 supply-chain governance
 - Invariants D-17, D-18
-- `templates/cicd/deploy-common.yml` — consumer
-- `templates/cicd/deploy-gcp.yml` — chain entry point
+- `templates/service/.github/workflows/deploy-common.yml` — consumer
+- `templates/service/.github/workflows/deploy-gcp.yml` — chain entry point
 - AWS counterpart: `docs/runbooks/aws-irsa-setup.md` (existing, similar shape)
 - Google docs: <https://cloud.google.com/iam/docs/workload-identity-federation>

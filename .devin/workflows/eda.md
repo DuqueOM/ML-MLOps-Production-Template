@@ -23,7 +23,7 @@ Triggers the `eda-analysis` skill on a new dataset. Invokes specialist agents ac
 
 ### 1. Setup
 ```bash
-pip install -r templates/eda/requirements.txt
+pip install -r templates/service/eda/requirements.txt
 mkdir -p eda/reports eda/artifacts eda/notebooks
 ```
 

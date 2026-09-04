@@ -3,7 +3,7 @@
 Two layers per cloud, applied in order:
 
 ```
-templates/infra/terraform/
+infra/terraform/
 ├── gcp/
 │   ├── bootstrap/    ← run ONCE per (project, env)
 │   ├── *.tf          ← live layer; run on every infra change
@@ -33,7 +33,7 @@ permissions delegated to it by the bootstrap.
 ### GCP
 
 ```bash
-cd templates/infra/terraform/gcp/bootstrap
+cd infra/terraform/gcp/bootstrap
 
 # 1. Authenticate as a project owner (one-time, manual).
 gcloud auth application-default login
@@ -59,7 +59,7 @@ gsutil cp terraform.tfstate.* gs://your-private-tf-bootstrap-backups/
 ### AWS
 
 ```bash
-cd templates/infra/terraform/aws/bootstrap
+cd infra/terraform/aws/bootstrap
 
 # 1. Authenticate as account admin (one-time, manual).
 aws configure  # or `aws sso login`
@@ -85,7 +85,7 @@ terraform output -state="terraform.tfstate.dev" tfstate_lock_table
 After bootstrap, the live layer runs normally:
 
 ```bash
-cd templates/infra/terraform/gcp   # or aws
+cd infra/terraform/gcp   # or aws
 
 terraform init -backend-config=backend-configs/dev.hcl
 terraform plan

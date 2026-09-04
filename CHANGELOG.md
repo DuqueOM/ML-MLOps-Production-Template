@@ -10,6 +10,69 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — the Copier migration relocated the template tree and the prose never followed
+
+- **Root cause, traced.** ADR-030's migration (commit `fe89e92`,
+  2026-06-30) moved the scaffolder payload from
+  `templates/{cicd,k8s,monitoring,docs,eda,infra,common_utils,scripts}`
+  to `templates/service/*`. It updated all 14 references that *execute*
+  — runtime workflows, `Makefile`, `.github/CODEOWNERS`, Kustomize
+  overlays, two contract tests, `verify_enterprise_adoption.py` and
+  `check_cicd_template_drift.py` itself — because those break loudly.
+  It updated **none of the prose**: 30 documents kept naming directories
+  that no longer existed.
+- **The failure compounded.** Two audit rounds later, commit `f219895`
+  copied the dead `templates/cicd/` path *into the audit tooling*: the
+  glob scope of `agentic/rules/18-audit-quality.md` and the Q-01
+  unpinned-action sweep in `agentic/workflows/audit-quality.md`, the
+  latter with `2>/dev/null` so the missing directory was silent. Both
+  propagated across three adapter surfaces and reported green.
+- **84 dead path references found; 76 fixed.** The mechanical class was
+  resolved perspective-aware: repo-facing documents now point at
+  `templates/service/X`, documents that ship into a generated service at
+  the service-relative `X`. `CLAUDE.md`'s File Structure block, which
+  described a tree that had not existed since June, was rewritten against
+  the real layout.
+- **Two real defects surfaced by widening the Q-01 sweep** from
+  `templates/service/.github/workflows` to all of `templates/`:
+  `agentic/rules/05-github-actions.md` mandates SHA pinning on line 199
+  and demonstrated `actions/github-script@v7` unpinned on line 92 — the
+  rule contradicted itself, and the narrow sweep never looked. The sweep
+  also never covered `templates/governance/`, which is exactly where the
+  floating references fixed in #79 were hiding. Same root cause as the
+  drift gate's scope, found the same way.
+
+### Added — Documentation Path Reference Gate
+
+- `scripts/check_doc_path_refs.py` fails CI when living documentation
+  names a repo path that does not resolve. Wired as the `doc-path-refs`
+  job and as a pre-commit hook. This is the check whose absence let all
+  of the above happen: the repo enforced byte-level drift on vendored
+  scripts, digest pinning on images and SHA pinning on actions, but never
+  verified the claims its own documents make about its own layout.
+- **Dual-perspective resolution.** A reference is valid if it resolves
+  from the repo root *or* from `templates/service/`, because `agentic/**`
+  is mirrored byte-for-byte into the service tree and `AGENTS.md` /
+  `AGENT_CONTEXT.md` are vendored verbatim — one text serves two readers.
+- **Frozen records are excluded** (`docs/decisions/`, `docs/audit/`,
+  `releases/`, `CHANGELOG.md`, `VALIDATION_LOG.md`). An ADR is supposed
+  to name the tree as it stood; rewriting it would falsify the record.
+- `.doc-path-baseline.yml` carries the 7 residual references, each with a
+  reason and an expiry, in the same shape as `.security-baselines/`. The
+  gate fails on a new dead path, on an expired entry, and on an entry
+  that starts resolving — so the baseline can only shrink.
+- Five of the seven are classified `unimplemented`: documented workflows
+  reach for `scripts/smoke_test.py`, `scripts/load_test_services.py`,
+  `templates/service/tests/test_context_files_hygiene.py`,
+  `docs/runbooks/drills`, `docs/audit/baseline-review.md` and an ADR index
+  that `docs/COMPLIANCE_MAPPING.md` cites as EU AI Act Art. 11 evidence.
+  None exist. They carry short expiries so the gap forces a decision
+  rather than aging quietly.
+- Contract test: `templates/tests/unit/test_doc_path_refs_contract.py`,
+  38 cases pinning token classification, frozen-record exclusion,
+  dual-perspective resolution and all three baseline failure modes.
+- Rationale and the full contract: `docs/governance/doc-path-references.md`.
+
 ### Fixed — ADR-026 branch protection was documented but never deployed
 
 - **The contract existed on paper only.** `docs/governance/branch-protection.md`
