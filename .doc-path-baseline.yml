@@ -35,14 +35,6 @@ entries:
     expiry: 2027-09-04
 
   # --- unimplemented --------------------------------------------------------
-  - path: scripts/smoke_test.py
-    reason: unimplemented — the release-checklist skill instructs running it; no such script exists in either root
-    expiry: 2026-12-01
-
-  - path: scripts/load_test_services.py
-    reason: unimplemented — the load-test workflow instructs running it; no such script exists in either root
-    expiry: 2026-12-01
-
   - path: templates/service/tests/test_context_files_hygiene.py
     reason: unimplemented — docs/agentic/contextualization.md cites it as the enforcing test; the test was never written
     expiry: 2026-12-01

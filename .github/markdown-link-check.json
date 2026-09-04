@@ -8,8 +8,7 @@
     { "pattern": "^https://github\\.com/\\{ORG\\}" },
     { "pattern": "youtu\\.be/XXX" },
     { "pattern": "example\\.com" },
-    { "pattern": "^https://ai\\.google\\.dev/" },
-    { "pattern": "^\\.\\./SECURITY\\.md$" }
+    { "pattern": "^https://ai\\.google\\.dev/" }
   ],
   "replacementPatterns": [
     {

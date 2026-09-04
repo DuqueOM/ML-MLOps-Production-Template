@@ -283,7 +283,8 @@ The template explicitly does **not** address:
 
 ## 7. Disclosure SLA (R4 audit M4 clarification)
 
-The vulnerability response timeline in [`SECURITY.md`](../SECURITY.md)
+The vulnerability response timeline in
+[`SECURITY.md`](https://github.com/DuqueOM/ml-service-template/blob/main/SECURITY.md)
 is **operational** for this template:
 
 - The maintainer commits to the response times listed (Critical 48h /
