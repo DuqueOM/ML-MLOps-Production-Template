@@ -79,7 +79,8 @@ infra/terraform/
 
 ## Security Scanning
 
-- `tfsec` for static analysis of Terraform configurations
+- `trivy config` for static analysis of Terraform configurations (ADR-046;
+  tfsec is archived upstream)
 - `checkov` for compliance checks
 - Both run in CI (`ci-infra.yml`) on every change to `infra/`
 

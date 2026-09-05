@@ -1,6 +1,6 @@
 # Security baselines
 
-The May 2026 audit (HIGH-1) flipped `tfsec`, `checkov`, and `trivy` in
+The May 2026 audit (HIGH-1) flipped the IaC scanners and `trivy` in
 `.github/workflows/validate-templates.yml` from `soft_fail: true` to
 **hard-fail**. To prevent legitimate, accepted findings from blocking
 unrelated PRs, the workflow consults the per-tool baseline files in this
@@ -8,7 +8,7 @@ directory.
 
 | Tool | File | Format |
 |------|------|--------|
-| tfsec | `tfsec.yml` | tfsec config (`exclude:` list with rationale comments) |
+| trivy config (IaC) | `trivy-config.trivyignore` | plain ignore list, one id per line, `# expiry:` above or inline (ADR-046) |
 | Checkov | `checkov.yml` | Checkov config (skip-check + soft-fail-on lists) |
 | Trivy | `.trivyignore` | One CVE-ID per line; `# rationale` comments allowed |
 
@@ -23,7 +23,7 @@ directory.
    to the entry. Two accepted styles:
 
    ```yaml
-   # tfsec.yml / checkov.yml
+   # checkov.yml
    exclude:
      # expiry: 2026-08-01  reason: ADR-024 §"Review"
      - "AWS001"

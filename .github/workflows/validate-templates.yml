@@ -13,9 +13,15 @@ on:
 jobs:
   # ---------------------------------------------------------------------
   # Self-audit (ADR-014 §3.3, gap #16)
-  # The template prescribes gitleaks/tfsec/checkov/trivy for downstream
-  # services. Apply the same tooling to the template repo itself — a
-  # template that does not pass its own gates is not credible.
+  # The template prescribes gitleaks/trivy/checkov for downstream services.
+  # Apply the same tooling to the template repo itself — a template that
+  # does not pass its own gates is not credible.
+  #
+  # The job NAME still says "tfsec" and no longer should: it is one of the
+  # six required status checks in the ADR-026 ruleset, so renaming it in the
+  # same change that swapped the tool would block that very change (the
+  # required context would never report). Tracked as a separate three-step
+  # ruleset transition — see ADR-046 §Consequences.
   # ---------------------------------------------------------------------
   self-audit:
     name: Self-audit (gitleaks + tfsec + checkov + trivy fs)
@@ -116,34 +122,38 @@ jobs:
             exit 1
           fi
 
-      # 3. tfsec — Terraform security checks against the template's own IaC.
+      # 3. Terraform IaC security, against the template's own modules.
       #    May 2026 audit HIGH-1: flipped from `soft_fail: true` to hard-fail.
-      #    tfsec-action@v1.0.3 Docker build fails on current GitHub-hosted
-      #    runners (broken base-image dep); replaced with binary install which
-      #    is runner-version-stable and avoids the Docker build path entirely.
-      - name: Install tfsec
-        run: |
-          # tfsec archived; pinned to last working release (v1.28.14).
-          # TODO: migrate to trivy config (tfsec successor) per ADR-TBD.
-          TFSEC_VERSION="v1.28.14"
-          curl -sLo /usr/local/bin/tfsec \
-            "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/tfsec-linux-amd64"
-          chmod +x /usr/local/bin/tfsec
-          tfsec --version
-
-      - name: tfsec (Terraform IaC — GCP)
-        run: |
-          tfsec templates/service/infra/terraform/gcp \
-            --config-file .security-baselines/tfsec.yml \
-            --format lovely \
-            --no-colour
-
-      - name: tfsec (Terraform IaC — AWS)
-        run: |
-          tfsec templates/service/infra/terraform/aws \
-            --config-file .security-baselines/tfsec.yml \
-            --format lovely \
-            --no-colour
+      #
+      # ADR-046: tfsec is archived upstream ("engineering attention will be
+      # directed at Trivy going forward" — the binary prints it on startup)
+      # and was pinned to its last release, v1.28.14. Trivy config is the
+      # successor and was already installed in this job for the filesystem
+      # scan, so this is a swap rather than a new dependency.
+      #
+      # Measured before switching, at the HIGH gate threshold:
+      #   tfsec, suppressions removed:  4 findings (all GCP)
+      #   trivy config, same modules:   1 finding
+      # Two of the three suppressions dissolve because trivy evaluates what
+      # tfsec could not. The third survives and is baselined. See ADR-046.
+      #
+      # Coverage also widens from two modules to five: bootstrap and
+      # cloudflare were never scanned by tfsec, matching the gap #78 closed
+      # for `terraform validate`.
+      # One recursive scan reaches all five root modules (gcp, aws, their two
+      # bootstrap layers, and cloudflare). tfsec only ever ran on gcp and
+      # aws, so this also closes the coverage gap #78 closed for
+      # `terraform validate`. Same pinned action as the filesystem scan
+      # below — the binary is not on PATH for a plain `run:` step.
+      - name: Trivy config (Terraform IaC)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: templates/service/infra/terraform
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          trivyignores: .security-baselines/trivy-config.trivyignore
+          format: table
 
       # 4. Checkov — broader IaC checks (Terraform + K8s + Dockerfile).
       #    May 2026 audit HIGH-1: hard-fail with `--check` against the

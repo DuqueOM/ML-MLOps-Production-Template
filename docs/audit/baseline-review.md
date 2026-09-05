@@ -68,13 +68,42 @@ a risk-acceptance window.
 All three suppressions remain justified. No new suppressions were added.
 No entry was extended.
 
+## Review — 2026-09-05 (ADR-046)
+
+The 2026-09-04 review closed with "the trigger to close them early is the
+tfsec → trivy migration". That migration was measured and executed the next
+day; see ADR-046 for the full comparison.
+
+**Two of the three suppressions dissolved rather than being renewed:**
+
+| Suppression | Outcome |
+|---|---|
+| `google-gke-enforce-pod-security-policy` | **removed** — Trivy has no PSP check; PSP was deleted from Kubernetes in 1.25 |
+| `google-gke-metadata-endpoints-disabled` | **removed** — Trivy correlates node pools to their cluster; tfsec could not |
+| `google-gke-enable-master-networks` | **survives** as `GCP-0061` — neither tool evaluates `dynamic` blocks |
+
+Suppressions in force: **one**, in
+`.security-baselines/trivy-config.trivyignore`, expiring 2027-01-01.
+`.security-baselines/tfsec.yml` is deleted.
+
+Also worth recording: Trivy's own `expiredAt:` ignore field is **not
+honoured** by 0.71.0 — an entry dated 2020-01-01 still suppressed its
+finding, silently. `scripts/check_baselines_expiry.py` remains the expiry
+authority, and it now discovers baseline files instead of naming three of
+them literally, so a future format swap cannot leave a file unwatched.
+
 ## Next review
 
-**Due 2027-01-01**, when all three expiries land together and CI will fail
-until each is re-justified or removed. The trigger to close them early is
-the tfsec → trivy migration: trivy evaluates dynamic blocks and correlates
-node pools to their cluster, so at least the second and third suppressions
-are expected to become unnecessary rather than merely re-approved.
+**Due 2027-01-01**, when the single remaining suppression (`GCP-0061`)
+expires and CI fails until it is re-justified or removed.
+
+It will almost certainly still be true: no static analyser evaluates
+Terraform `dynamic` blocks, so the finding is structural rather than a gap
+in one tool. The way to actually close it is to stop needing the dynamic
+block — for example by making `master_authorized_networks` a required
+variable with a non-empty default for staging and prod, so the block can be
+static. That is a module design decision, not a scanner decision, and it is
+the question the 2027-01-01 review should answer.
 
 ## How to run a review
 

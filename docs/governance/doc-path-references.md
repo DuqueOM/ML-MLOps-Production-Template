@@ -12,8 +12,9 @@ or inside a comment in a tracked `.py`, `.yml`, `.yaml`, `.sh` or `Makefile`
 — must resolve to a file or directory that exists.
 
 The code-comment half was added on 2026-09-04. The gate shipped scanning
-`.md`/`.txt` only, which left `.security-baselines/tfsec.yml` justifying
-three suppressed HIGH findings against a directory ADR-030 had deleted, and
+`.md`/`.txt` only, which left the then-current .security-baselines/tfsec.yml
+justifying three suppressed HIGH findings against a directory ADR-030 had
+deleted, and
 a set of test comments describing a layout that had not existed since June.
 Measured before widening: **15 unresolved paths across 309 code files** —
 small enough for a hard gate.

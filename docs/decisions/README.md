@@ -17,7 +17,7 @@ number and says so, rather than being deleted and leaving a hole
 (`scripts/check_doc_coherence.py` C5 enforces this).
 
 
-**45 decisions recorded.**
+**46 decisions recorded.**
 
 | ADR | Decision |
 |---|---|
@@ -66,3 +66,4 @@ number and says so, rather than being deleted and leaving a hole
 | 043 | [Audit-Grade Quality Guardian: a Maintenance Agent for Enterprise Audit Standards](ADR-043-audit-quality-guardian.md) |
 | 044 | [Consolidate black + isort + flake8 into ruff](ADR-044-ruff-toolchain-consolidation.md) |
 | 045 | [Separate the release-channel tag namespace from frozen audit snapshots](ADR-045-tag-namespace-separation.md) |
+| 046 | [Replace archived tfsec with Trivy config for Terraform IaC scanning](ADR-046-tfsec-to-trivy-config-migration.md) |

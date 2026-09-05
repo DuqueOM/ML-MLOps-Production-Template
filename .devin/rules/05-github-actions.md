@@ -11,7 +11,7 @@ description: GitHub Actions CI/CD patterns for ML services
 ```
 .github/workflows/
 ├── ci.yml                    # Lint, test, build — on push to main/develop
-├── ci-infra.yml              # Terraform validate, tfsec, checkov — on infra/ changes
+├── ci-infra.yml              # Terraform validate, trivy config, checkov — on infra/ changes
 ├── deploy-gcp.yml            # Deploy to GKE — on release tag or manual
 ├── deploy-aws.yml            # Deploy to EKS — on release tag or manual
 ├── drift-detection.yml       # PSI drift check — scheduled daily
@@ -61,7 +61,7 @@ jobs:
     steps:
       - terraform fmt -check
       - terraform validate
-      - tfsec --format json
+      - trivy config --severity HIGH,CRITICAL
       - checkov -d infra/terraform/{cloud}
 ```
 
@@ -198,7 +198,7 @@ See `docs/environment-promotion.md` for full setup.
   cloud-credential scoping per dev/staging/prod (D-18 + D-26)
 - ALWAYS pin action versions to a specific SHA (not `@main` or `@v3`)
 - ALWAYS use `continue-on-error: true` for drift detection (drift does not block CI)
-- ALWAYS run security scans (trivy for images, tfsec/checkov for Terraform)
+- ALWAYS run security scans (trivy for images, trivy config/checkov for Terraform)
 - ALWAYS use matrix strategies for multi-service operations
 - ALWAYS use `workflow_call` reusable workflows for shared deploy logic
 - Production deploys MUST be gated on a version tag + 2 reviewers (D-26)

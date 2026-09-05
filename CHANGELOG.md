@@ -10,6 +10,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Changed — Terraform IaC scanning moves from archived tfsec to Trivy config (ADR-046)
+
+- **tfsec is archived upstream** and was pinned to its final release,
+  v1.28.14. The binary announces it on every run; the workflow carried a
+  `TODO: migrate to trivy config (tfsec successor) per ADR-TBD`. ADR-046 is
+  that document.
+- **Measured before deciding**, at the gate's own `HIGH,CRITICAL` threshold,
+  suppressions removed: tfsec found **4** findings (all GCP), Trivy found
+  **1**. Two of the three suppressions dissolve because Trivy evaluates what
+  tfsec could not — it has no PodSecurityPolicy check (PSP was removed in
+  Kubernetes 1.25) and it correlates node pools to their cluster. The third,
+  `master_authorized_networks` inside a `dynamic` block, survives as
+  `GCP-0061`: no static analyser evaluates dynamic blocks.
+- **Three suppressions become one.** `docs/audit/baseline-review.md` carries
+  the second dated review recording exactly what dissolved and why.
+- **Coverage widens from two root modules to five.** tfsec only ever scanned
+  `gcp` and `aws`; the two bootstrap layers and the Cloudflare edge module
+  were never scanned at all — the same gap #78 closed for `terraform validate`.
+- The scaffolded service's `ci-infra.yml` migrates too. Leaving adopters on
+  `aquasecurity/tfsec-action` would have shipped the dead scanner onward.
+
+### Fixed — Trivy's own ignore expiry is not honoured, and our guard named its files literally
+
+- Trivy 0.71.0 accepts `expiredAt:` in its YAML ignore format and **does not
+  act on it**. Measured here: an entry dated `2020-01-01` still suppressed
+  its finding, in all three date formats tried, with nothing on stderr.
+  Delegating expiry to the tool would have produced exactly the failure
+  `.security-baselines/` exists to prevent. `check_baselines_expiry.py`
+  stays the authority.
+- That guard named its three baseline files literally, so replacing
+  `tfsec.yml` with a new file would have left the new file **unwatched while
+  the gate reported green** — the same defect class as #79, #86 and #89. It
+  now discovers every file in `.security-baselines/`, and an unrecognised
+  format is a failure rather than a silent skip.
+- Its id pattern required a four-digit year followed by a second number, so
+  misconfiguration ids (`GCP-0061`) matched nothing. Widened, and the plain
+  scanner now accepts an annotation on the line above the entry, matching
+  the YAML scanner — a justification that needs a paragraph could not fit
+  inline.
+- The `Self-audit (gitleaks + tfsec + checkov + trivy fs)` job **keeps its
+  now-inaccurate name**: it is one of the six required status checks in the
+  ADR-026 ruleset, and renaming it in the same change would block that very
+  change, because the required context would never report. Recorded in the
+  workflow and in ADR-046 as a separate three-step ruleset transition.
+
 ### Fixed — the service CLAUDE.md described the template repo, not the service
 
 - `templates/service/CLAUDE.md` ships into every scaffolded service and

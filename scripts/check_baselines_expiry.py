@@ -73,8 +73,11 @@ ENTRY_PATTERNS = {
     # kubernetes, dockerfile]` in checkov.yml is a sequence too, and is not a
     # suppression. Only items under `exclude:` / `skip-check:` are entries.
     "yaml_entry": re.compile(r"^\s*-\s+[\"']?[A-Za-z][A-Za-z0-9_.-]*[\"']?\s*(#.*)?$"),
-    # Trivy ignore: any non-blank, non-comment line.
-    "trivy_entry": re.compile(r"^\s*([A-Z]+-\d{4}-\d+)\s*(#.*)?$"),
+    # Plain-format ignore ids: CVE-2025-12345 (advisories) and GCP-0061 /
+    # AVD-AWS-0088 (trivy misconfiguration checks). The original pattern
+    # required a four-digit year followed by a second number, so every
+    # misconfiguration id was invisible.
+    "trivy_entry": re.compile(r"^\s*([A-Z]+(?:-[A-Z]+)*-\d{3,}(?:-\d+)?)\s*(#.*)?$"),
 }
 
 # Top-level keys whose sequence items are suppressions subject to expiry.
@@ -140,7 +143,8 @@ def _scan_trivy(path: Path, today: dt.date) -> list[BaselineFinding]:
     findings: list[BaselineFinding] = []
     if not path.exists():
         return findings
-    for i, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for i, raw in enumerate(lines, start=1):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
@@ -148,7 +152,12 @@ def _scan_trivy(path: Path, today: dt.date) -> list[BaselineFinding]:
         if m is None:
             findings.append(BaselineFinding(path, i, raw, None, "malformed trivy entry"))
             continue
+        # Same lookup as _scan_yaml: the annotation may sit inline
+        # (`CVE-... # expiry: ...`) or on the line directly above, which is
+        # the readable form when the justification needs a paragraph.
         ann = EXPIRY_PATTERN.search(raw)
+        if ann is None and i >= 2:
+            ann = EXPIRY_PATTERN.search(lines[i - 2])
         if ann is None:
             findings.append(BaselineFinding(path, i, raw, None, "missing expiry annotation"))
             continue
@@ -177,10 +186,34 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[baselines] {BASELINE_DIR} not found — nothing to check.")
         return 0
 
+    # Discover the baseline files rather than naming them.
+    #
+    # This used to be three hardcoded paths. A guard whose coverage is a
+    # literal list only covers what someone last remembered to add — the
+    # ADR-046 migration replaced tfsec.yml with a new file, and under the old
+    # shape that file would have been unwatched while the gate reported
+    # green. Anything dropped into this directory is now scanned, and an
+    # unrecognised shape is a failure rather than a silent skip.
     findings: list[BaselineFinding] = []
-    findings.extend(_scan_yaml(BASELINE_DIR / "tfsec.yml", today))
-    findings.extend(_scan_yaml(BASELINE_DIR / "checkov.yml", today))
-    findings.extend(_scan_trivy(BASELINE_DIR / ".trivyignore", today))
+    unknown: list[str] = []
+    for path in sorted(BASELINE_DIR.iterdir()):
+        if not path.is_file() or path.name == "README.md":
+            continue
+        if path.suffix in (".yml", ".yaml"):
+            findings.extend(_scan_yaml(path, today))
+        elif path.suffix == ".trivyignore" or path.name == ".trivyignore":
+            findings.extend(_scan_trivy(path, today))
+        else:
+            unknown.append(path.name)
+
+    if unknown:
+        for name in unknown:
+            sys.stderr.write(
+                f"::error::{BASELINE_DIR.name}/{name}: unrecognised baseline format. "
+                "Add a scanner for it — an unscanned baseline file is an "
+                "unwatched set of suppressions.\n"
+            )
+        return 2
 
     if not findings:
         print(f"[baselines] OK — no expired or unannotated entries (as of {today.isoformat()}).")
