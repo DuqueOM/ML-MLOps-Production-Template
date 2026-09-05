@@ -34,7 +34,7 @@ from pathlib import Path
 import pytest
 
 # ---------------------------------------------------------------------------
-# Locate the Terraform tree. Walks up looking for `templates/infra/terraform`
+# Locate the Terraform tree. Walks up looking for `infra/terraform`
 # so the test runs both from the template root and from a scaffolded service.
 # ---------------------------------------------------------------------------
 

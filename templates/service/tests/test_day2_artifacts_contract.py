@@ -129,7 +129,7 @@ def test_day2_runbook_uses_kebab_for_k8s_names() -> None:
 def _workflow_path() -> Path:
     # In the scaffolded layout new-service.sh copies cicd/*.yml into
     # .github/workflows/, so the workflow lives there. In the template
-    # repo it lives under templates/cicd/.
+    # repo it lives under templates/service/.github/workflows/.
     here = Path(__file__).resolve()
     candidates = [
         here.parents[1] / ".github" / "workflows" / "terraform-plan-nightly.yml",

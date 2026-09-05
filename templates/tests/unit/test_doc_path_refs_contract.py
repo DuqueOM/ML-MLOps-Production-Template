@@ -58,7 +58,7 @@ def test_literal_repo_paths_are_checked(token: str) -> None:
         "templates/service/**",  # glob
         "scripts/validate_agentic_manifest.py --strict",  # command with args
         ".github/workflows/ci-examples.yml:31",  # file:line reference
-        "templates/k8s/base/kustomization.yaml#resources",  # anchor
+        "templates/service/k8s/base/kustomization.yaml#resources",  # anchor
         "agentic/.../SKILL.md",  # ellipsis
         "src/main.py",  # adopter tree, not ours
         "make batch-inference",  # not a path at all
@@ -199,3 +199,53 @@ def test_list_mode_never_fails() -> None:
     """`--list` is an inventory command, not a gate."""
     result = _run("--list")
     assert result.returncode == 0
+
+
+# --------------------------------------------------------------------------
+# Code comments — the surface the gate was blind to until 2026-09-04
+# --------------------------------------------------------------------------
+
+
+def test_code_files_are_scanned() -> None:
+    """A dead path in a YAML comment used to be invisible."""
+    victim = REPO_ROOT / ".security-baselines" / "tfsec.yml"
+    original = victim.read_text(encoding="utf-8")
+    try:
+        victim.write_text(original + "\n# see templates/cicd/ci.yml for the pattern\n", encoding="utf-8")
+        result = _run()
+        assert result.returncode == 1
+        assert "templates/cicd/ci.yml" in result.stderr
+        assert ".security-baselines/tfsec.yml" in result.stderr
+    finally:
+        victim.write_text(original, encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "docs/decisions/ADR-XXX.md",  # uppercase stand-in
+        "docs/audit/AUDIT_R<N>_TITLE.md",  # angle placeholder
+        "templates/config/company_context.local.yaml",  # gitignored by contract
+    ],
+)
+def test_stand_ins_are_not_claims(token: str) -> None:
+    """A placeholder, or a file that must NOT exist, is not a dead path."""
+    assert not mod._is_literal_path(token)
+
+
+def test_glob_and_brace_suffixes_do_not_produce_truncated_tokens() -> None:
+    """`deploy-*.yml` and `deploy-{gcp,aws}.yml` are real comment shapes.
+
+    The token character class stops at the metacharacter, so without the
+    negative lookahead the truncated prefix would be reported as dead.
+    """
+    for comment in (
+        "# see templates/service/.github/workflows/deploy-*.yml",
+        "# see templates/service/.github/workflows/deploy-{gcp,aws}.yml",
+    ):
+        assert not mod._COMMENT_PATH.search(comment), comment
+
+
+def test_ellipsis_survives_punctuation_stripping() -> None:
+    """`templates/templates/...` must not be scrubbed into a clean claim."""
+    assert not mod._is_literal_path("templates/templates/...")

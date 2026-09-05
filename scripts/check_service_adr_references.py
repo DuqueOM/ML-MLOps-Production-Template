@@ -56,7 +56,7 @@ ADR_TOKEN = re.compile(r"ADR-(\d{3})")
 # without saying where to look is not a resolution.
 UPSTREAM_MARKER = "docs/decisions"
 
-# Placeholder used in templates/examples, never a real ADR.
+# Placeholder used in template example content, never a real ADR.
 PLACEHOLDER_IDS = {"099"}
 
 

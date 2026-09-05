@@ -229,7 +229,7 @@ class BigQueryBackend:
     """GCP-native backend. Requires google-cloud-bigquery (optional dep).
 
     Uses load_table_from_json with WRITE_APPEND. Table must exist with schema
-    defined in templates/infra/terraform/bigquery_predictions.tf.
+    defined in infra/terraform/bigquery_predictions.tf.
     """
 
     def __init__(

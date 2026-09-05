@@ -40,14 +40,14 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA = REPO_ROOT / "templates/config/report_schema.json"
-LIBRARY = REPO_ROOT / "templates/common_utils/reports.py"
+LIBRARY = REPO_ROOT / "common_utils/reports.py"
 CLI = REPO_ROOT / "scripts/generate_report.py"
 MANIFEST = REPO_ROOT / "templates/config/agentic_manifest.yaml"
 DOCS = REPO_ROOT / "docs/agentic/reports.md"
 STORAGE = REPO_ROOT / "ops/reports"
 CANONICAL_TYPES = ("release", "drift", "training", "incident")
 
-# Make `templates/common_utils` importable for the library tests.
+# Make `common_utils` importable for the library tests.
 sys.path.insert(0, str(REPO_ROOT / "templates"))
 
 

@@ -2,10 +2,10 @@
 # Levanta un servicio de ejemplo + MLflow + Pushgateway + Prometheus
 #
 # Uso básico (servicio + MLflow):
-#   docker compose -f templates/docker-compose.demo.yml up --build
+#   docker compose -f docker-compose.demo.yml up --build
 #
 # Con monitoring (agrega Prometheus + Grafana):
-#   docker compose -f templates/docker-compose.demo.yml --profile monitoring up --build
+#   docker compose -f docker-compose.demo.yml --profile monitoring up --build
 #
 # Verificar:
 #   curl http://localhost:8000/health

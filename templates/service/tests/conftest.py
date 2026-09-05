@@ -22,19 +22,26 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-# Dual-layout shim (R6 audit, template-context CI lane): in a scaffolded
-# service ``common_utils`` is vendored next to ``app/`` and importable
-# via pyproject's pythonpath. In the TEMPLATE repo it lives one level up
-# at ``templates/common_utils``, which is NOT on sys.path (rootdir is
-# templates/service), so every test importing it collection-errored —
-# 52 errors that no CI lane saw before the lane existed. Same pattern as
-# the explicit sys.path handling in test_load_payload_matches_schema.py.
+# Dual-layout shim (R6 audit, template-context CI lane): ``common_utils``
+# sits beside ``app/`` at the service root, importable via pyproject's
+# pythonpath when pytest's rootdir is that root. When it is not — running
+# from the template repo root, for instance — every test importing it
+# collection-errored: 52 errors that no CI lane saw before the lane existed.
+#
+# ``parents[1]`` is the service root in BOTH layouts: templates/service/ in
+# this repo, and the repo root itself in a scaffolded service. It used to be
+# ``parents[2]``, which pointed at templates/ — where common_utils lived
+# until ADR-030 relocated the tree in June 2026. The probe has been unable
+# to fire ever since, silently, because the import happens to resolve by
+# another route in the contexts CI exercises. A dead safety net reports the
+# same thing as a working one, which is why the existence check below is
+# kept rather than assumed.
 try:  # pragma: no cover — environment probe
     import common_utils  # noqa: F401
 except ImportError:
-    _TEMPLATES_ROOT = Path(__file__).resolve().parents[2]
-    if (_TEMPLATES_ROOT / "common_utils" / "__init__.py").exists():
-        sys.path.insert(0, str(_TEMPLATES_ROOT))
+    _SERVICE_ROOT = Path(__file__).resolve().parents[1]
+    if (_SERVICE_ROOT / "common_utils" / "__init__.py").exists():
+        sys.path.insert(0, str(_SERVICE_ROOT))
 
 # Importing locust gevent-monkey-patches ssl/socket process-wide, which
 # deadlocks anyio's TestClient portals (observed twice: pytest idle in

@@ -212,27 +212,51 @@ def check_anti_pattern_count() -> list[str]:
     return problems
 
 
-def check_surface_counts() -> list[str]:
-    """C4 — live agentic surface counts must match CLAUDE.md's claim."""
-    claude = _read(CLAUDE)
-    if claude is None or not RULES_DIR.is_dir():
+_SURFACE_CLAIM = re.compile(r"(\d+)\s*rules\s*\+\s*(\d+)\s*skills\s*\+\s*(\d+)\s*workflows")
+
+
+def _reconcile_surface(claude_path: Path, rules_dir: Path, label: str) -> list[str]:
+    """Compare one CLAUDE.md's surface claim against the tree beside it."""
+    claude = _read(claude_path)
+    if claude is None or not rules_dir.is_dir():
         return []  # no agentic surface / no CLAUDE.md here → nothing to reconcile
 
-    rules = len(list(RULES_DIR.glob("*.md")))
-    skills = len(list(SKILLS_DIR.glob("*/SKILL.md"))) if SKILLS_DIR.is_dir() else 0
-    workflows = len(list(WORKFLOWS_DIR.glob("*.md"))) if WORKFLOWS_DIR.is_dir() else 0
+    skills_dir = rules_dir.parent / "skills"
+    workflows_dir = rules_dir.parent / "workflows"
+    actual = (
+        len(list(rules_dir.glob("*.md"))),
+        len(list(skills_dir.glob("*/SKILL.md"))) if skills_dir.is_dir() else 0,
+        len(list(workflows_dir.glob("*.md"))) if workflows_dir.is_dir() else 0,
+    )
 
-    m = re.search(r"(\d+)\s*rules\s*\+\s*(\d+)\s*skills\s*\+\s*(\d+)\s*workflows", claude)
+    m = _SURFACE_CLAIM.search(claude)
     if not m:
-        return []  # CLAUDE.md doesn't claim a surface count → nothing to verify
+        return []  # doesn't claim a surface count → nothing to verify
     claimed = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
-    actual = (rules, skills, workflows)
     if claimed != actual:
         return [
-            f"CLAUDE.md claims {claimed[0]} rules + {claimed[1]} skills + {claimed[2]} workflows; "
-            f"agentic/ has {actual[0]} rules + {actual[1]} skills + {actual[2]} workflows."
+            f"{label} claims {claimed[0]} rules + {claimed[1]} skills + {claimed[2]} workflows; "
+            f"the surface beside it has {actual[0]} rules + {actual[1]} skills + {actual[2]} workflows."
         ]
     return []
+
+
+def check_surface_counts() -> list[str]:
+    """C4 — live agentic surface counts must match CLAUDE.md's claim.
+
+    Two CLAUDE.md files carry a surface claim, and only one of them used to
+    be checked. ``templates/service/CLAUDE.md`` ships into every scaffolded
+    service; inside that service this same script reconciles it correctly,
+    but by then it has already shipped. It sat at "18 rules + 26 skills +
+    18 workflows" against a live 19/27/20 because in the template repo
+    nothing looked at it. Both are reconciled here, each against the
+    surface that sits beside it.
+    """
+    problems = _reconcile_surface(CLAUDE, RULES_DIR, "CLAUDE.md")
+    service_claude = REPO_ROOT / "templates" / "service" / "CLAUDE.md"
+    service_rules = REPO_ROOT / "templates" / "service" / "agentic" / "rules"
+    problems += _reconcile_surface(service_claude, service_rules, "templates/service/CLAUDE.md")
+    return problems
 
 
 def check_adr_traceability() -> list[str]:
