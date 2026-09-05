@@ -53,7 +53,7 @@ The four tfsec findings are the three suppressed checks
 | `google-gke-metadata-endpoints-disabled` (×2) | **gone** | Trivy correlates `google_container_node_pool` resources to their cluster. tfsec only inspected `node_config` on the cluster, which this module does not have (`remove_default_node_pool = true`). |
 | `google-gke-enable-master-networks` | **survives** as `GCP-0061` | Neither tool evaluates `dynamic` blocks. `master_authorized_networks_config` is a `dynamic` block at `compute.tf:38`; the finding fires against the cluster at `compute.tf:10`. |
 
-Below the gate threshold Trivy reports 4 MEDIUM and 8 LOW across the five
+Below the gate threshold Trivy reports 5 MEDIUM and 8 LOW across the five
 modules. They do not block, and triaging them is separate work.
 
 **Two of three suppressions dissolve. Three become one.**
@@ -147,8 +147,24 @@ by a second number, so misconfiguration ids (`GCP-0061`) matched nothing.
   than the tools, so the next tool swap touches no contract. The procedure is
   written down in `docs/governance/branch-protection.md`
   §"Renaming a required check".
-- MEDIUM and LOW findings are now visible but not enforced. Raising the
-  threshold is a separate decision with its own triage cost.
+- MEDIUM and LOW findings are visible but not enforced. Raising the threshold
+  is a separate decision with its own triage cost.
+
+  **Done, 2026-09-05.** The triage found that three of the five MEDIUM were
+  real: two node pools running as the default Compute Engine service account
+  (`GCP-0050`, a D-31 violation — see ADR-017 §Amendment) and a project-wide
+  `roles/iam.serviceAccountUser` grant whose comment claimed a condition that
+  did not exist (`GCP-0011`). Both fixed in the module. The remaining two are
+  object versioning on append-only access-log buckets, accepted with a dated
+  justification. The gate now runs at `CRITICAL,HIGH,MEDIUM`.
+
+  LOW stays out: 8 findings whose triage has not been done. An unenforced
+  threshold is honest about that in a way a suppressed finding is not.
+
+  The scaffolded service's `ci-infra.yml` stays at `CRITICAL,HIGH`. The higher
+  bar here is affordable because this repo has `.security-baselines/` and an
+  expiry gate; a generated service has neither, and a MEDIUM gate with no way
+  to record an accepted finding trains adopters to delete the step.
 
 ## Alternatives considered
 

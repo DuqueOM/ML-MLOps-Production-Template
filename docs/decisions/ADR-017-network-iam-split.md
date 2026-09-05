@@ -86,7 +86,7 @@ Create 5 separate identities per environment, each with minimal permissions:
 
 #### GCP Implementation
 
-- Create 5 `google_service_account` resources
+- Create 6 `google_service_account` resources (the sixth, `nodes`, was added 2026-09-05 — see below)
 - Create Workload Identity bindings for runtime/drift/retrain
 - CI/deploy use key-based auth (GitHub Actions secrets) or OIDC federation
 
@@ -158,3 +158,48 @@ Add `templates/infra/terraform/tests/test_iam_least_privilege.py`:
 - [x] ADR-015 sub-tracking updated (A1 marked shipped)
 - [ ] Per-cloud README updates (network mode usage + migration guide)
 - [ ] Golden path E2E re-run with managed mode (deferred; existing-mode default preserves CI green)
+
+---
+
+## Amendment (2026-09-05) — the node identity was missing
+
+The five identities above cover CI, deploy, and the three workload purposes.
+They did not cover **the nodes themselves**. Neither `google_container_node_pool`
+set `node_config.service_account`, so GKE fell back to the default Compute
+Engine service account — which in a typical project carries `roles/editor`
+across the whole project. Trivy reports it as `GCP-0050`.
+
+That is this ADR's own anti-pattern, D-31, present in the module that
+implements D-31.
+
+Bounded, not harmless: Workload Identity means pods impersonate
+`runtime`/`drift`/`retrain` rather than using the node identity, so the
+exposure is what an attacker inherits from a compromised **node**, not from a
+compromised pod. Real all the same.
+
+A sixth service account, `nodes`, now carries Google's documented minimum for
+a custom node service account — `logging.logWriter`, `monitoring.metricWriter`,
+`monitoring.viewer`, `stackdriver.resourceMetadata.writer` — plus
+`artifactregistry.reader` scoped to this repository rather than granted
+project-wide.
+
+`node_oauth_scopes` gained `devstorage.read_only` in the same change. A scope
+is an upper bound on what a service account may do, so the Artifact Registry
+grant would have been unusable without it and private image pulls would fail.
+`cloud-platform` is still deliberately avoided, per the variable's own
+description.
+
+### Related correction: `roles/iam.serviceAccountUser`
+
+The same review found `google_project_iam_member.ci_sa_user` granting
+`roles/iam.serviceAccountUser` **project-wide**, under a comment claiming it
+was "Scoped via condition (only acting on SAs in this project)". There was no
+condition block. CI could therefore impersonate any service account in the
+project, including `runtime`, `drift` and `retrain` — exactly the blast radius
+this ADR exists to bound.
+
+Replaced with three `google_service_account_iam_member` bindings, one per
+service account CI legitimately acts as: `deploy`, `runtime` and `nodes`
+(attaching a service account to a node pool requires `serviceAccountUser` on
+it). `drift` and `retrain` are reached by workloads through Workload Identity,
+never by CI, and are deliberately absent.

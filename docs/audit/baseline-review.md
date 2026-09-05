@@ -135,17 +135,50 @@ Step 3 of the procedure below now says to confirm the compensating control
 exists **in the file the justification names**. That step is what would have
 caught this, and it is why it is written the way it is.
 
+## Review — 2026-09-05 (fourth entry): the MEDIUM triage, and two acceptances
+
+ADR-046 had deferred the sub-threshold findings as "separate work". Doing it
+changed the picture: **three of the five MEDIUM were real.**
+
+| Finding | Verdict |
+|---|---|
+| `GCP-0050` ×2 — GKE node pools with no `service_account` | **Real.** Nodes ran as the default Compute Engine service account, typically `roles/editor` project-wide. A D-31 violation inside the module that implements D-31. Fixed: a sixth identity, `nodes`, with Google's documented minimum. |
+| `GCP-0011` — project-wide `roles/iam.serviceAccountUser` | **Real.** The comment claimed "Scoped via condition"; there was no condition block, so CI could impersonate any service account in the project. Fixed: three per-account bindings (`deploy`, `runtime`, `nodes`). |
+| `GCP-0078` / `AWS-0090` — access-log buckets not versioned | **Accepted.** Append-only sinks, already lifecycle-bounded. Versioning guards against overwrite and modification of existing objects, neither of which is a failure mode here. Dated to 2027-03-05. |
+
+Note the distinction the previous review learned to make: the first two are
+**defects**, the last is an **accepted risk** where the check is correct in
+general and does not apply to this object lifecycle. Only the third kind
+belongs in a baseline.
+
+The gate now runs at `CRITICAL,HIGH,MEDIUM`. It ran at HIGH, which is why
+these sat in the log for two releases being enforced by nothing.
+
+### Third instance of the same pattern
+
+`GCP-0011` makes it three: a comment asserting a control that was never
+built, surviving because reviewing meant reading it.
+
+1. tfsec's suppression cited a `variables.tf` validation rule — none existed.
+2. `check_baselines_expiry.py` claimed to read `exclude:` blocks — it filtered
+   on uppercase ids and saw none.
+3. `ci_sa_user` claimed an IAM condition — the block was absent.
+
+**A comment asserting that a control exists is a checkable claim, in exactly
+the way a path is.** Nothing in this repo verifies that class of claim. That
+is the open structural gap this review leaves behind, and it is a bigger
+finding than any of the three.
+
 ## Next review
 
-**No suppression is due.** Both baseline files are empty of accepted
-findings, so `check_baselines_expiry.py` has nothing to expire and the
-2027-01-01 date no longer exists.
+**Due 2026-12-05** (calendar, one quarter out) and **2027-03-05** (when the
+two access-log acceptances expire).
 
-The next review is therefore calendar-driven rather than deadline-driven:
-**due 2026-12-05**, one quarter out, to confirm the state is still zero. A
-review with nothing to renew is the point of the exercise, not a reason to
-skip it — the failure mode this document exists to prevent is a suppression
-nobody remembers making.
+The question for the March review is narrow and written into the baseline
+itself: *are those buckets still access-log-only?* The acceptance rests
+entirely on the objects being append-only. If either bucket starts holding
+anything mutable, it is void — and that is a property to verify in
+`storage.tf`, not a rationale to re-read.
 
 ## How to run a review
 

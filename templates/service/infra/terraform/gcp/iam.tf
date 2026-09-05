@@ -64,12 +64,38 @@ resource "google_artifact_registry_repository_iam_member" "ci_artifact_registry"
   member     = "serviceAccount:${google_service_account.ci.email}"
 }
 
-resource "google_project_iam_member" "ci_sa_user" {
-  # Required to impersonate the deploy/runtime SAs during apply.
-  # Scoped via condition (only acting on SAs in this project).
-  project = var.project_id
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:${google_service_account.ci.email}"
+# `roles/iam.serviceAccountUser`, granted ON THE SERVICE ACCOUNTS rather than
+# on the project.
+#
+# This was a `google_project_iam_member` whose comment read "Scoped via
+# condition (only acting on SAs in this project)". There was no condition
+# block: the grant was project-wide and unconditional, so CI could impersonate
+# **any** service account in the project — including `runtime`, `drift` and
+# `retrain`, which is precisely the blast radius D-31 exists to prevent.
+# Trivy flagged it as GCP-0011 and its resolution says the same thing:
+# "Provide access at the service-level instead of project-level".
+#
+# One binding per service account CI legitimately needs to act as: `deploy`
+# and `runtime` (impersonated during apply, the stated original intent) and
+# `nodes` (attaching a service account to a node pool requires
+# serviceAccountUser on it). `drift` and `retrain` are reached by workloads
+# through Workload Identity, not by CI, so they are deliberately absent.
+resource "google_service_account_iam_member" "ci_acts_as_deploy" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ci.email}"
+}
+
+resource "google_service_account_iam_member" "ci_acts_as_runtime" {
+  service_account_id = google_service_account.runtime.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ci.email}"
+}
+
+resource "google_service_account_iam_member" "ci_acts_as_nodes" {
+  service_account_id = google_service_account.nodes.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ci.email}"
 }
 
 # ---------------------------------------------------------------------------
@@ -214,4 +240,56 @@ output "drift_service_account_email" {
 output "retrain_service_account_email" {
   description = "Email of the retrain service account (annotate retrain KSA with this)"
   value       = google_service_account.retrain.email
+}
+
+# ---------------------------------------------------------------------------
+# 6. Node identity — the GKE nodes themselves (D-31 / ADR-017)
+# ---------------------------------------------------------------------------
+# Without this the node pools fall back to the DEFAULT Compute Engine service
+# account, which in most projects carries `roles/editor` across the whole
+# project. Trivy flags it as GCP-0050, and it is a D-31 violation in the
+# module that defines D-31's other five identities.
+#
+# Workload Identity means pods do not use this identity — they impersonate
+# `runtime`/`drift`/`retrain` — so the exposure is bounded. But the node
+# identity still governs node-level operations (log and metric export, image
+# pulls) and is what an attacker inherits from a compromised node, so it gets
+# the documented GKE minimum and nothing more.
+resource "google_service_account" "nodes" {
+  account_id   = "${var.project_name}-nodes-${var.environment}"
+  display_name = "${var.project_name} GKE nodes (${var.environment})"
+  description  = "GKE node identity: log/metric export + image pull. No workload permissions — pods use Workload Identity."
+}
+
+# Google's documented minimum for a custom node service account.
+resource "google_project_iam_member" "nodes_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.nodes.email}"
+}
+
+resource "google_project_iam_member" "nodes_metric_writer" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.nodes.email}"
+}
+
+resource "google_project_iam_member" "nodes_monitoring_viewer" {
+  project = var.project_id
+  role    = "roles/monitoring.viewer"
+  member  = "serviceAccount:${google_service_account.nodes.email}"
+}
+
+resource "google_project_iam_member" "nodes_resource_metadata_writer" {
+  project = var.project_id
+  role    = "roles/stackdriver.resourceMetadata.writer"
+  member  = "serviceAccount:${google_service_account.nodes.email}"
+}
+
+# Image pull. Scoped to the repository rather than granted project-wide.
+resource "google_artifact_registry_repository_iam_member" "nodes_artifact_reader" {
+  location   = google_artifact_registry_repository.ml_images.location
+  repository = google_artifact_registry_repository.ml_images.name
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.nodes.email}"
 }
