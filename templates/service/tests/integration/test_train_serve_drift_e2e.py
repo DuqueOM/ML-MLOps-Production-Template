@@ -167,7 +167,7 @@ def fastapi_client(monkeypatch_module, trained_artifact):
     pytest.importorskip("fastapi")
     pytest.importorskip("starlette")
 
-    # Make `templates/service/app` and `templates/common_utils` importable
+    # Make `templates/service/app` and `common_utils` importable
     # without mutating sys.path globally (other tests rely on a clean path).
     service_root = REPO_ROOT
     common_utils_root = service_root.parent / "common_utils"

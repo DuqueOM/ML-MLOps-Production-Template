@@ -15,7 +15,7 @@ exclude:
   # PSP (PodSecurityPolicy) was deprecated in K8s 1.21 and REMOVED in K8s
   # 1.25.  GKE clusters on REGULAR channel run 1.27+; enabling PSP would
   # cause a Terraform error.  Pod Security Standards (PSS) are enforced via
-  # namespace labels in every overlay (D-29, templates/k8s/overlays/*/
+  # namespace labels in every overlay (D-29, templates/service/k8s/overlays/*/
   # namespace.yaml).  Re-evaluate when tfsec migrates to trivy/PSS.
   # expiry: 2027-01-01  reason: ADR-024 §Review — PSS via namespace labels (D-29)
   - google-gke-enforce-pod-security-policy

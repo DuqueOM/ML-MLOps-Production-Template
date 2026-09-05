@@ -21,7 +21,7 @@ the pattern set MUST add tests in `test_memory_redaction.py`.
 
 Pattern sources:
 
-- `templates/common_utils/secrets.py` (existing token detector — we
+- `common_utils/secrets.py` (existing token detector — we
   reuse its regex catalogue where possible).
 - `.gitleaks.toml` (the canonical project-level secret config).
 - A small PII set (email, US SSN, phone, IBAN) that gitleaks does not

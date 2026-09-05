@@ -47,7 +47,7 @@ PRIMARY_THRESHOLD = 0.65  # Minimum ROC-AUC (synthetic demo data — lower than 
 # every run and dilute the signal of the gate.
 #
 # This is an EXPLICIT exception, not a contradiction. Any scaffolded
-# service (`templates/service/training/train.py`) inherits the 0.80
+# service (`templates/service/src/<service_slug>/training/train.py`) inherits the 0.80
 # default; only this small-N example uses 0.70.
 DEMO_FAIRNESS_THRESHOLD = 0.70  # demo only — see comment above
 PRODUCTION_FAIRNESS_THRESHOLD = 0.80  # what real services use (D-12)

@@ -79,79 +79,81 @@ all 38 invariants and reports file:line evidence for any failure.
 
 ## Key Commands
 
+Everything below runs from this service's root. `make help` lists the full
+set; these are the ones you reach for daily.
+
 ```bash
-# Scaffold a new ML service
-bash templates/scripts/new-service.sh ServiceName service_slug
+# Train, serve, exercise
+make train                 # training pipeline -> artifacts/ + MLflow run
+make serve                 # uvicorn, single worker (never --workers N in K8s)
+make test                  # pytest with coverage gates
+make local-loop            # train -> serve -> smoke, no cloud required
 
-# Run the working example (fraud detection)
-cd examples/minimal && pip install -r requirements.txt
-python train.py && uvicorn serve:app --port 8000
-pytest test_service.py -v
-python drift_check.py
+# Quality gates before you push
+make lint typecheck        # ruff + mypy
+make security-scan         # gitleaks + bandit + trivy fs
+make doc-coherence         # rule 16 / ADR-031
+make audit-rules           # scan this service against D-01..D-38
 
-# Validate templates (CI)
-ruff check src/ common_utils/
-kustomize build templates/k8s/base/ > /dev/null
+# Operate
+make drift-check           # PSI data drift + sliced performance
+make retrain               # retrain behind the quality gates
+make release-checklist     # pre-promotion sweep
+make rollback              # emergency rollback (STOP-class)
+
+# Keep up with the upstream template
+make scaffold-update       # copier update, pinned
 ```
 
 ## File Structure
 
+This is **your service**, rendered from the ML-MLOps template. The layout
+follows CCDS (ADR-034).
+
 ```
-AGENTS.md              → Full architecture, invariants D-01..D-38, anti-patterns (canonical source)
+AGENTS.md              → Full architecture, invariants D-01..D-38 (canonical source)
 CLAUDE.md              → This file (Claude Code context, condensed)
-QUICK_START.md         → 10-minute setup guide (standalone)
-RUNBOOK.md             → Template operations reference
-CHANGELOG.md           → Release notes, version-by-version
-docs/runbooks/         → Operational runbooks:
-  ├─ gcp-wif-setup.md            — GCP Workload Identity Federation
-  ├─ aws-irsa-setup.md           — AWS IAM Identity Provider + IRSA
-  ├─ terraform-state-bootstrap.md — per-env state buckets/tables
-  ├─ mcp-config-hygiene.md       — MCP secret loading
-  ├─ secret-rotation.md          — quarterly rotation
-  └─ edge-protection-setup.md    — Cloud Armor/WAFv2/Cloudflare setup + equivalence matrix (D-38)
-templates/
-├── service/           → FastAPI + training + tests + Dockerfile + DVC pipeline
-├── tests/integration/ → Integration tests (health, predict, latency SLA)
-├── k8s/
-│   ├── base/          → Deployment, HPA, Service, SLO PrometheusRule, Kustomize
-│   └── overlays/      → 6 env×cloud overlays (gcp/aws × dev/staging/prod)
-│                          each with namespace.yaml carrying PSS labels (D-29)
-├── infra/terraform/   → GCP + AWS modules; partial backend config + per-env
-│                          backend-configs/{dev,staging,prod}.hcl (D-10, audit High-6)
-├── cicd/              → GitHub Actions workflows (deploy chain pins images by
-│                          digest → Cosign sign+attest → Kyverno verify)
-├── scripts/           → new-service.sh, deploy.sh, promote_model.sh
-├── docs/              → ADR, runbook, model card, CHECKLIST_RELEASE.md
-├── monitoring/        → AlertManager rules, Grafana dashboards, Prometheus
-└── common_utils/      → seed, logging, model_persistence, agent_context, risk_context
-examples/minimal/      → Working fraud detection demo (5 min)
-scripts/audit_record.py → CLI for ops/audit.jsonl entries (CI + local skills)
-scripts/validate_agentic.py → Strict-mode validator (rules + skills + workflows + AGENTS.md refs)
-releases/              → Release notes: active v0.x line + legacy v1.x audit snapshots (see releases/README.md)
-.claude/rules/         → 18 path-scoped rule pointers (this IDE)
-.claude/skills/        → 26 skills as <id>/SKILL.md pointers (Claude Code discoverable layout)
-agentic/             → Canonical: 18 rules + 26 skills + 18 workflows
-.cursor/rules/         → 18 glob-scoped .mdc rule pointers
+AGENT_CONTEXT.md       → Runtime context contract for agents
+Makefile               → Every command above; `make help` is the index
+src/<service_slug>/    → Your package: features, training, inference, monitoring
+app/                   → FastAPI surface (main.py, schemas.py, fastapi_app.py)
+common_utils/          → seed, logging, model_persistence, agent_context, risk_context
+eda/                   → EDA pipeline + artifact contract
+configs/               → config.yaml, quality_gates, champion/challenger, profiles/
+config/                → context files + schemas (company, project, adopter, service spec)
+k8s/
+├── base/              → Deployment, HPA, Service, SLO PrometheusRule, Kustomize
+└── overlays/          → 6 env×cloud overlays (gcp/aws × dev/staging/prod), each
+                          with namespace.yaml carrying PSS labels (D-29)
+infra/terraform/       → GCP + AWS + Cloudflare root modules; partial backend config
+                          + backend-configs/{dev,staging,prod}.hcl (D-10)
+monitoring/            → AlertManager rules, Grafana dashboards, Prometheus
+.github/workflows/     → CI + deploy chain (digest pin → Cosign sign+attest → Kyverno verify)
+scripts/               → deploy.sh, promote_model.sh, health_check.sh, drills/, audit_record.py
+tests/                 → unit, contract, integration, policy
+ops/                   → audit.jsonl, reports
+docs/
+├── decisions/         → your ADRs (+ README.md explaining the template's own ADR refs)
+└── runbooks/          → day-2-operations, drift-detection, model-retrain, drills/
+agentic/               → 19 rules + 27 skills + 20 workflows (canonical agent surface)
+.claude_context.md     → per-adapter context pointers (also .codex/.cursor/.devin)
 ```
 
-## Recent template audit (closed)
+## Upstream template
 
-The template went through a 15-finding audit covering CI/CD, supply chain,
-testing, security, and infra hygiene. All Critical + High + Medium gaps
-were closed in commits `9d8894e` through `b8708b6`:
+This service was rendered from the ML-MLOps Production Template with
+Copier. The answers live in the `.copier-answers` file at the service root
+— never edit it by hand.
 
-- 6 environment overlays + PSS namespaces (was 2 misnamed overlays)
-- Image digest pinning end-to-end (push → sign → attest → verify by digest)
-- Cosign installer in deploy workflows (was missing)
-- AWS_ROLE_ARN declared in workflow_call.secrets contract (was lying)
-- Smoke test FQDN + correct namespace (was hitting `default`)
-- Prometheus metric prefix env-resolved (root pytest no longer crashes)
-- common_utils.__init__.py lazy imports (audit_record runs without joblib)
-- SecurityAuditResult HIGH gate (was passing HIGH findings silently)
-- Per-env Terraform state segregation
-- Drift + retrain workflows operationalized with cloud-aware adapters
-
-See `CHANGELOG.md` for the full list with verification commands.
+- `make scaffold-update TEMPLATE_REF=<tag>` pulls upstream template changes
+  into this service. The ref is required: unpinned, Copier resolves to the
+  highest-sorting tag and the service jumps to a release nobody chose.
+- The invariants above (`D-01`..`D-38`) and the `agentic/` surface come
+  from upstream. Local overrides belong in your own ADRs under
+  `docs/decisions/`, not in edits to the vendored files — those are
+  reconciled on the next update and your edits would be lost.
+- `docs/decisions/README.md` explains which `ADR-NNN` references in
+  template-provided files are the *template's* ADRs rather than yours.
 
 ## Engineering Calibration
 

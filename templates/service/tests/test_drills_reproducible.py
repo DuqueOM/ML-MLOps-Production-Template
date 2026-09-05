@@ -36,7 +36,7 @@ pytest.importorskip("prometheus_client")
 
 
 # Resolve the drills package. The template repo keeps it under
-# ``templates/scripts/drills/``; the scaffolded service has it at
+# ``scripts/drills/``; the scaffolded service has it at
 # ``scripts/drills/``. We try both prefixes so the same test runs in
 # either layout.
 def _drills_dir() -> Path:
@@ -70,14 +70,11 @@ def _service_root_and_extra_pythonpath(
     inject any extra sys.path via ``DRILL_PYTHONPATH`` so the drill
     can import ``common_utils`` regardless of layout.
 
-    - **Scaffolded service**: ``common_utils/`` is copied into the
-      service root, so no extra path is needed.
-    - **Template repo**: this file lives at
-      ``templates/service/tests/``; the service src is one level up
-      and ``common_utils`` lives at ``templates/common_utils/``
-      (parents[2]). We `chdir` to the service root and point
-      ``DRILL_PYTHONPATH`` at ``templates/`` so ``common_utils``
-      resolves.
+    - **Scaffolded service**: ``common_utils/`` sits at the service root.
+    - **Template repo**: since ADR-030 relocated the tree,
+      ``common_utils/`` sits at ``templates/service/`` — the service root
+      here too. The two layouts converged, so no extra path is needed in
+      either and ``DRILL_PYTHONPATH`` stays unset.
     - **Template repo w/o rendered src**: skip — the drill cannot
       discover a service package with the raw ``{@ service_slug @}`` placeholder.
     """
@@ -94,13 +91,16 @@ def _service_root_and_extra_pythonpath(
     if not pkgs:
         pytest.skip("no rendered service package found under src/ — template layout")
 
-    # If common_utils is NOT a sibling of the service root, we must be
-    # in the template repo; the drill's bootstrap honours
-    # DRILL_PYTHONPATH for that case.
-    if not (candidate / "common_utils").is_dir():
-        templates_dir = here.parents[2]
-        if (templates_dir / "common_utils").is_dir():
-            monkeypatch.setenv("DRILL_PYTHONPATH", str(templates_dir))
+    # Before ADR-030 the template repo kept common_utils one level above the
+    # service root, and this hook pointed DRILL_PYTHONPATH at templates/ to
+    # bridge the gap. The migration moved common_utils to the service root in
+    # both layouts, so the branch became unreachable — `candidate/common_utils`
+    # is now always a directory. Removed rather than left as a dead fallback
+    # that would quietly stop protecting anything.
+    assert (candidate / "common_utils").is_dir(), (
+        f"common_utils/ is not at the service root ({candidate}); the layouts "
+        "diverged again and the drill bootstrap needs a DRILL_PYTHONPATH bridge."
+    )
     return candidate
 
 

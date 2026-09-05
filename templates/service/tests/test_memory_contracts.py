@@ -33,11 +33,13 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-# Phase 1 modules live under templates/common_utils/. Add the templates/
-# directory to sys.path so `import common_utils.memory_types` resolves
-# without requiring repo-wide pyproject.toml pythonpath configuration.
-_TEMPLATES_DIR = REPO_ROOT / "templates"
-if str(_TEMPLATES_DIR) not in sys.path:
+# common_utils sits at the service root — templates/service/ in this repo,
+# the repo root in a scaffolded service; parents[1] is that root in both.
+# Adding it to sys.path lets `import common_utils.memory_types` resolve
+# without repo-wide pyproject.toml pythonpath configuration. It pointed at
+# templates/ until ADR-030 moved the tree in June 2026.
+_TEMPLATES_DIR = Path(__file__).resolve().parents[1]
+if (_TEMPLATES_DIR / "common_utils" / "__init__.py").exists() and str(_TEMPLATES_DIR) not in sys.path:
     sys.path.insert(0, str(_TEMPLATES_DIR))
 
 from common_utils.memory_types import (  # noqa: E402  type: ignore[import-not-found]
@@ -255,9 +257,14 @@ def test_no_service_python_imports_memory_types() -> None:
     `common_utils.memory_types`. The plane is a companion, not a runtime
     dependency of /predict.
     """
-    service_root = REPO_ROOT / "templates" / "service"
-    if not service_root.exists():  # pragma: no cover — repo always has it
-        pytest.skip("templates/service/ not present")
+    # parents[1] is the service root in BOTH layouts: templates/service/ in
+    # the template repo, the repo root in a scaffolded service. This used to
+    # hard-code REPO_ROOT/"templates"/"service", which does not exist inside
+    # an adopter's service — so the invariant silently SKIPPED in exactly the
+    # environment it exists to protect.
+    service_root = Path(__file__).resolve().parents[1]
+    if not (service_root / "app").is_dir():  # pragma: no cover
+        pytest.skip(f"no service tree at {service_root}")
 
     pat = re.compile(
         r"\bfrom\s+common_utils\.memory_types\b|\bimport\s+common_utils\.memory_types\b"

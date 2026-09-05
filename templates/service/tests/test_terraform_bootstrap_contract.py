@@ -180,11 +180,11 @@ def test_bootstrap_gitignores_local_state(cloud: str) -> None:
 
 
 def test_terraform_readme_documents_bootstrap() -> None:
-    """templates/infra/terraform/README.md must explain the bootstrap-then-live flow."""
+    """infra/terraform/README.md must explain the bootstrap-then-live flow."""
     if TF_ROOT is None:
         pytest.skip("Terraform tree not found in this layout")
     readme = TF_ROOT / "README.md"
-    assert readme.is_file(), "templates/infra/terraform/README.md missing"
+    assert readme.is_file(), "infra/terraform/README.md missing"
 
     content = readme.read_text().lower()
     for required in ["bootstrap", "live", "chicken-and-egg", "backend-configs"]:

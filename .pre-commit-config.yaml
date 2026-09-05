@@ -284,7 +284,7 @@ repos:
         entry: python3 scripts/check_doc_path_refs.py
         language: system
         pass_filenames: false
-        files: \.(md|txt)$|^scripts/check_doc_path_refs\.py$|^\.doc-path-baseline\.yml$
+        files: \.(md|txt|py|ya?ml|sh)$|(^|/)Makefile$|^\.doc-path-baseline\.yml$
       - id: adr-index
         name: ADR index is current
         description: |

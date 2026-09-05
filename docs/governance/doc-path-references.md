@@ -7,8 +7,16 @@
 
 ## What this gate enforces
 
-Every repo-relative path named inside backticks in living documentation
-must resolve to a file or directory that exists.
+Every repo-relative path named inside backticks in living documentation —
+or inside a comment in a tracked `.py`, `.yml`, `.yaml`, `.sh` or `Makefile`
+— must resolve to a file or directory that exists.
+
+The code-comment half was added on 2026-09-04. The gate shipped scanning
+`.md`/`.txt` only, which left `.security-baselines/tfsec.yml` justifying
+three suppressed HIGH findings against a directory ADR-030 had deleted, and
+a set of test comments describing a layout that had not existed since June.
+Measured before widening: **15 unresolved paths across 309 code files** —
+small enough for a hard gate.
 
 ## Why this gate exists
 
@@ -90,9 +98,21 @@ that never leave the template repo resolve against the repo root only.
   ellipses are illustrative, not claims about the tree.
 - **Paths outside this repo's top-level directories.** A runbook naming
   `src/main.py` is describing the adopter's tree, not ours.
-- **Link targets in Markdown link syntax.** Only backticked code spans
-  are scanned. Extending to `[text](path)` is a natural follow-up and
-  would live in the same script.
+- **Link targets in Markdown link syntax.** In documents, only backticked
+  code spans are scanned. Extending to `[text](path)` is a natural
+  follow-up and would live in the same script; the `Link Check` job in
+  `docs-quality.yml` covers those today.
+- **String literals in code.** Only comments are scanned. A path built at
+  runtime is program logic, not a claim, and matching it would report
+  every `Path(...) / "templates"` expression.
+- **Glob and brace shapes.** `deploy-*.yml` and `deploy-{gcp,aws}.yml` are
+  legitimate shorthand. A negative lookahead drops them rather than
+  reporting the truncated prefix `.../deploy-` as dead — the false
+  positive that this widening produced on its first run.
+- **Stand-ins and files that must not exist.** Uppercase placeholders
+  (`ADR-XXX.md`) and any `*.local.*` path are excluded; the latter is
+  gitignored by contract, so a comment naming one is describing something
+  that is *supposed* to be absent.
 - **Paths written as plain prose.** This is a deliberate convention, not
   a hole: a code span asserts *this resolves today, from this document's
   perspective*. A document discussing a path that has been removed, or
@@ -132,10 +152,10 @@ stopped `f219895`.
 
 ## Operational cost
 
-593 tracked documents, one regex pass each, plus a filesystem `exists()`
-per candidate token. Tens of milliseconds on a CI runner, dominated by
-Python startup. The pre-commit hook fires only on `*.md` / `*.txt`
-changes and on edits to the script or baseline.
+595 documents plus 330 code files, one regex pass each, and a filesystem
+`exists()` per candidate token. Tens of milliseconds on a CI runner,
+dominated by Python startup. The pre-commit hook fires on `*.md`, `*.txt`,
+`*.py`, `*.yml`, `*.yaml`, `*.sh`, any `Makefile`, and the baseline.
 
 ## Revisit triggers
 

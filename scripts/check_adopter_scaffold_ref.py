@@ -65,6 +65,12 @@ HISTORICAL_DIRS = ("releases", "docs/audit")
 HISTORICAL_FILES = ("CHANGELOG.md", "VALIDATION_LOG.md", "MIGRATION.md")
 
 SCAN_EXTENSIONS = (".md", ".yml", ".yaml", ".sh")
+# Extensionless files that still hold executable instructions. A Makefile has
+# no suffix, so the extension filter below skipped it — and that is exactly
+# where `make scaffold-update` lived, unpinned, while this guard passed. The
+# comment above says coverage must not be a literal list; scoping by
+# extension was the same mistake wearing a different hat.
+SCAN_FILENAMES = ("Makefile", "makefile", "GNUmakefile", "Justfile", "justfile")
 
 SCAFFOLD_CMD = re.compile(r"copier\s+copy\s+(?P<args>[^\n]*?)https://github\.com/[^\s]+")
 # `copier update` is the DESTRUCTIVE path: unpinned it does not merely
@@ -122,7 +128,9 @@ def main() -> int:
     # the target release varies so a placeholder ref is legitimate.
     update_cmds_seen = 0
     for path in sorted(REPO_ROOT.rglob("*")):
-        if not path.is_file() or path.suffix not in SCAN_EXTENSIONS:
+        if not path.is_file():
+            continue
+        if path.suffix not in SCAN_EXTENSIONS and path.name not in SCAN_FILENAMES:
             continue
         rel = path.relative_to(REPO_ROOT).as_posix()
         if rel.startswith(".git/") or "__pycache__" in rel:
@@ -152,8 +160,12 @@ def main() -> int:
             if match and "--vcs-ref" not in match.group("args"):
                 problems.append(
                     f"{rel}:{lineno}: executable `copier update` without --vcs-ref. "
-                    f"Unpinned it DOWNGRADES the service to a frozen v1.x snapshot and "
-                    f"deletes .copier-answers.yml, removing the update path itself."
+                    f"Copier resolves an unpinned source to the highest-sorting tag, so the "
+                    f"service jumps to a release nobody chose — including across a major. "
+                    f"ADR-045 moved the frozen v1.x snapshots out of the version namespace, "
+                    f"which removed the catastrophic form of this (627 files -> 435, "
+                    f".copier-answers.yml deleted); the safety now rests entirely on that "
+                    f"namespace staying clean. Pin the ref instead of relying on it."
                 )
 
     if not update_cmds_seen:

@@ -10,6 +10,74 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — the service CLAUDE.md described the template repo, not the service
+
+- `templates/service/CLAUDE.md` ships into every scaffolded service and
+  still described the **pre-migration template repo**: a `templates/` tree
+  with `cicd/`, `monitoring/` and `common_utils/` that ADR-030 dissolved in
+  June, commands telling the adopter to scaffold a service from inside
+  their service, and a surface claim of "18 rules + 26 skills + 18
+  workflows" against a live 19/27/20.
+- Rewritten to the service's own layout and command set, with the
+  template-repo audit history replaced by an actionable **Upstream
+  template** section.
+- **C4 now reconciles both `CLAUDE.md` files.** The service copy was only
+  ever checked *inside* a generated service — by which point it had already
+  shipped wrong. `check_doc_coherence.py` reconciles each against the
+  agentic surface beside it.
+
+### Fixed — `make scaffold-update` ran `copier update` unpinned, defaulting to `main`
+
+- The service `Makefile` ran `copier update --trust --defaults` with no
+  `--vcs-ref`. `/scaffold-update` was pinned in #71; the Makefile target —
+  the other entry point to the same operation — was not.
+- Worse, the target reused `REF`, which the `ci-green` target defines as
+  `REF ?= main`. A bare `make scaffold-update` therefore updated the service
+  from the **moving development branch**, not a release.
+- Now uses `TEMPLATE_REF` with **no default**: the target refuses to run
+  unpinned (exit 2, without invoking copier).
+- **`check_adopter_scaffold_ref.py` could not see it.** Its scan was keyed
+  on `SCAN_EXTENSIONS`, and a `Makefile` has no extension — while its own
+  comment warned that "a guard whose coverage is a literal list is only ever
+  as complete as the moment someone last remembered to edit it". Scoping by
+  extension was the same mistake. Extensionless build files are now scanned.
+- The guard's failure message also described a catastrophe ADR-045 already
+  removed (the v1.x downgrade). Corrected: unpinned now means jumping to a
+  release nobody chose, with the catastrophic form prevented by the tag
+  namespace staying clean rather than by the command.
+
+### Fixed — four sys.path bridges and a contract test that self-disabled
+
+- Three bridges in `templates/service/tests/` probed directories where
+  `common_utils` has not lived since ADR-030 — dead safety nets that could
+  never fire, masked because the import resolves by another route in the
+  contexts CI exercises. All now use `parents[1]`, which is the service root
+  in **both** layouts.
+- `test_drills_reproducible.py` carried an unreachable `DRILL_PYTHONPATH`
+  fallback for a layout split that the migration closed; replaced by an
+  assertion that would notice if the layouts ever diverge again.
+- `test_memory_contracts.py` resolved the service root as
+  `REPO_ROOT/"templates"/"service"`, which does not exist inside an
+  adopter's service — so the invariant *"serving code must not import
+  `common_utils.memory_types`"* **silently skipped in exactly the
+  environment it protects**. Now context-adaptive, and verified to fail on
+  a planted violation.
+
+### Changed — the path gate now reads code comments
+
+- Scan extended from `.md`/`.txt` to tracked `.py`, `.yml`, `.yaml`, `.sh`
+  and `Makefile` comments. Measured before widening: 15 unresolved paths
+  across 309 code files — including `.security-baselines/tfsec.yml`
+  justifying three suppressed HIGH findings against a deleted directory.
+  All 15 resolved.
+- Three filters the first run demanded, each pinned by a test: glob and
+  brace shorthands (`deploy-*.yml`, `deploy-{gcp,aws}.yml`) no longer
+  report a truncated prefix; uppercase stand-ins (`ADR-XXX.md`) and
+  `*.local.*` paths are not claims; and punctuation stripping no longer
+  scrubs `templates/templates/...` into a clean-looking one.
+- String literals stay out of scope: a path built at runtime is program
+  logic, not a claim.
+
 ### Fixed — two baseline entries were misclassified, not unimplemented
 
 - **`scripts/smoke_test.py` was never missing.** The release-checklist

@@ -314,9 +314,21 @@ secret-breach-check: ## Scan for leaked secrets (gitleaks)
 	@echo "$(GREEN)Scanning for leaked secrets...$(NC)"
 	gitleaks detect --no-git --source=. --redact
 
-scaffold-update: ## Update this service from the template (copier update)
-	@echo "$(GREEN)Updating from template...$(NC)"
-	copier update --trust --defaults
+# TEMPLATE_REF is deliberately separate from REF (used by ci-green as a git
+# branch, defaulting to `main`) and deliberately has NO default. Reusing REF
+# here would inherit that `main` default and update the service from the
+# moving development branch instead of a release — a worse outcome than the
+# unpinned form this target used to have.
+scaffold-update: ## Update this service from the template. TEMPLATE_REF is required: make scaffold-update TEMPLATE_REF=v0.26.0
+	@if [ -z "$(TEMPLATE_REF)" ]; then \
+		echo "$(RED)TEMPLATE_REF is required.$(NC) Usage: make scaffold-update TEMPLATE_REF=<template release tag>"; \
+		echo "Copier resolves an unpinned source to the highest-sorting tag, so the"; \
+		echo "service would jump to a release nobody chose. Pin it."; \
+		echo "See agentic/workflows/scaffold-update.md for the full procedure."; \
+		exit 2; \
+	fi
+	@echo "$(GREEN)Updating from template at $(TEMPLATE_REF)...$(NC)"
+	copier update --vcs-ref=$(TEMPLATE_REF) --trust --defaults
 
 doc-coherence: ## Check cross-document coherence (version, CHANGELOG, ADRs, counts)
 	@echo "$(GREEN)Checking documentation coherence...$(NC)"

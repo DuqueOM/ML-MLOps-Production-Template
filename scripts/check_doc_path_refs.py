@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Contract: a repo-relative path named in living documentation must resolve.
+"""Contract: a repo-relative path named in living documentation — or in a
+code comment — must resolve.
 
 Why this script exists
 ----------------------
@@ -138,10 +139,37 @@ _NON_LITERAL = set(" <>{}*,()|$#\\:!?\"'")
 
 _BACKTICKED = re.compile(r"`([^`\n]+)`")
 
+# Code files carry the same claims in comments. The scan was `.md`/`.txt`
+# only at first, which left `.security-baselines/tfsec.yml` justifying three
+# HIGH suppressions against a directory ADR-030 had deleted, and a handful of
+# test comments describing a layout that no longer existed. Measured before
+# widening: 15 unresolved paths across 309 code files — small enough for a
+# hard gate, unlike a naive scan of every string literal.
+_CODE_SUFFIXES = (".py", ".yml", ".yaml", ".sh")
+_CODE_FILENAMES = ("Makefile", "makefile", "GNUmakefile")
+# A path-shaped token in a comment. Anchored on the comment marker so code
+# that legitimately builds a path at runtime is not mistaken for a claim.
+# The negative lookahead drops tokens that continue into a glob or brace set
+# (`deploy-*.yml`, `deploy-{gcp,aws}.yml`): the character class stops at the
+# metacharacter, and without the lookahead the truncated prefix
+# `.../workflows/deploy-` would be reported as a dead path.
+_COMMENT_PATH = re.compile(
+    r"(?:^|\s|\(|`)((?:templates|scripts|docs|agentic|examples|\.github)/[A-Za-z0-9_./-]+)(?![A-Za-z0-9_./-]*[{*?\[])"
+)
+
+# Placeholders that survive `_is_literal_path` because they contain no
+# rejected character: `ADR-XXX.md`, `v0.NN.0`. They are stand-ins, not claims.
+_UPPER_PLACEHOLDER = re.compile(r"(?:^|[-_/.])(?:XXX+|NNN?|YYYY|MM|DD)(?:[-_/.]|$)")
+
 
 def _tracked_docs() -> list[str]:
     out = subprocess.run(["git", "ls-files", "-z"], cwd=REPO_ROOT, capture_output=True, text=True, check=True).stdout
     return [p for p in out.split("\0") if p.endswith((".md", ".txt"))]
+
+
+def _tracked_code() -> list[str]:
+    out = subprocess.run(["git", "ls-files", "-z"], cwd=REPO_ROOT, capture_output=True, text=True, check=True).stdout
+    return [p for p in out.split("\0") if p and (p.endswith(_CODE_SUFFIXES) or Path(p).name in _CODE_FILENAMES)]
 
 
 def _is_frozen(path: str) -> bool:
@@ -155,7 +183,11 @@ def _is_dual(path: str) -> bool:
 def _is_literal_path(token: str) -> bool:
     if not token.startswith(REPO_PREFIXES):
         return False
-    if "..." in token:
+    if "..." in token or _UPPER_PLACEHOLDER.search(token):
+        return False
+    # `*.local.*` files are gitignored by contract — a comment naming one is
+    # describing something that must NOT exist, not claiming that it does.
+    if ".local." in token:
         return False
     return not (_NON_LITERAL & set(token))
 
@@ -182,6 +214,33 @@ def collect_unresolved() -> dict[str, set[str]]:
             if not _is_literal_path(token) or _resolves(token, dual):
                 continue
             found.setdefault(token, set()).add(doc)
+
+    for src in _tracked_code():
+        if _is_frozen(src):
+            continue
+        path = REPO_ROOT / src
+        if not path.is_file():  # Copier-token filenames are not on disk
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        dual = _is_dual(src)
+        for line in text.splitlines():
+            stripped = line.lstrip()
+            comment = None
+            if stripped.startswith(("#", "//")):
+                comment = stripped
+            elif " # " in line:
+                comment = line.split(" # ", 1)[1]
+            if comment is None:
+                continue
+            for match in _COMMENT_PATH.finditer(comment):
+                raw = match.group(1).strip()
+                token = raw if raw.endswith("...") else raw.rstrip(",.;:").rstrip("/")
+                if not _is_literal_path(token) or _resolves(token, dual):
+                    continue
+                found.setdefault(token, set()).add(src)
     return found
 
 
@@ -287,9 +346,9 @@ def main() -> int:
     if new or expired or obsolete:
         return 1
 
-    checked = len(_tracked_docs())
+    docs_n, code_n = len(_tracked_docs()), len(_tracked_code())
     print(
-        f"[doc-path-refs] OK — {checked} tracked documents scanned, "
+        f"[doc-path-refs] OK — {docs_n} documents + {code_n} code files scanned, "
         f"every repo path reference resolves ({len(baseline)} baselined, all in-date)."
     )
     return 0
