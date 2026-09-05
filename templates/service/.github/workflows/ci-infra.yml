@@ -39,11 +39,16 @@ jobs:
         run: terraform validate
         working-directory: infra/terraform/${{ matrix.cloud }}
 
-      - name: tfsec
-        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+      # ADR-046: tfsec is archived upstream; Trivy config is its successor.
+      # Same action the template repo uses for its own IaC gate.
+      - name: Trivy config (Terraform IaC)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          working_directory: infra/terraform/${{ matrix.cloud }}
-          format: json
+          scan-type: config
+          scan-ref: infra/terraform/${{ matrix.cloud }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          format: table
 
       - name: Checkov
         # Pinned to immutable tag (D-19, ADR-014 §1.1). Dependabot updates

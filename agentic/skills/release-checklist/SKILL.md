@@ -49,7 +49,7 @@ authorization_mode:
 
 ### Infrastructure
 - [ ] Terraform plan shows no unexpected changes
-- [ ] tfsec/checkov clean (no HIGH/CRITICAL findings)
+- [ ] trivy config/checkov clean (no HIGH/CRITICAL findings)
 - [ ] Secrets rotated if approaching expiry
 
 ### Documentation

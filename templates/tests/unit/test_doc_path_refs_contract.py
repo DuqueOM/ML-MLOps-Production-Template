@@ -207,15 +207,21 @@ def test_list_mode_never_fails() -> None:
 
 
 def test_code_files_are_scanned() -> None:
-    """A dead path in a YAML comment used to be invisible."""
-    victim = REPO_ROOT / ".security-baselines" / "tfsec.yml"
+    """A dead path in a YAML comment used to be invisible.
+
+    The victim is deliberately a long-lived config rather than a baseline
+    file: this test used to mutate `.security-baselines/tfsec.yml`, and
+    ADR-046 deleted it, so the test broke on a change that had nothing to do
+    with what it asserts.
+    """
+    victim = REPO_ROOT / ".pre-commit-config.yaml"
     original = victim.read_text(encoding="utf-8")
     try:
         victim.write_text(original + "\n# see templates/cicd/ci.yml for the pattern\n", encoding="utf-8")
         result = _run()
         assert result.returncode == 1
         assert "templates/cicd/ci.yml" in result.stderr
-        assert ".security-baselines/tfsec.yml" in result.stderr
+        assert ".pre-commit-config.yaml" in result.stderr
     finally:
         victim.write_text(original, encoding="utf-8")
 

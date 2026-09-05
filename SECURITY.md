@@ -63,7 +63,7 @@ If you discover a security vulnerability in this template, please report it priv
   - Companion policy `require-image-digest` — forbids tag-only refs in staging/prod
 
 **Infrastructure (D-10)**
-- tfsec + Checkov for Terraform misconfigurations
+- Trivy config + Checkov for Terraform misconfigurations (ADR-046)
 - Remote state (GCS / S3 + DynamoDB) enforced by rule `03-terraform.md`
 - `.gitignore` blocks `terraform.tfstate`, `.tfvars` with secrets
 

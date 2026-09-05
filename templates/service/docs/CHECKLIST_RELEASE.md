@@ -54,7 +54,7 @@ Use this checklist before every production release. Copy to an issue or PR descr
 - [ ] Terraform state is remote (GCS for GCP, S3+DynamoDB for AWS)
 - [ ] No secrets in tfvars or repository
 - [ ] `terraform plan` shows expected changes only
-- [ ] tfsec + Checkov pass
+- [ ] Trivy config + Checkov pass
 
 ## CI/CD
 

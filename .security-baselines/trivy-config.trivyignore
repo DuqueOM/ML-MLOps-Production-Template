@@ -1,0 +1,28 @@
+# Trivy config (Terraform IaC) baseline — ADR-046.
+#
+# Same contract as every other file in this directory: each accepted finding
+# is explicit, dated and reviewable, and `scripts/check_baselines_expiry.py`
+# fails CI once an entry is past its `# expiry:`.
+#
+# Why the expiry lives in a comment rather than trivy's own `expiredAt:`
+# field: trivy 0.71.0 accepts `expiredAt` in the YAML ignore format and does
+# NOT honour it. Measured on this repo — an entry dated 2020-01-01 still
+# suppressed its finding, in all three date formats tried, with no warning on
+# stderr. Delegating expiry to the tool would have produced exactly the
+# failure this directory exists to prevent: a suppression that outlives its
+# justification while the gate reports green.
+
+# GKE master authorized networks.
+#
+# `master_authorized_networks_config` IS configured, as a `dynamic` block at
+# templates/service/infra/terraform/gcp/compute.tf:38, gated on
+# `var.master_authorized_networks`. Static analysis does not evaluate dynamic
+# blocks, so the finding fires against the cluster resource at compute.tf:10
+# even though the HCL is correct. Staging and prod MUST supply a non-empty
+# `master_authorized_networks`, enforced by a variable validation rule in
+# variables.tf.
+#
+# tfsec reported the same false positive as google-gke-enable-master-networks;
+# it is the one suppression of three that did NOT dissolve in the migration.
+# expiry: 2027-01-01  reason: ADR-046 — dynamic block not evaluated by static analysis
+GCP-0061
