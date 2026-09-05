@@ -85,7 +85,7 @@ Adopt **two GitHub Rulesets** on the repository:
 |----|----|----|
 | `Tests & Coverage / Python 3.11` | `ci-examples.yml` | Coverage + behavior |
 | `Tests & Coverage / Python 3.12` | `ci-examples.yml` | Forward Python compat |
-| `Self-audit (gitleaks + tfsec + checkov + trivy fs)` | `validate-templates.yml` | Security scans + secret detection |
+| `Self-audit (secrets + IaC + supply chain)` | `validate-templates.yml` | Security scans + secret detection |
 | `Python Lint + Type Check` | `validate-templates.yml` | black / isort / flake8 / mypy / bandit |
 | `Agentic System Validation` | `validate-templates.yml` | Governance contract: rules, skills, workflows, AGENTS.md |
 | `Scaffolder End-to-End Test` | `validate-templates.yml` | The scaffolder still produces a working service (catches D-32-class regressions) |

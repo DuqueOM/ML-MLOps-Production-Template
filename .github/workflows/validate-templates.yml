@@ -17,14 +17,15 @@ jobs:
   # Apply the same tooling to the template repo itself — a template that
   # does not pass its own gates is not credible.
   #
-  # The job NAME still says "tfsec" and no longer should: it is one of the
-  # six required status checks in the ADR-026 ruleset, so renaming it in the
-  # same change that swapped the tool would block that very change (the
-  # required context would never report). Tracked as a separate three-step
-  # ruleset transition — see ADR-046 §Consequences.
+  # The name is deliberately tool-agnostic. It used to enumerate the tools
+  # ("gitleaks + tfsec + checkov + trivy fs"), which made it wrong the moment
+  # ADR-046 swapped one of them — and because it is a required status check,
+  # correcting it cost a three-step ruleset transition. Naming the CLASSES of
+  # check instead means the next tool swap touches no contract at all.
+  # See docs/governance/branch-protection.md §"Renaming a required check".
   # ---------------------------------------------------------------------
   self-audit:
-    name: Self-audit (gitleaks + tfsec + checkov + trivy fs)
+    name: Self-audit (secrets + IaC + supply chain)
     runs-on: ubuntu-latest
     permissions:
       contents: read

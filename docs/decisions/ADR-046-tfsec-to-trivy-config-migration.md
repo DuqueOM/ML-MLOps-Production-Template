@@ -108,12 +108,18 @@ by a second number, so misconfiguration ids (`GCP-0061`) matched nothing.
   static-analysis limit rather than a tool defect.
 - `docs/audit/baseline-review.md`'s 2027-01-01 review now has one entry
   instead of three, and it is the one that will still be true then.
-- The `Self-audit (gitleaks + tfsec + checkov + trivy fs)` job **keeps its
-  name** despite no longer running tfsec. That name is one of the six
-  required status checks in the ADR-026 ruleset; renaming it in the same
-  change would block the very PR making the change, because the required
-  context would never report. The rename is a deliberate three-step ruleset
-  transition and is tracked separately.
+- The `Self-audit (gitleaks + tfsec + checkov + trivy fs)` job **kept its
+  name** in this change despite no longer running tfsec. That name is one of
+  the six required status checks in the ADR-026 ruleset; renaming it in the
+  same change would have blocked the very PR making the change, because the
+  required context would never report.
+
+  **Resolved since**: the rename was carried out as the three-step ruleset
+  transition this ADR anticipated, and the job is now
+  `{NEW}` — named for the classes of check rather
+  than the tools, so the next tool swap touches no contract. The procedure is
+  written down in `docs/governance/branch-protection.md`
+  §"Renaming a required check".
 - MEDIUM and LOW findings are now visible but not enforced. Raising the
   threshold is a separate decision with its own triage cost.
 

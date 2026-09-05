@@ -119,7 +119,7 @@ read -r -d '' MAIN_RULESET_JSON <<'JSON' || true
         "required_status_checks": [
           { "context": "Tests & Coverage / Python 3.11" },
           { "context": "Tests & Coverage / Python 3.12" },
-          { "context": "Self-audit (gitleaks + tfsec + checkov + trivy fs)" },
+          { "context": "Self-audit (secrets + IaC + supply chain)" },
           { "context": "Python Lint + Type Check" },
           { "context": "Agentic System Validation" },
           { "context": "Scaffolder End-to-End Test" }
