@@ -151,7 +151,16 @@ jobs:
         with:
           scan-type: config
           scan-ref: templates/service/infra/terraform
-          severity: CRITICAL,HIGH
+          # Raised from CRITICAL,HIGH on 2026-09-05. At HIGH the five MEDIUM
+          # findings were visible in the log and enforced by nothing, which is
+          # the same as not looking: two of them were a GKE node pool running
+          # as the default Compute Engine service account (roles/editor
+          # project-wide) and a project-wide serviceAccountUser grant. Both
+          # were fixed rather than accepted; the two that remain are baselined
+          # with a dated justification. LOW stays out — 8 findings whose
+          # triage has not been done, and an unenforced threshold is honest
+          # about that in a way a suppressed one is not.
+          severity: CRITICAL,HIGH,MEDIUM
           exit-code: "1"
           trivyignores: .security-baselines/trivy-config.trivyignore
           format: table

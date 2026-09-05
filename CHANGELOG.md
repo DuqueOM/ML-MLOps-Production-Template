@@ -10,6 +10,59 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — GKE nodes ran as the default Compute Engine service account (D-31 in the module that defines D-31)
+
+- Neither node pool set `node_config.service_account`, so GKE fell back to
+  the **default Compute Engine service account** — typically `roles/editor`
+  across the whole project. Trivy reports it as `GCP-0050`; it is a D-31
+  violation inside the module that implements D-31's other five identities.
+- Bounded rather than harmless: Workload Identity means pods impersonate
+  `runtime`/`drift`/`retrain`, so this is what an attacker inherits from a
+  compromised **node**, not from a compromised pod.
+- A sixth identity, `nodes`, now carries Google's documented minimum —
+  `logging.logWriter`, `monitoring.metricWriter`, `monitoring.viewer`,
+  `stackdriver.resourceMetadata.writer` — plus `artifactregistry.reader`
+  scoped to the repository rather than granted project-wide.
+- `node_oauth_scopes` gained `devstorage.read_only`: a scope is an upper
+  bound on what a service account may do, so the Artifact Registry grant
+  would have been unusable without it and private pulls would fail.
+  `cloud-platform` stays avoided, per the variable's own description.
+- **Adopter-visible and disruptive**: `service_account` is replace-forcing,
+  so Terraform will propose recreating both node pools. `MIGRATION.md` says
+  to read the plan and check PodDisruptionBudgets first.
+
+### Fixed — CI could impersonate every service account in the project
+
+- `google_project_iam_member.ci_sa_user` granted `roles/iam.serviceAccountUser`
+  **project-wide**, under a comment reading *"Scoped via condition (only
+  acting on SAs in this project)"*. **There was no condition block.** CI could
+  therefore act as `runtime`, `drift` and `retrain` — exactly the blast radius
+  ADR-017 exists to bound. Trivy reports it as `GCP-0011`.
+- Replaced with three per-account bindings: `deploy`, `runtime` and `nodes`
+  (attaching a service account to a node pool requires `serviceAccountUser`
+  on it). `drift` and `retrain` are reached through Workload Identity, never
+  by CI, and are deliberately absent.
+
+### Changed — the IaC gate runs at MEDIUM
+
+- Raised from `CRITICAL,HIGH`. At HIGH the five MEDIUM findings were visible
+  in the log and enforced by nothing, which is the same as not looking — two
+  of them were the defects above.
+- The two that remain are object versioning on **append-only access-log
+  buckets**, accepted with a dated justification (2027-03-05) rather than
+  fixed: versioning guards against overwrite and modification of existing
+  objects, neither of which is a failure mode for a log sink, and it
+  multiplies cost on the highest-volume bucket. The buckets holding state,
+  models and MLflow artifacts do have versioning.
+- LOW stays out. Eight findings whose triage has not been done, and an
+  unenforced threshold is honest about that in a way a suppressed finding
+  is not.
+- **The scaffolded service stays at `CRITICAL,HIGH`** on purpose. The higher
+  bar is affordable here because this repo has `.security-baselines/` and an
+  expiry gate; a generated service has neither, and a MEDIUM gate with no way
+  to record an accepted finding trains adopters to delete the step.
+- ADR-046's count is corrected — it said 4 MEDIUM, there were 5.
+
 ### Fixed — the GKE control plane could be public with no allowlist, and the suppression cited a control that did not exist
 
 - `master_authorized_networks_config` was a `dynamic` block gated on the list

@@ -46,6 +46,14 @@ jobs:
         with:
           scan-type: config
           scan-ref: infra/terraform/${{ matrix.cloud }}
+          # Deliberately CRITICAL,HIGH while the template repo's own gate runs
+          # at MEDIUM. The higher bar there is affordable because that repo has
+          # `.security-baselines/` plus an expiry gate, so an accepted finding
+          # can be recorded, dated and reviewed. A generated service gets no
+          # such machinery, and a MEDIUM gate with no way to accept anything
+          # trains adopters to delete the step — which costs more than the two
+          # findings it would catch. Raise it once you have somewhere to write
+          # down what you accept and why.
           severity: CRITICAL,HIGH
           exit-code: "1"
           format: table

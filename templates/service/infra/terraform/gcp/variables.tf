@@ -144,6 +144,13 @@ variable "node_oauth_scopes" {
   default = [
     "https://www.googleapis.com/auth/logging.write",
     "https://www.googleapis.com/auth/monitoring",
+    # Image pulls from Artifact Registry authenticate as the node service
+    # account, and a scope is an upper bound on what that account may do. The
+    # node SA holds roles/artifactregistry.reader (scoped to this repository,
+    # see iam.tf); without a storage read scope that grant can never be
+    # exercised and private pulls fail. Still avoiding cloud-platform, per the
+    # description above — this is the narrow scope, not the blanket one.
+    "https://www.googleapis.com/auth/devstorage.read_only",
   ]
 }
 

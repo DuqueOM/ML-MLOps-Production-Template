@@ -136,6 +136,13 @@ resource "google_container_node_pool" "system" {
     disk_size_gb = 30
     disk_type    = "pd-standard"
 
+    # Dedicated node identity (D-31 / ADR-017). Without it GKE falls back to
+    # the DEFAULT Compute Engine service account, which in most projects
+    # carries roles/editor across the whole project — flagged as GCP-0050.
+    # Pods do not use this identity; they impersonate runtime/drift/retrain
+    # through Workload Identity. It covers node-level operations only.
+    service_account = google_service_account.nodes.email
+
     workload_metadata_config {
       mode = "GKE_METADATA"
     }
@@ -180,6 +187,13 @@ resource "google_container_node_pool" "workload" {
     machine_type = var.machine_type
     disk_size_gb = 50
     disk_type    = "pd-standard"
+
+    # Dedicated node identity (D-31 / ADR-017). Without it GKE falls back to
+    # the DEFAULT Compute Engine service account, which in most projects
+    # carries roles/editor across the whole project — flagged as GCP-0050.
+    # Pods do not use this identity; they impersonate runtime/drift/retrain
+    # through Workload Identity. It covers node-level operations only.
+    service_account = google_service_account.nodes.email
 
     workload_metadata_config {
       mode = "GKE_METADATA"

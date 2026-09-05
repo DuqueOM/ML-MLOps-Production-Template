@@ -1,20 +1,29 @@
 # Trivy config (Terraform IaC) baseline — ADR-046.
 #
-# Currently EMPTY, and that is the intended steady state: no accepted
-# misconfiguration findings. An empty baseline is valid — see
-# `scripts/check_baselines_expiry.py`, which treats a file with no entries as
-# nothing to expire.
+# Contract: explicit, dated and reviewable. Each entry carries
+# `# expiry: YYYY-MM-DD` on the line above it or inline, and CI fails once
+# past that date. Do NOT use trivy's own `expiredAt:` field — 0.71.0 accepts
+# it and does not honour it (measured; see ADR-046).
 #
-# It held one entry, GCP-0061 (GKE master authorized networks), inherited
-# from tfsec's google-gke-enable-master-networks. That suppression was
-# justified on the grounds that the HCL was correct and only the scanner
-# could not see it, because the block was `dynamic`. The justification also
-# claimed the invariant was "enforced by the variable validation rule in
-# variables.tf" — there was no such rule. The finding was pointing at a real
-# gap in the `enable_private_endpoint = false` path, and the module was fixed
-# rather than the finding re-suppressed.
+# The gate runs at --severity CRITICAL,HIGH,MEDIUM as of 2026-09-05. It was
+# HIGH-only, which made these two invisible rather than accepted.
+
+# Object versioning on the ACCESS LOG buckets, GCP and AWS.
 #
-# Contract for anything added here: explicit, dated and reviewable. Each
-# entry carries `# expiry: YYYY-MM-DD` on the line above it or inline, and
-# CI fails once past that date. Do NOT use trivy's own `expiredAt:` field —
-# 0.71.0 accepts it and does not honour it (measured; see ADR-046).
+# Both buckets hold access logs: append-only, write-once, never mutated in
+# place, and already bounded by a lifecycle rule. Versioning protects against
+# accidental overwrite and malicious modification of existing objects —
+# neither of which is a failure mode for an append-only log sink, and it
+# multiplies storage cost on the highest-volume bucket in the project.
+#
+# This is an ACCEPTED RISK, not a tool limitation: the check is correct in
+# general and does not apply to this object lifecycle. The buckets that hold
+# state, models and MLflow artifacts DO have versioning, and that is where the
+# control matters.
+#
+# Review question for the expiry: are these buckets still access-log-only?
+# If either starts holding anything mutable, the acceptance is void.
+# expiry: 2027-03-05  reason: ADR-046 — append-only access-log sinks, versioning not a control here
+GCP-0078
+# expiry: 2027-03-05  reason: ADR-046 — append-only access-log sinks, versioning not a control here
+AWS-0090
