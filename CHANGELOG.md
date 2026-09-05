@@ -10,6 +10,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Changed — the security check is named for what it does, not for its tools
+
+- `Self-audit (gitleaks + tfsec + checkov + trivy fs)` →
+  **`Self-audit (secrets + IaC + supply chain)`**. The old name enumerated
+  its tools, so ADR-046 falsified it the moment tfsec was swapped for Trivy —
+  and because the job is one of the six required status checks, correcting it
+  was not a one-line edit.
+- **A required check is identified by its job-name string.** Rename the job
+  and the ruleset waits for a context that will never report, so the PR
+  containing the rename blocks itself. ADR-046 therefore shipped with a name
+  it knew to be wrong, and said so.
+- Executed as a three-step transition: drop the context from the ruleset by
+  direct API call (transient, never committed), merge the rename with all
+  three canonical sources moving together — `docs/governance/branch-protection.md`,
+  ADR-026 and `scripts/setup_branch_protection.sh` — then re-apply the
+  ruleset from the committed payload. The procedure is now written down in
+  `docs/governance/branch-protection.md` §"Renaming a required check",
+  including the caveat that the check is unrequired in between and that
+  re-adding one while red blocks every subsequent PR.
+- The new name describes the **classes** of check rather than the tools, so
+  the next tool swap touches no contract at all. That is the actual fix; the
+  rename is just this instance of it.
+
 ### Changed — Terraform IaC scanning moves from archived tfsec to Trivy config (ADR-046)
 
 - **tfsec is archived upstream** and was pinned to its final release,
@@ -49,11 +72,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   scanner now accepts an annotation on the line above the entry, matching
   the YAML scanner — a justification that needs a paragraph could not fit
   inline.
-- The `Self-audit (gitleaks + tfsec + checkov + trivy fs)` job **keeps its
-  now-inaccurate name**: it is one of the six required status checks in the
-  ADR-026 ruleset, and renaming it in the same change would block that very
-  change, because the required context would never report. Recorded in the
-  workflow and in ADR-046 as a separate three-step ruleset transition.
+- The `Self-audit` job kept its now-inaccurate name in that change: it is one
+  of the six required status checks in the ADR-026 ruleset, and renaming it
+  there would have blocked that very change, because the required context
+  would never report. **Since carried out** — see the rename entry below.
 ### Changed — baseline entries that can be verified now are verified, not dated
 
 - The two `runtime-artifact` entries in `.doc-path-baseline.yml` carried a

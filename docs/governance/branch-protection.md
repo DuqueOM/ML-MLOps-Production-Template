@@ -57,7 +57,7 @@ the admin bypass actor is the break-glass path.
 |---|---|---|
 | `Tests & Coverage / Python 3.11` | `.github/workflows/ci-examples.yml` | ✅ |
 | `Tests & Coverage / Python 3.12` | `.github/workflows/ci-examples.yml` | ✅ |
-| `Self-audit (gitleaks + tfsec + checkov + trivy fs)` | `.github/workflows/validate-templates.yml` | ✅ |
+| `Self-audit (secrets + IaC + supply chain)` | `.github/workflows/validate-templates.yml` | ✅ |
 | `Python Lint + Type Check` | `.github/workflows/validate-templates.yml` | ✅ |
 | `Agentic System Validation` | `.github/workflows/validate-templates.yml` | ✅ |
 | `Scaffolder End-to-End Test` | `.github/workflows/validate-templates.yml` | ✅ |
@@ -127,6 +127,40 @@ GitHub.com → repo → Settings → Rules → Rulesets → New branch ruleset
 
 ---
 
+## Renaming a required check
+
+A required status check is identified by its **job name string**. Rename the
+job and the ruleset keeps waiting for a context that will never report, so
+the PR containing the rename can never go green — it blocks itself.
+
+This is not hypothetical: ADR-046 swapped tfsec for Trivy and had to leave
+the job named `Self-audit (gitleaks + tfsec + checkov + trivy fs)`, wrong on
+its face, because correcting it inside that PR would have deadlocked it.
+
+The transition is three steps, and the middle one is an ordinary PR:
+
+1. **Drop the context from the ruleset.** A direct API `PUT` against
+   `repos/:owner/:repo/rulesets/:id` with that one context removed. Do this
+   with no PRs open, and do **not** commit this state — it is transient, and
+   `scripts/setup_branch_protection.sh` stays the source of truth for the
+   final shape.
+2. **Merge the rename.** One PR renaming the job *and* updating all three
+   canonical sources together: this document, `ADR-026`, and the applier
+   script's payload. The other five checks still gate it.
+3. **Re-apply the ruleset** with `scripts/setup_branch_protection.sh`, which
+   now carries the new name. Verify with `--check` and by reading
+   `rules/branches/main` back.
+
+Between steps 1 and 3 that check is **not required**. Keep the window short,
+open no other PRs in it, and confirm the job is green on `main` before
+re-adding it — a required check re-added while red blocks every subsequent PR.
+
+**Prefer names that do not need this.** The name that caused the problem
+enumerated its tools, so any tool change falsified it. Naming the *classes*
+of check — `secrets + IaC + supply chain` — decouples the required-check
+contract from tool choice, which is why the rename went to that shape rather
+than to an updated tool list.
+
 ## Verification checklist
 
 After applying, confirm:
@@ -147,3 +181,4 @@ After applying, confirm:
 | 2026-05-15 | Initial ruleset (ADR-026) | `@DuqueOM` |
 | 2026-09-04 | Rulesets applied to the repository. The contract had been documented since 2026-05-15 but never deployed: `GET /rulesets` returned `0` and `GET /rules/branches/main` returned `0`, so `main` was unprotected the whole time. | `@DuqueOM` |
 | 2026-09-04 | Declared `required_reviewers`, `require_extra_approval_for_unattributed_changes` and `allowed_merge_methods` explicitly; previously left to GitHub defaults and therefore absent from this document. `allowed_merge_methods` narrowed to `[squash, rebase]` for coherence with `required_linear_history`. | `@DuqueOM` |
+| 2026-09-05 | Renamed the security check from `Self-audit (gitleaks + tfsec + checkov + trivy fs)` to `Self-audit (secrets + IaC + supply chain)` after ADR-046 made the tool list wrong. Executed as the three-step transition documented above. The new name is tool-agnostic so a future tool swap touches no contract. | `@DuqueOM` |
