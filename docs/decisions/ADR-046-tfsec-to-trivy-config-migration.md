@@ -58,6 +58,33 @@ modules. They do not block, and triaging them is separate work.
 
 **Two of three suppressions dissolve. Three become one.**
 
+### Amendment (2026-09-05): the third one dissolved too, and it was not a false positive
+
+The surviving suppression was carried on the grounds that the HCL is correct
+and only the scanner cannot see it. Re-reading its justification while
+closing this ADR out, one clause did not hold:
+
+> Environment overlays MUST supply non-empty `master_authorized_networks`
+> for staging/prod (enforced by the variable validation rule in
+> `variables.tf`).
+
+**There is no such validation rule**, and no overlay or tfvars file sets the
+variable anywhere. It defaults to `[]`, the `dynamic` block therefore never
+rendered, and GKE's default with no authorized-networks block is *no
+restriction*. Harmless while `enable_private_endpoint = true` — the default —
+and a publicly reachable control plane the moment an adopter takes the
+documented dev opt-out and sets it false.
+
+So `GCP-0061` was pointing at a real gap in that path, justified by a
+compensating control that had never been built. The module was fixed rather
+than the finding re-suppressed: the block is now unconditional (an empty list
+means "enabled, nothing allowed" instead of "not configured"), and a
+`precondition` on the cluster rejects the dangerous pairing at plan time.
+
+`.security-baselines/trivy-config.trivyignore` is now empty. **Three
+suppressions become zero**, and the 2027-01-01 review has nothing left to
+re-justify.
+
 ## Decision
 
 Replace tfsec with `trivy config` in the `Self-audit` job.

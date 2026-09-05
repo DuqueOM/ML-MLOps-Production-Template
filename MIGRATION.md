@@ -17,6 +17,17 @@ contract that prevents future versions from breaking adopters silently.
 
 ---
 
+## v0.26.0 → next (unreleased)
+
+| Change | Manual action required |
+|--------|------------------------|
+| **GKE `master_authorized_networks_config` is now always emitted** | Usually none. Previously the block was `dynamic` and rendered only when `master_authorized_networks` was non-empty; with the default empty list GKE received no authorized-networks configuration, which it reads as **no restriction**. The block is now unconditional, so an empty list means "enabled, no external CIDR allowed" — the restrictive reading. If your control plane is private (`enable_private_endpoint = true`, the default) this changes nothing you can observe. If it is public and you were relying on unrestricted access, `terraform plan` will now stop you — see the next row. |
+| **`enable_private_endpoint = false` now requires `master_authorized_networks`** | A `precondition` on `google_container_cluster.gke` fails at **plan** time if you expose the control plane publicly without listing the CIDRs allowed to reach it. If your plan starts failing with *"public control plane must be constrained"*, that is the intended behaviour and it is telling you the cluster was reachable from anywhere. Either revert to the private endpoint, or supply `master_authorized_networks` with your VPN/office/CI ranges. The old suppression's justification claimed this pairing was already "enforced by the variable validation rule in `variables.tf`"; no such rule existed (ADR-046 §Amendment). |
+| **tfsec replaced by `trivy config`** (ADR-046) | None for existing infrastructure — this is a scanner swap, not a resource change. Scaffolded services get `aquasecurity/trivy-action` in `ci-infra.yml` instead of `aquasecurity/tfsec-action`; tfsec is archived upstream. If you added your own entries to the old .security-baselines/tfsec.yml, port them to `.security-baselines/trivy-config.trivyignore` using Trivy check ids. **Do not use Trivy's `expiredAt:` field** — 0.71.0 accepts and ignores it; keep the `# expiry:` comment form the repo's own gate enforces. |
+| **`make scaffold-update` requires `TEMPLATE_REF`** | Run `make scaffold-update TEMPLATE_REF=<tag>`. A bare invocation now refuses to run instead of updating from whatever tag sorts highest — and it previously reused `REF`, which `ci-green` defaults to `main`, so it could pull the moving development branch. |
+
+---
+
 ## v0.25.0 → v0.26.0 (2026-08-08)
 
 | Change | Manual action required |

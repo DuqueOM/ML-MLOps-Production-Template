@@ -1,28 +1,20 @@
 # Trivy config (Terraform IaC) baseline — ADR-046.
 #
-# Same contract as every other file in this directory: each accepted finding
-# is explicit, dated and reviewable, and `scripts/check_baselines_expiry.py`
-# fails CI once an entry is past its `# expiry:`.
+# Currently EMPTY, and that is the intended steady state: no accepted
+# misconfiguration findings. An empty baseline is valid — see
+# `scripts/check_baselines_expiry.py`, which treats a file with no entries as
+# nothing to expire.
 #
-# Why the expiry lives in a comment rather than trivy's own `expiredAt:`
-# field: trivy 0.71.0 accepts `expiredAt` in the YAML ignore format and does
-# NOT honour it. Measured on this repo — an entry dated 2020-01-01 still
-# suppressed its finding, in all three date formats tried, with no warning on
-# stderr. Delegating expiry to the tool would have produced exactly the
-# failure this directory exists to prevent: a suppression that outlives its
-# justification while the gate reports green.
-
-# GKE master authorized networks.
+# It held one entry, GCP-0061 (GKE master authorized networks), inherited
+# from tfsec's google-gke-enable-master-networks. That suppression was
+# justified on the grounds that the HCL was correct and only the scanner
+# could not see it, because the block was `dynamic`. The justification also
+# claimed the invariant was "enforced by the variable validation rule in
+# variables.tf" — there was no such rule. The finding was pointing at a real
+# gap in the `enable_private_endpoint = false` path, and the module was fixed
+# rather than the finding re-suppressed.
 #
-# `master_authorized_networks_config` IS configured, as a `dynamic` block at
-# templates/service/infra/terraform/gcp/compute.tf:38, gated on
-# `var.master_authorized_networks`. Static analysis does not evaluate dynamic
-# blocks, so the finding fires against the cluster resource at compute.tf:10
-# even though the HCL is correct. Staging and prod MUST supply a non-empty
-# `master_authorized_networks`, enforced by a variable validation rule in
-# variables.tf.
-#
-# tfsec reported the same false positive as google-gke-enable-master-networks;
-# it is the one suppression of three that did NOT dissolve in the migration.
-# expiry: 2027-01-01  reason: ADR-046 — dynamic block not evaluated by static analysis
-GCP-0061
+# Contract for anything added here: explicit, dated and reviewable. Each
+# entry carries `# expiry: YYYY-MM-DD` on the line above it or inline, and
+# CI fails once past that date. Do NOT use trivy's own `expiredAt:` field —
+# 0.71.0 accepts it and does not honour it (measured; see ADR-046).

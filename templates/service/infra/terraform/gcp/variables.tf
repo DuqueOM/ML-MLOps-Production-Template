@@ -149,8 +149,17 @@ variable "node_oauth_scopes" {
 
 variable "master_authorized_networks" {
   description = <<-EOT
-    CIDR blocks allowed to reach the GKE control plane. Empty list = no
-    public access (only relevant when enable_private_endpoint=false).
+    CIDR blocks allowed to reach the GKE control plane.
+
+    The authorized-networks block is always emitted, so an empty list means
+    "enabled, no external CIDR allowed" — the restrictive reading. It used to
+    mean the block was omitted entirely, which GKE reads as no restriction at
+    all.
+
+    REQUIRED when enable_private_endpoint = false: a public control plane has
+    to be constrained. That pairing is enforced by a precondition on
+    google_container_cluster.gke and fails at plan time.
+
     Format: list of objects with cidr_block + display_name.
   EOT
   type = list(object({
