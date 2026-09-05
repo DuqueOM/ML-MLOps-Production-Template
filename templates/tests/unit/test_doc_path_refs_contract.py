@@ -149,17 +149,105 @@ def test_repository_currently_passes() -> None:
     assert "every repo path reference resolves" in result.stdout
 
 
-def test_baseline_entries_all_carry_a_reason_and_an_expiry() -> None:
+def test_baseline_parses_and_every_entry_declares_a_kind() -> None:
     entries, errors = mod._parse_baseline()
     assert not errors, errors
     assert entries, "baseline parsed as empty — the parser or the file shape changed"
+    for entry in entries.values():
+        assert entry.kind in ("unimplemented", "runtime-artifact")
+        assert entry.reason
 
 
-def test_expired_baseline_entry_fails() -> None:
-    """An entry past its expiry must block, not linger."""
-    result = _run("--as-of", "2099-01-01")
-    assert result.returncode == 1
-    assert "expired on" in result.stderr
+def test_runtime_artifact_entries_are_verified_not_dated() -> None:
+    """Their claim is checkable now, so they carry a creator, not a deadline."""
+    entries, _ = mod._parse_baseline()
+    runtime = [e for e in entries.values() if e.kind == "runtime-artifact"]
+    assert runtime, "expected at least one runtime-artifact entry to exercise"
+    for entry in runtime:
+        assert entry.expiry is None, "a runtime-artifact must not carry a date"
+        assert entry.created_by, "a runtime-artifact must name what creates it"
+        assert mod._verify_runtime_artifact(entry) is None
+
+
+def test_runtime_artifact_fails_when_its_creator_stops_naming_the_path() -> None:
+    """The whole point: the claim falsifies itself when it stops being true."""
+    entries, _ = mod._parse_baseline()
+    entry = next(e for e in entries.values() if e.kind == "runtime-artifact")
+    broken = mod.BaselineEntry(entry.path, entry.kind, entry.reason, None, "README.md")
+    assert "no longer references that path" in (mod._verify_runtime_artifact(broken) or "")
+
+    missing = mod.BaselineEntry(entry.path, entry.kind, entry.reason, None, "agentic/skills/nope/SKILL.md")
+    assert "does not exist" in (mod._verify_runtime_artifact(missing) or "")
+
+
+# --------------------------------------------------------------------------
+# Markdown link targets — resolved relative to the containing file
+# --------------------------------------------------------------------------
+
+
+def test_relative_link_target_is_resolved_against_its_own_directory() -> None:
+    """The exact bug introduced in #84 and caught by CI rather than by me."""
+    victim = REPO_ROOT / "templates" / "service" / "README.md"
+    original = victim.read_text(encoding="utf-8")
+    try:
+        victim.write_text(
+            original.replace(
+                "[docs/CCDS_MAPPING.md](docs/CCDS_MAPPING.md)",
+                "[docs/CCDS_MAPPING.md](templates/service/docs/CCDS_MAPPING.md)",
+            ),
+            encoding="utf-8",
+        )
+        result = _run()
+        assert result.returncode == 1
+        assert "templates/service/docs/CCDS_MAPPING.md" in result.stderr
+    finally:
+        victim.write_text(original, encoding="utf-8")
+
+
+def test_external_and_anchor_links_are_left_to_link_check() -> None:
+    victim = REPO_ROOT / "docs" / "ADOPTION.md"
+    original = victim.read_text(encoding="utf-8")
+    try:
+        victim.write_text(
+            original + "\n[ext](https://example.invalid/x) [anchor](#section) [root](/x)\n",
+            encoding="utf-8",
+        )
+        assert _run().returncode == 0
+    finally:
+        victim.write_text(original, encoding="utf-8")
+
+
+def test_link_shaped_text_inside_a_code_span_is_not_a_link() -> None:
+    """`[text](path)` in prose is documentation about links."""
+    assert _run().returncode == 0, "the governance doc contains that literal example"
+
+
+def test_expired_unimplemented_entry_fails() -> None:
+    """An `unimplemented` entry past its expiry must block, not linger.
+
+    The repo currently carries no `unimplemented` entries — every promise has
+    been either built or corrected — so the case is constructed here rather
+    than relying on one existing.
+    """
+    doc = REPO_ROOT / "docs" / "ADOPTION.md"
+    baseline = REPO_ROOT / ".doc-path-baseline.yml"
+    doc_original, baseline_original = doc.read_text(encoding="utf-8"), baseline.read_text(encoding="utf-8")
+    try:
+        doc.write_text(doc_original + "\nSee `scripts/never_written.py`.\n", encoding="utf-8")
+        baseline.write_text(
+            baseline_original
+            + "\n  - path: scripts/never_written.py\n"
+            + "    kind: unimplemented\n"
+            + "    expiry: 2020-01-01\n"
+            + "    reason: constructed by the contract test\n",
+            encoding="utf-8",
+        )
+        result = _run()
+        assert result.returncode == 1
+        assert "expired on 2020-01-01" in result.stderr
+    finally:
+        doc.write_text(doc_original, encoding="utf-8")
+        baseline.write_text(baseline_original, encoding="utf-8")
 
 
 def test_a_new_dead_path_fails(tmp_path: Path) -> None:
@@ -184,8 +272,9 @@ def test_a_baseline_entry_that_resolves_fails() -> None:
         baseline.write_text(
             original
             + "\n  - path: scripts/check_doc_path_refs.py\n"
-            + "    reason: deliberately bogus, this file exists\n"
-            + "    expiry: 2099-01-01\n",
+            + "    kind: unimplemented\n"
+            + "    expiry: 2099-01-01\n"
+            + "    reason: deliberately bogus, this file exists\n",
             encoding="utf-8",
         )
         result = _run()

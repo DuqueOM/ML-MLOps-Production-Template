@@ -54,6 +54,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   ADR-026 ruleset, and renaming it in the same change would block that very
   change, because the required context would never report. Recorded in the
   workflow and in ADR-046 as a separate three-step ruleset transition.
+### Changed — baseline entries that can be verified now are verified, not dated
+
+- The two `runtime-artifact` entries in `.doc-path-baseline.yml` carried a
+  one-year expiry. That was ceremony, and it was my own design mistake: the
+  condition never changes, so the date could only ever be bumped. **A date
+  that can only be postponed trains reviewers to postpone dates**, which
+  degrades the mechanism for the entries where the deadline is the point.
+- Entries now declare an explicit `kind:`, and the two kinds are verified
+  differently because they are not the same claim:
+  - `unimplemented` claims *"we intend to build this"* → `expiry:`, because a
+    deadline is the only honest check on an intention.
+  - `runtime-artifact` claims *"this resolves at runtime, and X creates it"*
+    → `created-by:`, because that is **checkable now**. The gate asserts the
+    named creator exists and still references the path.
+- So if the skill that writes `docs/concept_drift_log.md` is deleted, or
+  simply stops mentioning it, the entry **falsifies itself on the next run**
+  instead of sitting valid until 2027. A `runtime-artifact` carrying an
+  `expiry:` is rejected outright so the two mechanisms cannot be mixed.
+- The classification also moves out of the `reason:` prose, where it was a
+  string prefix nothing enforced.
+
+### Added — the path gate checks internal Markdown link targets
+
+- A link target resolves **relative to the file that contains it**, not the
+  repo root. That distinction produced the only broken link this repo had:
+  `templates/service/README.md` pointing at
+  `templates/service/docs/CCDS_MAPPING.md`, which from inside that directory
+  means a doubled path. It was introduced in #84 and caught by CI, which is
+  the argument for checking it locally.
+- The `Link Check` job is a real gate but has a shape worth stating: it
+  triggers only on `pull_request` with `paths: **/*.md`, and on a PR passes
+  `check-modified-files-only: yes`. **A link breaks when its target moves,
+  not when the linking file changes** — so that case is invisible at PR time
+  and surfaces up to seven days later in the Monday scan, on `main`, as a red
+  scheduled run that blocks nobody. Long enough for someone to suppress it
+  instead of fixing it, which is precisely what happened to `../SECURITY.md`
+  until #86.
+- The split is by what each check *needs*: internal links are deterministic,
+  need no network and run in pre-commit; external URLs, `mailto:` and
+  site-root `/` targets stay with Link Check, off the merge critical path.
+- Code spans are stripped before link matching — `[text](path)` inside
+  backticks is documentation *about* links. Typographic `…` now counts as an
+  ellipsis alongside `...`.
+- Measured before enabling: **one** broken relative link across the repo, and
+  it was that false positive in the gate's own governance doc.
 
 ### Fixed — the service CLAUDE.md described the template repo, not the service
 

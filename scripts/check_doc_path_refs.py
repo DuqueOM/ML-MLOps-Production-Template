@@ -53,27 +53,40 @@ What is NOT checked
   rewriting them would falsify the record.
 - Non-literal tokens: anything carrying a placeholder (``<id>``,
   ``{service_slug}``), a glob, a brace set, shell arguments, a ``file:line``
-  suffix, a URL fragment, or an ellipsis. Those are illustrative, not
+  suffix, a URL fragment, or an ellipsis (``...`` or ``…``). Those are illustrative, not
   claims about the tree.
 - Paths outside the repo's own top-level directories. A reference to
   ``src/main.py`` inside a runbook describes the adopter's tree, not ours.
 
 Baseline
 --------
-``.doc-path-baseline.yml`` carries the references that were already
-broken when this gate landed, each with a reason and an ``expiry``, in the
-same shape as ``.security-baselines/`` (see
-``scripts/check_baselines_expiry.py``). An expired entry fails the gate,
-which forces a real decision rather than indefinite tolerance. New dead
-paths are never baselined: they fail on the PR that introduces them,
-which is the failure mode that would have caught ``f219895``.
+``.doc-path-baseline.yml`` carries the references that do not resolve but
+are not defects. Every entry declares a ``kind:``, and the two kinds are
+verified differently because they are not the same claim.
+
+``unimplemented`` — the documentation promises something never built. The
+claim is "we intend to fix this", and the only honest check is a deadline,
+so these carry an ``expiry:`` and fail once past it.
+
+``runtime-artifact`` — the file really is created while a generated service
+runs. The claim is "this resolves at runtime, and X is what creates it",
+which is **checkable now**, so these carry a ``created-by:`` instead of a
+date. The gate asserts the named creator still exists and still references
+the path. A date here would have been ceremony: the condition never
+changes, so an expiry could only ever be bumped, which trains reviewers to
+bump dates without reading them — and that degrades the mechanism for the
+entries where the deadline is the whole point.
+
+New dead paths are never baselined: they fail on the PR that introduces
+them, which is the failure mode that would have caught ``f219895``.
 
 Exit codes
 ----------
-- 0: every reference resolves, or is baselined and in-date.
-- 1: at least one unresolved reference is not baselined, or a baseline
-     entry has expired, or a baseline entry is now obsolete.
-- 2: setup error (unreadable baseline).
+- 0: every reference resolves, or is baselined and still justified.
+- 1: an unresolved reference is not baselined; an ``unimplemented`` entry
+     has expired; a ``runtime-artifact`` entry's creator is gone or no
+     longer names the path; or any entry now resolves.
+- 2: setup error (unreadable or malformed baseline).
 
 Usage
 -----
@@ -139,6 +152,20 @@ _NON_LITERAL = set(" <>{}*,()|$#\\:!?\"'")
 
 _BACKTICKED = re.compile(r"`([^`\n]+)`")
 
+# Markdown link targets. Unlike a code span, a link target is resolved
+# RELATIVE TO THE FILE THAT CONTAINS IT — the distinction that produced the
+# only broken link this repo had (`templates/service/README.md` pointing at
+# `templates/service/docs/CCDS_MAPPING.md`, which from inside that directory
+# means `templates/service/templates/service/docs/...`).
+#
+# The `Link Check` job also validates these, but only on files changed by the
+# PR, and only when the PR touches a `.md` at all. A link breaks when its
+# TARGET moves, not when the linking file changes — so that case is invisible
+# at PR time and surfaces up to a week later in the Monday scan, on main.
+# External URLs stay with Link Check, where network latency is tolerable
+# because it does not gate a merge.
+_MD_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+
 # Code files carry the same claims in comments. The scan was `.md`/`.txt`
 # only at first, which left `.security-baselines/tfsec.yml` justifying three
 # HIGH suppressions against a directory ADR-030 had deleted, and a handful of
@@ -183,7 +210,7 @@ def _is_dual(path: str) -> bool:
 def _is_literal_path(token: str) -> bool:
     if not token.startswith(REPO_PREFIXES):
         return False
-    if "..." in token or _UPPER_PLACEHOLDER.search(token):
+    if "..." in token or "\u2026" in token or _UPPER_PLACEHOLDER.search(token):
         return False
     # `*.local.*` files are gitignored by contract — a comment naming one is
     # describing something that must NOT exist, not claiming that it does.
@@ -208,6 +235,19 @@ def collect_unresolved() -> dict[str, set[str]]:
             text = (REPO_ROOT / doc).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
+        # A code span may contain link-shaped text as an example
+        # (`[text](path)`), which is documentation about links, not a link.
+        text_outside_code = _BACKTICKED.sub(" ", text)
+        for match in _MD_LINK.finditer(text_outside_code):
+            target = match.group(1).split("#", 1)[0]
+            if not target or target.startswith(("http", "mailto:", "/")):
+                continue  # external, or site-root — Link Check's territory
+            if any(c in target for c in "<>{}*"):
+                continue  # placeholder, not a claim
+            if (REPO_ROOT / doc).parent.joinpath(target).exists():
+                continue
+            found.setdefault(f"{doc} -> {target}", set()).add(doc)
+
         dual = _is_dual(doc)
         for match in _BACKTICKED.finditer(text):
             token = match.group(1).strip().rstrip(",.;").rstrip("/")
@@ -244,37 +284,81 @@ def collect_unresolved() -> dict[str, set[str]]:
     return found
 
 
-def _parse_baseline() -> tuple[dict[str, _dt.date], list[str]]:
+class BaselineEntry:
+    """One tolerated non-resolving reference, and how its claim is verified."""
+
+    __slots__ = ("path", "kind", "reason", "expiry", "created_by")
+
+    def __init__(
+        self,
+        path: str,
+        kind: str,
+        reason: str,
+        expiry: _dt.date | None,
+        created_by: str | None,
+    ) -> None:
+        self.path = path
+        self.kind = kind
+        self.reason = reason
+        self.expiry = expiry
+        self.created_by = created_by
+
+
+def _parse_baseline() -> tuple[dict[str, BaselineEntry], list[str]]:
     """Parse ``.doc-path-baseline.yml`` without a yaml dependency.
 
-    Entry shape (one per stanza)::
+    Entry shapes::
 
         - path: docs/concept_drift_log.md
-          reason: created at runtime by `make performance-review`
-          expiry: 2027-03-01
+          kind: runtime-artifact
+          created-by: agentic/skills/concept-drift-analysis/SKILL.md
+          reason: appended by that skill inside a generated service
+
+        - path: scripts/something.py
+          kind: unimplemented
+          expiry: 2026-12-01
+          reason: the release-checklist workflow instructs running it
     """
     if not BASELINE_FILE.exists():
         return {}, []
-    entries: dict[str, _dt.date] = {}
+    entries: dict[str, BaselineEntry] = {}
     errors: list[str] = []
-    path: str | None = None
-    expiry: str | None = None
-    reason: str | None = None
+    field: dict[str, str] = {}
 
     def flush() -> None:
-        nonlocal path, expiry, reason
-        if path is None:
+        if not field.get("path"):
+            field.clear()
             return
-        if not expiry:
-            errors.append(f"baseline entry '{path}' has no expiry:")
+        path, kind = field["path"], field.get("kind", "")
+        reason, expiry, created_by = field.get("reason"), field.get("expiry"), field.get("created-by")
+
+        if kind not in ("unimplemented", "runtime-artifact"):
+            errors.append(f"baseline entry '{path}': kind must be unimplemented or runtime-artifact, got '{kind}'")
         elif not reason:
             errors.append(f"baseline entry '{path}' has no reason:")
-        else:
-            try:
-                entries[path] = _dt.date.fromisoformat(expiry)
-            except ValueError:
-                errors.append(f"baseline entry '{path}' has malformed expiry '{expiry}'")
-        path = expiry = reason = None
+        elif kind == "unimplemented":
+            if not expiry:
+                errors.append(f"baseline entry '{path}' is unimplemented and has no expiry:")
+            else:
+                try:
+                    entries[path] = BaselineEntry(path, kind, reason, _dt.date.fromisoformat(expiry), None)
+                except ValueError:
+                    errors.append(f"baseline entry '{path}' has malformed expiry '{expiry}'")
+        else:  # runtime-artifact
+            if not created_by:
+                errors.append(
+                    f"baseline entry '{path}' is a runtime-artifact and has no created-by: — "
+                    "the claim that something creates it at runtime has to name what does, "
+                    "or it cannot be verified"
+                )
+            elif expiry:
+                errors.append(
+                    f"baseline entry '{path}' is a runtime-artifact and carries an expiry: — "
+                    "its claim is verified against created-by, not against a date"
+                )
+            else:
+                entries[path] = BaselineEntry(path, kind, reason, None, created_by)
+        field.clear()
 
     for raw in BASELINE_FILE.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
@@ -282,13 +366,32 @@ def _parse_baseline() -> tuple[dict[str, _dt.date], list[str]]:
             continue
         if line.startswith("- path:"):
             flush()
-            path = line.split(":", 1)[1].strip()
-        elif line.startswith("expiry:"):
-            expiry = line.split(":", 1)[1].strip()
-        elif line.startswith("reason:"):
-            reason = line.split(":", 1)[1].strip()
+            field["path"] = line.split(":", 1)[1].strip()
+        elif ":" in line and not line.startswith("-"):
+            key, value = line.split(":", 1)
+            if key in ("kind", "reason", "expiry", "created-by"):
+                field[key] = value.strip()
     flush()
     return entries, errors
+
+
+def _verify_runtime_artifact(entry: BaselineEntry) -> str | None:
+    """A runtime-artifact claim names its creator; check the claim still holds."""
+    assert entry.created_by is not None
+    creator = REPO_ROOT / entry.created_by
+    if not creator.is_file():
+        return f"baseline entry '{entry.path}' names created-by '{entry.created_by}', which does not exist"
+    try:
+        text = creator.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return f"baseline entry '{entry.path}': created-by '{entry.created_by}' is unreadable"
+    if entry.path not in text:
+        return (
+            f"baseline entry '{entry.path}': its declared creator "
+            f"'{entry.created_by}' no longer references that path, so nothing "
+            "is producing it at runtime any more"
+        )
+    return None
 
 
 def main() -> int:
@@ -312,8 +415,15 @@ def main() -> int:
         return 2
 
     new = {t: d for t, d in unresolved.items() if t not in baseline}
-    expired = sorted(t for t in unresolved if t in baseline and baseline[t] < as_of)
+    expired = sorted(t for t, e in baseline.items() if t in unresolved and e.expiry is not None and e.expiry < as_of)
     obsolete = sorted(t for t in baseline if t not in unresolved)
+    unverified = [
+        msg
+        for t, e in sorted(baseline.items())
+        if t in unresolved and e.kind == "runtime-artifact"
+        for msg in [_verify_runtime_artifact(e)]
+        if msg is not None
+    ]
 
     if new:
         sys.stderr.write(
@@ -333,23 +443,27 @@ def main() -> int:
         )
 
     for token in expired:
+        expiry = baseline[token].expiry
+        assert expiry is not None
         sys.stderr.write(
-            f"::error::baseline entry '{token}' expired on {baseline[token].isoformat()} "
+            f"::error::baseline entry '{token}' expired on {expiry.isoformat()} "
             "— fix the reference or re-justify with a new expiry\n"
         )
+    for message in unverified:
+        sys.stderr.write(f"::error::{message}\n")
     for token in obsolete:
         sys.stderr.write(
             f"::error::baseline entry '{token}' now resolves — remove it from "
             ".doc-path-baseline.yml so the baseline stays honest\n"
         )
 
-    if new or expired or obsolete:
+    if new or expired or obsolete or unverified:
         return 1
 
     docs_n, code_n = len(_tracked_docs()), len(_tracked_code())
     print(
         f"[doc-path-refs] OK — {docs_n} documents + {code_n} code files scanned, "
-        f"every repo path reference resolves ({len(baseline)} baselined, all in-date)."
+        f"every repo path reference resolves ({len(baseline)} baselined, all justified)."
     )
     return 0
 

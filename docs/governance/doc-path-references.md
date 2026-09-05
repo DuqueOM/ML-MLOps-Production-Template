@@ -99,10 +99,10 @@ that never leave the template repo resolve against the repo root only.
   ellipses are illustrative, not claims about the tree.
 - **Paths outside this repo's top-level directories.** A runbook naming
   `src/main.py` is describing the adopter's tree, not ours.
-- **Link targets in Markdown link syntax.** In documents, only backticked
-  code spans are scanned. Extending to `[text](path)` is a natural
-  follow-up and would live in the same script; the `Link Check` job in
-  `docs-quality.yml` covers those today.
+- **External URLs and site-root links.** `http(s)://`, `mailto:` and
+  targets beginning with `/` stay with the `Link Check` job, where network
+  latency and third-party flakiness are tolerable because that job does not
+  gate a merge. Internal relative links *are* checked here — see below.
 - **String literals in code.** Only comments are scanned. A path built at
   runtime is program logic, not a claim, and matching it would report
   every `Path(...) / "templates"` expression.
@@ -123,29 +123,70 @@ that never leave the template repo resolve against the repo root only.
   for the baseline instead: the baseline is for references that are
   still making a live claim.
 
+## Markdown link targets, and why they are checked here
+
+A link target resolves **relative to the file that contains it**, not to the
+repo root. That distinction produced the only broken link this repo had:
+`templates/service/README.md` pointing at
+`templates/service/docs/CCDS_MAPPING.md`, which from inside that directory
+means the doubled templates/service/templates/service/docs/… path. I
+introduced it in #84
+by rewriting path text without accounting for link relativity, and CI caught
+it — which is the argument for checking it locally instead.
+
+The `Link Check` job in `docs-quality.yml` also validates these, and it is a
+real gate. But its coverage has a shape worth stating:
+
+- it triggers only on `pull_request` with `paths: **/*.md`, so a PR that
+  moves or deletes a file without touching a `.md` never runs it;
+- on a PR it passes `check-modified-files-only: yes`, so it sees only
+  changed files.
+
+**A link breaks when its target moves, not when the linking file changes.**
+That case is invisible at PR time and surfaces up to seven days later in the
+Monday 06:00 UTC scan, on `main`, as a red scheduled run that blocks nobody.
+That is long enough for someone to suppress it instead of fixing it — which
+is exactly what happened to `../SECURITY.md`, silenced by a dedicated
+`ignorePatterns` entry until #86.
+
+So the split is by *what the check needs*, not by syntax: internal links are
+deterministic, need no network, and run in pre-commit; external URLs need the
+network and stay off the critical path.
+
+Code spans are stripped before link matching, because a code span containing
+link-shaped text (`[text](path)`) is documentation *about* links.
+
 ## Baseline contract
 
-`.doc-path-baseline.yml` carries the references that were already broken
-when the gate landed. The format mirrors `.security-baselines/` (see
-`scripts/check_baselines_expiry.py`): every entry is **explicit, dated
-and reviewable**, with a `reason` and an `expiry`.
+`.doc-path-baseline.yml` carries the references that do not resolve but are
+not defects. Every entry declares a `kind:`, and **the two kinds are verified
+differently because they are not the same claim.**
 
-Three failure modes are enforced:
+| Kind | The claim | How it is checked |
+|---|---|---|
+| `unimplemented` | "we intend to build this" | `expiry:` — a deadline is the only honest check on an intention |
+| `runtime-artifact` | "this resolves at runtime, and X creates it" | `created-by:` — the gate asserts that file exists and still names the path |
+
+The second is a deliberate correction. These entries originally carried a
+one-year expiry, and that was ceremony: the condition never changes, so the
+date could only ever be bumped. A date that can only be postponed trains
+reviewers to postpone dates, which degrades the mechanism for the entries
+where the deadline *is* the point. Replacing it with `created-by:` turns a
+dated assertion into one that is falsified automatically the moment it stops
+being true — if the skill that writes `docs/concept_drift_log.md` is deleted
+or stops mentioning it, the entry fails on the next run.
+
+A `runtime-artifact` carrying an `expiry:` is rejected outright, so the two
+mechanisms cannot be quietly mixed.
+
+Four failure modes are enforced:
 
 | Condition | Result |
 |---|---|
 | A path is unresolved and not baselined | fail — the new-defect case |
-| A baselined entry is past its `expiry` | fail — forces a fix or a fresh justification |
+| An `unimplemented` entry is past its `expiry` | fail — forces a fix or a fresh justification |
+| A `runtime-artifact`'s creator is gone, or no longer names the path | fail — the claim is no longer true |
 | A baselined entry now resolves | fail — the baseline may not outlive its reason |
-
-Entries carry one of two classifications, which are not equivalent:
-
-- **`runtime-artifact`** — the file really is created while a generated
-  service runs. The reference is correct; the file simply is not tracked.
-  Long expiry.
-- **`unimplemented`** — the documentation promises something never built.
-  These are defects with a doc-shaped symptom: an agent following the
-  workflow reaches for a file that is not there. Short expiry on purpose.
 
 New dead paths are **never** baselined. They fail on the PR that
 introduces them, which is precisely the failure mode that would have

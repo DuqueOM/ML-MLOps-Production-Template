@@ -1,37 +1,39 @@
 # Documentation path-reference baseline
 # =============================================================================
 # Enforced by `scripts/check_doc_path_refs.py`, wired into
-# `.github/workflows/validate-templates.yml`.
+# `.github/workflows/validate-templates.yml` and pre-commit.
 #
-# Every entry here is a repo path named in living documentation that does not
-# resolve. The gate tolerates exactly these and fails on any new one, so the
-# list can only shrink without a deliberate decision.
+# Every entry here is a repo path named in living documentation or in a code
+# comment that does not resolve. The gate tolerates exactly these and fails on
+# any new one, so the list can only shrink without a deliberate decision.
 #
-# Contract, mirroring `.security-baselines/` (see
-# `scripts/check_baselines_expiry.py`): every entry is explicit, dated and
-# reviewable. Past its `expiry` the gate fails, which forces either a real fix
-# or a fresh justification. An entry whose path starts resolving also fails,
-# so the baseline cannot silently outlive its reason.
+# Two kinds, verified differently, because they are not the same claim:
 #
-# Two kinds of entry live here and they are NOT equivalent:
+#   unimplemented    — the documentation promises something never built. The
+#     claim is "we intend to fix this", and the only honest check is a
+#     deadline. Requires `expiry:`; fails once past it.
 #
-#   runtime-artifact — the file is genuinely created while a generated service
-#     runs. The reference is correct; the file simply is not tracked in git.
+#   runtime-artifact — the file really is created while a generated service
+#     runs. The claim is "this resolves at runtime, and X creates it", which
+#     is checkable NOW. Requires `created-by:` naming that file; the gate
+#     asserts it still exists and still references the path. Carrying a date
+#     here is rejected: the condition never changes, so an expiry could only
+#     ever be bumped, and a date that can only be postponed trains reviewers
+#     to postpone dates — degrading the mechanism for the entries where the
+#     deadline is the whole point.
 #
-#   unimplemented — the documentation promises something that was never built.
-#     These are defects with a doc-shaped symptom: an agent following the
-#     workflow will reach for a file that is not there. They carry short
-#     expiries on purpose.
+# The gate fails on: a new unresolved path, an expired `unimplemented` entry,
+# a `runtime-artifact` whose creator is gone or no longer names the path, and
+# any entry that starts resolving (a baseline may not outlive its reason).
 # =============================================================================
 
 entries:
-  # --- runtime-artifact -----------------------------------------------------
   - path: docs/concept_drift_log.md
-    reason: runtime-artifact — appended by the concept-drift-analysis skill inside a generated service; not tracked here
-    expiry: 2027-09-04
+    kind: runtime-artifact
+    created-by: agentic/skills/concept-drift-analysis/SKILL.md
+    reason: appended by the concept-drift-analysis skill inside a generated service; not tracked here
 
   - path: docs/performance_review_log.md
-    reason: runtime-artifact — appended by the performance-review workflow inside a generated service; not tracked here
-    expiry: 2027-09-04
-
-  # --- unimplemented --------------------------------------------------------
+    kind: runtime-artifact
+    created-by: agentic/workflows/performance-review.md
+    reason: appended by the performance-review workflow inside a generated service; not tracked here
