@@ -92,18 +92,60 @@ finding, silently. `scripts/check_baselines_expiry.py` remains the expiry
 authority, and it now discovers baseline files instead of naming three of
 them literally, so a future format swap cannot leave a file unwatched.
 
+## Review — 2026-09-05 (second entry, same day): the last suppression is gone
+
+Closing ADR-046 out meant re-reading the one surviving justification, and a
+clause in it did not hold:
+
+> Environment overlays MUST supply non-empty `master_authorized_networks`
+> for staging/prod (enforced by the variable validation rule in
+> `variables.tf`).
+
+There was no such rule, and nothing sets the variable anywhere — it defaults
+to `[]`. The `dynamic` block therefore never rendered, and GKE with no
+authorized-networks block applies *no restriction*. Safe while
+`enable_private_endpoint = true` (the default); a public control plane with
+no allowlist as soon as an adopter takes the documented dev opt-out.
+
+`GCP-0061` was not a false positive. It was pointing at a real gap, held open
+by a compensating control that had never been built.
+
+**Fixed in the module rather than re-suppressed:**
+
+- the authorized-networks block is now unconditional, so an empty list means
+  "enabled, no external CIDR allowed" instead of "not configured";
+- a `precondition` on `google_container_cluster.gke` rejects
+  `enable_private_endpoint = false` together with an empty list, at plan
+  time. Verified across all three combinations, including that the safe ones
+  still pass.
+
+**Suppressions in force: zero.**
+`.security-baselines/trivy-config.trivyignore` is empty, which is the
+intended steady state.
+
+### What this says about the review itself
+
+The 2026-09-04 review recorded all three as "tool limitations, not accepted
+risks" and I wrote that in good faith from the justifications on file. Two of
+the three were. The third's justification asserted an enforcement that did
+not exist, and no review had checked it — because reviewing a suppression had
+meant reading its rationale, not verifying it.
+
+Step 3 of the procedure below now says to confirm the compensating control
+exists **in the file the justification names**. That step is what would have
+caught this, and it is why it is written the way it is.
+
 ## Next review
 
-**Due 2027-01-01**, when the single remaining suppression (`GCP-0061`)
-expires and CI fails until it is re-justified or removed.
+**No suppression is due.** Both baseline files are empty of accepted
+findings, so `check_baselines_expiry.py` has nothing to expire and the
+2027-01-01 date no longer exists.
 
-It will almost certainly still be true: no static analyser evaluates
-Terraform `dynamic` blocks, so the finding is structural rather than a gap
-in one tool. The way to actually close it is to stop needing the dynamic
-block — for example by making `master_authorized_networks` a required
-variable with a non-empty default for staging and prod, so the block can be
-static. That is a module design decision, not a scanner decision, and it is
-the question the 2027-01-01 review should answer.
+The next review is therefore calendar-driven rather than deadline-driven:
+**due 2026-12-05**, one quarter out, to confirm the state is still zero. A
+review with nothing to renew is the point of the exercise, not a reason to
+skip it — the failure mode this document exists to prevent is a suppression
+nobody remembers making.
 
 ## How to run a review
 

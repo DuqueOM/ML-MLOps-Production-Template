@@ -10,6 +10,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+### Fixed — the GKE control plane could be public with no allowlist, and the suppression cited a control that did not exist
+
+- `master_authorized_networks_config` was a `dynamic` block gated on the list
+  being non-empty. The variable defaults to `[]` and **nothing in the repo
+  sets it** — no overlay, no tfvars — so the block never rendered, and GKE
+  with no authorized-networks block applies **no restriction**.
+- Harmless while `enable_private_endpoint = true`, which is the default. A
+  **publicly reachable control plane with no allowlist** the moment an
+  adopter takes the documented dev opt-out and sets it false.
+- `GCP-0061` — and `google-gke-enable-master-networks` before it — had been
+  suppressed for two releases as a scanner limitation, on a justification
+  that read: *"enforced by the variable validation rule in `variables.tf`"*.
+  **There is no such rule.** The finding was not a false positive; it was
+  pointing at a real gap held open by a compensating control that was never
+  built.
+- **Fixed in the module, not re-suppressed:**
+  - the block is now unconditional, so an empty list means *"enabled, no
+    external CIDR allowed"* — the restrictive reading — rather than *"not
+    configured"*;
+  - a `precondition` on `google_container_cluster.gke` rejects
+    `enable_private_endpoint = false` together with an empty list, at **plan**
+    time. It lives on the resource rather than in a `validation` block
+    because the condition spans two variables, which variable validation
+    could not do before Terraform 1.9 and this module targets `>= 1.7`.
+  - Verified across all three combinations: private endpoint passes, public
+    with CIDRs passes, public without CIDRs fails.
+- `.security-baselines/trivy-config.trivyignore` is now **empty**.
+  Suppressions across the whole repo: **zero**, and the 2027-01-01 expiry no
+  longer exists. `docs/audit/baseline-review.md` carries the third dated
+  review, including what the review procedure itself missed: reviewing a
+  suppression had meant reading its rationale, not verifying it. Step 3 now
+  says to confirm the compensating control exists in the file the
+  justification names.
+- Adopter-visible; both rows are in `MIGRATION.md`. A plan that starts
+  failing with *"public control plane must be constrained"* is the fix
+  working.
+
 ### Changed — the security check is named for what it does, not for its tools
 
 - `Self-audit (gitleaks + tfsec + checkov + trivy fs)` →
